@@ -1,0 +1,551 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		F48445CD2FEAF09B00654272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F48445B72FEAF09A00654272 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F48445BE2FEAF09A00654272;
+			remoteInfo = "claude spinner";
+		};
+		F48445D72FEAF09B00654272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F48445B72FEAF09A00654272 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F48445BE2FEAF09A00654272;
+			remoteInfo = "claude spinner";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		F48445BF2FEAF09A00654272 /* claude spinner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "claude spinner.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F48445CC2FEAF09B00654272 /* claude spinnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "claude spinnerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F48445D62FEAF09B00654272 /* claude spinnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "claude spinnerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F48445C12FEAF09A00654272 /* claude spinner */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "claude spinner";
+			sourceTree = "<group>";
+		};
+		F48445CF2FEAF09B00654272 /* claude spinnerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "claude spinnerTests";
+			sourceTree = "<group>";
+		};
+		F48445D92FEAF09B00654272 /* claude spinnerUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "claude spinnerUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F48445BC2FEAF09A00654272 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		F48445C92FEAF09B00654272 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		F48445D32FEAF09B00654272 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F48445B62FEAF09A00654272 = {
+			isa = PBXGroup;
+			children = (
+				F48445C12FEAF09A00654272 /* claude spinner */,
+				F48445CF2FEAF09B00654272 /* claude spinnerTests */,
+				F48445D92FEAF09B00654272 /* claude spinnerUITests */,
+				F48445C02FEAF09A00654272 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F48445C02FEAF09A00654272 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F48445BF2FEAF09A00654272 /* claude spinner.app */,
+				F48445CC2FEAF09B00654272 /* claude spinnerTests.xctest */,
+				F48445D62FEAF09B00654272 /* claude spinnerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F48445BE2FEAF09A00654272 /* claude spinner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F48445DE2FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinner" */;
+			buildPhases = (
+				F48445BB2FEAF09A00654272 /* Sources */,
+				F48445BC2FEAF09A00654272 /* Frameworks */,
+				F48445BD2FEAF09A00654272 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				F48445C12FEAF09A00654272 /* claude spinner */,
+			);
+			name = "claude spinner";
+			productName = "claude spinner";
+			productReference = F48445BF2FEAF09A00654272 /* claude spinner.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F48445CB2FEAF09B00654272 /* claude spinnerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F48445E12FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinnerTests" */;
+			buildPhases = (
+				F48445C82FEAF09B00654272 /* Sources */,
+				F48445C92FEAF09B00654272 /* Frameworks */,
+				F48445CA2FEAF09B00654272 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F48445CE2FEAF09B00654272 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F48445CF2FEAF09B00654272 /* claude spinnerTests */,
+			);
+			name = "claude spinnerTests";
+			productName = "claude spinnerTests";
+			productReference = F48445CC2FEAF09B00654272 /* claude spinnerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F48445D52FEAF09B00654272 /* claude spinnerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F48445E42FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinnerUITests" */;
+			buildPhases = (
+				F48445D22FEAF09B00654272 /* Sources */,
+				F48445D32FEAF09B00654272 /* Frameworks */,
+				F48445D42FEAF09B00654272 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F48445D82FEAF09B00654272 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F48445D92FEAF09B00654272 /* claude spinnerUITests */,
+			);
+			name = "claude spinnerUITests";
+			productName = "claude spinnerUITests";
+			productReference = F48445D62FEAF09B00654272 /* claude spinnerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F48445B72FEAF09A00654272 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					F48445BE2FEAF09A00654272 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					F48445CB2FEAF09B00654272 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = F48445BE2FEAF09A00654272;
+					};
+					F48445D52FEAF09B00654272 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = F48445BE2FEAF09A00654272;
+					};
+				};
+			};
+			buildConfigurationList = F48445BA2FEAF09A00654272 /* Build configuration list for PBXProject "claude spinner" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = F48445B62FEAF09A00654272;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F48445C02FEAF09A00654272 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F48445BE2FEAF09A00654272 /* claude spinner */,
+				F48445CB2FEAF09B00654272 /* claude spinnerTests */,
+				F48445D52FEAF09B00654272 /* claude spinnerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F48445BD2FEAF09A00654272 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		F48445CA2FEAF09B00654272 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		F48445D42FEAF09B00654272 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F48445BB2FEAF09A00654272 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		F48445C82FEAF09B00654272 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		F48445D22FEAF09B00654272 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F48445CE2FEAF09B00654272 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F48445BE2FEAF09A00654272 /* claude spinner */;
+			targetProxy = F48445CD2FEAF09B00654272 /* PBXContainerItemProxy */;
+		};
+		F48445D82FEAF09B00654272 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F48445BE2FEAF09A00654272 /* claude spinner */;
+			targetProxy = F48445D72FEAF09B00654272 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		F48445DC2FEAF09B00654272 /* Debug configuration for PBXProject "claude spinner" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F48445DD2FEAF09B00654272 /* Release configuration for PBXProject "claude spinner" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		F48445DF2FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinner" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinner";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F48445E02FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinner" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinner";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F48445E22FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinnerTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinnerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/claude spinner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/claude spinner";
+			};
+			name = Debug;
+		};
+		F48445E32FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinnerTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinnerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/claude spinner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/claude spinner";
+			};
+			name = Release;
+		};
+		F48445E52FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinnerUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinnerUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "claude spinner";
+			};
+			name = Debug;
+		};
+		F48445E62FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinnerUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 877MLS29T9;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "decenad.claude-spinnerUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "claude spinner";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F48445BA2FEAF09A00654272 /* Build configuration list for PBXProject "claude spinner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F48445DC2FEAF09B00654272 /* Debug configuration for PBXProject "claude spinner" */,
+				F48445DD2FEAF09B00654272 /* Release configuration for PBXProject "claude spinner" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		F48445DE2FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F48445DF2FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinner" */,
+				F48445E02FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinner" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		F48445E12FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinnerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F48445E22FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinnerTests" */,
+				F48445E32FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinnerTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		F48445E42FEAF09B00654272 /* Build configuration list for PBXNativeTarget "claude spinnerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F48445E52FEAF09B00654272 /* Debug configuration for PBXNativeTarget "claude spinnerUITests" */,
+				F48445E62FEAF09B00654272 /* Release configuration for PBXNativeTarget "claude spinnerUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F48445B72FEAF09A00654272 /* Project object */;
+	validationLevel = 1;
+}

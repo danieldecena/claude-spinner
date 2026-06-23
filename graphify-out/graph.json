@@ -1,0 +1,762 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "ContentView.swift",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_spinner_contentview",
+      "community": 1,
+      "norm_label": "contentview.swift"
+    },
+    {
+      "label": "SwiftUI",
+      "file_type": "code",
+      "type": "module",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "swiftui",
+      "community": 1,
+      "norm_label": "swiftui"
+    },
+    {
+      "label": "SwiftData",
+      "file_type": "code",
+      "type": "module",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "swiftdata",
+      "community": 1,
+      "norm_label": "swiftdata"
+    },
+    {
+      "label": "ContentView",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "claude_spinner_contentview_contentview",
+      "community": 3,
+      "norm_label": "contentview"
+    },
+    {
+      "label": "View",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "view",
+      "community": 1,
+      "norm_label": "view"
+    },
+    {
+      "label": "Item",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "item",
+      "community": 3,
+      "norm_label": "item"
+    },
+    {
+      "label": ".addItem()",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L45",
+      "_origin": "ast",
+      "id": "claude_spinner_contentview_contentview_additem",
+      "community": 3,
+      "norm_label": ".additem()"
+    },
+    {
+      "label": ".deleteItems()",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "claude_spinner_contentview_contentview_deleteitems",
+      "community": 3,
+      "norm_label": ".deleteitems()"
+    },
+    {
+      "label": "IndexSet",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "indexset",
+      "community": 3,
+      "norm_label": "indexset"
+    },
+    {
+      "label": "NavigationViewWrapper",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "claude_spinner_contentview_navigationviewwrapper",
+      "community": 1,
+      "norm_label": "navigationviewwrapper"
+    },
+    {
+      "label": "Content",
+      "file_type": "code",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "content",
+      "community": 1,
+      "norm_label": "content"
+    },
+    {
+      "label": "Item.swift",
+      "file_type": "code",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_spinner_item",
+      "community": 4,
+      "norm_label": "item.swift"
+    },
+    {
+      "label": "Foundation",
+      "file_type": "code",
+      "type": "module",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "foundation",
+      "community": 4,
+      "norm_label": "foundation"
+    },
+    {
+      "label": "Item",
+      "file_type": "code",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "claude_spinner_item_item",
+      "community": 4,
+      "norm_label": "item"
+    },
+    {
+      "label": "Date",
+      "file_type": "code",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "date",
+      "community": 4,
+      "norm_label": "date"
+    },
+    {
+      "label": ".init()",
+      "file_type": "code",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "claude_spinner_item_item_init",
+      "community": 4,
+      "norm_label": ".init()"
+    },
+    {
+      "label": "claude_spinnerApp.swift",
+      "file_type": "code",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_spinner_claude_spinnerapp",
+      "community": 1,
+      "norm_label": "claude_spinnerapp.swift"
+    },
+    {
+      "label": "claude_spinnerApp",
+      "file_type": "code",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "claude_spinner_claude_spinnerapp_claude_spinnerapp",
+      "community": 5,
+      "norm_label": "claude_spinnerapp"
+    },
+    {
+      "label": "App",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app",
+      "community": 5,
+      "norm_label": "app"
+    },
+    {
+      "label": "ModelContainer",
+      "file_type": "code",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "modelcontainer",
+      "community": 5,
+      "norm_label": "modelcontainer"
+    },
+    {
+      "label": "Scene",
+      "file_type": "code",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "scene",
+      "community": 5,
+      "norm_label": "scene"
+    },
+    {
+      "label": "claude_spinnerTests.swift",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests",
+      "community": 0,
+      "norm_label": "claude_spinnertests.swift"
+    },
+    {
+      "label": "XCTest",
+      "file_type": "code",
+      "type": "module",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "xctest",
+      "community": 0,
+      "norm_label": "xctest"
+    },
+    {
+      "label": "claude_spinnerTests",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "community": 2,
+      "norm_label": "claude_spinnertests"
+    },
+    {
+      "label": "XCTestCase",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "xctestcase",
+      "community": 2,
+      "norm_label": "xctestcase"
+    },
+    {
+      "label": ".setUpWithError()",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests_claude_spinnertests_setupwitherror",
+      "community": 2,
+      "norm_label": ".setupwitherror()"
+    },
+    {
+      "label": ".tearDownWithError()",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests_claude_spinnertests_teardownwitherror",
+      "community": 2,
+      "norm_label": ".teardownwitherror()"
+    },
+    {
+      "label": ".testExample()",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests_claude_spinnertests_testexample",
+      "community": 2,
+      "norm_label": ".testexample()"
+    },
+    {
+      "label": ".testPerformanceExample()",
+      "file_type": "code",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "claude_spinnertests_claude_spinnertests_claude_spinnertests_testperformanceexample",
+      "community": 2,
+      "norm_label": ".testperformanceexample()"
+    },
+    {
+      "label": "claude_spinnerUITests.swift",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests",
+      "community": 0,
+      "norm_label": "claude_spinneruitests.swift"
+    },
+    {
+      "label": "claude_spinnerUITests",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "community": 0,
+      "norm_label": "claude_spinneruitests"
+    },
+    {
+      "label": ".setUpWithError()",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_setupwitherror",
+      "community": 0,
+      "norm_label": ".setupwitherror()"
+    },
+    {
+      "label": ".tearDownWithError()",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_teardownwitherror",
+      "community": 0,
+      "norm_label": ".teardownwitherror()"
+    },
+    {
+      "label": ".testExample()",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_testexample",
+      "community": 0,
+      "norm_label": ".testexample()"
+    },
+    {
+      "label": ".testLaunchPerformance()",
+      "file_type": "code",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_testlaunchperformance",
+      "community": 0,
+      "norm_label": ".testlaunchperformance()"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview",
+      "target": "claude_spinner_contentview_contentview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview",
+      "target": "claude_spinner_contentview_navigationviewwrapper",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview",
+      "target": "swiftdata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview",
+      "target": "swiftui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "claude_spinner_claude_spinnerapp",
+      "target": "swiftui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "claude_spinner_claude_spinnerapp",
+      "target": "swiftdata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "claude_spinner_item",
+      "target": "swiftdata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview_contentview",
+      "target": "claude_spinner_contentview_contentview_additem",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview_contentview",
+      "target": "claude_spinner_contentview_contentview_deleteitems",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_contentview_contentview",
+      "target": "item",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L15",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_contentview_contentview",
+      "target": "view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L64",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_contentview_navigationviewwrapper",
+      "target": "view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "claude_spinner_contentview_contentview_additem",
+      "target": "item",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L52",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "source": "claude_spinner_contentview_contentview_deleteitems",
+      "target": "indexset",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/ContentView.swift",
+      "source_location": "L62",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_contentview_navigationviewwrapper",
+      "target": "content",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "claude_spinner_item",
+      "target": "claude_spinner_item_item",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "claude_spinner_item",
+      "target": "foundation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "claude_spinner_item_item",
+      "target": "claude_spinner_item_item_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_item_item",
+      "target": "date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/Item.swift",
+      "source_location": "L15",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "source": "claude_spinner_item_item_init",
+      "target": "date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "claude_spinner_claude_spinnerapp",
+      "target": "claude_spinner_claude_spinnerapp_claude_spinnerapp",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "claude_spinner_claude_spinnerapp_claude_spinnerapp",
+      "target": "app",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "claude_spinner_claude_spinnerapp_claude_spinnerapp",
+      "target": "modelcontainer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinner/claude_spinnerApp.swift",
+      "source_location": "L26",
+      "weight": 1.0,
+      "context": "field",
+      "source": "claude_spinner_claude_spinnerapp_claude_spinnerapp",
+      "target": "scene",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests",
+      "target": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests",
+      "target": "xctest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests",
+      "target": "xctest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "target": "claude_spinnertests_claude_spinnertests_claude_spinnertests_setupwitherror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "target": "claude_spinnertests_claude_spinnertests_claude_spinnertests_teardownwitherror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "target": "claude_spinnertests_claude_spinnertests_claude_spinnertests_testexample",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "target": "claude_spinnertests_claude_spinnertests_claude_spinnertests_testperformanceexample",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerTests/claude_spinnerTests.swift",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "claude_spinnertests_claude_spinnertests_claude_spinnertests",
+      "target": "xctestcase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "target": "xctestcase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests",
+      "target": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "target": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_setupwitherror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "target": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_teardownwitherror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "target": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_testexample",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "claude spinnerUITests/claude_spinnerUITests.swift",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests",
+      "target": "claude_spinneruitests_claude_spinneruitests_claude_spinneruitests_testlaunchperformance",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": []
+}
