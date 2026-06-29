@@ -6,3 +6,15 @@ DerivedData/
 .wolf/backups/
 graphify-out/raw/
 buildServer.json
+
+# OpenWolf per-session runtime state
+.wolf/hooks/_session.json
+.wolf/memory.md
+.wolf/config.json
+.wolf/cron-state.json
+.wolf/cron-manifest.json
+.wolf/token-ledger.json
+.wolf/suggestions.json
+.wolf/designqc-report.json
+.wolf/designqc-captures/
+.wolf/identity.md
