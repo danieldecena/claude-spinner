@@ -1,4 +1,89 @@
 {
   "version": 1,
-  "bugs": []
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-06-23T21:05:16.216Z",
+      "error_message": "Incorrect value in code",
+      "file": "../.claude/plans/can-you-review-this-fizzy-sutherland.md",
+      "root_cause": "Had `MenuContentView`",
+      "fix": "Changed to `LoginItem`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-23T21:05:16.216Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-07-09T23:38:27.378Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 11→15 lines (8 removed) | Also: let script = \"\"\"; tell application \"Ghostty\"",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-09T23:38:27.379Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-07-09T23:38:30.617Z",
+      "error_message": "Wrong reference: 320 should be Constants",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Used \"320\" instead of \"Constants\"",
+      "fix": "Changed 320 → Constants",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T23:38:30.617Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-07-09T00:00:00.000Z",
+      "error_message": "Clicking a session row opened Ghostty at the wrong (default) directory, never the session's project",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "openTerminal(at:) ignored its path arg and only ran AppleScript to `activate` Ghostty",
+      "fix": "Rewrote to run `open -na Ghostty.app --args --working-directory=<cwd>` (fallback Terminal), guarding empty/nonexistent paths",
+      "tags": ["swift", "menubar", "click-to-open", "ghostty"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T00:00:00.000Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-07-09T00:00:00.000Z",
+      "error_message": "spinnerfeed dir grew without bound; <id>.status.txt files never cleaned",
+      "file": "claude spinner/FeedWatcher.swift, ~/.claude/spinnerfeed/emit.sh",
+      "root_cause": "emit.sh SessionEnd globbed only .json (rm .*.json), leaving .status.txt; app pruned in-memory only, never on disk",
+      "fix": "emit.sh SessionEnd now rm .* ; FeedWatcher.performRescan() deletes files for any id past the 12h cutoff or with no live session",
+      "tags": ["leak", "cleanup", "shell", "swift"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T00:00:00.000Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-07-09T00:00:00.000Z",
+      "error_message": "Session status could vanish for a frame; rescan blocked main thread",
+      "file": "claude spinner/FeedWatcher.swift, ~/.claude/statusline-command.sh",
+      "root_cause": "statusline wrote status.json non-atomically (printf > file) so a concurrent rescan read torn files; rescan did synchronous disk I/O + JSON parse on the main thread on every fs event and every 2s",
+      "fix": "statusline now writes temp+mv atomically; rescan moved to a background ioQueue with ~100ms debounce, publishing results on main",
+      "tags": ["atomicity", "torn-read", "performance", "main-thread", "shell", "swift"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T00:00:00.000Z"
+    }
+  ]
 }

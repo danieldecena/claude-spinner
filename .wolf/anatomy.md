@@ -1,7 +1,23 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-23T16:44:03.026Z
-> Files: 16 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T23:39:34.821Z
+> Files: 22 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../.claude/
+
+- `statusline-command.sh` — Claude Code status line — danieldecena (~1689 tok)
+
+## ../../.claude/plans/
+
+- `can-you-review-this-zippy-frost.md` — Improve claude-spinner — full cleanup pass (~1655 tok)
+
+## ../../.claude/spinnerfeed/
+
+- `emit.sh` — Menubar feed emitter — called by Claude Code lifecycle hooks. (~685 tok)
+
+## ../.claude/plans/
+
+- `can-you-review-this-fizzy-sutherland.md` — Review — claude-spinner (~1103 tok)
 
 ## ./
 
@@ -34,9 +50,10 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~194 tok)
-- `ContentView.swift` — ContentView.swift (~519 tok)
-- `Item.swift` — Item.swift (~66 tok)
+- `claude_spinnerApp.swift` — @main App, MenuBarLabel, Spinner frames, Color/Font extensions (~795 tok)
+- `FeedWatcher.swift` — Constants, SpinnerWords, Codable StateFile/StatusFile, SessionFeed, FeedWatcher (background ioQueue rescan + disk prune) (~4786 tok)
+- `MenuContentView.swift` — dropdown panel + SessionRow; click opens Ghostty at session cwd (~2329 tok)
+  (ContentView.swift, Item.swift, LoginItem.swift removed — no longer in project)
 
 ## claude spinner/Assets.xcassets/
 

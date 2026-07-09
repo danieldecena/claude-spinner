@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MenuContentView: View {
-    let feed: FeedWatcher
+    @ObservedObject var feed: FeedWatcher
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,17 +22,58 @@ struct MenuContentView: View {
                 TimelineView(.periodic(from: .now, by: 0.1)) { context in
                     VStack(spacing: 0) {
                         ForEach(feed.sortedSessions) { session in
-                            SessionRow(session: session, now: context.date)
+                            SessionRow(feed: feed, session: session, now: context.date)
                             if session.id != feed.sortedSessions.last?.id {
                                 Divider().padding(.leading, 14)
                             }
+                        }
+                        
+                        if let usage = feed.globalRateLimitText {
+                            Divider().padding(.top, 4)
+                            HStack(spacing: 8) {
+                                Text(feed.menuBarActive ? Spinner.frame(at: context.date) : "✻")
+                                    .font(.claudeMono(14))
+                                    .foregroundStyle(feed.menuBarActive ? Color.claude : Color.claudeDim)
+                                
+                                if feed.menuBarActive {
+                                    if let model = feed.globalModel {
+                                        Text(model)
+                                            .font(.claudeMono(11))
+                                            .foregroundStyle(Color.claudeDim)
+                                    }
+                                } else if !feed.menuBarBody.isEmpty {
+                                    Text(feed.menuBarBody)
+                                        .font(.claudeMono(11))
+                                        .foregroundStyle(Color.claudeDim)
+                                }
+                                
+                                Spacer()
+                                
+                                Menu {
+                                    Toggle("Launch at Login", isOn: $feed.launchAtLogin)
+                                    Button("Clear All Sessions") { feed.clearAll() }
+                                    Button("Quit") { NSApplication.shared.terminate(nil) }
+                                } label: {
+                                    Image(systemName: "gearshape.fill")
+                                }
+                                .menuStyle(.borderlessButton)
+                                .frame(width: 16)
+                                .padding(.trailing, 6)
+                                
+                                Text(usage)
+                                    .font(.claudeMono(11))
+                                    .foregroundStyle(Color.claudeDim)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.top, 6)
+                            .padding(.bottom, 6)
                         }
                     }
                 }
                 .padding(.vertical, 6)
             }
         }
-        .frame(width: 320)
+        .frame(width: Constants.panelWidth)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
         .background(
             Button("") { NSApplication.shared.terminate(nil) }
@@ -43,8 +84,10 @@ struct MenuContentView: View {
 }
 
 struct SessionRow: View {
+    @ObservedObject var feed: FeedWatcher
     let session: SessionFeed
     let now: Date
+    @StateObject private var hover = HoverState()
 
     var body: some View {
         HStack(spacing: 11) {
@@ -54,20 +97,67 @@ struct SessionRow: View {
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.displayPath)
-                    .font(.claudeMono(13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack {
+                    Text(session.displayPath)
+                        .font(.claudeMono(13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    
+                    Spacer()
+                    
+                    if let ctx = session.contextPct {
+                        Text("\(ctx)% ctx")
+                            .font(.claudeMono(11))
+                            .foregroundStyle(Color.claudeDim)
+                    }
+                    if let cost = session.costUsd {
+                        Text(String(format: "$%.2f", cost))
+                            .font(.claudeMono(11))
+                            .foregroundStyle(Color.claudeDim)
+                    }
+                }
                 Text(statusText)
                     .font(.claudeMono(11))
-                    .foregroundStyle(session.isWorking ? Color.claude : Color.claudeDim)
+                    .foregroundStyle(statusColor)
                     .lineLimit(1)
             }
 
             Spacer(minLength: 8)
+            
+            if hover.isHovering {
+                Button {
+                    feed.clearSession(id: session.id)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(Color.claudeDim)
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
+        .background(hover.isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .onHover { hover.isHovering = $0 }
+        .onTapGesture {
+            openTerminal(at: session.cwd)
+        }
+    }
+    
+    /// Open a terminal at the session's project dir. Prefers Ghostty (the app's
+    /// styling target); falls back to Terminal.app when Ghostty isn't installed.
+    /// macOS can't launch Ghostty's CLI directly, so we pass its config key
+    /// through `open --args` (see `ghostty --help`).
+    private func openTerminal(at path: String) {
+        guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        if FileManager.default.fileExists(atPath: "/Applications/Ghostty.app") {
+            task.arguments = ["-na", "Ghostty.app", "--args", "--working-directory=\(path)"]
+        } else {
+            task.arguments = ["-a", "Terminal", path]
+        }
+        try? task.run()
     }
 
     private var glyph: String {
@@ -79,6 +169,14 @@ struct SessionRow: View {
     }
 
     private var tint: Color {
+        switch session.status {
+        case .attention: return .orange
+        case .thinking, .tool: return .claude
+        case .idle: return .claudeDim
+        }
+    }
+
+    private var statusColor: Color {
         switch session.status {
         case .attention: return .orange
         case .thinking, .tool: return .claude
@@ -106,14 +204,18 @@ struct SessionRow: View {
     private var hint: String {
         guard let start = session.turnStart else { return "" }
         let elapsed = max(0, Int(now.timeIntervalSince(start)))
-        let timer = elapsed >= 60 ? "\(elapsed / 60)m \(elapsed % 60)s" : "\(elapsed)s"
+        let timer = FeedWatcher.formatDuration(elapsed)
         switch session.status {
         case .tool:
             return session.tool.isEmpty ? " (\(timer))" : " (\(timer) · \(session.tool))"
         case .thinking:
-            return elapsed >= 30 ? " (\(timer) · still thinking)" : " (\(timer))"
+            return elapsed >= Constants.stillThinkingThreshold ? " (\(timer) · still thinking)" : " (\(timer))"
         default:
             return ""
         }
     }
+}
+
+class HoverState: ObservableObject {
+    @Published var isHovering = false
 }

@@ -9,6 +9,29 @@
 
 import Foundation
 import Observation
+import ServiceManagement
+
+/// Tunables gathered in one place so behavior isn't scattered across literals.
+enum Constants {
+    /// Sessions with no update in this long are pruned (in memory and on disk).
+    static let staleCutoff: TimeInterval = 12 * 3600
+    /// Safety re-scan cadence; backstops any vnode event the source misses.
+    static let safetyRescanInterval: TimeInterval = 2.0
+    /// Menu-bar glyph animation cadence (~10 fps).
+    static let animInterval: TimeInterval = 0.1
+    /// A burst of hook writes within this window coalesces into one rescan.
+    static let debounceInterval: TimeInterval = 0.1
+    /// Elapsed seconds after which "thinking" becomes "still thinking".
+    static let stillThinkingThreshold = 30
+    /// Timer switches from `Ns` to `Nm Ns` at this many seconds.
+    static let minuteRollover = 60
+    /// Spinner frame rate used to index the glyph by wall-clock time.
+    static let spinnerFPS = 10.0
+    /// Dropdown panel width.
+    static let panelWidth: CGFloat = 320
+    /// Segments in the footer usage bar.
+    static let usageBarSegments = 8
+}
 
 enum SessionStatus: String {
     case idle, thinking, tool, attention
@@ -52,6 +75,44 @@ enum SpinnerWords {
     }
 }
 
+// MARK: - Feed file schemas
+
+/// `<id>.state.json`, written by emit.sh from lifecycle hooks.
+private struct StateFile: Decodable {
+    var status: String?
+    var tool: String?
+    var message: String?
+    var cwd: String?
+    var turn_start: Double?
+    var updated: Double?
+    var last_seed: Double?
+    var last_duration: Double?
+}
+
+/// `<id>.status.json`, the raw statusLine stdin JSON. Only the fields the app
+/// renders are declared; unknown keys are ignored. `JSONDecoder` reads JSON
+/// integers and floats alike as `Double`, so `used_percentage` needs no special
+/// casing the way `JSONSerialization`'s `NSNumber` did.
+private struct StatusFile: Decodable {
+    struct Model: Decodable { var display_name: String? }
+    struct ContextWindow: Decodable { var used_percentage: Double? }
+    struct Cost: Decodable { var total_cost_usd: Double? }
+    struct Workspace: Decodable { var current_dir: String? }
+    struct RateLimits: Decodable {
+        struct FiveHour: Decodable {
+            var used_percentage: Double?
+            var resets_at: Double?
+        }
+        var five_hour: FiveHour?
+    }
+    var model: Model?
+    var context_window: ContextWindow?
+    var cost: Cost?
+    var cwd: String?
+    var workspace: Workspace?
+    var rate_limits: RateLimits?
+}
+
 struct SessionFeed: Identifiable {
     let id: String
     var status: SessionStatus = .idle
@@ -62,42 +123,39 @@ struct SessionFeed: Identifiable {
     var updated: Date?
     var model: String?
     var contextPct: Int?
+    var costUsd: Double?
+    var fiveHourPct: Int?
+    var fiveHourResetsAt: Double?
     /// The just-finished turn, for Claude's grey "Sautéed for 5m 18s" done line.
     var lastSeed: Int?
     var lastDuration: Int?
 
+
     init(id: String) { self.id = id }
 
     /// Merge the hook-written state file (status, current tool, turn start).
-    mutating func applyState(_ o: [String: Any]) {
-        if let s = o["status"] as? String { status = SessionStatus(rawValue: s) ?? .idle }
-        tool = o["tool"] as? String ?? ""
-        message = o["message"] as? String ?? ""
-        if let c = o["cwd"] as? String, !c.isEmpty { cwd = c }
-        if let ts = o["turn_start"] as? Double {
-            turnStart = Date(timeIntervalSince1970: ts)
-        } else {
-            turnStart = nil   // null when idle
-        }
-        if let up = o["updated"] as? Double { updated = Date(timeIntervalSince1970: up) }
-        lastSeed = (o["last_seed"] as? Double).map(Int.init)
-        lastDuration = (o["last_duration"] as? Double).map(Int.init)
+    fileprivate mutating func applyState(_ s: StateFile) {
+        if let st = s.status { status = SessionStatus(rawValue: st) ?? .idle }
+        tool = s.tool ?? ""
+        message = s.message ?? ""
+        if let c = s.cwd, !c.isEmpty { cwd = c }
+        turnStart = s.turn_start.map { Date(timeIntervalSince1970: $0) }  // null when idle
+        if let up = s.updated { updated = Date(timeIntervalSince1970: up) }
+        lastSeed = s.last_seed.map(Int.init)
+        lastDuration = s.last_duration.map(Int.init)
     }
 
-    /// Merge the statusLine-written file (model, context %, cwd fallback).
-    mutating func applyStatus(_ o: [String: Any]) {
-        if let m = (o["model"] as? [String: Any])?["display_name"] as? String { model = m }
+    fileprivate mutating func applyStatus(_ s: StatusFile) {
+        if let m = s.model?.display_name { model = m }
+        if let p = s.context_window?.used_percentage { contextPct = Int(p.rounded()) }
+        if let usd = s.cost?.total_cost_usd { costUsd = usd }
         if cwd.isEmpty {
-            if let c = o["cwd"] as? String {
-                cwd = c
-            } else if let ws = o["workspace"] as? [String: Any],
-                      let c = ws["current_dir"] as? String {
-                cwd = c
-            }
+            if let c = s.cwd { cwd = c }
+            else if let c = s.workspace?.current_dir { cwd = c }
         }
-        if let cw = o["context_window"] as? [String: Any],
-           let p = cw["used_percentage"] as? Double {
-            contextPct = Int(p.rounded())
+        if let five = s.rate_limits?.five_hour {
+            if let p = five.used_percentage { fiveHourPct = Int(p.rounded()) }
+            if let r = five.resets_at { fiveHourResetsAt = r }
         }
     }
 
@@ -116,16 +174,38 @@ struct SessionFeed: Identifiable {
         if cwd.hasPrefix(home + "/") { return "~" + cwd.dropFirst(home.count) }
         return cwd
     }
+
+    var rateLimitText: String? {
+        guard let pct = fiveHourPct, let resetsAt = fiveHourResetsAt else { return nil }
+        let now = Date().timeIntervalSince1970
+        let remaining = max(0, resetsAt - now)
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+
+        let resetStr: String
+        if hours > 0 {
+            resetStr = "\(hours)h\(minutes)m"
+        } else {
+            resetStr = "\(minutes)m"
+        }
+
+        let segments = Constants.usageBarSegments
+        let fullBlocks = Int(round(Double(pct) / 100.0 * Double(segments)))
+        let filled = String(repeating: "█", count: fullBlocks)
+        let empty = String(repeating: "░", count: segments - fullBlocks)
+        let bar = filled + empty
+
+        return "\(bar) 5h \(pct)% ↺\(resetStr)"
+    }
 }
 
-@Observable
-final class FeedWatcher {
-    private(set) var sessions: [SessionFeed] = []
+final class FeedWatcher: ObservableObject {
+    @Published private(set) var sessions: [SessionFeed] = []
 
     /// Advances ~10x/sec to animate the menu-bar spinner glyph. Kept as plain
     /// observable state (not a TimelineView in the MenuBarExtra label, which can
     /// collapse the status item to zero size and render it invisible).
-    private(set) var glyphPhase = 0
+    @Published private(set) var glyphPhase = 0
 
     private let dir: URL
     private var source: DispatchSourceFileSystemObject?
@@ -133,19 +213,28 @@ final class FeedWatcher {
     private var timer: Timer?
     private var animTimer: Timer?
 
+    /// All disk reads/parses and file pruning happen here, off the main thread.
+    private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
+    private var pendingScan: DispatchWorkItem?
+
     init() {
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        rescan()
+        ioQueue.async { [weak self] in self?.performRescan() }
         startWatching()
         // Safety re-scan: catches any directory event the vnode source misses
         // and prunes sessions that ended without firing SessionEnd.
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.rescan()
+        timer = Timer.scheduledTimer(withTimeInterval: Constants.safetyRescanInterval,
+                                     repeats: true) { [weak self] _ in
+            self?.scheduleRescan()
         }
-        animTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.glyphPhase &+= 1
+        animTimer = Timer.scheduledTimer(withTimeInterval: Constants.animInterval,
+                                         repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if self.menuBarActive {
+                self.glyphPhase &+= 1
+            }
         }
     }
 
@@ -163,54 +252,86 @@ final class FeedWatcher {
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: dirFD,
             eventMask: [.write, .extend, .delete, .rename],
-            queue: .main
+            queue: ioQueue
         )
-        src.setEventHandler { [weak self] in self?.rescan() }
+        src.setEventHandler { [weak self] in self?.scheduleRescan() }
         src.setCancelHandler { [dirFD] in if dirFD >= 0 { close(dirFD) } }
         src.resume()
         source = src
     }
 
-    private func rescan() {
+    /// Coalesce a burst of directory events into a single background rescan.
+    private func scheduleRescan() {
+        pendingScan?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.performRescan() }
+        pendingScan = work
+        ioQueue.asyncAfter(deadline: .now() + Constants.debounceInterval, execute: work)
+    }
+
+    /// Strip a known feed suffix to recover the session id.
+    private func sessionId(from name: String) -> String? {
+        for suffix in [".state.json", ".status.json", ".status.txt"] {
+            if name.hasSuffix(suffix) { return String(name.dropLast(suffix.count)) }
+        }
+        return nil
+    }
+
+    /// Runs on `ioQueue`: read + parse the directory, prune stale/orphan files
+    /// from disk, then publish the live session list back on the main thread.
+    private func performRescan() {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: nil) else {
-            sessions = []
+            DispatchQueue.main.async { [weak self] in self?.sessions = [] }
             return
         }
 
         var byId: [String: SessionFeed] = [:]
         for url in files {
             let name = url.lastPathComponent
-            guard let data = try? Data(contentsOf: url),
-                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { continue }
-
             if name.hasSuffix(".state.json") {
+                guard let data = try? Data(contentsOf: url),
+                      let sf = try? JSONDecoder().decode(StateFile.self, from: data) else { continue }
                 let id = String(name.dropLast(".state.json".count))
                 var s = byId[id] ?? SessionFeed(id: id)
-                s.applyState(obj)
+                s.applyState(sf)
                 byId[id] = s
             } else if name.hasSuffix(".status.json") {
+                guard let data = try? Data(contentsOf: url),
+                      let sf = try? JSONDecoder().decode(StatusFile.self, from: data) else { continue }
                 let id = String(name.dropLast(".status.json".count))
                 var s = byId[id] ?? SessionFeed(id: id)
-                s.applyStatus(obj)
+                s.applyStatus(sf)
                 byId[id] = s
             }
         }
 
-        // Drop sessions that crashed without SessionEnd cleanup (no update in 12h).
-        let cutoff = Date().addingTimeInterval(-12 * 3600)
-        sessions = byId.values.filter { ($0.updated ?? .distantFuture) > cutoff }
+        // Live = updated within the cutoff. Drop the rest, and delete every file
+        // (including leftover .status.txt with no matching session) from disk so
+        // the feed dir doesn't grow without bound.
+        let cutoff = Date().addingTimeInterval(-Constants.staleCutoff)
+        let live = byId.values.filter { ($0.updated ?? .distantFuture) > cutoff }
+        let liveIds = Set(live.map(\.id))
+        for url in files {
+            if let id = sessionId(from: url.lastPathComponent), !liveIds.contains(id) {
+                try? fm.removeItem(at: url)
+            }
+        }
+
+        let result = Array(live)
+        DispatchQueue.main.async { [weak self] in self?.sessions = result }
     }
 
     var workingCount: Int { sessions.filter(\.isWorking).count }
     var attentionCount: Int { sessions.filter { $0.status == .attention }.count }
 
-    /// A single static glyph — animated by pulsing opacity, not by cycling
-    /// characters (different asterisk glyphs fall back to a non-Menlo font of
-    /// varying width and jitter the whole menu-bar item).
-    var menuBarGlyph: String { "✻" }
+    /// Animated by cycling characters to match the footer spinner.
+    var menuBarGlyph: String {
+        if menuBarActive {
+            return Spinner.frame(at: Date())
+        }
+        return "✻"
+    }
 
     /// 0.4–1.0 opacity pulse for the active glyph, driven by the 10 Hz phase.
     var glyphPulse: Double {
@@ -245,7 +366,7 @@ final class FeedWatcher {
 
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
-        return s >= 60 ? "\(s / 60)m \(s % 60)s" : "\(s)s"
+        return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
     }
 
     /// The live `(22s · hint)` suffix for a working session, reconstructed from
@@ -253,11 +374,11 @@ final class FeedWatcher {
     private func parenthetical(for s: SessionFeed) -> String {
         guard let start = s.turnStart else { return "" }
         let elapsed = max(0, Int(Date().timeIntervalSince(start)))
-        let timer = elapsed >= 60 ? "\(elapsed / 60)m \(elapsed % 60)s" : "\(elapsed)s"
+        let timer = Self.formatDuration(elapsed)
         let hint: String
         switch s.status {
         case .tool: hint = s.tool.isEmpty ? "running" : "running \(s.tool)"
-        case .thinking: hint = elapsed >= 30 ? "still thinking" : "thinking"
+        case .thinking: hint = elapsed >= Constants.stillThinkingThreshold ? "still thinking" : "thinking"
         default: hint = ""
         }
         return hint.isEmpty ? " (\(timer))" : " (\(timer) · \(hint))"
@@ -276,6 +397,54 @@ final class FeedWatcher {
         case .attention: return 0
         case .thinking, .tool: return 1
         case .idle: return 2
+        }
+    }
+
+    var globalRateLimitText: String? {
+        guard let mostRecent = sessions.filter({ $0.fiveHourPct != nil }).max(by: {
+            ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast)
+        }) else { return nil }
+        return mostRecent.rateLimitText
+    }
+
+    var globalModel: String? {
+        guard let mostRecent = sessions.filter({ $0.model != nil }).max(by: {
+            ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast)
+        }) else { return nil }
+        return mostRecent.model
+    }
+
+    // MARK: - Actions
+
+    func clearSession(id: String) {
+        let fm = FileManager.default
+        try? fm.removeItem(at: dir.appendingPathComponent("\(id).state.json"))
+        try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.json"))
+        try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.txt"))
+        scheduleRescan()
+    }
+
+    func clearAll() {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for url in files {
+            try? fm.removeItem(at: url)
+        }
+        scheduleRescan()
+    }
+
+    var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("Failed to toggle launch at login: \(error)")
+            }
         }
     }
 }

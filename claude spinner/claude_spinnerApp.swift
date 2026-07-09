@@ -9,7 +9,16 @@ import SwiftUI
 
 @main
 struct claude_spinnerApp: App {
-    @State private var feed = FeedWatcher()
+    @StateObject private var feed = FeedWatcher()
+
+    init() {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            if runningApps.count > 1 {
+                exit(0)
+            }
+        }
+    }
 
     var body: some Scene {
         MenuBarExtra {
@@ -35,6 +44,7 @@ struct MenuBarLabel: View {
         // without changing width (so the item never jitters).
         let color = feed.menuBarActive ? Color.claude : Color.claudeDim
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
+        
         let glyph = Text(feed.menuBarGlyph)
             .font(.claudeMono(17))
             .foregroundColor(glyphColor)
@@ -51,7 +61,7 @@ enum Spinner {
     static let frames = ["✶", "✸", "✹", "✺", "✻", "✽", "✻", "✺", "✹", "✸"]
 
     static func frame(at date: Date) -> String {
-        let i = Int((date.timeIntervalSinceReferenceDate * 10).rounded(.down))
+        let i = Int((date.timeIntervalSinceReferenceDate * Constants.spinnerFPS).rounded(.down))
         return frames[((i % frames.count) + frames.count) % frames.count]
     }
 }
