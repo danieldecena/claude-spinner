@@ -56,7 +56,12 @@
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "openTerminal(at:) ignored its path arg and only ran AppleScript to `activate` Ghostty",
       "fix": "Rewrote to run `open -na Ghostty.app --args --working-directory=<cwd>` (fallback Terminal), guarding empty/nonexistent paths",
-      "tags": ["swift", "menubar", "click-to-open", "ghostty"],
+      "tags": [
+        "swift",
+        "menubar",
+        "click-to-open",
+        "ghostty"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T00:00:00.000Z"
@@ -68,7 +73,12 @@
       "file": "claude spinner/FeedWatcher.swift, ~/.claude/spinnerfeed/emit.sh",
       "root_cause": "emit.sh SessionEnd globbed only .json (rm .*.json), leaving .status.txt; app pruned in-memory only, never on disk",
       "fix": "emit.sh SessionEnd now rm .* ; FeedWatcher.performRescan() deletes files for any id past the 12h cutoff or with no live session",
-      "tags": ["leak", "cleanup", "shell", "swift"],
+      "tags": [
+        "leak",
+        "cleanup",
+        "shell",
+        "swift"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T00:00:00.000Z"
@@ -80,10 +90,33 @@
       "file": "claude spinner/FeedWatcher.swift, ~/.claude/statusline-command.sh",
       "root_cause": "statusline wrote status.json non-atomically (printf > file) so a concurrent rescan read torn files; rescan did synchronous disk I/O + JSON parse on the main thread on every fs event and every 2s",
       "fix": "statusline now writes temp+mv atomically; rescan moved to a background ioQueue with ~100ms debounce, publishing results on main",
-      "tags": ["atomicity", "torn-read", "performance", "main-thread", "shell", "swift"],
+      "tags": [
+        "atomicity",
+        "torn-read",
+        "performance",
+        "main-thread",
+        "shell",
+        "swift"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T00:00:00.000Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-07-09T23:46:10.348Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-09T23:46:10.348Z"
     }
   ]
 }

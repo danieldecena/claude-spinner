@@ -306,14 +306,20 @@ final class FeedWatcher: ObservableObject {
             }
         }
 
-        // Live = updated within the cutoff. Drop the rest, and delete every file
-        // (including leftover .status.txt with no matching session) from disk so
-        // the feed dir doesn't grow without bound.
+        // Live = a real session (state file present, so `updated` is set) touched
+        // within the cutoff. A status-only entry with no state file has no
+        // `updated` and is treated as dead — nil defaults to .distantPast so it
+        // never renders as a phantom idle row.
         let cutoff = Date().addingTimeInterval(-Constants.staleCutoff)
-        let live = byId.values.filter { ($0.updated ?? .distantFuture) > cutoff }
+        let live = byId.values.filter { ($0.updated ?? .distantPast) > cutoff }
         let liveIds = Set(live.map(\.id))
+        // Prune files that belong to no live session, but only once the file
+        // itself is older than the cutoff — so a transient read miss or a session
+        // mid-startup (status.json written before state.json) is never deleted.
         for url in files {
-            if let id = sessionId(from: url.lastPathComponent), !liveIds.contains(id) {
+            guard let id = sessionId(from: url.lastPathComponent), !liveIds.contains(id) else { continue }
+            let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if (mtime ?? .distantPast) < cutoff {
                 try? fm.removeItem(at: url)
             }
         }
