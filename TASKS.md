@@ -6,16 +6,17 @@ Remaining from the "apply all" improvement batch (poller hardening + menu title 
 
 - [ ] Host tag on rows — small color-coded tag left of the time: vsc=VSCode (blue), trm=terminal (green), web=website (cyan), app=desktop app (purple), from `session.host`
 - [ ] Surface poller state in footer — show `usageError` (auth expired) and `pollUsage.overageBlocked` (out of credits) subtly; both already parsed in FeedWatcher
-- [ ] PID pruning — capture the claude PID in `~/.claude/spinnerfeed/emit.sh` (walk up from $PPID to the process whose command contains "claude"; write `pid`), prune sessions whose pid is dead (`kill(pid,0)`) on the 2s rescan. CAUTION: only prune idle sessions with a captured pid; a wrong/ephemeral pid would wrongly remove a live session — test capture first
+- [ ] PID pruning — [capture DONE + verified live: emit.sh walks $PPID up to the `claude` process by exact comm basename and writes `pid`; installed app ignores the unknown key]. PENDING the Swift consumer (StateFile.pid, SessionFeed.pid, prune idle dead-pid sessions via kill(pid,0)==-1 && errno==ESRCH in performRescan) — BLOCKED: FeedWatcher.swift is under concurrent edit by another session; do 3b once it lands. CAUTION: only prune idle sessions with a captured pid
 - [ ] Menu-bar urgency — flash/pulse the usage % red at 90%+ in usage mode
 - [ ] Notification action — add a "Focus session" button to the attention notification (UNNotificationAction + category)
 - [ ] 7-day reset in tooltip + a small usage sparkline (needs a persisted ring buffer of poll samples)
 - [ ] Cache `usageSession` per publish (review #5) — it re-scans `sessions` ~7x/sec in the footer tick
 - [ ] `openSession` data-driven table (review) — collapse the 4 identical `["-b", bundleid]` focus arms
 - [ ] First-run setup check — detect whether the spinner hooks + statusline are installed; show a warning/one-click fix. (Notarization needs an Apple Developer cert — can't be done in the agent env; note for the canonical build.)
-- [ ] Test `UsagePoller.parse(headers:now:)` — add harness + XCTest cases (pure, network-free)
 
 ## Completed
+
+- [x] Test `UsagePoller.parse(headers:now:)` — network-free XCTest cases (util->pct scaling + rounding, nil on missing keys, overageBlocked only for "rejected", reset passthrough); verified via swiftc harness
 
 - [x] Testability seam + tests: extracted static displayItems/menuBarState/sorted over [SessionFeed]; swiftc harness + XCTest (usageTint tiers, grouping, menuBarState transitions)
 - [x] Footer stale-usage freshness indicator (dim + "Xm old" + as-of tooltip)
