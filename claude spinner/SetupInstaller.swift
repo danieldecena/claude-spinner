@@ -72,7 +72,7 @@ enum SetupInstaller {
                 let data = try Data(contentsOf: settingsURL)
                 let stamp = Int(Date().timeIntervalSince1970)
                 try data.write(to: claudeDir.appendingPathComponent("settings.json.backup-\(stamp)"))
-                guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                guard let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 else { return .failure(SetupError.malformedSettings) }
                 current = parsed
             }
