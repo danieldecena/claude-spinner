@@ -84,7 +84,7 @@ struct UsageFooter: View {
                         }
                         // Dim when stale so a frozen snapshot doesn't read as live;
                         // the "as of" time and age live in the hover tooltip.
-                        .opacity(feed.usageIsStale ? 0.6 : 1)
+                        .opacity(feed.usageIsStale ? 0.5 : 1)
                         .help(feed.usageAsOfString)
 
                         Spacer(minLength: 8)

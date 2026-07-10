@@ -201,6 +201,8 @@ struct MenuBarLabel: View {
                 }
             }
         }
+        // Lowercase to match the panel rows' one consistent voice.
+        .textCase(.lowercase)
         .fixedSize()
         .padding(.horizontal, 4)
         .accessibilityLabel(feed.menuBarBody.isEmpty ? "Claude spinner, idle"

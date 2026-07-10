@@ -593,3 +593,12 @@
 | 23:44 | Session end: 27 writes across 5 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12844 tok |
 | 23:44 | Edited HANDOFF.md | 7→9 lines | ~132 |
 | 23:44 | Edited HANDOFF.md | 7→9 lines | ~132 |
+| 23:46 | Session end: 28 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12986 tok |
+| 23:46 | Session end: 28 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12986 tok |
+| 23:47 | Session end: 28 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12986 tok |
+| 23:47 | Session end: 28 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12986 tok |
+| 23:48 | Edited claude spinner/claude_spinnerApp.swift | 5→7 lines | ~89 |
+| 23:48 | Edited claude spinner/claude_spinnerApp.swift | 5→7 lines | ~89 |
+| 23:48 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~74 |
+| 23:48 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~74 |
+| 00:20 | Lowercased menu-bar title (.textCase(.lowercase)) to match rows; strengthened stale-usage dim 0.6->0.5. Confirmed usage "stuck at 16%" = 93m-old snapshot, only source is 9b32ccf2, no live TUI statusLine writing (all work in VSCode which writes no statusLine) | claude_spinnerApp.swift, MenuContentView.swift | built+relaunched | ~2k |
