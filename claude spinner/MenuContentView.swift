@@ -55,6 +55,16 @@ struct UsageFooter: View {
         Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
     }
 
+    /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
+    /// part muted. Returned as a concatenated Text so it sits inline in the row.
+    private func bar(_ pct: Int, segments: Int = 8) -> Text {
+        let filled = min(segments, max(0, Int((Double(pct) / 100 * Double(segments)).rounded())))
+        return Text(String(repeating: "█", count: filled))
+                .foregroundColor(Color.usageTint(pct))
+             + Text(String(repeating: "░", count: segments - filled))
+                .foregroundColor(Color.claudeDim.opacity(0.5))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Divider()
@@ -67,6 +77,7 @@ struct UsageFooter: View {
                         }
                         if let h5 = feed.usageFiveHourPct {
                             Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
+                            bar(h5)
                             Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
                             if let reset = feed.usageFiveHourReset {
                                 Text("↺\(reset)").foregroundStyle(Color.claudeDim.opacity(0.7))
@@ -76,10 +87,6 @@ struct UsageFooter: View {
                             separator
                             Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
                             Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
-                        }
-                        if let cost = feed.globalCost {
-                            separator
-                            Text(String(format: "$%.2f", cost)).foregroundStyle(Color.claudeDim)
                         }
                     } else {
                         Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
@@ -103,7 +110,7 @@ struct SessionRow: View {
     @StateObject private var hover = HoverState()
 
     var body: some View {
-        // One line: [glyph] project-name  status…time   ctx% $cost
+        // One line: [glyph] project-name  status…time   ctx%
         HStack(spacing: 7) {
             Text(glyph)
                 .font(.claudeMono(14))
@@ -134,17 +141,10 @@ struct SessionRow: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(Color.claudeDim)
-            } else {
-                if let ctx = session.contextPct {
-                    Text("\(ctx)%")
-                        .font(.claudeMono(11))
-                        .foregroundStyle(Color.claudeDim)
-                }
-                if let cost = session.costUsd {
-                    Text(String(format: "$%.2f", cost))
-                        .font(.claudeMono(11))
-                        .foregroundStyle(Color.claudeDim)
-                }
+            } else if let ctx = session.contextPct {
+                Text("\(ctx)%")
+                    .font(.claudeMono(11))
+                    .foregroundStyle(Color.claudeDim)
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
