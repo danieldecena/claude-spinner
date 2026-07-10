@@ -1011,3 +1011,25 @@
 | 01:52 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
 | 01:52 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
 | 02:10 | Footer bars widened per user iteration: 16->20->30px track (measured available slack in the 320px footer rather than trial-and-error, freed more room by removing the model text from the footer entirely). Model moved from footer to each row (between project name and status word) via new FeedWatcher.modelDisplay(for:) - falls back through session.model -> most-recently-seen model across sessions -> cachedUsage.model, so every row shows a tag even before its own statusLine writes one; deleted now-dead globalModel/globalModelShort/globalModelFamily, extracted static modelFamily(_:) trim helper. Idle rows (no lastDuration) show static "--:--" instead of a counting-up age (user request - only genuinely-idle rows, not attention/done). Fixed working-dots growing in the wrong direction: it was right-anchored against the fixed host-tag slot so a new dot appended on the LEFT; gave the time Text a fixed 34pt frame with alignment .leading for dots vs .trailing otherwise, so dots now grow rightward like a normal ellipsis while numeric times stay right-aligned. Uniformity pass: empty-state/setup-needed fonts 12/11->11/10 and padding 14->10/12 to match the compacted panel scale; footer's "!" glyph 9->8 to match the "↺" glyph size; "no usage data yet" 11->9 to match footer scale. Harness 33 asserts + XCTest ALL PASS | FeedWatcher.swift, MenuContentView.swift | build+harness OK | ~10k |
+| 01:53 | Session end: 159 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 25 reads | ~63741 tok |
+| 01:53 | Session end: 159 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 25 reads | ~63741 tok |
+| 01:54 | Edited claude spinner/MenuContentView.swift | modified modelDisplay() | ~330 |
+| 01:54 | Edited claude spinner/MenuContentView.swift | modified modelDisplay() | ~330 |
+| 01:55 | Session end: 160 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 25 reads | ~64095 tok |
+| 01:55 | Session end: 160 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 25 reads | ~64095 tok |
+| 01:56 | Edited claude spinner/FeedWatcher.swift | 30 → 45 | ~12 |
+| 01:56 | Edited claude spinner/FeedWatcher.swift | 30 → 45 | ~12 |
+| 01:56 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~245 |
+| 01:56 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~245 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~38 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~38 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~23 |
+| 01:57 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~23 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~17 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~17 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~30 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~30 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~43 |
+| 01:58 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~43 |

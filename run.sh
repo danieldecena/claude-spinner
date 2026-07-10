@@ -1,6 +1,29 @@
 #!/bin/bash
+set -e
+
 echo "Building Claude Spinner..."
-xcodebuild -scheme "claude spinner" build | xcbeautify
-killall "claude spinner" 2>/dev/null
-echo "Launching app..."
-open "/Users/home/Library/Developer/Xcode/DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/Build/Products/Debug/claude spinner.app"
+
+# Check if xcodebuild is functional (requires full Xcode, not just CommandLineTools)
+if xcodebuild -version &>/dev/null; then
+    echo "Using xcodebuild..."
+    xcodebuild -scheme "claude spinner" build | xcbeautify
+    killall "claude spinner" 2>/dev/null || true
+    echo "Launching app..."
+    open "/Users/home/Library/Developer/Xcode/DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/Build/Products/Debug/claude spinner.app"
+else
+    echo "xcodebuild not available or CommandLineTools selected. Falling back to swiftc..."
+    xcrun --sdk macosx swiftc -O -o claude-spinner "claude spinner/FeedWatcher.swift" "claude spinner/MenuContentView.swift" "claude spinner/claude_spinnerApp.swift"
+    
+    if [ -d "/Applications/claude spinner.app" ]; then
+        echo "Copying built binary to /Applications/claude spinner.app..."
+        cp claude-spinner "/Applications/claude spinner.app/Contents/MacOS/claude spinner"
+        echo "Re-signing application..."
+        codesign --force --deep --sign - "/Applications/claude spinner.app"
+        killall "claude spinner" 2>/dev/null || true
+        echo "Launching app..."
+        open "/Applications/claude spinner.app"
+    else
+        echo "Error: /Applications/claude spinner.app not found. Please install the app bundle first."
+        exit 1
+    fi
+fi

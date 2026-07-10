@@ -12,6 +12,7 @@ import Observation
 import ServiceManagement
 import UserNotifications
 import CoreGraphics
+import Darwin
 
 /// Tunables gathered in one place so behavior isn't scattered across literals.
 enum Constants {
@@ -36,7 +37,7 @@ enum Constants {
     /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
     /// identical in size, kept short enough that the model name, all three gauges,
     /// and the reset countdown fit within the compact 320px panel without clipping.
-    static let usageTrackWidth: CGFloat = 30
+    static let usageTrackWidth: CGFloat = 45
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -291,11 +292,13 @@ final class UsagePoller {
     private let session = URLSession(configuration: .ephemeral)
     private let onUpdate: (Result) -> Void
     private let onAuthExpired: () -> Void
+    private let onError: (String) -> Void
     private var timer: Timer?
 
-    init(onUpdate: @escaping (Result) -> Void, onAuthExpired: @escaping () -> Void) {
+    init(onUpdate: @escaping (Result) -> Void, onAuthExpired: @escaping () -> Void, onError: @escaping (String) -> Void) {
         self.onUpdate = onUpdate
         self.onAuthExpired = onAuthExpired
+        self.onError = onError
     }
 
     func start() {
@@ -372,20 +375,34 @@ final class UsagePoller {
                 "max_tokens": 1,
                 "messages": [["role": "user", "content": "."]],
             ])
-            let task = self.session.dataTask(with: req) { [weak self] _, response, _ in
-                guard let self, let http = response as? HTTPURLResponse else { return }
+            let task = self.session.dataTask(with: req) { [weak self] _, response, error in
+                guard let self else { return }
+                if let error = error {
+                    DispatchQueue.main.async { self.onError(error.localizedDescription) }
+                    return
+                }
+                guard let http = response as? HTTPURLResponse else {
+                    DispatchQueue.main.async { self.onError("Invalid response") }
+                    return
+                }
                 if http.statusCode == 401 {
                     DispatchQueue.main.async { self.onAuthExpired() }
                     return
                 }
                 // Non-2xx (rate-limited, transient server error): ignore this poll,
                 // let the next timer tick retry — no rapid hammering.
-                guard (200..<300).contains(http.statusCode) else { return }
+                guard (200..<300).contains(http.statusCode) else {
+                    DispatchQueue.main.async { self.onError("HTTP \(http.statusCode)") }
+                    return
+                }
                 var headers: [String: String] = [:]
                 for (k, v) in http.allHeaderFields {
                     if let ks = k as? String, let vs = v as? String { headers[ks.lowercased()] = vs }
                 }
-                guard let result = Self.parse(headers: headers, now: Date()) else { return }
+                guard let result = Self.parse(headers: headers, now: Date()) else {
+                    DispatchQueue.main.async { self.onError("Parse failure") }
+                    return
+                }
                 DispatchQueue.main.async { self.onUpdate(result) }
             }
             task.resume()
@@ -463,6 +480,9 @@ final class FeedWatcher: ObservableObject {
             onUpdate: { [weak self] result in self?.applyPollResult(result) },
             onAuthExpired: { [weak self] in
                 self?.usageError = "Usage auth expired — run any terminal Claude session to refresh"
+            },
+            onError: { [weak self] errorMsg in
+                self?.usageError = "Usage error: \(errorMsg)"
             })
         if usagePollingEnabled { poller?.start() }
         // Safety re-scan: catches any directory event the vnode source misses
@@ -631,12 +651,20 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
-    /// True if a process with this pid currently exists. `kill(pid, 0)` sends no
-    /// signal — it just probes existence: 0 = alive, EPERM = alive but owned by
-    /// another user (still counts), ESRCH = gone.
+    /// True if a process with this pid currently exists, belongs to the current user,
+    /// and is a Claude or Node process (guards against recycled PIDs).
     private static func pidAlive(_ pid: Int) -> Bool {
-        if kill(pid_t(pid), 0) == 0 { return true }
-        return errno == EPERM
+        // Lightweight existence probe
+        if kill(pid_t(pid), 0) != 0 { return false }
+        
+        var buffer = [UInt8](repeating: 0, count: Int(PATH_MAX))
+        let len = proc_pidpath(pid_t(pid), &buffer, UInt32(buffer.count))
+        guard len > 0 else {
+            // EPERM or other failure means it is likely owned by another user (recycled)
+            return false
+        }
+        let path = String(cString: buffer).lowercased()
+        return path.contains("claude") || path.contains("node")
     }
 
     /// True when the feed plumbing is in place: the emitter script exists and

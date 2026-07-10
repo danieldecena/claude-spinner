@@ -116,8 +116,8 @@ struct UsageFooter: View {
                                 // takes the slot when present — usage is stale or
                                 // blocked, so a reset countdown would mislead.
                                 HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(8)).fontWeight(.bold)
-                                    Text(notice).font(.claudeMono(9))
+                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                    Text(notice).font(.claudeMono(10))
                                 }
                                 .foregroundStyle(Color.usageTint(95))
                                 .fixedSize()
@@ -126,8 +126,8 @@ struct UsageFooter: View {
                                 // Live countdown (both reset formats don't fit one row
                                 // at 320px); the reset clock times are in the tooltip.
                                 HStack(spacing: 2) {
-                                    Text("↺").font(.claudeMono(8))
-                                    Text(rel).font(.claudeMono(9)).monospacedDigit()
+                                    Text("↺").font(.claudeMono(9))
+                                    Text(rel).font(.claudeMono(10)).monospacedDigit()
                                 }
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .help(feed.usageResetTooltip)
@@ -136,13 +136,14 @@ struct UsageFooter: View {
                         }
                     } else {
                         Text("no usage data yet")
-                            .font(.claudeMono(9))
+                            .font(.claudeMono(10))
                             .foregroundStyle(Color.secondary.opacity(0.6))
                         Spacer(minLength: 0)
                     }
                 }
                 .lineLimit(1)
-                .padding(.horizontal, 10)
+                .padding(.leading, 14)
+                .padding(.trailing, 10)
                 .padding(.vertical, 7)
             }
         }
@@ -162,7 +163,7 @@ struct UsageGauge: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(label)
-                .font(.claudeMono(9))
+                .font(.claudeMono(10))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -177,7 +178,7 @@ struct UsageGauge: View {
                            height: trackHeight)
             }
             Text("\(pct)%")
-                .font(.claudeMono(9)).monospacedDigit()
+                .font(.claudeMono(10)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
                 .fixedSize()
         }
@@ -206,7 +207,7 @@ struct TrendGauge: View {
     var body: some View {
         HStack(spacing: 3) {
             Text("chg")
-                .font(.claudeMono(9))
+                .font(.claudeMono(10))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -220,7 +221,7 @@ struct TrendGauge: View {
                            height: trackHeight)
             }
             Text("\(delta > 0 ? "+" : "")\(delta)%")
-                .font(.claudeMono(9)).monospacedDigit()
+                .font(.claudeMono(10)).monospacedDigit()
                 .foregroundStyle(tint)
                 .fixedSize()
         }
@@ -244,34 +245,36 @@ struct SessionRow: View {
                 .foregroundStyle(tint)
                 .frame(width: 14)
 
-            // Name wins the space; a long activity/message (e.g. an attention
-            // message) truncates before the project name does. The wider panel
-            // leaves room for both the name and a short "thinking · 35s".
-            Text(session.projectName)
-                .font(.claudeMono(11))
-                .foregroundStyle(nameColor)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .layoutPriority(1)
-
-            if item.count > 1 {
-                Text("×\(item.count)")
-                    .font(.claudeMono(9))
-                    .foregroundStyle(Color.secondary)
-            }
-
-            // Model, between the name and the action word — moved off the
-            // footer (which only ever showed the single most-recent session's
-            // model anyway) so each row can show its own. Falls back to the
-            // most-recently-seen model when this session hasn't reported one yet.
-            if let rawModel = feed.modelDisplay(for: session) {
-                Text(FeedWatcher.modelFamily(rawModel))
-                    .font(.claudeMono(9)).fontWeight(.semibold)
-                    .foregroundStyle(Color.modelTint(rawModel))
+            // Column 1: Project Name + Count. Fixed width ensures alignment of subsequent columns.
+            HStack(spacing: 3) {
+                Text(session.projectName)
+                    .font(.claudeMono(10))
+                    .foregroundStyle(nameColor)
                     .lineLimit(1)
-                    .fixedSize()
-            }
+                    .truncationMode(.tail)
 
+                if item.count > 1 {
+                    Text("×\(item.count)")
+                        .font(.claudeMono(10))
+                        .foregroundStyle(Color.secondary)
+                }
+            }
+            .frame(width: 95, alignment: .leading)
+
+            // Column 2: Model (fixed width). Keeps Status aligned.
+            Group {
+                if let rawModel = feed.modelDisplay(for: session) {
+                    Text(FeedWatcher.modelFamily(rawModel))
+                        .font(.claudeMono(10)).fontWeight(.semibold)
+                        .foregroundStyle(Color.modelTint(rawModel))
+                        .lineLimit(1)
+                } else {
+                    Text("")
+                }
+            }
+            .frame(width: 42, alignment: .leading)
+
+            // Column 3: Status / Activity (flexible width, truncating if necessary).
             Text(statusLabel)
                 .font(.claudeMono(10))
                 .foregroundStyle(statusColor)
