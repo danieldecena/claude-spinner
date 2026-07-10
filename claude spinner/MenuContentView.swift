@@ -21,9 +21,9 @@ struct MenuContentView: View {
                 // One ticking clock drives every row's spinner + timer in phase.
                 TimelineView(.periodic(from: .now, by: 0.1)) { context in
                     VStack(spacing: 0) {
-                        ForEach(feed.sortedSessions) { session in
-                            SessionRow(feed: feed, session: session, now: context.date)
-                            if session.id != feed.sortedSessions.last?.id {
+                        ForEach(feed.displayItems) { item in
+                            SessionRow(feed: feed, item: item, now: context.date)
+                            if item.id != feed.displayItems.last?.id {
                                 Divider().padding(.leading, 14)
                             }
                         }
@@ -109,12 +109,14 @@ struct UsageFooter: View {
 
 struct SessionRow: View {
     @ObservedObject var feed: FeedWatcher
-    let session: SessionFeed
+    let item: SessionRowItem
     let now: Date
     @StateObject private var hover = HoverState()
 
+    private var session: SessionFeed { item.session }
+
     var body: some View {
-        // One line: [glyph] project-name  status…time   ctx%
+        // One line: [glyph] project-name ×N  status…time   ctx%
         HStack(spacing: 7) {
             Text(glyph)
                 .font(.claudeMono(14))
@@ -128,6 +130,12 @@ struct SessionRow: View {
                 .truncationMode(.tail)
                 .layoutPriority(1)
 
+            if item.count > 1 {
+                Text("×\(item.count)")
+                    .font(.claudeMono(11))
+                    .foregroundStyle(Color.claudeDim)
+            }
+
             Text(statusText)
                 .font(.claudeMono(12))
                 .foregroundStyle(statusColor)
@@ -138,7 +146,7 @@ struct SessionRow: View {
 
             if hover.isHovering {
                 Button {
-                    feed.clearSession(id: session.id)
+                    feed.clear(item)
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))

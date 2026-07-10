@@ -6,6 +6,9 @@ _None open._
 
 ## Completed
 
+- [x] Persist usage — cache the last-known 5h/7d/model snapshot so it survives Clear All and statusLine-less sessions; usage no longer vanishes
+- [x] Refresh action — right-click → Refresh (⌘R) forces a feed re-read
+- [x] Collapse duplicate idle rows — never-worked idle sessions in the same folder group into one `home idle ×N` row
 - [x] Visual verification in a live session — rows, title states, footer confirmed rendering
 - [x] Attention alerts — macOS notification when a session enters `attention` (once per pause)
 - [x] Menu-bar title mode toggle — right-click → Menu bar shows → Activity / Usage (persisted)

@@ -207,6 +207,25 @@ struct SessionFeed: Identifiable {
     }
 }
 
+/// Last-known account usage, persisted so the footer/title keep showing it after
+/// sessions are cleared or when the current session has no statusLine feed.
+struct UsageSnapshot: Codable {
+    var fiveHourPct: Int?
+    var fiveHourResetsAt: Double?
+    var sevenDayPct: Int?
+    var model: String?
+    var savedAt: Double
+}
+
+/// One dropdown row — a single session, or a collapsed group of never-worked
+/// idle sessions sharing a directory.
+struct SessionRowItem: Identifiable {
+    let id: String
+    let session: SessionFeed
+    let ids: [String]
+    var count: Int { ids.count }
+}
+
 final class FeedWatcher: ObservableObject {
     @Published private(set) var sessions: [SessionFeed] = []
 
@@ -227,6 +246,8 @@ final class FeedWatcher: ObservableObject {
     private var animTimer: Timer?
     /// Session ids already alerted for attention, so each pause notifies once.
     private var notifiedAttention: Set<String> = []
+    /// Last-known usage, so it survives Clear All / statusLine-less sessions.
+    private var cachedUsage: UsageSnapshot?
 
     /// All disk reads/parses and file pruning happen here, off the main thread.
     private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
@@ -235,6 +256,8 @@ final class FeedWatcher: ObservableObject {
     init() {
         menuBarMode = UserDefaults.standard.string(forKey: "menuBarMode")
             .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
+        cachedUsage = UserDefaults.standard.data(forKey: "usageSnapshot")
+            .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -344,7 +367,27 @@ final class FeedWatcher: ObservableObject {
         let result = Array(live)
         DispatchQueue.main.async { [weak self] in
             self?.notifyAttention(result)
+            self?.updateUsageCache(result)
             self?.sessions = result
+        }
+    }
+
+    /// Force a re-read of the feed (right-click → Refresh).
+    func refresh() { scheduleRescan() }
+
+    /// Snapshot the freshest account usage so it persists past Clear All and
+    /// sessions that never render a statusLine. Runs on main.
+    private func updateUsageCache(_ newSessions: [SessionFeed]) {
+        guard let s = newSessions
+            .filter({ $0.fiveHourPct != nil || $0.sevenDayPct != nil })
+            .max(by: { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) })
+        else { return }
+        let snap = UsageSnapshot(fiveHourPct: s.fiveHourPct, fiveHourResetsAt: s.fiveHourResetsAt,
+                                 sevenDayPct: s.sevenDayPct, model: s.model,
+                                 savedAt: Date().timeIntervalSince1970)
+        cachedUsage = snap
+        if let data = try? JSONEncoder().encode(snap) {
+            UserDefaults.standard.set(data, forKey: "usageSnapshot")
         }
     }
 
@@ -445,6 +488,29 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
+    /// Rows to render: attention/working/done sessions individually; never-worked
+    /// idle sessions collapsed by directory into one row with a count, so a stack
+    /// of background `home idle` sessions reads as a single `home idle ×5`.
+    var displayItems: [SessionRowItem] {
+        var items: [SessionRowItem] = []
+        var idleByDir: [String: [SessionFeed]] = [:]
+        var dirOrder: [String] = []
+        for s in sortedSessions {
+            if s.status == .idle && s.lastDuration == nil {
+                if idleByDir[s.cwd] == nil { dirOrder.append(s.cwd) }
+                idleByDir[s.cwd, default: []].append(s)
+            } else {
+                items.append(SessionRowItem(id: s.id, session: s, ids: [s.id]))
+            }
+        }
+        for dir in dirOrder {
+            let group = idleByDir[dir]!
+            let rep = group.max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }!
+            items.append(SessionRowItem(id: "idle:\(dir)", session: rep, ids: group.map(\.id)))
+        }
+        return items
+    }
+
     /// The session whose status feed carries the account-wide rate-limit
     /// numbers (any recent session has them; they're not per-project).
     private var usageSession: SessionFeed? {
@@ -453,16 +519,27 @@ final class FeedWatcher: ObservableObject {
             .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
     }
 
-    var hasUsage: Bool { usageSession != nil }
-    var usageFiveHourPct: Int? { usageSession?.fiveHourPct }
-    var usageFiveHourReset: String? { usageSession?.fiveHourResetString }
-    var usageSevenDayPct: Int? { usageSession?.sevenDayPct }
+    // Usage prefers a live session's numbers, else the persisted snapshot — so it
+    // keeps showing after Clear All or in a session with no statusLine feed.
+    var hasUsage: Bool { usageSession != nil || cachedUsage != nil }
+    var usageFiveHourPct: Int? { usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
+    var usageSevenDayPct: Int? { usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
+    var usageFiveHourReset: String? {
+        Self.formatReset(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
+    }
+
+    private static func formatReset(_ resetsAt: Double?) -> String? {
+        guard let resetsAt else { return nil }
+        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
+    }
 
     var globalModel: String? {
-        guard let mostRecent = sessions.filter({ $0.model != nil }).max(by: {
-            ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast)
-        }) else { return nil }
-        return mostRecent.model
+        let live = sessions.filter { $0.model != nil }
+            .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }?.model
+        return live ?? cachedUsage?.model
     }
 
     /// Model name trimmed to its family for the compact footer, e.g.
@@ -477,6 +554,17 @@ final class FeedWatcher: ObservableObject {
     }
 
     // MARK: - Actions
+
+    /// Clear every session backing a row (one session, or a collapsed group).
+    func clear(_ item: SessionRowItem) {
+        let fm = FileManager.default
+        for id in item.ids {
+            try? fm.removeItem(at: dir.appendingPathComponent("\(id).state.json"))
+            try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.json"))
+            try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.txt"))
+        }
+        scheduleRescan()
+    }
 
     func clearSession(id: String) {
         let fm = FileManager.default

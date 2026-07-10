@@ -107,6 +107,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launch.state = feed.launchAtLogin ? .on : .off
         menu.addItem(launch)
 
+        let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshFeed), keyEquivalent: "r")
+        refresh.target = self
+        menu.addItem(refresh)
+
         let clear = NSMenuItem(title: "Clear All Sessions",
                                action: #selector(clearAllSessions), keyEquivalent: "")
         clear.target = self
@@ -125,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleLaunchAtLogin() { feed.launchAtLogin.toggle() }
     @objc private func clearAllSessions() { feed.clearAll() }
+    @objc private func refreshFeed() { feed.refresh() }
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
