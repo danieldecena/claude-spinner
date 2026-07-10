@@ -532,6 +532,11 @@ final class FeedWatcher: ObservableObject {
     var usageFiveHourReset: String? {
         Self.formatReset(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
     }
+    /// The 5h reset as a relative countdown, e.g. "3h29m" — the footer pairs this
+    /// with the clock time so the second line reads "resets 2:00 AM · in 3h29m".
+    var usageFiveHourResetRelative: String? {
+        Self.formatResetRelative(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
+    }
 
     /// The wall-clock time the 5h window resets, e.g. "2:00 AM" (respects the
     /// user's 12/24h locale). The `resets_at` is a fixed instant, so this is exact.
@@ -545,6 +550,16 @@ final class FeedWatcher: ObservableObject {
     private static func formatReset(_ resetsAt: Double?) -> String? {
         guard let resetsAt else { return nil }
         return resetTimeFormatter.string(from: Date(timeIntervalSince1970: resetsAt))
+    }
+
+    /// "3h29m" / "43m" left until the given instant. Recomputed each render (the
+    /// footer's 1s TimelineView keeps it ticking down).
+    private static func formatResetRelative(_ resetsAt: Double?) -> String? {
+        guard let resetsAt else { return nil }
+        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
     }
 
     var globalModel: String? {

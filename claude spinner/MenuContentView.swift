@@ -30,7 +30,10 @@ struct MenuContentView: View {
                         }
                     }
                 }
-                .padding(.vertical, 6)
+                // Only pad the top; the last row's own vertical padding plus the
+                // footer's divider/padding already separate it from the footer, so
+                // a bottom pad here just opened a dead gap.
+                .padding(.top, 6)
             }
 
             UsageFooter(feed: feed)
@@ -73,35 +76,49 @@ struct UsageFooter: View {
         VStack(spacing: 0) {
             Divider()
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 6) {
-                    if feed.hasUsage {
-                        if let model = feed.globalModelFamily {
-                            Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
-                            separator
+                VStack(alignment: .leading, spacing: 3) {
+                    // Line 1: model · 5h bar · 7d bar (no reset — it moves below).
+                    HStack(spacing: 6) {
+                        if feed.hasUsage {
+                            if let model = feed.globalModelFamily {
+                                Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
+                                separator
+                            }
+                            if let h5 = feed.usageFiveHourPct {
+                                Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
+                                bar(h5)
+                                Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
+                            }
+                            if let d7 = feed.usageSevenDayPct {
+                                separator
+                                Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
+                                bar(d7)
+                                Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
+                            }
+                        } else {
+                            Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
                         }
-                        if let h5 = feed.usageFiveHourPct {
-                            Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
-                            bar(h5)
-                            Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
-                        }
-                        if let d7 = feed.usageSevenDayPct {
-                            separator
-                            Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
-                            bar(d7)
-                            Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
-                        }
-                        if let reset = feed.usageFiveHourReset {
-                            separator
-                            Text("↺\(reset)").foregroundStyle(Color.claudeDim.opacity(0.7))
-                        }
-                    } else {
-                        Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
-                    }
 
-                    Spacer(minLength: 0)
+                        Spacer(minLength: 0)
+                    }
+                    .font(.claudeMono(11))
+                    .lineLimit(1)
+
+                    // Line 2: both reset formats — clock time and the countdown —
+                    // which don't fit alongside the two bars at 360px on one line.
+                    if let clock = feed.usageFiveHourReset {
+                        HStack(spacing: 0) {
+                            Text("↺ resets \(clock)")
+                            if let rel = feed.usageFiveHourResetRelative {
+                                Text(" · in \(rel)")
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .font(.claudeMono(10))
+                        .foregroundStyle(Color.claudeDim.opacity(0.7))
+                        .lineLimit(1)
+                    }
                 }
-                .font(.claudeMono(11))
-                .lineLimit(1)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
             }
@@ -244,7 +261,7 @@ struct SessionRow: View {
 
     private var glyph: String {
         switch session.status {
-        case .attention: return "✻"   // same star as the others; the orange tint carries "needs you"
+        case .attention: return "✻"   // same star as the others; the orange background wash carries "needs you"
         case .thinking, .tool: return Spinner.frame(at: now)
         case .idle: return "✻"
         }
@@ -254,7 +271,9 @@ struct SessionRow: View {
     // session recedes — the way Claude Code greys out completed work.
     private var tint: Color {
         switch session.status {
-        case .attention: return .orange
+        // Attention matches working (.claude); the orange background wash and the
+        // message carry "needs you" without a second, redundant orange.
+        case .attention: return .claude
         case .thinking, .tool: return .claude
         case .idle: return .secondary
         }
@@ -266,7 +285,7 @@ struct SessionRow: View {
 
     private var statusColor: Color {
         switch session.status {
-        case .attention: return .orange
+        case .attention: return .claude
         case .thinking, .tool: return .claude
         case .idle: return .secondary
         }

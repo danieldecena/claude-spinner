@@ -100,18 +100,6 @@ Full history is in the git log and `TASKS.md` (`## Completed`).
 
 ## Open / Next up
 
-- [ ] **Two oranges** — attention rows use `.orange`, working uses `.claude`. Now
-  that attention rows have an orange background wash, the different text-orange is
-  redundant. Recommend: set attention `tint`/`statusColor` to `.claude` (match
-  working) and let the background wash + message signal attention.
-- [ ] **Show both reset formats** — footer reset currently shows the clock time
-  (`↺2:00 AM`); user wants the relative countdown too (`↺3h29m · 2:00 AM`). Won't fit
-  one line at 360px alongside model + two bars — recommend a **two-line footer**
-  (usage on line 1, `resets 2:00 AM · in 3h29m` on line 2). `FeedWatcher` already has
-  both pieces: bring back the relative formatter next to `formatReset`.
-- [ ] **Bottom gap cleanup** — trim the extra vertical space between the last session
-  row and the footer (`MenuContentView`: the sessions `VStack`'s `.padding(.vertical,
-  6)` + the footer `Divider`/padding stack up).
 - [ ] Focus the exact session tab/window on click (needs per-terminal scripting;
   today it focuses the host app + opens the folder where supported).
 - [ ] More tests: `usageTint`/`contextTint` tier boundaries, `displayItems` grouping,

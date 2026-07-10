@@ -2,13 +2,13 @@
 
 ## Tasks
 
-- [ ] Unify attention text color — attention rows use `.orange`, working uses `.claude`; the new orange background wash makes the different text-orange redundant. Set attention tint/statusColor to `.claude`.
-- [ ] Footer: show both reset formats — relative countdown + clock time (`↺3h29m · 2:00 AM`); needs a two-line footer to fit at 360px.
-- [ ] Trim the bottom gap between the last session row and the footer.
 - [ ] More tests: usageTint/contextTint tiers, displayItems grouping, menuBarState transitions (extract derivations to take `[SessionFeed]` for testability).
 
 ## Completed
 
+- [x] Unify attention text color — attention tint/statusColor now `.claude`; the orange background wash carries "needs you" without a second, redundant orange
+- [x] Footer: show both reset formats — two-line footer, clock time + countdown (`↺ resets 2:00 AM · in 3h29m`)
+- [x] Trim the bottom gap — sessions VStack pads top-only, closing the dead space above the footer
 - [x] Fix Clear All deleting emit.sh — the hook emitter lives in the feed dir; Clear All wiped it and killed the whole feed. Restored emit.sh; clearAll now only removes session files
 - [x] Persist usage — cache the last-known 5h/7d/model snapshot so it survives Clear All and statusLine-less sessions; usage no longer vanishes
 - [x] Refresh action — right-click → Refresh (⌘R) forces a feed re-read
