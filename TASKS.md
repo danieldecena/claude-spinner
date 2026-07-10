@@ -6,6 +6,7 @@ _None open._
 
 ## Completed
 
+- [x] Fix Clear All deleting emit.sh — the hook emitter lives in the feed dir; Clear All wiped it and killed the whole feed. Restored emit.sh; clearAll now only removes session files
 - [x] Persist usage — cache the last-known 5h/7d/model snapshot so it survives Clear All and statusLine-less sessions; usage no longer vanishes
 - [x] Refresh action — right-click → Refresh (⌘R) forces a feed re-read
 - [x] Collapse duplicate idle rows — never-worked idle sessions in the same folder group into one `home idle ×N` row
