@@ -137,26 +137,34 @@ struct SessionRow: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
+        .opacity(rowOpacity)
         .background(hover.isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .onHover { hover.isHovering = $0 }
         .onTapGesture {
             openTerminal(at: session.cwd)
         }
     }
+
+    /// Idle rows fade with age so a stale session recedes instead of sitting at
+    /// full strength for hours; working/attention rows stay fully opaque.
+    private var rowOpacity: Double {
+        guard session.status == .idle, let updated = session.updated else { return 1.0 }
+        let age = now.timeIntervalSince(updated)
+        let t = min(max((age - Constants.idleFadeStart) / Constants.idleFadeSpan, 0), 1)
+        return 1.0 - (1.0 - Constants.idleMinOpacity) * t
+    }
     
     /// Open a terminal at the session's project dir. Prefers Ghostty (the app's
     /// styling target); falls back to Terminal.app when Ghostty isn't installed.
-    /// macOS can't launch Ghostty's CLI directly, so we pass its config key
-    /// through `open --args` (see `ghostty --help`).
+    /// Uses `open -a` (no `-n`) with the folder as the argument: Ghostty handles
+    /// public.directory, so this reuses the running instance and opens a window
+    /// at the dir instead of spawning a duplicate Ghostty process each click.
     private func openTerminal(at path: String) {
         guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        if FileManager.default.fileExists(atPath: "/Applications/Ghostty.app") {
-            task.arguments = ["-na", "Ghostty.app", "--args", "--working-directory=\(path)"]
-        } else {
-            task.arguments = ["-a", "Terminal", path]
-        }
+        let ghostty = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
+        task.arguments = ["-a", ghostty ? "Ghostty.app" : "Terminal", path]
         try? task.run()
     }
 

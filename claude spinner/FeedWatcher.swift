@@ -31,6 +31,11 @@ enum Constants {
     static let panelWidth: CGFloat = 320
     /// Segments in the footer usage bar.
     static let usageBarSegments = 8
+    /// Idle rows stay full strength for this long after their last update…
+    static let idleFadeStart: TimeInterval = 60
+    /// …then fade to `idleMinOpacity` linearly over this span.
+    static let idleFadeSpan: TimeInterval = 30 * 60
+    static let idleMinOpacity: Double = 0.45
 }
 
 enum SessionStatus: String {
@@ -375,19 +380,14 @@ final class FeedWatcher: ObservableObject {
         return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
     }
 
-    /// The live `(22s · hint)` suffix for a working session, reconstructed from
-    /// turn_start — the timer the terminal spinner shows, recreated client-side.
+    /// The live `(22s)` timer suffix for a working session, reconstructed from
+    /// turn_start. Kept deliberately terse — just the elapsed time — so the menu
+    /// bar stays compact and doesn't shove other items around; the tool/thinking
+    /// hint lives in the dropdown row instead.
     private func parenthetical(for s: SessionFeed) -> String {
         guard let start = s.turnStart else { return "" }
         let elapsed = max(0, Int(Date().timeIntervalSince(start)))
-        let timer = Self.formatDuration(elapsed)
-        let hint: String
-        switch s.status {
-        case .tool: hint = s.tool.isEmpty ? "running" : "running \(s.tool)"
-        case .thinking: hint = elapsed >= Constants.stillThinkingThreshold ? "still thinking" : "thinking"
-        default: hint = ""
-        }
-        return hint.isEmpty ? " (\(timer))" : " (\(timer) · \(hint))"
+        return " (\(Self.formatDuration(elapsed)))"
     }
 
     /// Most-urgent first: attention, then working, then idle; newest within each.
