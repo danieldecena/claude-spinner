@@ -82,15 +82,16 @@ struct UsageFooter: View {
                             Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
                             bar(h5)
                             Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
-                            if let reset = feed.usageFiveHourReset {
-                                Text("↺\(reset)").foregroundStyle(Color.claudeDim.opacity(0.7))
-                            }
                         }
                         if let d7 = feed.usageSevenDayPct {
                             separator
                             Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
                             bar(d7)
                             Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
+                        }
+                        if let reset = feed.usageFiveHourReset {
+                            separator
+                            Text("↺\(reset)").foregroundStyle(Color.claudeDim.opacity(0.7))
                         }
                     } else {
                         Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
@@ -128,7 +129,6 @@ struct SessionRow: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .layoutPriority(1)
 
             if item.count > 1 {
                 Text("×\(item.count)")
@@ -136,28 +136,36 @@ struct SessionRow: View {
                     .foregroundStyle(Color.claudeDim)
             }
 
+            // Higher priority than the project name so the activity + elapsed time
+            // keep their space and the name truncates first (not the "1m 15s").
             Text(statusText)
                 .font(.claudeMono(12))
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .layoutPriority(1)
 
             Spacer(minLength: 6)
 
-            if hover.isHovering {
-                Button {
-                    feed.clear(item)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
+            // Fixed trailing slot so ctx% aligns across rows and the hover ✕ never
+            // squeezes the activity text.
+            Group {
+                if hover.isHovering {
+                    Button {
+                        feed.clear(item)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(Color.claudeDim)
+                } else if let ctx = session.contextPct {
+                    Text("\(ctx)%")
+                        .font(.claudeMono(11))
+                        .foregroundStyle(Color.contextTint(ctx))
                 }
-                .buttonStyle(.plain)
-                .foregroundColor(Color.claudeDim)
-            } else if let ctx = session.contextPct {
-                Text("\(ctx)%")
-                    .font(.claudeMono(11))
-                    .foregroundStyle(Color.contextTint(ctx))
             }
+            .frame(width: 34, alignment: .trailing)
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .opacity(rowOpacity)

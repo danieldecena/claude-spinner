@@ -27,7 +27,7 @@ enum Constants {
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
     /// Dropdown panel width.
-    static let panelWidth: CGFloat = 320
+    static let panelWidth: CGFloat = 360
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
