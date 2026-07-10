@@ -905,3 +905,70 @@
 | 01:20 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~51228 tok |
 | 01:20 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~51228 tok |
 | 01:20 | Footer trend: added "chg" capsule gauge (5h delta over the sample window, usageFiveHourTrend = last-first of usageHistory; +amber/-green, 20pt fills). Replaced the vertical-bars Sparkline (removed). Compacted footer fonts 11->10, shared Constants.usageTrackWidth for all 3 gauges. Width/fit iteration (user): 360->400 (off screen) -> 380 -> back to 360 w/ track 22 so model+5h+7d+chg+countdown fit. VERIFIED usage data live via OAuth poll: 5h 0.89=89%, 7d 0.16=16%, chg +10% (79->89) all correct; 5h-status "allowed" at 89% confirms bug-073 gate (block only >=100%) is right; overage-disabled-reason=out_of_credits present. Harness 28 ALL PASS | FeedWatcher.swift, MenuContentView.swift | build+harness OK | ~6k |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:26 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:27 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:29 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:29 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 20 reads | ~53359 tok |
+| 01:30 | Edited claude spinner/FeedWatcher.swift | 360 → 320 | ~11 |
+| 01:30 | Edited claude spinner/FeedWatcher.swift | 360 → 320 | ~11 |
+| 01:30 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~79 |
+| 01:30 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~79 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~1044 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~1044 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~296 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~296 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~244 |
+| 01:31 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~244 |
+| 01:32 | Edited claude spinner/FeedWatcher.swift | modified num() | ~125 |
+| 01:32 | Edited claude spinner/FeedWatcher.swift | modified num() | ~125 |
+| 01:32 | Edited claude spinner/FeedWatcher.swift | startup() → wrong() | ~264 |
+| 01:32 | Edited claude spinner/FeedWatcher.swift | startup() → wrong() | ~264 |
+| 01:33 | Edited claude spinner/FeedWatcher.swift | expanded (+8 lines) | ~216 |
+| 01:33 | Edited claude spinner/FeedWatcher.swift | expanded (+8 lines) | ~216 |
+| 01:33 | Edited claude spinner/FeedWatcher.swift | 4→5 lines | ~91 |
+| 01:33 | Edited claude spinner/FeedWatcher.swift | 4→5 lines | ~91 |
+| 01:34 | Edited claude spinner/FeedWatcher.swift | expanded (+6 lines) | ~89 |
+| 01:34 | Edited claude spinner/FeedWatcher.swift | expanded (+6 lines) | ~89 |
+| 01:34 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~463 |
+| 01:34 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~463 |
+| 01:34 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~31 |
+| 01:34 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~31 |
+| 01:35 | Edited claude spinner/FeedWatcher.swift | 1→2 lines | ~43 |
+| 01:35 | Edited claude spinner/FeedWatcher.swift | 1→2 lines | ~43 |
+| 01:35 | Edited claude spinner/FeedWatcher.swift | modified recordUsageSample() | ~250 |
+| 01:35 | Edited claude spinner/FeedWatcher.swift | modified recordUsageSample() | ~250 |
+| 01:36 | Edited claude spinner/FeedWatcher.swift | modified window() | ~251 |
+| 01:36 | Edited claude spinner/FeedWatcher.swift | modified window() | ~251 |
+| 01:36 | Edited claude spinner/FeedWatcher.swift | 5→8 lines | ~109 |
+| 01:36 | Edited claude spinner/FeedWatcher.swift | 5→8 lines | ~109 |
+| 01:37 | Edited claude spinner/FeedWatcher.swift | inline fix | ~21 |
+| 01:37 | Edited claude spinner/FeedWatcher.swift | inline fix | ~21 |
+| 01:37 | Edited claude spinner/MenuContentView.swift | inline fix | ~16 |
+| 01:37 | Edited claude spinner/MenuContentView.swift | inline fix | ~16 |
+| 01:37 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified from() | ~59 |
+| 01:37 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified from() | ~59 |
+| 01:37 | Edited claude spinner/FeedWatcher.swift | modified checkSetupInstalled() | ~262 |
+| 01:37 | Edited claude spinner/FeedWatcher.swift | modified checkSetupInstalled() | ~262 |
+| 01:38 | Edited claude spinner/FeedWatcher.swift | modified trend() | ~225 |
+| 01:38 | Edited claude spinner/FeedWatcher.swift | modified trend() | ~225 |
+| 01:39 | Edited claude spinner/FeedWatcher.swift | modified formatDuration() | ~218 |
+| 01:39 | Edited claude spinner/FeedWatcher.swift | modified formatDuration() | ~218 |
+| 01:39 | Edited claude spinner/MenuContentView.swift | 5→4 lines | ~38 |
+| 01:39 | Edited claude spinner/MenuContentView.swift | 5→4 lines | ~38 |
+| 01:40 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified sample() | ~422 |
+| 01:40 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified sample() | ~422 |
+| 01:40 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~445 |
+| 01:40 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~445 |
+| 01:45 | Compacted panel to 320px (was 360, briefly tried 380/400 per user iteration) - all fonts 9-11, gauge tracks 16, row padding 10/7, spacing tightened; added .fixedSize() to row time to stop it wrapping to 2 lines. Code-review fixes (8 findings, executed 1/3/4/5/6): #1 dead-pid file deletion now gets the same mtime grace as every other prune reason (no more instant delete on a possibly-wrong pid); #3 UsagePoller.parse guards non-finite (inf/nan) header values before Int(...).rounded() which would otherwise trap; #2+#4 usageHistory -> [UsageSample] (pct+timestamp, Codable/Data-persisted) replacing raw [Int]; reset-aware FeedWatcher.trend(from:) static func skips the misleading giant-negative right after a 5h reset, samples closer than 2min collapse (Refresh-mash guard), trimmed by time window not count; #5 HostTag classified once into SessionFeed.hostTag on applyState, row reads the stored value instead of reclassifying every 0.1s tick; #6 isSetupInstalled -> lazy var (was disk I/O every render when panel empty + usage alarm pulsing). Added animated "." ".." "" working-dots (FeedWatcher.workingDots, replaces the numeric elapsed-seconds timer on thinking/tool rows only - user request). Harness 33 asserts + XCTest mirrors ALL PASS | FeedWatcher.swift, MenuContentView.swift, claude spinnerTests/claude_spinnerTests.swift | build+harness OK | ~14k |

@@ -1312,6 +1312,54 @@
       "related_bugs": [],
       "occurrences": 3,
       "last_seen": "2026-07-10T08:20:24.352Z"
+    },
+    {
+      "id": "bug-082",
+      "timestamp": "2026-07-10T08:30:33.080Z",
+      "error_message": "Wrong reference: 360 should be 320",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"360\" instead of \"320\"",
+      "fix": "Changed 360 → 320",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:30:33.080Z"
+    },
+    {
+      "id": "bug-083",
+      "timestamp": "2026-07-10T08:32:31.961Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 12→15 lines (5 removed) | Also: /// Most recent 5h samples kept for the footer spa; static let usageHistoryMax = 30 | Also: /// Recent 5h utilization samples (oldest→newest) ; /// persisted so the trend survives relaunch. Capp | Also: recordUsageSample(result.fiveHourPct); /// Append a 5h sample to the sparkline ring buffe | Also: /// Signed change in 5h utilization across the ret; /// a 5m poll): how many points it has climbed (+) | Also: /// sessions\". Cheap file reads, only consulted wh; var isSetupInstalled: Bool { | Also: var usageFiveHourTrend: Int? {; guard let lastResetIndex = usageHistory.indices.dr",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 8,
+      "last_seen": "2026-07-10T08:38:37.501Z"
+    },
+    {
+      "id": "bug-084",
+      "timestamp": "2026-07-10T08:39:45.474Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Was returning: \"\" }",
+      "fix": "Now returns: FeedWatcher.workingDots(at: now)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:39:45.474Z"
     }
   ]
 }

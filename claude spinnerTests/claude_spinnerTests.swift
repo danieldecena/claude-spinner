@@ -252,4 +252,40 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(HostTag.from(""))
         XCTAssertNil(HostTag.from("some.unknown.bundle"))
     }
+
+    // MARK: - FeedWatcher.trend (reset-aware 5h delta)
+
+    private func sample(_ pct: Int, _ at: Double) -> UsageSample { UsageSample(pct: pct, at: at) }
+
+    func testTrendPlainClimb() {
+        XCTAssertEqual(FeedWatcher.trend(from: [sample(79, 0), sample(89, 300)]), 10)
+    }
+
+    func testTrendIgnoresPreResetValueWhenNothingFollowsTheReset() {
+        // A reset drop with no sample after it isn't a meaningful trend yet.
+        XCTAssertNil(FeedWatcher.trend(from: [sample(90, 0), sample(5, 300)]))
+    }
+
+    func testTrendDiffsFromTheResetPointNotTheWindowStart() {
+        XCTAssertEqual(FeedWatcher.trend(from: [sample(90, 0), sample(5, 300), sample(12, 600)]), 7)
+    }
+
+    func testTrendSmallDipIsNotMistakenForAReset() {
+        XCTAssertEqual(FeedWatcher.trend(from: [sample(50, 0), sample(55, 300), sample(48, 600)]), -2)
+    }
+
+    func testTrendNeedsAtLeastTwoSamples() {
+        XCTAssertNil(FeedWatcher.trend(from: []))
+        XCTAssertNil(FeedWatcher.trend(from: [sample(80, 0)]))
+    }
+
+    // MARK: - FeedWatcher.workingDots (animated working-row indicator)
+
+    func testWorkingDotsCyclesThreePhases() {
+        let d0 = Date(timeIntervalSinceReferenceDate: 0)
+        XCTAssertEqual(FeedWatcher.workingDots(at: d0), ".")
+        XCTAssertEqual(FeedWatcher.workingDots(at: d0.addingTimeInterval(0.5)), "..")
+        XCTAssertEqual(FeedWatcher.workingDots(at: d0.addingTimeInterval(1.0)), "")
+        XCTAssertEqual(FeedWatcher.workingDots(at: d0.addingTimeInterval(1.5)), ".")
+    }
 }

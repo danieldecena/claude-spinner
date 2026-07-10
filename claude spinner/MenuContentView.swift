@@ -83,14 +83,14 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     if feed.hasUsage {
                         // Dim the numbers when stale so a frozen snapshot doesn't
                         // read as live; the "as of" time is in the tooltip.
                         Group {
                             if let model = feed.globalModelFamily {
                                 Text(model)
-                                    .font(.claudeMono(10)).fontWeight(.semibold)
+                                    .font(.claudeMono(9)).fontWeight(.semibold)
                                     .foregroundStyle(Color.modelTint(feed.globalModel))
                                     .fixedSize()
                             }
@@ -110,7 +110,7 @@ struct UsageFooter: View {
                         .opacity(feed.usageIsStale ? 0.5 : 1)
                         .help(feed.usageAsOfString)
 
-                        Spacer(minLength: 8)
+                        Spacer(minLength: 4)
 
                         // Mirror the row's trailing structure exactly — content, a
                         // 6pt gap, then a clear box the width of the row's chip/✕ slot
@@ -122,18 +122,18 @@ struct UsageFooter: View {
                                 // takes the slot when present — usage is stale or
                                 // blocked, so a reset countdown would mislead.
                                 HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(10)).fontWeight(.bold)
-                                    Text(notice).font(.claudeMono(10))
+                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                    Text(notice).font(.claudeMono(9))
                                 }
                                 .foregroundStyle(Color.usageTint(95))
                                 .fixedSize()
                                 .help(feed.usageNoticeDetail)
                             } else if let rel = feed.usageFiveHourResetRelative {
                                 // Live countdown (both reset formats don't fit one row
-                                // at 360px); the reset clock times are in the tooltip.
+                                // at 320px); the reset clock times are in the tooltip.
                                 HStack(spacing: 2) {
-                                    Text("↺").font(.claudeMono(9))
-                                    Text(rel).font(.claudeMono(10)).monospacedDigit()
+                                    Text("↺").font(.claudeMono(8))
+                                    Text(rel).font(.claudeMono(9)).monospacedDigit()
                                 }
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .help(feed.usageResetTooltip)
@@ -148,8 +148,8 @@ struct UsageFooter: View {
                     }
                 }
                 .lineLimit(1)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
             }
         }
     }
@@ -166,9 +166,9 @@ struct UsageGauge: View {
     private let trackHeight: CGFloat = 5
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Text(label)
-                .font(.claudeMono(10))
+                .font(.claudeMono(9))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -183,7 +183,7 @@ struct UsageGauge: View {
                            height: trackHeight)
             }
             Text("\(pct)%")
-                .font(.claudeMono(10)).monospacedDigit()
+                .font(.claudeMono(9)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
                 .fixedSize()
         }
@@ -210,9 +210,9 @@ struct TrendGauge: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Text("chg")
-                .font(.claudeMono(10))
+                .font(.claudeMono(9))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -226,7 +226,7 @@ struct TrendGauge: View {
                            height: trackHeight)
             }
             Text("\(delta > 0 ? "+" : "")\(delta)%")
-                .font(.claudeMono(10)).monospacedDigit()
+                .font(.claudeMono(9)).monospacedDigit()
                 .foregroundStyle(tint)
                 .fixedSize()
         }
@@ -244,17 +244,17 @@ struct SessionRow: View {
 
     var body: some View {
         // One line: [glyph] project-name ×N  status…time   ctx%
-        HStack(spacing: 7) {
+        HStack(spacing: 5) {
             Text(glyph)
-                .font(.claudeMono(14))
+                .font(.claudeMono(12))
                 .foregroundStyle(tint)
-                .frame(width: 16)
+                .frame(width: 14)
 
             // Name wins the space; a long activity/message (e.g. an attention
             // message) truncates before the project name does. The wider panel
             // leaves room for both the name and a short "thinking · 35s".
             Text(session.projectName)
-                .font(.claudeMono(13))
+                .font(.claudeMono(11))
                 .foregroundStyle(nameColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -262,28 +262,29 @@ struct SessionRow: View {
 
             if item.count > 1 {
                 Text("×\(item.count)")
-                    .font(.claudeMono(11))
+                    .font(.claudeMono(9))
                     .foregroundStyle(Color.secondary)
             }
 
             Text(statusLabel)
-                .font(.claudeMono(12))
+                .font(.claudeMono(10))
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
             // Time + host chip travel together as one right-flush unit with a tight
             // gap, so the time stays near the right edge with the tag just after it.
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 // Elapsed / waiting / done time. Right-aligned in a fixed-width
                 // column so the times line up down the panel regardless of label.
                 if !timeText.isEmpty {
                     Text(timeText)
-                        .font(.claudeMono(11))
+                        .font(.claudeMono(10))
                         .monospacedDigit()
                         .foregroundStyle(Color.secondary)
+                        .fixedSize()
                 }
 
                 // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
@@ -301,7 +302,7 @@ struct SessionRow: View {
                         .buttonStyle(.plain)
                         .foregroundColor(Color.secondary)
                         .help("Clear this session")
-                    } else if let tag = HostTag.from(session.host) {
+                    } else if let tag = session.hostTag {
                         Text(tag.label)
                             .font(.claudeMono(9))
                             .foregroundStyle(tag.color)
@@ -317,7 +318,7 @@ struct SessionRow: View {
         // Everything in a row renders lowercase — including hook-supplied text like
         // the attention message and tool names — for one consistent visual voice.
         .textCase(.lowercase)
-        .padding(.horizontal, 14).padding(.vertical, 8)
+        .padding(.horizontal, 10).padding(.vertical, 7)
         .opacity(rowOpacity)
         .background(rowHighlight)
         .onHover { hover.isHovering = $0 }
@@ -429,8 +430,7 @@ struct SessionRow: View {
     private var timeText: String {
         switch session.status {
         case .tool, .thinking:
-            guard let start = session.turnStart else { return "" }
-            return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(start))))
+            return FeedWatcher.workingDots(at: now)
         case .attention:
             return sinceUpdated
         case .idle:

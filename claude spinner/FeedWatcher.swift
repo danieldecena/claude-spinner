@@ -28,15 +28,15 @@ enum Constants {
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
     /// Dropdown panel width.
-    static let panelWidth: CGFloat = 360
+    static let panelWidth: CGFloat = 320
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
     static let rowTrailingSlot: CGFloat = 26
     /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
     /// identical in size, kept short enough that the model name, all three gauges,
-    /// and the reset countdown fit within the 360px panel without clipping.
-    static let usageTrackWidth: CGFloat = 22
+    /// and the reset countdown fit within the compact 320px panel without clipping.
+    static let usageTrackWidth: CGFloat = 16
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -47,8 +47,16 @@ enum Constants {
     static let doneFlashDuration: TimeInterval = 5
     /// At/over this 5h utilization, the menu-bar usage % pulses red as a warning.
     static let usageAlarmPct = 90
-    /// Most recent 5h samples kept for the footer sparkline (~2.5h at a 5m poll).
-    static let usageHistoryMax = 30
+    /// How far back the "chg" trend gauge looks; older samples are trimmed.
+    static let usageTrendWindow: TimeInterval = 3 * 3600
+    /// Collapse samples closer together than this so mashing manual Refresh can't
+    /// flood the trend window with near-duplicate points.
+    static let usageSampleMinGap: TimeInterval = 2 * 60
+    /// A drop at least this large between consecutive samples can only be the 5h
+    /// window resetting, not usage organically falling — utilization never drops
+    /// this fast on its own. The trend only compares samples since the most
+    /// recent such reset, so it never reports a misleading giant negative.
+    static let usageResetDropThreshold = 20
     /// Usage older than this is flagged stale in the footer — no statusLine session
     /// has refreshed it recently (the only source of the 5h/7d percentages).
     static let usageStaleAfter: TimeInterval = 15 * 60
@@ -168,6 +176,9 @@ struct SessionFeed: Identifiable {
     var message: String = ""
     var cwd: String = ""
     var host: String = ""
+    /// Classified once when `host` is set (not recomputed by the row every 0.1s
+    /// TimelineView tick) — the row just reads this stored value.
+    var hostTag: HostTag?
     /// PID of the owning `claude` process (captured by emit.sh), so a session whose
     /// process died without a SessionEnd can be pruned. nil when not captured.
     var pid: Int?
@@ -190,7 +201,7 @@ struct SessionFeed: Identifiable {
         tool = s.tool ?? ""
         message = s.message ?? ""
         if let c = s.cwd, !c.isEmpty { cwd = c }
-        if let h = s.host, !h.isEmpty { host = h }
+        if let h = s.host, !h.isEmpty { host = h; hostTag = HostTag.from(h) }
         if let p = s.pid { pid = Int(p) }
         turnStart = s.turn_start.map { Date(timeIntervalSince1970: $0) }  // null when idle
         if let up = s.updated { updated = Date(timeIntervalSince1970: up) }
@@ -237,6 +248,12 @@ struct UsageSnapshot: Codable {
     var sevenDayPct: Int?
     var model: String?
     var savedAt: Double
+}
+
+/// One timestamped 5h-utilization poll result, kept for the "chg" trend gauge.
+struct UsageSample: Codable {
+    var pct: Int
+    var at: Double  // epoch seconds
 }
 
 /// One dropdown row — a single session, or a collapsed group of never-worked
@@ -301,7 +318,11 @@ final class UsagePoller {
     /// Pure header→Result parse, so the mapping is unit-testable without a network
     /// round-trip. Keys are the lowercased response header names.
     static func parse(headers: [String: String], now: Date) -> Result? {
-        func num(_ key: String) -> Double? { headers[key].flatMap(Double.init) }
+        // isFinite guards against a malformed "inf"/"nan" header value, which
+        // Double.init parses successfully but Int(...).rounded() would then trap on.
+        func num(_ key: String) -> Double? {
+            headers[key].flatMap(Double.init).flatMap { $0.isFinite ? $0 : nil }
+        }
         guard let u5 = num("anthropic-ratelimit-unified-5h-utilization"),
               let u7 = num("anthropic-ratelimit-unified-7d-utilization") else { return nil }
         return Result(
@@ -400,9 +421,10 @@ final class FeedWatcher: ObservableObject {
     private var notifiedAttention: Set<String> = []
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
-    /// Recent 5h utilization samples (oldest→newest) for the footer sparkline,
-    /// persisted so the trend survives relaunch. Capped at `usageHistoryMax`.
-    @Published private(set) var usageHistory: [Int] = []
+    /// Recent 5h utilization samples (oldest→newest), each stamped with when it
+    /// was polled, backing the footer's "chg" trend gauge. Persisted so the trend
+    /// survives relaunch; trimmed to `Constants.usageTrendWindow`.
+    @Published private(set) var usageHistory: [UsageSample] = []
 
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
@@ -428,7 +450,8 @@ final class FeedWatcher: ObservableObject {
             .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
         cachedUsage = UserDefaults.standard.data(forKey: "usageSnapshot")
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
-        usageHistory = (UserDefaults.standard.array(forKey: "usageHistory") as? [Int]) ?? []
+        usageHistory = UserDefaults.standard.data(forKey: "usageHistory")
+            .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
         dir = FileManager.default.homeDirectoryForCurrentUser
@@ -483,16 +506,22 @@ final class FeedWatcher: ObservableObject {
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: "usageSnapshot")
         }
-        recordUsageSample(result.fiveHourPct)
+        recordUsageSample(result.fiveHourPct, at: result.fetchedAt)
     }
 
-    /// Append a 5h sample to the sparkline ring buffer and persist it.
-    private func recordUsageSample(_ pct: Int) {
-        usageHistory.append(pct)
-        if usageHistory.count > Constants.usageHistoryMax {
-            usageHistory.removeFirst(usageHistory.count - Constants.usageHistoryMax)
+    /// Append a timestamped 5h sample for the "chg" trend gauge and persist it.
+    /// Collapses samples less than `usageSampleMinGap` apart (mashing manual
+    /// Refresh can't flood the trend window with near-duplicate points), and
+    /// trims anything older than `usageTrendWindow` so the buffer reflects an
+    /// actual recent span rather than an arbitrary poll count.
+    private func recordUsageSample(_ pct: Int, at: Date) {
+        let now = at.timeIntervalSince1970
+        if let last = usageHistory.last, now - last.at < Constants.usageSampleMinGap { return }
+        usageHistory.append(UsageSample(pct: pct, at: now))
+        usageHistory.removeAll { now - $0.at > Constants.usageTrendWindow }
+        if let data = try? JSONEncoder().encode(usageHistory) {
+            UserDefaults.standard.set(data, forKey: "usageHistory")
         }
-        UserDefaults.standard.set(usageHistory, forKey: "usageHistory")
     }
 
     // Atomic mv from the hook scripts replaces directory entries, so watching
@@ -578,13 +607,16 @@ final class FeedWatcher: ObservableObject {
         }.map(\.id))
         let live = recent.filter { !deadPidIds.contains($0.id) }
         let liveIds = Set(live.map(\.id))
-        // Prune files that belong to no live session: immediately for a dead-pid
-        // session, otherwise only once the file itself is older than the cutoff —
-        // so a transient read miss or a session mid-startup (status.json written
-        // before state.json) is never deleted.
+        // Prune files that belong to no live session only once the file itself is
+        // older than the cutoff — including a dead-pid session's files. A pid check
+        // can be wrong (a synced/remote ~/.claude, or a hook subshell pid rather
+        // than the claude parent), so a dead-pid row still disappears from the
+        // panel immediately, but its files get the same grace period as every
+        // other prune reason: a transient read miss or a mid-startup session is
+        // never deleted, and a wrongly-flagged session's data survives long enough
+        // to recover on its next real update.
         for url in files {
             guard let id = sessionId(from: url.lastPathComponent), !liveIds.contains(id) else { continue }
-            if deadPidIds.contains(id) { try? fm.removeItem(at: url); continue }
             let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if (mtime ?? .distantPast) < cutoff {
                 try? fm.removeItem(at: url)
@@ -610,8 +642,12 @@ final class FeedWatcher: ObservableObject {
     /// True when the feed plumbing is in place: the emitter script exists and
     /// settings.json wires it into the hooks. When false, no session will ever
     /// appear — so the panel shows a setup hint instead of a bare "No active
-    /// sessions". Cheap file reads, only consulted when the panel is empty.
-    var isSetupInstalled: Bool {
+    /// sessions". Computed once (on refresh) and cached — the empty-panel view can
+    /// re-render up to 10x/sec (the menu-bar glyph pulse ticks even with no
+    /// sessions, e.g. a usage alarm), and this does real disk I/O.
+    private(set) lazy var isSetupInstalled: Bool = Self.checkSetupInstalled(dir: dir)
+
+    private static func checkSetupInstalled(dir: URL) -> Bool {
         guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("emit.sh").path)
         else { return false }
         let settings = dir.deletingLastPathComponent().appendingPathComponent("settings.json")
@@ -737,6 +773,19 @@ final class FeedWatcher: ObservableObject {
         return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
     }
 
+    /// Animated "thinking" dots for an actively-working row's time slot — a
+    /// looping "." → ".." → "" cycle instead of a numeric elapsed timer, since a
+    /// live count of seconds is less useful than a signal that work is ongoing.
+    /// Pure/date-driven so every row's dots stay in phase with each other.
+    static func workingDots(at date: Date, phaseDuration: TimeInterval = 0.5) -> String {
+        let phase = Int((date.timeIntervalSinceReferenceDate / phaseDuration).rounded(.down))
+        switch ((phase % 3) + 3) % 3 {
+        case 0: return "."
+        case 1: return ".."
+        default: return ""
+        }
+    }
+
     /// Most-urgent first: attention, then working, then idle; newest within each.
     var sortedSessions: [SessionFeed] { Self.sorted(sessions) }
 
@@ -812,13 +861,26 @@ final class FeedWatcher: ObservableObject {
     /// The 5h reset as a relative countdown, e.g. "3h29m".
     var usageFiveHourResetRelative: String? { Self.formatResetRelative(fiveHourResetsAt) }
 
-    /// Signed change in 5h utilization across the retained sample window (~2.5h at
-    /// a 5m poll): how many points it has climbed (+) or fallen (−). nil until
-    /// there are ≥2 samples to compare.
-    var usageFiveHourTrend: Int? {
-        guard usageHistory.count >= 2, let first = usageHistory.first, let last = usageHistory.last
-        else { return nil }
-        return last - first
+    /// Signed change in 5h utilization across the retained sample window (up to
+    /// `Constants.usageTrendWindow`): how many points it has climbed (+) or fallen
+    /// (−). Reset-aware — the 5h window resetting drops utilization sharply, which
+    /// is not a real "usage fell" event, so the trend only compares samples since
+    /// the most recent such drop. nil until there are ≥2 samples since that point.
+    var usageFiveHourTrend: Int? { Self.trend(from: usageHistory) }
+
+    /// Pure trend derivation, extracted so reset-detection is unit-testable
+    /// without a live poller. Finds the most recent reset-sized drop and only
+    /// diffs samples from there onward; falls back to the whole window if no
+    /// reset occurred within it.
+    static func trend(from samples: [UsageSample]) -> Int? {
+        guard let lastResetIndex = samples.indices.dropFirst().last(where: {
+            samples[$0].pct < samples[$0 - 1].pct - Constants.usageResetDropThreshold
+        }) else {
+            guard samples.count >= 2 else { return nil }
+            return samples.last!.pct - samples.first!.pct
+        }
+        guard lastResetIndex < samples.count - 1 else { return nil }
+        return samples.last!.pct - samples[lastResetIndex].pct
     }
 
     /// The 7d window's reset instant (only the poller carries it).
