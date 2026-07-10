@@ -27,51 +27,12 @@ struct MenuContentView: View {
                                 Divider().padding(.leading, 14)
                             }
                         }
-                        
-                        if let usage = feed.globalRateLimitText {
-                            Divider().padding(.top, 4)
-                            HStack(spacing: 8) {
-                                Text(feed.menuBarActive ? Spinner.frame(at: context.date) : "✻")
-                                    .font(.claudeMono(14))
-                                    .foregroundStyle(feed.menuBarActive ? Color.claude : Color.claudeDim)
-                                
-                                if feed.menuBarActive {
-                                    if let model = feed.globalModel {
-                                        Text(model)
-                                            .font(.claudeMono(11))
-                                            .foregroundStyle(Color.claudeDim)
-                                    }
-                                } else if !feed.menuBarBody.isEmpty {
-                                    Text(feed.menuBarBody)
-                                        .font(.claudeMono(11))
-                                        .foregroundStyle(Color.claudeDim)
-                                }
-                                
-                                Spacer()
-                                
-                                Menu {
-                                    Toggle("Launch at Login", isOn: $feed.launchAtLogin)
-                                    Button("Clear All Sessions") { feed.clearAll() }
-                                    Button("Quit") { NSApplication.shared.terminate(nil) }
-                                } label: {
-                                    Image(systemName: "gearshape.fill")
-                                }
-                                .menuStyle(.borderlessButton)
-                                .frame(width: 16)
-                                .padding(.trailing, 6)
-                                
-                                Text(usage)
-                                    .font(.claudeMono(11))
-                                    .foregroundStyle(Color.claudeDim)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.top, 6)
-                            .padding(.bottom, 6)
-                        }
                     }
                 }
                 .padding(.vertical, 6)
             }
+
+            UsageFooter(feed: feed)
         }
         .frame(width: Constants.panelWidth)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
@@ -80,6 +41,53 @@ struct MenuContentView: View {
                 .keyboardShortcut("q", modifiers: .command)
                 .opacity(0)
         )
+    }
+}
+
+/// Always-present footer: live usage (model · 5h limit · total cost) on the
+/// left, the settings gear on the right so it's reachable even with no usage
+/// data yet. A 1s clock keeps the "resets in" countdown current.
+struct UsageFooter: View {
+    @ObservedObject var feed: FeedWatcher
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack(spacing: 8) {
+                    if let usage = feed.globalRateLimitText {
+                        if let model = feed.globalModelShort {
+                            Text(model).foregroundStyle(Color.claudeDim.opacity(0.8))
+                            Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+                        }
+                        Text(usage).foregroundStyle(Color.claudeDim)
+                        if let cost = feed.globalCost {
+                            Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+                            Text(String(format: "$%.2f", cost)).foregroundStyle(Color.claudeDim)
+                        }
+                    } else {
+                        Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Menu {
+                        Toggle("Launch at Login", isOn: $feed.launchAtLogin)
+                        Button("Clear All Sessions") { feed.clearAll() }
+                        Button("Quit") { NSApplication.shared.terminate(nil) }
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(Color.claudeDim)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 16)
+                }
+                .font(.claudeMono(11))
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+            }
+        }
     }
 }
 

@@ -418,6 +418,18 @@ final class FeedWatcher: ObservableObject {
         return mostRecent.model
     }
 
+    /// Model name trimmed to its family for the compact footer, e.g.
+    /// "Opus 4.8 (1M context)" -> "Opus 4.8".
+    var globalModelShort: String? {
+        globalModel.map { String($0.prefix { $0 != "(" }).trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Total spend across the visible sessions — the footer's live cost figure.
+    var globalCost: Double? {
+        let costs = sessions.compactMap(\.costUsd)
+        return costs.isEmpty ? nil : costs.reduce(0, +)
+    }
+
     // MARK: - Actions
 
     func clearSession(id: String) {
