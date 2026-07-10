@@ -186,15 +186,15 @@ struct UsageFooter: View {
                                     
                                     let filledCount = min(40, max(0, Int((Double(pct) / 2.5).rounded())))
                                     
-                                    VStack(alignment: .leading, spacing: 4) {
+                                    VStack(alignment: .leading, spacing: 5) {
                                         // The 2 rows of 20 cylinders
                                         ForEach(0..<2, id: \.self) { r in
-                                            HStack(spacing: 3) {
+                                            HStack(spacing: 5) {
                                                 ForEach(0..<20, id: \.self) { c in
                                                     let idx = r * 20 + c
                                                     let isFilled = idx < filledCount
                                                     Text("⛁")
-                                                        .font(.claudeMono(10))
+                                                        .font(.claudeMono(14))
                                                         .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
                                                     
                                                 }
