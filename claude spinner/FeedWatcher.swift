@@ -164,10 +164,17 @@ private struct StatusFile: Decodable {
         var five_hour: Window?
         var seven_day: Window?
     }
+    struct ContextWindow: Decodable {
+        var total_input_tokens: Int?
+        var total_output_tokens: Int?
+        var context_window_size: Int?
+        var used_percentage: Double?
+    }
     var model: Model?
     var cwd: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
+    var context_window: ContextWindow?
 }
 
 struct SessionFeed: Identifiable {
@@ -192,6 +199,10 @@ struct SessionFeed: Identifiable {
     /// The just-finished turn, for Claude's grey "Sautéed for 5m 18s" done line.
     var lastSeed: Int?
     var lastDuration: Int?
+    var contextPct: Int?
+    var contextInputTokens: Int?
+    var contextOutputTokens: Int?
+    var contextSize: Int?
 
 
     init(id: String) { self.id = id }
@@ -221,6 +232,12 @@ struct SessionFeed: Identifiable {
             if let r = five.resets_at { fiveHourResetsAt = r }
         }
         if let p = s.rate_limits?.seven_day?.used_percentage { sevenDayPct = Int(p.rounded()) }
+        if let ctx = s.context_window {
+            if let p = ctx.used_percentage { contextPct = Int(p.rounded()) }
+            contextInputTokens = ctx.total_input_tokens
+            contextOutputTokens = ctx.total_output_tokens
+            contextSize = ctx.context_window_size
+        }
     }
 
     var isWorking: Bool { status == .thinking || status == .tool }
@@ -890,6 +907,23 @@ final class FeedWatcher: ObservableObject {
     var usageModel: String? { usageSession?.model ?? cachedUsage?.model }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
+    var usageContextPct: Int? { usageSession?.contextPct }
+    var usageContextInputTokens: Int? { usageSession?.contextInputTokens }
+    var usageContextOutputTokens: Int? { usageSession?.contextOutputTokens }
+    var usageContextSize: Int? { usageSession?.contextSize }
+
+    static func formatTokens(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            let m = Double(count) / 1_000_000.0
+            return m.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(m))M" : String(format: "%.1fM", m)
+        }
+        if count >= 1_000 {
+            let k = Double(count) / 1_000.0
+            return k.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(k))k" : String(format: "%.1fk", k)
+        }
+        return "\(count)"
+    }
+
     private var fiveHourResetsAt: Double? {
         pollUsage?.fiveHourResetsAt ?? usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt
     }

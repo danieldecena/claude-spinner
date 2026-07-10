@@ -111,47 +111,66 @@ struct UsageFooter: View {
                         
                         Spacer(minLength: 3)
                         
-                        // Toggle Button with chevron
-                        Button {
-                            feed.footerExpanded.toggle()
-                        } label: {
-                            Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(Color.secondary.opacity(0.7))
-                                .frame(width: Constants.rowTrailingSlot, alignment: .trailing)
-                        }
-                        .buttonStyle(.plain)
+                        // Toggle Button with chevron (Image + onTapGesture to prevent focus highlighting)
+                        Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.secondary.opacity(0.7))
+                            .frame(width: Constants.rowTrailingSlot, height: 20, alignment: .trailing)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                feed.footerExpanded.toggle()
+                            }
                     }
 
-                    // Row 2: Collapsible reset countdowns / notices
+                    // Row 2 & 3: Collapsible reset countdowns / notices / context data
                     if feed.footerExpanded && feed.hasUsage {
-                        HStack(spacing: 0) {
-                            if let notice = feed.usageNotice {
-                                // An urgent poller note (auth expired / out of credits)
-                                // takes the slot when present — usage is stale or
-                                // blocked, so a reset countdown would mislead.
-                                HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
-                                    Text(notice).font(.claudeMono(10))
+                        VStack(alignment: .leading, spacing: 5) {
+                            // Row 2: resets countdowns / notices
+                            HStack(spacing: 0) {
+                                if let notice = feed.usageNotice {
+                                    // An urgent poller note (auth expired / out of credits)
+                                    // takes the slot when present — usage is stale or
+                                    // blocked, so a reset countdown would mislead.
+                                    HStack(spacing: 2) {
+                                        Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                        Text(notice).font(.claudeMono(10))
+                                    }
+                                    .foregroundStyle(Color.usageTint(95))
+                                    .help(feed.usageNoticeDetail)
+                                } else {
+                                    HStack(spacing: 3) {
+                                        Text("↺").font(.claudeMono(9))
+                                        if let clock = feed.usageFiveHourReset {
+                                            Text("resets \(clock)")
+                                                .font(.claudeMono(10))
+                                        }
+                                        if let rel = feed.usageFiveHourResetRelative {
+                                            Text("· in \(rel)")
+                                                .font(.claudeMono(10)).monospacedDigit()
+                                        }
+                                    }
+                                    .foregroundStyle(Color.secondary.opacity(0.75))
+                                    .help(feed.usageResetTooltip)
                                 }
-                                .foregroundStyle(Color.usageTint(95))
-                                .help(feed.usageNoticeDetail)
-                            } else {
+                                Spacer(minLength: 0)
+                            }
+
+                            // Row 3: Context Window details
+                            if let pct = feed.usageContextPct,
+                               let size = feed.usageContextSize {
+                                let inTok = feed.usageContextInputTokens ?? 0
+                                let outTok = feed.usageContextOutputTokens ?? 0
                                 HStack(spacing: 3) {
-                                    Text("↺").font(.claudeMono(9))
-                                    if let clock = feed.usageFiveHourReset {
-                                        Text("resets \(clock)")
-                                            .font(.claudeMono(10))
-                                    }
-                                    if let rel = feed.usageFiveHourResetRelative {
-                                        Text("· in \(rel)")
-                                            .font(.claudeMono(10)).monospacedDigit()
-                                    }
+                                    Text("ctx").font(.claudeMono(9)).fontWeight(.bold)
+                                        .foregroundStyle(Color.secondary.opacity(0.8))
+                                    Text("\(FeedWatcher.formatTokens(inTok)) in · \(FeedWatcher.formatTokens(outTok)) out / \(FeedWatcher.formatTokens(size)) limit")
+                                        .font(.claudeMono(10))
+                                    Text("(\(pct)%)")
+                                        .font(.claudeMono(10)).monospacedDigit()
+                                        .foregroundStyle(pct > 80 ? Color.red : Color.secondary)
                                 }
                                 .foregroundStyle(Color.secondary.opacity(0.75))
-                                .help(feed.usageResetTooltip)
                             }
-                            Spacer(minLength: 0)
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
