@@ -178,21 +178,19 @@ struct UsageFooter: View {
                                         return name
                                     }()
                                     
-                                    let modelId = feed.usageModelId ?? "unknown"
                                     let inTok = feed.usageContextInputTokens ?? 0
                                     let outTok = feed.usageContextOutputTokens ?? 0
                                     let usedStr = FeedWatcher.formatTokens(inTok + outTok)
                                     
                                     let rightTexts = [
                                         "\(displayName) (\(sizeStr) context)",
-                                        modelId,
                                         "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
                                     ]
                                     
-                                    let filledCount = min(30, max(0, Int((Double(pct) / 3.33).rounded())))
+                                    let filledCount = min(20, max(0, Int((Double(pct) / 5.0).rounded())))
                                     
                                     VStack(alignment: .leading, spacing: 6) {
-                                        ForEach(0..<3, id: \.self) { r in
+                                        ForEach(0..<2, id: \.self) { r in
                                             HStack(spacing: 0) {
                                                 // The 10 cylinders for this row
                                                 HStack(spacing: 3) {
@@ -204,7 +202,7 @@ struct UsageFooter: View {
                                                             .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
                                                     }
                                                 }
-                                                .frame(width: 108, alignment: .leading)
+                                                .frame(width: 95, alignment: .leading)
                                                 
                                                 Text(rightTexts[r])
                                                     .font(.claudeMono(10))
