@@ -59,65 +59,83 @@ struct MenuContentView: View {
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
 
-    private var separator: some View {
-        Text("·").foregroundStyle(Color.secondary.opacity(0.5))
-    }
-
-    /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
-    /// part muted. Returned as a concatenated Text so it sits inline in the row.
-    /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
-    /// part muted. Six segments so 5h and 7d both fit on one line. Returned as a
-    /// concatenated Text so it sits inline in the row.
-    private func bar(_ pct: Int, segments: Int = 6) -> Text {
-        let filled = min(segments, max(0, Int((Double(pct) / 100 * Double(segments)).rounded())))
-        return Text(String(repeating: "█", count: filled))
-                .foregroundColor(Color.usageTint(pct))
-             + Text(String(repeating: "░", count: segments - filled))
-                .foregroundColor(Color.secondary.opacity(0.35))
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            Divider()
+            Divider().opacity(0.6)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 6) {
+                HStack(spacing: 12) {
                     if feed.hasUsage {
                         if let model = feed.globalModelFamily {
-                            Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
-                            separator
+                            Text(model)
+                                .font(.claudeMono(11)).fontWeight(.semibold)
+                                .foregroundStyle(Color.modelTint(feed.globalModel))
                         }
                         if let h5 = feed.usageFiveHourPct {
-                            Text("5h").foregroundStyle(Color.secondary)
-                            bar(h5)
-                            Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
+                            UsageGauge(label: "5h", pct: h5)
                         }
                         if let d7 = feed.usageSevenDayPct {
-                            separator
-                            Text("7d").foregroundStyle(Color.secondary)
-                            bar(d7)
-                            Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
+                            UsageGauge(label: "7d", pct: d7)
                         }
-                        // Live countdown inline (both reset formats don't fit one
-                        // row at 360px); the exact clock time is in the tooltip.
+
+                        Spacer(minLength: 8)
+
+                        // Live countdown (both reset formats don't fit one row at
+                        // 360px); the exact clock time is in the tooltip.
                         if let rel = feed.usageFiveHourResetRelative {
-                            separator
-                            Text("↺\(rel)")
-                                .foregroundStyle(Color.secondary.opacity(0.8))
-                                .help(feed.usageFiveHourReset.map { "Resets at \($0)" } ?? "")
+                            HStack(spacing: 2) {
+                                Text("↺").font(.claudeMono(10))
+                                Text(rel).font(.claudeMono(11)).monospacedDigit()
+                            }
+                            .foregroundStyle(Color.secondary.opacity(0.75))
+                            .help(feed.usageFiveHourReset.map { "Resets at \($0)" } ?? "")
                         }
                     } else {
-                        Text("no usage data yet").foregroundStyle(Color.secondary.opacity(0.6))
+                        Text("no usage data yet")
+                            .font(.claudeMono(11))
+                            .foregroundStyle(Color.secondary.opacity(0.6))
+                        Spacer(minLength: 0)
                     }
-
-                    Spacer(minLength: 0)
                 }
-                .font(.claudeMono(11))
                 .lineLimit(1)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 7)
+                .padding(.vertical, 8)
             }
         }
+    }
+}
+
+/// A compact usage gauge: a small label, a drawn rounded track with the filled
+/// portion tinted by urgency, and the percentage. Reads far cleaner than a row of
+/// █/░ block glyphs and keeps 5h and 7d visually aligned.
+struct UsageGauge: View {
+    let label: String
+    let pct: Int
+
+    private let trackWidth: CGFloat = 38
+    private let trackHeight: CGFloat = 5
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(label)
+                .font(.claudeMono(10))
+                .foregroundStyle(Color.secondary)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(width: trackWidth, height: trackHeight)
+                Capsule()
+                    .fill(Color.usageTint(pct))
+                    // Clamp to [0,1]; keep a sliver visible for tiny non-zero values.
+                    .frame(width: max(pct > 0 ? 3 : 0,
+                                      trackWidth * CGFloat(min(100, max(0, pct))) / 100),
+                           height: trackHeight)
+            }
+            Text("\(pct)%")
+                .font(.claudeMono(11)).monospacedDigit()
+                .foregroundStyle(Color.usageTint(pct))
+        }
+        .help("\(label == "5h" ? "5-hour" : "7-day") usage \(pct)%")
     }
 }
 
@@ -205,9 +223,10 @@ struct SessionRow: View {
         NSPasteboard.general.setString(string, forType: .string)
     }
 
-    /// An inset, rounded highlight pill behind the row — a persistent blue wash for
-    /// attention, a lighter wash on hover, nothing at rest. Inset + rounded reads as
-    /// a proper selection rather than an edge-to-edge band, and it fades in/out.
+    /// An inset, rounded highlight pill behind the row — only on hover: a blue wash
+    /// for an attention row, a neutral wash otherwise, nothing at rest. The blue
+    /// glyph/text already signal "needs you" without a persistent band. Inset +
+    /// rounded reads as a proper selection, and it fades in/out.
     @ViewBuilder private var rowHighlight: some View {
         RoundedRectangle(cornerRadius: 7, style: .continuous)
             .fill(rowFill)
@@ -217,10 +236,10 @@ struct SessionRow: View {
     }
 
     private var rowFill: Color {
-        if session.status == .attention {
-            return Color.attention.opacity(hover.isHovering ? 0.28 : 0.16)
-        }
-        return hover.isHovering ? Color.primary.opacity(0.09) : Color.clear
+        guard hover.isHovering else { return .clear }
+        return session.status == .attention
+            ? Color.attention.opacity(0.22)
+            : Color.primary.opacity(0.09)
     }
 
     /// Idle rows fade with age so a stale session recedes instead of sitting at

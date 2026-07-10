@@ -505,3 +505,10 @@
 | 23:30 | Footer -> permanent single row: model + 5h/7d bars + inline live countdown ↺2h47m; clock time moved to .help() tooltip (both formats don't fit 360px). Removed hover-reveal. Diagnosed live-usage: 5h/7d rate limits ONLY come via statusLine stdin (not hooks/transcript), so live only in TUI sessions; countdown is the live element | MenuContentView.swift | built+signed+relaunched | ~3k |
 | 23:17 | Edited claude spinner/MenuContentView.swift | 5→6 lines | ~76 |
 | 23:17 | Edited claude spinner/MenuContentView.swift | 5→6 lines | ~76 |
+| 23:18 | Session end: 45 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 3 reads | ~13602 tok |
+| 23:18 | Session end: 45 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 3 reads | ~13602 tok |
+| 23:19 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~907 |
+| 23:19 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~907 |
+| 23:19 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~223 |
+| 23:19 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~223 |
+| 23:38 | Footer redesign: drawn rounded Capsule gauges (UsageGauge) replace █░ text bars; semibold model, grouped spacing, countdown right-aligned. Blue highlight now hover-only (dropped persistent attention wash; blue glyph/text still signal at rest) | MenuContentView.swift | built+signed+relaunched | ~4k |
