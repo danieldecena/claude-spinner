@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T23:46:10.341Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T04:16:38.968Z
 > Files: 20 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/
@@ -50,9 +50,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — @main App, MenuBarLabel, Spinner frames, Color/Font extensions (~795 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~4918 tok)
-- `MenuContentView.swift` — dropdown panel + SessionRow; click opens Ghostty at session cwd (~2329 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~1376 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~4921 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~2358 tok)
 
 ## claude spinner/Assets.xcassets/
 
