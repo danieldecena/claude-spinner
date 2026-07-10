@@ -116,7 +116,6 @@ private struct StateFile: Decodable {
 private struct StatusFile: Decodable {
     struct Model: Decodable { var display_name: String? }
     struct ContextWindow: Decodable { var used_percentage: Double? }
-    struct Cost: Decodable { var total_cost_usd: Double? }
     struct Workspace: Decodable { var current_dir: String? }
     struct RateLimits: Decodable {
         struct Window: Decodable {
@@ -128,7 +127,6 @@ private struct StatusFile: Decodable {
     }
     var model: Model?
     var context_window: ContextWindow?
-    var cost: Cost?
     var cwd: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
@@ -145,7 +143,6 @@ struct SessionFeed: Identifiable {
     var updated: Date?
     var model: String?
     var contextPct: Int?
-    var costUsd: Double?
     var fiveHourPct: Int?
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
@@ -172,7 +169,6 @@ struct SessionFeed: Identifiable {
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }
         if let p = s.context_window?.used_percentage { contextPct = Int(p.rounded()) }
-        if let usd = s.cost?.total_cost_usd { costUsd = usd }
         if cwd.isEmpty {
             if let c = s.cwd { cwd = c }
             else if let c = s.workspace?.current_dir { cwd = c }
@@ -304,11 +300,17 @@ final class FeedWatcher: ObservableObject {
     }
 
     /// Coalesce a burst of directory events into a single background rescan.
+    /// Callers come from both the fs-event handler (ioQueue) and the timer/Refresh
+    /// (main), so do the debounce bookkeeping on ioQueue to keep `pendingScan`
+    /// single-threaded.
     private func scheduleRescan() {
-        pendingScan?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.performRescan() }
-        pendingScan = work
-        ioQueue.asyncAfter(deadline: .now() + Constants.debounceInterval, execute: work)
+        ioQueue.async { [weak self] in
+            guard let self else { return }
+            self.pendingScan?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.performRescan() }
+            self.pendingScan = work
+            self.ioQueue.asyncAfter(deadline: .now() + Constants.debounceInterval, execute: work)
+        }
     }
 
     /// Strip a known feed suffix to recover the session id.

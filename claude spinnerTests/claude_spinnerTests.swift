@@ -2,7 +2,8 @@
 //  claude_spinnerTests.swift
 //  claude spinnerTests
 //
-//  Created by Daniel Decena on 6/23/26.
+//  Unit tests over the app's pure logic (no I/O, no UI): session display
+//  derivation, spinner-word seeding, and duration formatting.
 //
 
 import XCTest
@@ -10,29 +11,56 @@ import XCTest
 
 final class claude_spinnerTests: XCTestCase {
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    // MARK: - SessionFeed display derivation
+
+    func testDisplayPathIsHomeRelative() {
+        var s = SessionFeed(id: "a")
+        let home = NSHomeDirectory()
+        s.cwd = home + "/Developer/apply"
+        XCTAssertEqual(s.displayPath, "~/Developer/apply")
+        s.cwd = home
+        XCTAssertEqual(s.displayPath, "~")
+        s.cwd = "/tmp/outside"
+        XCTAssertEqual(s.displayPath, "/tmp/outside")
+        s.cwd = ""
+        XCTAssertEqual(s.displayPath, "session")
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testProjectNameIsLastPathComponent() {
+        var s = SessionFeed(id: "a")
+        s.cwd = NSHomeDirectory() + "/Developer/claude-spinner"
+        XCTAssertEqual(s.projectName, "claude-spinner")
+        s.cwd = ""
+        XCTAssertEqual(s.projectName, "session")
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
+    func testIsWorking() {
+        var s = SessionFeed(id: "a")
+        s.status = .thinking; XCTAssertTrue(s.isWorking)
+        s.status = .tool;     XCTAssertTrue(s.isWorking)
+        s.status = .idle;     XCTAssertFalse(s.isWorking)
+        s.status = .attention; XCTAssertFalse(s.isWorking)
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
+    // MARK: - Spinner words (seeded, stable, present/past paired)
+
+    func testSpinnerWordSeedingIsStableAndPaired() {
+        var s = SessionFeed(id: "x")
+        s.turnStart = Date(timeIntervalSince1970: 8)   // seed 8 -> index 8 -> "Marinating"
+        s.lastSeed = 8
+        XCTAssertEqual(SpinnerWords.word(for: s), "Marinating")
+        XCTAssertEqual(SpinnerWords.pastWord(for: s), "Marinated")
+        XCTAssertEqual(SpinnerWords.word(for: s), SpinnerWords.word(for: s)) // stable
     }
 
+    // MARK: - Duration formatting
+
+    func testFormatDuration() {
+        XCTAssertEqual(FeedWatcher.formatDuration(0), "0s")
+        XCTAssertEqual(FeedWatcher.formatDuration(5), "5s")
+        XCTAssertEqual(FeedWatcher.formatDuration(59), "59s")
+        XCTAssertEqual(FeedWatcher.formatDuration(60), "1m 0s")
+        XCTAssertEqual(FeedWatcher.formatDuration(125), "2m 5s")
+        XCTAssertEqual(FeedWatcher.formatDuration(-3), "0s")
+    }
 }

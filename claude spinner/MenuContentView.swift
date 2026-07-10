@@ -171,7 +171,7 @@ struct SessionRow: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .opacity(rowOpacity)
-        .background(hover.isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .background(rowBackground)
         .onHover { hover.isHovering = $0 }
         .onTapGesture {
             openSession()
@@ -190,6 +190,15 @@ struct SessionRow: View {
     private func copyToPasteboard(_ string: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(string, forType: .string)
+    }
+
+    /// Attention rows get a persistent faint orange wash so "needs you" stands
+    /// out from a merely-working row at a glance; others just highlight on hover.
+    private var rowBackground: Color {
+        if session.status == .attention {
+            return Color.orange.opacity(hover.isHovering ? 0.16 : 0.10)
+        }
+        return hover.isHovering ? Color.primary.opacity(0.05) : Color.clear
     }
 
     /// Idle rows fade with age so a stale session recedes instead of sitting at
