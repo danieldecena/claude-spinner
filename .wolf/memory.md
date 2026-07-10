@@ -972,3 +972,42 @@
 | 01:40 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~445 |
 | 01:40 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~445 |
 | 01:45 | Compacted panel to 320px (was 360, briefly tried 380/400 per user iteration) - all fonts 9-11, gauge tracks 16, row padding 10/7, spacing tightened; added .fixedSize() to row time to stop it wrapping to 2 lines. Code-review fixes (8 findings, executed 1/3/4/5/6): #1 dead-pid file deletion now gets the same mtime grace as every other prune reason (no more instant delete on a possibly-wrong pid); #3 UsagePoller.parse guards non-finite (inf/nan) header values before Int(...).rounded() which would otherwise trap; #2+#4 usageHistory -> [UsageSample] (pct+timestamp, Codable/Data-persisted) replacing raw [Int]; reset-aware FeedWatcher.trend(from:) static func skips the misleading giant-negative right after a 5h reset, samples closer than 2min collapse (Refresh-mash guard), trimmed by time window not count; #5 HostTag classified once into SessionFeed.hostTag on applyState, row reads the stored value instead of reclassifying every 0.1s tick; #6 isSetupInstalled -> lazy var (was disk I/O every render when panel empty + usage alarm pulsing). Added animated "." ".." "" working-dots (FeedWatcher.workingDots, replaces the numeric elapsed-seconds timer on thinking/tool rows only - user request). Harness 33 asserts + XCTest mirrors ALL PASS | FeedWatcher.swift, MenuContentView.swift, claude spinnerTests/claude_spinnerTests.swift | build+harness OK | ~14k |
+| 01:41 | Session end: 140 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 22 reads | ~61009 tok |
+| 01:41 | Session end: 140 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 22 reads | ~61009 tok |
+| 01:42 | Session end: 140 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 22 reads | ~61009 tok |
+| 01:42 | Session end: 140 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 22 reads | ~61009 tok |
+| 01:43 | Edited claude spinner/FeedWatcher.swift | 16 → 20 | ~12 |
+| 01:43 | Edited claude spinner/FeedWatcher.swift | 16 → 20 | ~12 |
+| 01:43 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~20 |
+| 01:43 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~20 |
+| 01:43 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~114 |
+| 01:43 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~114 |
+| 01:44 | Session end: 144 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 24 reads | ~61331 tok |
+| 01:44 | Session end: 144 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 24 reads | ~61331 tok |
+| 01:45 | Edited claude spinner/FeedWatcher.swift | 20 → 30 | ~12 |
+| 01:45 | Edited claude spinner/FeedWatcher.swift | 20 → 30 | ~12 |
+| 01:46 | Session end: 145 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 24 reads | ~61344 tok |
+| 01:46 | Session end: 145 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 24 reads | ~61344 tok |
+| 01:46 | Edited claude spinner/MenuContentView.swift | modified map() | ~258 |
+| 01:46 | Edited claude spinner/MenuContentView.swift | modified map() | ~258 |
+| 01:47 | Edited claude spinner/FeedWatcher.swift | word() → modelFamily() | ~96 |
+| 01:47 | Edited claude spinner/FeedWatcher.swift | word() → modelFamily() | ~96 |
+| 01:47 | Edited claude spinner/MenuContentView.swift | removed 8 lines | ~26 |
+| 01:47 | Edited claude spinner/MenuContentView.swift | removed 8 lines | ~26 |
+| 01:48 | Edited claude spinner/MenuContentView.swift | 4→7 lines | ~103 |
+| 01:48 | Edited claude spinner/MenuContentView.swift | 4→7 lines | ~103 |
+| 01:50 | Edited claude spinner/FeedWatcher.swift | added optional chaining | ~253 |
+| 01:50 | Edited claude spinner/FeedWatcher.swift | added optional chaining | ~253 |
+| 01:50 | Edited claude spinner/MenuContentView.swift | modified modelDisplay() | ~172 |
+| 01:50 | Edited claude spinner/MenuContentView.swift | modified modelDisplay() | ~172 |
+| 01:51 | Edited claude spinner/MenuContentView.swift | 9→13 lines | ~214 |
+| 01:51 | Edited claude spinner/MenuContentView.swift | 9→13 lines | ~214 |
+| 01:51 | Edited claude spinner/MenuContentView.swift | 4→8 lines | ~142 |
+| 01:51 | Edited claude spinner/MenuContentView.swift | 4→8 lines | ~142 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~330 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~330 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~65 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~65 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
+| 01:52 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~47 |
+| 02:10 | Footer bars widened per user iteration: 16->20->30px track (measured available slack in the 320px footer rather than trial-and-error, freed more room by removing the model text from the footer entirely). Model moved from footer to each row (between project name and status word) via new FeedWatcher.modelDisplay(for:) - falls back through session.model -> most-recently-seen model across sessions -> cachedUsage.model, so every row shows a tag even before its own statusLine writes one; deleted now-dead globalModel/globalModelShort/globalModelFamily, extracted static modelFamily(_:) trim helper. Idle rows (no lastDuration) show static "--:--" instead of a counting-up age (user request - only genuinely-idle rows, not attention/done). Fixed working-dots growing in the wrong direction: it was right-anchored against the fixed host-tag slot so a new dot appended on the LEFT; gave the time Text a fixed 34pt frame with alignment .leading for dots vs .trailing otherwise, so dots now grow rightward like a normal ellipsis while numeric times stay right-aligned. Uniformity pass: empty-state/setup-needed fonts 12/11->11/10 and padding 14->10/12 to match the compacted panel scale; footer's "!" glyph 9->8 to match the "↺" glyph size; "no usage data yet" 11->9 to match footer scale. Harness 33 asserts + XCTest ALL PASS | FeedWatcher.swift, MenuContentView.swift | build+harness OK | ~10k |

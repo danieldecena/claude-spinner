@@ -36,7 +36,7 @@ enum Constants {
     /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
     /// identical in size, kept short enough that the model name, all three gauges,
     /// and the reset countdown fit within the compact 320px panel without clipping.
-    static let usageTrackWidth: CGFloat = 16
+    static let usageTrackWidth: CGFloat = 30
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -981,21 +981,22 @@ final class FeedWatcher: ObservableObject {
         return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
     }
 
-    var globalModel: String? {
-        let live = sessions.filter { $0.model != nil }
-            .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }?.model
-        return live ?? cachedUsage?.model
+    /// Trims a raw model name like "Opus 4.8 (1M context)" down to just the
+    /// family word "Opus", for compact per-row display.
+    static func modelFamily(_ raw: String) -> String {
+        let short = String(raw.prefix { $0 != "(" }).trimmingCharacters(in: .whitespaces)
+        return short.split(separator: " ").first.map(String.init) ?? short
     }
 
-    /// Model name trimmed to its family for the compact footer, e.g.
-    /// "Opus 4.8 (1M context)" -> "Opus 4.8".
-    var globalModelShort: String? {
-        globalModel.map { String($0.prefix { $0 != "(" }).trimmingCharacters(in: .whitespaces) }
-    }
-
-    /// Just the family word (e.g. "Opus"), for the space-tight two-bar footer.
-    var globalModelFamily: String? {
-        globalModelShort?.split(separator: " ").first.map(String.init)
+    /// Best-known model name for a row's tag: the session's own statusLine model
+    /// when it's reported one, else the most recently seen model across any
+    /// session, else the persisted cache — so every row shows a model tag even
+    /// before its own statusLine has written (e.g. a never-worked idle session).
+    func modelDisplay(for session: SessionFeed) -> String? {
+        session.model
+            ?? sessions.filter { $0.model != nil }
+                .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }?.model
+            ?? cachedUsage?.model
     }
 
     // MARK: - Actions

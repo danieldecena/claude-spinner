@@ -16,22 +16,22 @@ struct MenuContentView: View {
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
-                        .font(.claudeMono(12)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14).padding(.vertical, 14)
+                        .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
                     // Nothing will ever appear until the hooks are wired up — say so
                     // instead of a silent empty panel that looks broken.
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Setup needed")
-                            .font(.claudeMono(12)).fontWeight(.semibold)
+                            .font(.claudeMono(11)).fontWeight(.semibold)
                             .foregroundStyle(Color.usageTint(95))
                         Text("The feed hooks aren't installed, so no sessions can show. Add the spinner hooks + statusLine to ~/.claude/settings.json.")
-                            .font(.claudeMono(11)).foregroundStyle(Color.secondary)
+                            .font(.claudeMono(10)).foregroundStyle(Color.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14).padding(.vertical, 14)
+                    .padding(.horizontal, 10).padding(.vertical, 12)
                 }
             } else {
                 // One ticking clock drives every row's spinner + timer in phase.
@@ -83,17 +83,11 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     if feed.hasUsage {
                         // Dim the numbers when stale so a frozen snapshot doesn't
                         // read as live; the "as of" time is in the tooltip.
                         Group {
-                            if let model = feed.globalModelFamily {
-                                Text(model)
-                                    .font(.claudeMono(9)).fontWeight(.semibold)
-                                    .foregroundStyle(Color.modelTint(feed.globalModel))
-                                    .fixedSize()
-                            }
                             if let h5 = feed.usageFiveHourPct {
                                 UsageGauge(label: "5h", pct: h5)
                             }
@@ -110,19 +104,19 @@ struct UsageFooter: View {
                         .opacity(feed.usageIsStale ? 0.5 : 1)
                         .help(feed.usageAsOfString)
 
-                        Spacer(minLength: 4)
+                        Spacer(minLength: 3)
 
                         // Mirror the row's trailing structure exactly — content, a
-                        // 6pt gap, then a clear box the width of the row's chip/✕ slot
-                        // — so this right element's text lines up with the row times
+                        // gap, then a clear box the width of the row's chip/✕ slot —
+                        // so this right element's text lines up with the row times
                         // above it by construction, not by a hand-tuned padding.
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             if let notice = feed.usageNotice {
                                 // An urgent poller note (auth expired / out of credits)
                                 // takes the slot when present — usage is stale or
                                 // blocked, so a reset countdown would mislead.
                                 HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                    Text("!").font(.claudeMono(8)).fontWeight(.bold)
                                     Text(notice).font(.claudeMono(9))
                                 }
                                 .foregroundStyle(Color.usageTint(95))
@@ -142,7 +136,7 @@ struct UsageFooter: View {
                         }
                     } else {
                         Text("no usage data yet")
-                            .font(.claudeMono(11))
+                            .font(.claudeMono(9))
                             .foregroundStyle(Color.secondary.opacity(0.6))
                         Spacer(minLength: 0)
                     }
@@ -266,6 +260,18 @@ struct SessionRow: View {
                     .foregroundStyle(Color.secondary)
             }
 
+            // Model, between the name and the action word — moved off the
+            // footer (which only ever showed the single most-recent session's
+            // model anyway) so each row can show its own. Falls back to the
+            // most-recently-seen model when this session hasn't reported one yet.
+            if let rawModel = feed.modelDisplay(for: session) {
+                Text(FeedWatcher.modelFamily(rawModel))
+                    .font(.claudeMono(9)).fontWeight(.semibold)
+                    .foregroundStyle(Color.modelTint(rawModel))
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+
             Text(statusLabel)
                 .font(.claudeMono(10))
                 .foregroundStyle(statusColor)
@@ -277,14 +283,18 @@ struct SessionRow: View {
             // Time + host chip travel together as one right-flush unit with a tight
             // gap, so the time stays near the right edge with the tag just after it.
             HStack(spacing: 4) {
-                // Elapsed / waiting / done time. Right-aligned in a fixed-width
-                // column so the times line up down the panel regardless of label.
+                // Elapsed / waiting / done time in a fixed-width column so the
+                // times line up down the panel regardless of label. Right-aligned
+                // normally; the animated working-dots use leading alignment
+                // instead, so a new dot appends on the right (growing naturally)
+                // rather than on the left, which a right-aligned fixed frame would
+                // otherwise produce as the string lengthens.
                 if !timeText.isEmpty {
                     Text(timeText)
                         .font(.claudeMono(10))
                         .monospacedDigit()
                         .foregroundStyle(Color.secondary)
-                        .fixedSize()
+                        .frame(width: 34, alignment: isAnimatingDots ? .leading : .trailing)
                 }
 
                 // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
@@ -424,6 +434,10 @@ struct SessionRow: View {
         }
     }
 
+    /// True while the time slot shows the animated working-dots rather than a
+    /// number — used to flip its frame alignment so the dots grow rightward.
+    private var isAnimatingDots: Bool { session.status == .tool || session.status == .thinking }
+
     /// The time shown right-aligned at the end of the row: elapsed in-turn while
     /// working, how long it's been waiting for attention, the finished turn's
     /// duration when done, or how long idle. Empty when there's nothing to show.
@@ -434,8 +448,11 @@ struct SessionRow: View {
         case .attention:
             return sinceUpdated
         case .idle:
+            // A finished turn shows its (fixed) duration; a session that's just
+            // sitting idle with nothing running shows a static placeholder rather
+            // than a count-up age, since there's no active timer to report.
             if let dur = session.lastDuration { return FeedWatcher.formatDuration(dur) }
-            return sinceUpdated
+            return "--:--"
         }
     }
 
