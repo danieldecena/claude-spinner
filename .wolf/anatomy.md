@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T05:27:57.282Z
-> Files: 21 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T05:38:35.794Z
+> Files: 22 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/
 
@@ -33,6 +33,10 @@
 
 - `openwolf.md` (~313 tok)
 
+## .github/workflows/
+
+- `swift.yml` — Compile-checks the menu-bar app's Swift sources on every push / PR. (~282 tok)
+
 ## claude spinner.xcodeproj/
 
 - `project.pbxproj` — !$*UTF8*$! (~6176 tok)
@@ -51,9 +55,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~2898 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~6795 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~3073 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3054 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~6847 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~3156 tok)
 
 ## claude spinner/Assets.xcassets/
 
