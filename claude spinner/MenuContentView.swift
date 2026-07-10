@@ -217,7 +217,7 @@ struct SessionRow: View {
         case .tool:
             return session.tool.isEmpty ? " (\(timer))" : " (\(timer) · running \(session.tool))"
         case .thinking:
-            return elapsed >= Constants.stillThinkingThreshold ? " (\(timer) · still thinking)" : " (\(timer))"
+            return " (\(timer))"
         default:
             return ""
         }

@@ -21,8 +21,6 @@ enum Constants {
     static let animInterval: TimeInterval = 0.1
     /// A burst of hook writes within this window coalesces into one rescan.
     static let debounceInterval: TimeInterval = 0.1
-    /// Elapsed seconds after which "thinking" becomes "still thinking".
-    static let stillThinkingThreshold = 30
     /// Timer switches from `Ns` to `Nm Ns` at this many seconds.
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
