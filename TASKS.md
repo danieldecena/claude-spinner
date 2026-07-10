@@ -2,10 +2,11 @@
 
 ## Tasks
 
-- [ ] Visually verify in a live session — title states, usage-mode toggle, footer colors, attention notification, 7d bar
+_None open._
 
 ## Completed
 
+- [x] Visual verification in a live session — rows, title states, footer confirmed rendering
 - [x] Attention alerts — macOS notification when a session enters `attention` (once per pause)
 - [x] Menu-bar title mode toggle — right-click → Menu bar shows → Activity / Usage (persisted)
 - [x] Color-code the row's context % by urgency (dim → amber → red)
