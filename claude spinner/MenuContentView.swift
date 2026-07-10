@@ -64,7 +64,7 @@ struct UsageFooter: View {
     @StateObject private var hover = HoverState()
 
     private var separator: some View {
-        Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+        Text("·").foregroundStyle(Color.secondary.opacity(0.5))
     }
 
     /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
@@ -77,7 +77,7 @@ struct UsageFooter: View {
         return Text(String(repeating: "█", count: filled))
                 .foregroundColor(Color.usageTint(pct))
              + Text(String(repeating: "░", count: segments - filled))
-                .foregroundColor(Color.claudeDim.opacity(0.5))
+                .foregroundColor(Color.secondary.opacity(0.35))
     }
 
     var body: some View {
@@ -93,18 +93,18 @@ struct UsageFooter: View {
                                 separator
                             }
                             if let h5 = feed.usageFiveHourPct {
-                                Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
+                                Text("5h").foregroundStyle(Color.secondary)
                                 bar(h5)
                                 Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
                             }
                             if let d7 = feed.usageSevenDayPct {
                                 separator
-                                Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
+                                Text("7d").foregroundStyle(Color.secondary)
                                 bar(d7)
                                 Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
                             }
                         } else {
-                            Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
+                            Text("no usage data yet").foregroundStyle(Color.secondary.opacity(0.6))
                         }
 
                         Spacer(minLength: 0)
@@ -124,7 +124,7 @@ struct UsageFooter: View {
                             Spacer(minLength: 0)
                         }
                         .font(.claudeMono(10))
-                        .foregroundStyle(Color.claudeDim.opacity(0.7))
+                        .foregroundStyle(Color.secondary.opacity(0.75))
                         .lineLimit(1)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
@@ -202,7 +202,7 @@ struct SessionRow: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .opacity(rowOpacity)
-        .background(rowBackground)
+        .background(rowHighlight)
         .onHover { hover.isHovering = $0 }
         .onTapGesture {
             openSession()
@@ -223,14 +223,22 @@ struct SessionRow: View {
         NSPasteboard.general.setString(string, forType: .string)
     }
 
-    /// Attention rows get a persistent faint blue wash so "needs you" stands out
-    /// from a merely-working row at a glance; others just highlight on hover. Same
-    /// hue as the text/glyph, so the row reads as one color.
-    private var rowBackground: Color {
+    /// An inset, rounded highlight pill behind the row — a persistent blue wash for
+    /// attention, a lighter wash on hover, nothing at rest. Inset + rounded reads as
+    /// a proper selection rather than an edge-to-edge band, and it fades in/out.
+    @ViewBuilder private var rowHighlight: some View {
+        RoundedRectangle(cornerRadius: 7, style: .continuous)
+            .fill(rowFill)
+            .animation(.easeInOut(duration: 0.12), value: hover.isHovering)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+    }
+
+    private var rowFill: Color {
         if session.status == .attention {
-            return Color.attention.opacity(hover.isHovering ? 0.22 : 0.14)
+            return Color.attention.opacity(hover.isHovering ? 0.28 : 0.16)
         }
-        return hover.isHovering ? Color.primary.opacity(0.05) : Color.clear
+        return hover.isHovering ? Color.primary.opacity(0.09) : Color.clear
     }
 
     /// Idle rows fade with age so a stale session recedes instead of sitting at

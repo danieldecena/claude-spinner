@@ -483,3 +483,18 @@
 | 23:10 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~138 |
 | 23:10 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~138 |
 | 23:20 | Revert ◆ attention glyph -> star spinner; attention now signaled by BLUE (glyph+text+wash+menu-bar label), distinct from busy orange. Added Color.attention/.attentionBright | claude_spinnerApp.swift, FeedWatcher.swift, MenuContentView.swift | built+signed+relaunched | ~4k |
+| 23:12 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~43 |
+| 23:12 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~43 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~212 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~212 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~29 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~29 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~36 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~36 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | inline fix | ~9 |
+| 23:13 | Edited claude spinner/MenuContentView.swift | inline fix | ~9 |
+| 23:14 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~42 |
+| 23:14 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~42 |
+| 23:14 | Edited claude spinner/MenuContentView.swift | inline fix | ~26 |
+| 23:14 | Edited claude spinner/MenuContentView.swift | inline fix | ~26 |
+| 23:24 | Row highlight -> inset rounded pill (stronger hover 0.09, blue attention wash, 0.12s fade). Footer de-orange: labels/separators/empty bars/reset -> Color.secondary neutral grey; only model(purple)+usage bars keep color | MenuContentView.swift | built+signed+relaunched | ~3k |
