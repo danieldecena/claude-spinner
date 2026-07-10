@@ -102,6 +102,9 @@ struct UsageFooter: View {
                             }
                             .foregroundStyle(Color.secondary.opacity(0.75))
                             .help(feed.usageFiveHourReset.map { "Resets at \($0)" } ?? "")
+                            // Match the rows' trailing ✕-slot width so the countdown's
+                            // right edge lines up with the times above it.
+                            .padding(.trailing, 14)
                         }
                     } else {
                         Text("no usage data yet")

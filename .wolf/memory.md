@@ -685,3 +685,7 @@
 | 00:28 | Edited TASKS.md | modified batch() | ~444 |
 | 00:28 | Edited TASKS.md | modified batch() | ~444 |
 | 00:40 | Live-usage poller SHIPPED + hardened (idle-skip, 401->usageError, overage parse, testable parse()). App icon added (orange spinner star, .icns in bundle + Assets). Review fixes: done-row grouping, dead code, per-tick displayItems. Menu title: capitalized + alternating AttentionWords (rows stay lowercase). Remaining "apply all" batch recorded in TASKS.md | FeedWatcher.swift, claude_spinnerApp.swift, MenuContentView.swift, Assets | all built+committed+pushed | ~6k |
+| 00:29 | Session end: 62 writes across 8 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 8 reads | ~35450 tok |
+| 00:29 | Session end: 62 writes across 8 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 8 reads | ~35450 tok |
+| 00:29 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~188 |
+| 00:29 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~188 |
