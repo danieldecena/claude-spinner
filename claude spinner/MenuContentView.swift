@@ -125,11 +125,15 @@ struct SessionRow: View {
                 .foregroundStyle(tint)
                 .frame(width: 16)
 
+            // Name wins the space; a long activity/message (e.g. an attention
+            // message) truncates before the project name does. The wider panel
+            // leaves room for both the name and a short "thinking · 35s".
             Text(session.projectName)
                 .font(.claudeMono(13))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .layoutPriority(1)
 
             if item.count > 1 {
                 Text("×\(item.count)")
@@ -137,14 +141,11 @@ struct SessionRow: View {
                     .foregroundStyle(Color.claudeDim)
             }
 
-            // Higher priority than the project name so the activity + elapsed time
-            // keep their space and the name truncates first (not the "1m 15s").
             Text(statusText)
                 .font(.claudeMono(12))
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .layoutPriority(1)
 
             Spacer(minLength: 6)
 
