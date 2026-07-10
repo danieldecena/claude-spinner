@@ -589,3 +589,7 @@
 | 00:04 | Click -> focus-only (terminals just come to front, no new window; VSCode opens folder; unknown host focuses terminal). Fixed Usage-toggle looking broken (attention override in .usage removed; blue glyph still signals attention). Footer: dropped cryptic "Xm old" text -> just dim stale + fold age into "as of" tooltip | MenuContentView.swift, claude_spinnerApp.swift, FeedWatcher.swift | typecheck+harness+build OK | ~4k |
 | 23:43 | Session end: 27 writes across 5 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12844 tok |
 | 23:43 | Session end: 27 writes across 5 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12844 tok |
+| 23:44 | Session end: 27 writes across 5 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12844 tok |
+| 23:44 | Session end: 27 writes across 5 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~12844 tok |
+| 23:44 | Edited HANDOFF.md | 7→9 lines | ~132 |
+| 23:44 | Edited HANDOFF.md | 7→9 lines | ~132 |

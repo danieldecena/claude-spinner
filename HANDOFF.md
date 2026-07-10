@@ -100,11 +100,13 @@ Full history is in the git log and `TASKS.md` (`## Completed`).
 
 ## Open / Next up
 
-- [ ] Focus the exact session tab/window on click (needs per-terminal scripting;
-  today it focuses the host app + opens the folder where supported).
-- [ ] More tests: `usageTint`/`contextTint` tier boundaries, `displayItems` grouping,
-  `menuBarState` transitions (the last two need a small testability seam — extract
-  the derivations to take `[SessionFeed]` so they're unit-testable without I/O).
+Board is clear. One known limitation remains, deferred by design:
+
+- Focusing the **exact** terminal tab on click is infeasible — macOS `open` can't
+  target the tab running a session. Resolved as far as possible: a click now focuses
+  the host app *without* spawning a new window (VS Code opens the folder in place; an
+  unknown host focuses the user's terminal). Revisit only if per-terminal scripting
+  (iTerm Python API / Terminal AppleScript) is ever worth the fragility.
 
 ---
 
