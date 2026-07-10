@@ -2,7 +2,10 @@
 
 ## Tasks
 
-_None open._
+- [ ] Unify attention text color — attention rows use `.orange`, working uses `.claude`; the new orange background wash makes the different text-orange redundant. Set attention tint/statusColor to `.claude`.
+- [ ] Footer: show both reset formats — relative countdown + clock time (`↺3h29m · 2:00 AM`); needs a two-line footer to fit at 360px.
+- [ ] Trim the bottom gap between the last session row and the footer.
+- [ ] More tests: usageTint/contextTint tiers, displayItems grouping, menuBarState transitions (extract derivations to take `[SessionFeed]` for testability).
 
 ## Completed
 
