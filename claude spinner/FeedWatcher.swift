@@ -457,6 +457,12 @@ final class FeedWatcher: ObservableObject {
             usagePollingEnabled ? poller?.start() : stopPolling()
         }
     }
+    /// Whether the usage footer is expanded in the panel; persisted, on by default.
+    @Published var footerExpanded: Bool {
+        didSet {
+            UserDefaults.standard.set(footerExpanded, forKey: "footerExpanded")
+        }
+    }
 
     /// All disk reads/parses and file pruning happen here, off the main thread.
     private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
@@ -471,6 +477,7 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
+        footerExpanded = (UserDefaults.standard.object(forKey: "footerExpanded") as? Bool) ?? true
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -880,6 +887,7 @@ final class FeedWatcher: ObservableObject {
     // then the persisted snapshot — so it stays live in any session (poller) and
     // still survives Clear All / statusLine-less sessions (cache).
     var hasUsage: Bool { pollUsage != nil || usageSession != nil || cachedUsage != nil }
+    var usageModel: String? { usageSession?.model ?? cachedUsage?.model }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
     private var fiveHourResetsAt: Double? {

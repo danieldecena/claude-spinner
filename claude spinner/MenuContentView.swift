@@ -84,65 +84,96 @@ struct UsageFooter: View {
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 5) {
-                        if feed.hasUsage {
-                            Group {
-                                if let h5 = feed.usageFiveHourPct {
-                                    UsageGauge(label: "5h", pct: h5)
-                                }
-                                if let d7 = feed.usageSevenDayPct {
-                                    UsageGauge(label: "7d", pct: d7)
-                                }
-                                // Recent 5h change, once there are ≥2 poll samples.
-                                if let trend = feed.usageFiveHourTrend {
-                                    TrendGauge(delta: trend)
-                                }
+                    // Header row (expand/collapse toggle trigger)
+                    Button {
+                        feed.footerExpanded.toggle()
+                    } label: {
+                        HStack(spacing: 4) {
+                            if let model = feed.usageModel {
+                                Text(FeedWatcher.modelFamily(model))
+                                    .font(.claudeMono(10)).fontWeight(.semibold)
+                                    .foregroundStyle(Color.modelTint(model))
+                            } else {
+                                Text("no active model")
+                                    .font(.claudeMono(10))
+                                    .foregroundStyle(Color.secondary.opacity(0.6))
                             }
-                            // Dim when stale so a frozen snapshot doesn't read as live;
-                            // the "as of" time and age live in the hover tooltip.
-                            .opacity(feed.usageIsStale ? 0.5 : 1)
-                            .help(feed.usageAsOfString)
-                        } else {
-                            Text("no usage data yet")
+                            Text("usage details")
                                 .font(.claudeMono(10))
+                                .foregroundStyle(Color.secondary.opacity(0.8))
+                            Spacer()
+                            Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(Color.secondary.opacity(0.6))
                         }
-                        Spacer(minLength: 0)
                     }
-
-                    if feed.hasUsage {
-                        HStack(spacing: 0) {
-                            if let notice = feed.usageNotice {
-                                // An urgent poller note (auth expired / out of credits)
-                                // takes the slot when present — usage is stale or
-                                // blocked, so a reset countdown would mislead.
-                                HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
-                                    Text(notice).font(.claudeMono(10))
-                                }
-                                .foregroundStyle(Color.usageTint(95))
-                                .help(feed.usageNoticeDetail)
-                            } else {
-                                HStack(spacing: 3) {
-                                    Text("↺").font(.claudeMono(9))
-                                    if let clock = feed.usageFiveHourReset {
-                                        Text("resets \(clock)")
-                                            .font(.claudeMono(10))
+                    .buttonStyle(.plain)
+                    
+                    if feed.footerExpanded {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 5) {
+                                if feed.hasUsage {
+                                    Group {
+                                        if let h5 = feed.usageFiveHourPct {
+                                            UsageGauge(label: "5h", pct: h5)
+                                        }
+                                        if let d7 = feed.usageSevenDayPct {
+                                            UsageGauge(label: "7d", pct: d7)
+                                        }
+                                        // Recent 5h change, once there are ≥2 poll samples.
+                                        if let trend = feed.usageFiveHourTrend {
+                                            TrendGauge(delta: trend)
+                                        }
                                     }
-                                    if let rel = feed.usageFiveHourResetRelative {
-                                        Text("· in \(rel)")
-                                            .font(.claudeMono(10)).monospacedDigit()
-                                    }
+                                    // Dim when stale so a frozen snapshot doesn't read as live;
+                                    // the "as of" time and age live in the hover tooltip.
+                                    .opacity(feed.usageIsStale ? 0.5 : 1)
+                                    .help(feed.usageAsOfString)
+                                } else {
+                                    Text("no usage data yet")
+                                        .font(.claudeMono(10))
+                                        .foregroundStyle(Color.secondary.opacity(0.6))
                                 }
-                                .foregroundStyle(Color.secondary.opacity(0.75))
-                                .help(feed.usageResetTooltip)
+                                Spacer(minLength: 0)
                             }
-                            Spacer(minLength: 0)
+
+                            if feed.hasUsage {
+                                HStack(spacing: 0) {
+                                    if let notice = feed.usageNotice {
+                                        // An urgent poller note (auth expired / out of credits)
+                                        // takes the slot when present — usage is stale or
+                                        // blocked, so a reset countdown would mislead.
+                                        HStack(spacing: 2) {
+                                            Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                            Text(notice).font(.claudeMono(10))
+                                        }
+                                        .foregroundStyle(Color.usageTint(95))
+                                        .help(feed.usageNoticeDetail)
+                                    } else {
+                                        HStack(spacing: 3) {
+                                            Text("↺").font(.claudeMono(9))
+                                            if let clock = feed.usageFiveHourReset {
+                                                Text("resets \(clock)")
+                                                    .font(.claudeMono(10))
+                                            }
+                                            if let rel = feed.usageFiveHourResetRelative {
+                                                Text("· in \(rel)")
+                                                    .font(.claudeMono(10)).monospacedDigit()
+                                            }
+                                        }
+                                        .foregroundStyle(Color.secondary.opacity(0.75))
+                                        .help(feed.usageResetTooltip)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                            }
                         }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
+                .animation(.easeInOut(duration: 0.2), value: feed.footerExpanded)
             }
         }
     }
