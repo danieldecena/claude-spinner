@@ -452,10 +452,10 @@ struct SessionRow: View {
             return sinceUpdated
         case .idle:
             // A finished turn shows its (fixed) duration; a session that's just
-            // sitting idle with nothing running shows a static placeholder rather
-            // than a count-up age, since there's no active timer to report.
+            // sitting idle with nothing running shows nothing rather than a
+            // placeholder.
             if let dur = session.lastDuration { return FeedWatcher.formatDuration(dur) }
-            return "--:--"
+            return ""
         }
     }
 
