@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:47:31.242Z
-> Files: 28 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:54:06.950Z
+> Files: 29 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -10,7 +10,8 @@
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/
 
 - `build.sh` — Dev-loop build: swiftc the three app sources into the installed bundle, (~199 tok)
-- `main.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~1482 tok)
+- `logbug.py` (~345 tok)
+- `main.swift` — Stubs — the real ones live in claude_spinnerApp.swift (not compiled here). (~1512 tok)
 - `testmain.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~926 tok)
 
 ## ../../.claude/
@@ -67,9 +68,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3944 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~11334 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~4953 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~5019 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~11923 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~4743 tok)
 
 ## claude spinner/Assets.xcassets/
 

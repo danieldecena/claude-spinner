@@ -14,10 +14,25 @@ struct MenuContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if feed.sessions.isEmpty {
-                Text("No active sessions")
-                    .font(.claudeMono(12)).foregroundStyle(Color.claudeDim)
+                if feed.isSetupInstalled {
+                    Text("No active sessions")
+                        .font(.claudeMono(12)).foregroundStyle(Color.claudeDim)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14).padding(.vertical, 14)
+                } else {
+                    // Nothing will ever appear until the hooks are wired up — say so
+                    // instead of a silent empty panel that looks broken.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Setup needed")
+                            .font(.claudeMono(12)).fontWeight(.semibold)
+                            .foregroundStyle(Color.usageTint(95))
+                        Text("The feed hooks aren't installed, so no sessions can show. Add the spinner hooks + statusLine to ~/.claude/settings.json.")
+                            .font(.claudeMono(11)).foregroundStyle(Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14).padding(.vertical, 14)
+                }
             } else {
                 // One ticking clock drives every row's spinner + timer in phase.
                 TimelineView(.periodic(from: .now, by: 0.1)) { context in
@@ -306,39 +321,10 @@ struct SessionRow: View {
         return 1.0 - (1.0 - Constants.idleMinOpacity) * t
     }
     
-    /// Bring the session's host app to the front. Terminals (Ghostty/Terminal/
-    /// iTerm) are only focused — macOS `open` can't target the exact tab running a
-    /// session, so passing a folder would spawn a new window; we avoid that. VS Code
-    /// does reuse its window, so it opens the project folder in place. An unknown
-    /// host focuses the user's terminal rather than spawning a fresh one.
-    /// Host string (bundle ID or `TERM_PROGRAM` value) → the app bundle to focus.
-    private static let hostBundleIDs: [String: String] = [
-        "com.microsoft.VSCode": "com.microsoft.VSCode", "vscode": "com.microsoft.VSCode",
-        "com.mitchellh.ghostty": "com.mitchellh.ghostty", "ghostty": "com.mitchellh.ghostty",
-        "com.apple.Terminal": "com.apple.Terminal", "Apple_Terminal": "com.apple.Terminal",
-        "com.googlecode.iterm2": "com.googlecode.iterm2", "iTerm.app": "com.googlecode.iterm2",
-        "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
-    ]
-
+    /// Bring the session's host app (and its existing window) to the front —
+    /// never a new window. See `SessionLauncher.focus`.
     private func openSession() {
-        let path = session.cwd
-        let pathValid = !path.isEmpty && FileManager.default.fileExists(atPath: path)
-        // Unknown host — focus the user's terminal, never spawn a fresh window.
-        let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
-            ? "com.mitchellh.ghostty" : "com.apple.Terminal"
-        let bundleID = Self.hostBundleIDs[session.host] ?? fallback
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        // VS Code reuses its window, so it can open the project folder in place.
-        // Terminals can't target the exact tab running a session, so passing a
-        // folder would spawn a stray window — focus only.
-        if bundleID == "com.microsoft.VSCode", pathValid {
-            task.arguments = ["-b", bundleID, path]
-        } else {
-            task.arguments = ["-b", bundleID]
-        }
-        try? task.run()
+        SessionLauncher.focus(host: session.host)
     }
 
     private var glyph: String {

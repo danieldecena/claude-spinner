@@ -794,3 +794,46 @@
 | 00:47 | Edited TASKS.md | 4→5 lines | ~121 |
 | 00:47 | Edited TASKS.md | 4→5 lines | ~121 |
 | 00:45 | Batch: host chip (vsc/trm/web/app HostTag classifier) now RIGHT of the row time, flips to ✕ on hover (merged into one fixed 26px trailing slot); attention row label -> 1 alternating word (AttentionWords); footer poller notice (blocked/expired, detail in tooltip); 7d reset added to countdown tooltip (usageResetTooltip, weekday formatter); menu-bar % pulses red at 90%+ (usageAlarm drives glyphPhase even when idle); usageSession cached per publish (sessions didSet, review #5); openSession -> hostBundleIDs table; usage ring buffer persisted (usageHistory, sparkline data only); footer right-edge aligns to row times BY CONSTRUCTION (both use [content][6][26px box]); poller.parse + HostTag tests (harness 28 asserts ALL PASS) | FeedWatcher.swift, MenuContentView.swift, claude_spinnerApp.swift, tests | harness+build OK | ~9k |
+| 00:48 | Session end: 54 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~41865 tok |
+| 00:48 | Session end: 54 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~41865 tok |
+| 00:48 | Edited claude spinner/claude_spinnerApp.swift | added nullish coalescing | ~482 |
+| 00:48 | Edited claude spinner/claude_spinnerApp.swift | added nullish coalescing | ~482 |
+| 00:49 | Session end: 55 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~42381 tok |
+| 00:49 | Session end: 55 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~42381 tok |
+| 00:49 | Edited claude spinner/claude_spinnerApp.swift | modified focus() | ~295 |
+| 00:49 | Edited claude spinner/claude_spinnerApp.swift | modified focus() | ~295 |
+| 00:49 | Edited claude spinner/MenuContentView.swift | removed 29 lines | ~24 |
+| 00:49 | Edited claude spinner/MenuContentView.swift | removed 29 lines | ~24 |
+| 00:49 | Edited claude spinner/MenuContentView.swift | Terminals() → app() | ~60 |
+| 00:49 | Edited claude spinner/MenuContentView.swift | Terminals() → app() | ~60 |
+| 00:50 | Edited claude spinner/FeedWatcher.swift | 5→8 lines | ~149 |
+| 00:50 | Edited claude spinner/FeedWatcher.swift | 5→8 lines | ~149 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | expanded (+8 lines) | ~135 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | expanded (+8 lines) | ~135 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | modified requestAuthorization() | ~200 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | modified requestAuthorization() | ~200 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | inline fix | ~25 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | inline fix | ~25 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | added nullish coalescing | ~337 |
+| 00:50 | Edited claude spinner/claude_spinnerApp.swift | added nullish coalescing | ~337 |
+| 00:51 | Session end: 67 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~44282 tok |
+| 00:51 | Session end: 67 writes across 10 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 9 reads | ~44282 tok |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 3→4 lines | ~25 |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 3→4 lines | ~25 |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 3→6 lines | ~69 |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 3→6 lines | ~69 |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~38 |
+| 00:51 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~38 |
+| 00:52 | Edited claude spinner/FeedWatcher.swift | modified contains() | ~397 |
+| 00:52 | Edited claude spinner/FeedWatcher.swift | modified contains() | ~397 |
+| 00:52 | Edited claude spinner/FeedWatcher.swift | modified pidAlive() | ~123 |
+| 00:52 | Edited claude spinner/FeedWatcher.swift | modified pidAlive() | ~123 |
+| 00:53 | Edited claude spinner/FeedWatcher.swift | modified refresh() | ~218 |
+| 00:53 | Edited claude spinner/FeedWatcher.swift | modified refresh() | ~218 |
+| 00:53 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~346 |
+| 00:53 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~346 |
+| 00:53 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified frame() | ~87 |
+| 00:53 | Edited ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift | modified frame() | ~87 |
+| 00:54 | Created ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/logbug.py | — | ~345 |
+| 00:54 | Created ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/logbug.py | — | ~345 |
+| 01:05 | Batch 2: FIXED clicking a session opening a NEW window (bug-072) — SessionLauncher.focus now NSRunningApplication.activate(.activateAllWindows) the running host, no path to `open`, fallback launch only if not running; shared by row tap + notification. Added "Focus session" UNNotificationAction (ATTENTION category, NotificationConfig, AppDelegate is UNUserNotificationCenterDelegate, host in userInfo). PID pruning: emit.sh already writes pid; FeedWatcher reads it (StateFile.pid/SessionFeed.pid), prunes idle sessions whose pid is dead (pidAlive via kill(pid,0), ESRCH=gone) + deletes their files immediately. First-run: isSetupInstalled (emit.sh exists + settings.json mentions emit.sh) -> panel shows "Setup needed" hint instead of bare empty. Harness stub for NotificationConfig; 28 asserts ALL PASS | FeedWatcher.swift, MenuContentView.swift, claude_spinnerApp.swift | build+harness OK | ~7k |

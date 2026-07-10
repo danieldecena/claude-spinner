@@ -129,6 +129,7 @@ private struct StateFile: Decodable {
     var message: String?
     var cwd: String?
     var host: String?
+    var pid: Double?
     var turn_start: Double?
     var updated: Double?
     var last_seed: Double?
@@ -163,6 +164,9 @@ struct SessionFeed: Identifiable {
     var message: String = ""
     var cwd: String = ""
     var host: String = ""
+    /// PID of the owning `claude` process (captured by emit.sh), so a session whose
+    /// process died without a SessionEnd can be pruned. nil when not captured.
+    var pid: Int?
     var turnStart: Date?
     var updated: Date?
     var model: String?
@@ -183,6 +187,7 @@ struct SessionFeed: Identifiable {
         message = s.message ?? ""
         if let c = s.cwd, !c.isEmpty { cwd = c }
         if let h = s.host, !h.isEmpty { host = h }
+        if let p = s.pid { pid = Int(p) }
         turnStart = s.turn_start.map { Date(timeIntervalSince1970: $0) }  // null when idle
         if let up = s.updated { updated = Date(timeIntervalSince1970: up) }
         lastSeed = s.last_seed.map(Int.init)
@@ -559,13 +564,23 @@ final class FeedWatcher: ObservableObject {
         // `updated` and is treated as dead — nil defaults to .distantPast so it
         // never renders as a phantom idle row.
         let cutoff = Date().addingTimeInterval(-Constants.staleCutoff)
-        let live = byId.values.filter { ($0.updated ?? .distantPast) > cutoff }
+        let recent = byId.values.filter { ($0.updated ?? .distantPast) > cutoff }
+        // Prune an idle session whose owning claude process has died without firing
+        // SessionEnd (e.g. the terminal was force-quit). Restricted to idle sessions
+        // with a captured pid, so a live/working session is never dropped on a bad
+        // or missing pid — the process check only ever *removes* a truly-dead one.
+        let deadPidIds = Set(recent.filter {
+            $0.status == .idle && ($0.pid.map { !Self.pidAlive($0) } ?? false)
+        }.map(\.id))
+        let live = recent.filter { !deadPidIds.contains($0.id) }
         let liveIds = Set(live.map(\.id))
-        // Prune files that belong to no live session, but only once the file
-        // itself is older than the cutoff — so a transient read miss or a session
-        // mid-startup (status.json written before state.json) is never deleted.
+        // Prune files that belong to no live session: immediately for a dead-pid
+        // session, otherwise only once the file itself is older than the cutoff —
+        // so a transient read miss or a session mid-startup (status.json written
+        // before state.json) is never deleted.
         for url in files {
             guard let id = sessionId(from: url.lastPathComponent), !liveIds.contains(id) else { continue }
+            if deadPidIds.contains(id) { try? fm.removeItem(at: url); continue }
             let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             if (mtime ?? .distantPast) < cutoff {
                 try? fm.removeItem(at: url)
@@ -578,6 +593,26 @@ final class FeedWatcher: ObservableObject {
             self?.updateUsageCache(result)
             self?.sessions = result
         }
+    }
+
+    /// True if a process with this pid currently exists. `kill(pid, 0)` sends no
+    /// signal — it just probes existence: 0 = alive, EPERM = alive but owned by
+    /// another user (still counts), ESRCH = gone.
+    private static func pidAlive(_ pid: Int) -> Bool {
+        if kill(pid_t(pid), 0) == 0 { return true }
+        return errno == EPERM
+    }
+
+    /// True when the feed plumbing is in place: the emitter script exists and
+    /// settings.json wires it into the hooks. When false, no session will ever
+    /// appear — so the panel shows a setup hint instead of a bare "No active
+    /// sessions". Cheap file reads, only consulted when the panel is empty.
+    var isSetupInstalled: Bool {
+        guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("emit.sh").path)
+        else { return false }
+        let settings = dir.deletingLastPathComponent().appendingPathComponent("settings.json")
+        guard let text = try? String(contentsOf: settings, encoding: .utf8) else { return false }
+        return text.contains("emit.sh")
     }
 
     /// Force a re-read of the feed (right-click → Refresh).
@@ -609,6 +644,9 @@ final class FeedWatcher: ObservableObject {
             content.title = "Claude needs you"
             content.body = s.message.isEmpty ? s.projectName : "\(s.projectName) — \(s.message)"
             content.sound = .default
+            // Attach the "Focus session" action and the host to activate on tap.
+            content.categoryIdentifier = NotificationConfig.attentionCategory
+            content.userInfo = ["host": s.host]
             let request = UNNotificationRequest(identifier: "attention-\(id)", content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request)
         }

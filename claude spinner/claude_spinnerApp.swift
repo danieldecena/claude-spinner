@@ -23,7 +23,7 @@ struct claude_spinnerApp: App {
 /// Owns the status-bar item and the popover anchored beneath it. Using
 /// NSStatusItem + NSPopover (instead of SwiftUI's MenuBarExtra) lets the panel
 /// sit flush under the icon with a pointer arrow, rather than floating detached.
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let feed = FeedWatcher()
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
@@ -36,8 +36,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.setActivationPolicy(.accessory)
 
-        // Ask once for notification permission (used for attention alerts).
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // Ask once for notification permission (used for attention alerts), and
+        // register the "Focus session" action so its button appears on the alert.
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        let focus = UNNotificationAction(identifier: NotificationConfig.focusAction,
+                                         title: "Focus session", options: [.foreground])
+        let category = UNNotificationCategory(identifier: NotificationConfig.attentionCategory,
+                                              actions: [focus], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([category])
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
         popover.behavior = .transient
         popover.animates = true
@@ -149,6 +157,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Quit and reopen. A short-lived helper reopens after this instance exits, so
     /// the single-instance guard doesn't reject the new copy.
+    /// Handle a tap on the attention notification (or its "Focus session" button):
+    /// bring the session's host window to the front. Both the default tap and the
+    /// explicit action focus — the button just makes the affordance visible.
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.actionIdentifier == NotificationConfig.focusAction
+            || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            let host = response.notification.request.content.userInfo["host"] as? String ?? ""
+            SessionLauncher.focus(host: host)
+        }
+        completionHandler()
+    }
+
+    /// Show the banner + play the sound even if the app is frontmost.
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
     @objc private func relaunchApp() {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -267,6 +296,48 @@ extension Color {
         if n.contains("haiku")  { return Color(red: 0.45, green: 0.72, blue: 0.45) }  // green
         if n.contains("fable")  { return Color(red: 0.42, green: 0.56, blue: 0.86) }  // blue
         return .claudeDim
+    }
+}
+
+/// Identifiers for the attention notification's category and "Focus session"
+/// action, shared between the notification content (FeedWatcher) and the handler
+/// that registers/acts on them (AppDelegate).
+enum NotificationConfig {
+    static let attentionCategory = "ATTENTION"
+    static let focusAction = "FOCUS_SESSION"
+}
+
+/// Brings a session's host app to the front. Shared by the row tap and the
+/// attention notification's "Focus session" action so both behave identically.
+enum SessionLauncher {
+    /// Host string (bundle ID or `TERM_PROGRAM` value) → the app bundle to focus.
+    static let hostBundleIDs: [String: String] = [
+        "com.microsoft.VSCode": "com.microsoft.VSCode", "vscode": "com.microsoft.VSCode",
+        "com.mitchellh.ghostty": "com.mitchellh.ghostty", "ghostty": "com.mitchellh.ghostty",
+        "com.apple.Terminal": "com.apple.Terminal", "Apple_Terminal": "com.apple.Terminal",
+        "com.googlecode.iterm2": "com.googlecode.iterm2", "iTerm.app": "com.googlecode.iterm2",
+        "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
+    ]
+
+    static func focus(host: String) {
+        // Unknown host — focus the user's terminal, never spawn a fresh window.
+        let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
+            ? "com.mitchellh.ghostty" : "com.apple.Terminal"
+        let bundleID = hostBundleIDs[host] ?? fallback
+
+        // Activate the already-running instance — this brings the session's
+        // existing window(s) to the front and never opens a new one. Passing the
+        // folder path to `open` (as we used to) made VS Code open the folder in a
+        // *new* window; just activating the running app avoids that entirely.
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
+            app.activate(options: [.activateAllWindows])
+        } else {
+            // Not running — launch it (only case where a window legitimately opens).
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = ["-b", bundleID]
+            try? task.run()
+        }
     }
 }
 

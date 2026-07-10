@@ -1148,6 +1148,72 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T00:45:00Z"
+    },
+    {
+      "id": "bug-072",
+      "timestamp": "2026-07-10T07:48:46.015Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// Handle a tap on the attention notification (or its \"Focu; /// bring the session's host window to the front. Both the d",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:50:42.613Z"
+    },
+    {
+      "id": "bug-073",
+      "timestamp": "2026-07-10T07:49:39.832Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "24 lines replaced/restructured",
+      "fix": "Rewrote 29→3 lines (24 removed) | Also: /// Bring the session's host app to the front. Ter; /// iTerm) are only focused — macOS `open` can't t",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:49:53.984Z"
+    },
+    {
+      "id": "bug-074",
+      "timestamp": "2026-07-10T07:52:06.114Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 13→23 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:52:06.114Z"
+    },
+    {
+      "id": "bug-072",
+      "timestamp": "2026-07-10T01:05:00Z",
+      "error_message": "User: clicking a session opens a NEW window instead of the window it is running in",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "openSession ran `open -b com.microsoft.VSCode <cwd>`. Passing the folder to `open` makes VS Code open that folder as a new window rather than focusing the running session window; for a non-running host `open -b` also launches a fresh window.",
+      "fix": "SessionLauncher.focus now activates the running instance via NSRunningApplication.runningApplications(withBundleIdentifier:).first?.activate(options:[.activateAllWindows]); falls back to `open -b` only when the app is not running. No path passed, so no new window is opened. Shared by row tap + notification action.",
+      "tags": [
+        "macos",
+        "nsrunningapplication",
+        "open",
+        "vscode",
+        "window-focus"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T01:05:00Z"
     }
   ]
 }
