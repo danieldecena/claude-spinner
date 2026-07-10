@@ -153,67 +153,68 @@ struct UsageFooter: View {
                                     .help(feed.usageResetTooltip)
                                 }
                                 Spacer(minLength: 0)
-                                // Row 3: Collapsible Context Window cylinders grid
-                                if let pct = feed.usageContextPct,
-                                   let size = feed.usageContextSize {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(spacing: 2) {
-                                            Text("⎿").font(.claudeMono(10))
-                                            Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
-                                        }
-                                        .foregroundStyle(Color.secondary.opacity(0.8))
-                                        .padding(.bottom, 2)
-                                        
-                                        let sizeStr = FeedWatcher.formatTokens(size)
-                                        let modelName = feed.usageModel ?? "Claude"
-                                        
-                                        // Strip redundant " (1M context)" from modelName
-                                        let displayName: String = {
-                                            var name = modelName
-                                            if let range = name.range(of: " (") {
-                                                name = String(name[..<range.lowerBound])
-                                            }
-                                            return name
-                                        }()
-                                        
-                                        let modelId = feed.usageModelId ?? "unknown"
-                                        let inTok = feed.usageContextInputTokens ?? 0
-                                        let outTok = feed.usageContextOutputTokens ?? 0
-                                        let usedStr = FeedWatcher.formatTokens(inTok + outTok)
-                                        
-                                        let rightTexts = [
-                                            "\(displayName) (\(sizeStr) context)",
-                                            modelId,
-                                            "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
-                                        ]
-                                        
-                                        let filledCount = min(30, max(0, Int((Double(pct) / 3.33).rounded())))
-                                        ForEach(0..<3, id: \.self) { r in
-                                            HStack(spacing: 0) {
-                                                // The 10 cylinders for this row
-                                                HStack(spacing: 3) {
-                                                    ForEach(0..<10, id: \.self) { c in
-                                                        let idx = r * 10 + c
-                                                        let isFilled = idx < filledCount
-                                                        Text(isFilled ? "⛁" : "⛶")
-                                                            .font(.claudeMono(10))
-                                                            .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.4))
-                                                    }
-                                                }
-                                                .frame(width: 95, alignment: .leading)
-                                                
-                                                Text(rightTexts[r])
-                                                    .font(.claudeMono(10))
-                                                    .foregroundStyle(Color.secondary.opacity(0.8))
-                                                    .lineLimit(1)
-                                                
-                                                Spacer()
-                                            }
-                                            .textCase(.lowercase) // Aligns with overall design
-                                        }
+                            }
+
+                            // Row 3: Collapsible Context Window cylinders grid
+                            if let pct = feed.usageContextPct,
+                               let size = feed.usageContextSize {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 2) {
+                                        Text("⎿").font(.claudeMono(10))
+                                        Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
                                     }
-                                    .padding(.top, 4)
+                                    .foregroundStyle(Color.secondary.opacity(0.8))
+                                    .padding(.bottom, 2)
+                                    
+                                    let sizeStr = FeedWatcher.formatTokens(size)
+                                    let modelName = feed.usageModel ?? "Claude"
+                                    
+                                    // Strip redundant " (1M context)" from modelName
+                                    let displayName: String = {
+                                        var name = modelName
+                                        if let range = name.range(of: " (") {
+                                            name = String(name[..<range.lowerBound])
+                                        }
+                                        return name
+                                    }()
+                                    
+                                    let modelId = feed.usageModelId ?? "unknown"
+                                    let inTok = feed.usageContextInputTokens ?? 0
+                                    let outTok = feed.usageContextOutputTokens ?? 0
+                                    let usedStr = FeedWatcher.formatTokens(inTok + outTok)
+                                    
+                                    let rightTexts = [
+                                        "\(displayName) (\(sizeStr) context)",
+                                        modelId,
+                                        "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
+                                    ]
+                                    
+                                    let filledCount = min(30, max(0, Int((Double(pct) / 3.33).rounded())))
+                                    ForEach(0..<3, id: \.self) { r in
+                                        HStack(spacing: 0) {
+                                            // The 10 cylinders for this row
+                                            HStack(spacing: 3) {
+                                                ForEach(0..<10, id: \.self) { c in
+                                                    let idx = r * 10 + c
+                                                    let isFilled = idx < filledCount
+                                                    Text(isFilled ? "⛁" : "⛶")
+                                                        .font(.claudeMono(10))
+                                                        .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.4))
+                                                }
+                                            }
+                                            .frame(width: 95, alignment: .leading)
+                                            
+                                            Text(rightTexts[r])
+                                                .font(.claudeMono(10))
+                                                .foregroundStyle(Color.secondary.opacity(0.8))
+                                                .lineLimit(1)
+                                            
+                                            Spacer()
+                                        }
+                                        .textCase(.lowercase) // Aligns with overall design
+                                    }
                                 }
+                                .padding(.top, 4)
                             }
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
