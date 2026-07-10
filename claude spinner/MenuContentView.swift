@@ -195,8 +195,8 @@ struct UsageFooter: View {
                                             } else {
                                                 let clock = feed.usageFiveHourReset ?? ""
                                                 let rel = feed.usageFiveHourResetRelative ?? ""
-                                                let resetsStr = rel.isEmpty ? "resets \(clock)" : "resets \(clock) · in \(rel)"
-                                                Text("\(Image(systemName: "arrow.clockwise")) \(resetsStr)")
+                                                let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
+                                                Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
                                                     .font(.claudeMono(9.5))
                                                     .foregroundStyle(Color.secondary.opacity(0.75))
                                                     .help(feed.usageResetTooltip)
