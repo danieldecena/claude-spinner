@@ -415,12 +415,14 @@ final class FeedWatcher: ObservableObject {
     var workingCount: Int { sessions.filter(\.isWorking).count }
     var attentionCount: Int { sessions.filter { $0.status == .attention }.count }
 
-    /// Animated by cycling characters to match the footer spinner.
+    /// The animated spinner while working; a steady distinct marker while a
+    /// session waits on you; the resting star when done/idle.
     var menuBarGlyph: String {
-        if menuBarActive {
-            return Spinner.frame(at: Date())
+        switch menuBarState {
+        case .working:   return Spinner.frame(at: Date())
+        case .attention: return Spinner.attention
+        case .doneFlash, .idle: return Spinner.idle
         }
-        return "✻"
     }
 
     /// 0.65–1.0 opacity pulse for the active glyph, driven by the 10 Hz phase.
@@ -467,10 +469,14 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
-    /// Bright + animated for working/attention; grey/static for done/idle.
+    /// Bright title color for working/attention; grey for done/idle.
     var menuBarActive: Bool {
         menuBarState == .working || menuBarState == .attention
     }
+
+    /// Only a working session animates (pulsing glyph + cycling frames). A waiting
+    /// session stays bright but steady, so "needs you" reads apart from "busy".
+    var menuBarAnimating: Bool { menuBarState == .working }
 
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
@@ -493,15 +499,16 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
-    /// Rows to render: attention/working/done sessions individually; never-worked
-    /// idle sessions collapsed by directory into one row with a count, so a stack
-    /// of background `home idle` sessions reads as a single `home idle ×5`.
+    /// Rows to render: attention/working sessions individually; idle sessions
+    /// (both just-finished "done" and never-worked) collapsed by directory into one
+    /// row with a count, so a stack of finished `claude-spinner done` sessions reads
+    /// as a single `claude-spinner done · 2m 56s ×3` on the freshest of the group.
     var displayItems: [SessionRowItem] {
         var items: [SessionRowItem] = []
         var idleByDir: [String: [SessionFeed]] = [:]
         var dirOrder: [String] = []
         for s in sortedSessions {
-            if s.status == .idle && s.lastDuration == nil {
+            if s.status == .idle {
                 if idleByDir[s.cwd] == nil { dirOrder.append(s.cwd) }
                 idleByDir[s.cwd, default: []].append(s)
             } else {

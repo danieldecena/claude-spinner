@@ -160,7 +160,9 @@ struct MenuBarLabel: View {
         // Bright + pulsing while working/attention; quiet grey for the done-flash
         // and idle states so a finished session recedes into the menu bar.
         let color: Color = feed.menuBarActive ? .claudeBright : .menuIdle
-        let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
+        // Bright for working+attention, but only working pulses — a waiting glyph
+        // holds steady so it doesn't read as busy motion.
+        let glyphColor = feed.menuBarAnimating ? color.opacity(feed.glyphPulse) : color
 
         // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
         // fallback font, so cycling them shifts everything after and makes the
@@ -206,6 +208,11 @@ struct MenuBarLabel: View {
 /// view that draws the spinner stays in phase.
 enum Spinner {
     static let frames = ["✶", "✸", "✹", "✺", "✻", "✽", "✻", "✺", "✹", "✸"]
+    /// The idle/done resting glyph.
+    static let idle = "✻"
+    /// A steady, distinct marker for a session that has stopped and needs you —
+    /// so "waiting" never looks like the animated "busy" spinner.
+    static let attention = "◆"
 
     static func frame(at date: Date) -> String {
         let i = Int((date.timeIntervalSinceReferenceDate * Constants.spinnerFPS).rounded(.down))

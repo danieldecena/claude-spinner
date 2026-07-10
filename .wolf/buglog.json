@@ -23,7 +23,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 11\u219215 lines (8 removed) | Also: let script = \"\"\"; tell application \"Ghostty\"",
+      "fix": "Rewrote 11→15 lines (8 removed) | Also: let script = \"\"\"; tell application \"Ghostty\"",
       "tags": [
         "auto-detected",
         "refactor",
@@ -39,7 +39,7 @@
       "error_message": "Wrong reference: 320 should be Constants",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Used \"320\" instead of \"Constants\"",
-      "fix": "Changed 320 \u2192 Constants",
+      "fix": "Changed 320 → Constants",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -123,8 +123,8 @@
       "timestamp": "2026-07-10T00:25:49.840Z",
       "error_message": "Incorrect value in code",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Had \" (\\(timer) \u00b7 \\(session.tool))\"",
-      "fix": "Changed to \" (\\(timer) \u00b7 running \\(session.tool))\"",
+      "root_cause": "Had \" (\\(timer) · \\(session.tool))\"",
+      "fix": "Changed to \" (\\(timer) · running \\(session.tool))\"",
       "tags": [
         "auto-detected",
         "wrong-value",
@@ -139,7 +139,7 @@
       "timestamp": "2026-07-10T00:31:44.689Z",
       "error_message": "Incorrect value in code",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Had \" (\\(timer) \u00b7 still thinking)\"",
+      "root_cause": "Had \" (\\(timer) · still thinking)\"",
       "fix": "Changed to \" (\\(timer))\"",
       "tags": [
         "auto-detected",
@@ -188,7 +188,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 18\u219225 lines (8 removed)",
+      "fix": "Rewrote 18→25 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -204,7 +204,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 30\u219222 lines (12 removed)",
+      "fix": "Rewrote 30→22 lines (12 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -220,7 +220,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 22\u21928 lines (15 removed)",
+      "fix": "Rewrote 22→8 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -252,7 +252,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 46\u219262 lines (7 removed) | Also: /// Always-present footer: live usage (model \u00b7 5h ; /// left, the settings gear on the right so it's r | Also: Spacer(minLength: 6); Menu { | Also: } else {; if let ctx = session.contextPct {",
+      "fix": "Rewrote 46→62 lines (7 removed) | Also: /// Always-present footer: live usage (model · 5h ; /// left, the settings gear on the right so it's r | Also: Spacer(minLength: 6); Menu { | Also: } else {; if let ctx = session.contextPct {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -268,7 +268,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 16\u219257 lines (3 removed)",
+      "fix": "Rewrote 16→57 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -382,7 +382,7 @@
       "error_message": "Null/undefined access in ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Property access on potentially null/undefined value",
-      "fix": "Added null safety (optional chaining or null check) | Also: self?.updateUsageCache(result); /// Force a re-read of the feed (right-click \u2192 Refresh). | Also: /// Rows to render: attention/working/done sessions individu; /// idle sessions collapsed by directory into one row with a",
+      "fix": "Added null safety (optional chaining or null check) | Also: self?.updateUsageCache(result); /// Force a re-read of the feed (right-click → Refresh). | Also: /// Rows to render: attention/working/done sessions individu; /// idle sessions collapsed by directory into one row with a",
       "tags": [
         "auto-detected",
         "null-safety",
@@ -398,7 +398,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 11\u219222 lines (8 removed)",
+      "fix": "Rewrote 11→22 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -414,7 +414,7 @@
       "error_message": "Wrong reference: 320 should be 360",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"320\" instead of \"360\"",
-      "fix": "Changed 320 \u2192 360",
+      "fix": "Changed 320 → 360",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -430,7 +430,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 13\u219231 lines (7 removed)",
+      "fix": "Rewrote 13→31 lines (7 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -462,7 +462,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7\u219213 lines (4 removed)",
+      "fix": "Rewrote 7→13 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -478,7 +478,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 15\u219221 lines (2 removed)",
+      "fix": "Rewrote 15→21 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -526,7 +526,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 39\u219253 lines (2 removed)",
+      "fix": "Rewrote 39→53 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -542,7 +542,7 @@
       "error_message": "Significant refactor of ",
       "file": "HANDOFF.md",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 15\u21923 lines (12 removed) | Also: - [ ] **Two oranges** \u2014 attention rows use `.orang; that attention rows have an orange background wash",
+      "fix": "Rewrote 15→3 lines (12 removed) | Also: - [ ] **Two oranges** — attention rows use `.orang; that attention rows have an orange background wash",
       "tags": [
         "auto-detected",
         "refactor",
@@ -558,7 +558,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 12\u219216 lines (2 removed) | Also: // Usage view: show the 5h limit % (urgency-colore; if let h5 = feed.usageFiveHourPct {",
+      "fix": "Rewrote 12→16 lines (2 removed) | Also: // Usage view: show the 5h limit % (urgency-colore; if let h5 = feed.usageFiveHourPct {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -574,15 +574,15 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 17\u219223 lines (2 removed)",
+      "fix": "Rewrote 17→23 lines (2 removed) | Also: return session.message.isEmpty ? \"waiting for you\"; return \"idle\"",
       "tags": [
         "auto-detected",
         "refactor",
         "swift"
       ],
       "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-07-10T06:01:04.352Z"
+      "occurrences": 2,
+      "last_seen": "2026-07-10T06:05:52.458Z"
     },
     {
       "id": "bug-032",
@@ -602,6 +602,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T06:02:10.000Z"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-07-10T06:05:20.114Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→9 lines (4 removed) | Also: /// Animated by cycling characters to match the fo; if menuBarActive {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T06:05:20.115Z"
     }
   ]
 }

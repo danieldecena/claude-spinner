@@ -24,11 +24,15 @@ struct MenuContentView: View {
                     VStack(spacing: 0) {
                         ForEach(feed.displayItems) { item in
                             SessionRow(feed: feed, item: item, now: context.date)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
                             if item.id != feed.displayItems.last?.id {
                                 Divider().padding(.leading, 14)
                             }
                         }
                     }
+                    // Animate only when the set/order of rows changes (keyed by ids),
+                    // not on every 0.1s spinner tick.
+                    .animation(.easeInOut(duration: 0.2), value: feed.displayItems.map(\.id))
                 }
                 // Only pad the top; the last row's own vertical padding plus the
                 // footer's divider/padding already separate it from the footer, so
@@ -272,9 +276,9 @@ struct SessionRow: View {
 
     private var glyph: String {
         switch session.status {
-        case .attention: return "✻"   // same star as the others; the orange background wash carries "needs you"
+        case .attention: return Spinner.attention   // steady marker, distinct from the animated spinner
         case .thinking, .tool: return Spinner.frame(at: now)
-        case .idle: return "✻"
+        case .idle: return Spinner.idle
         }
     }
 
@@ -312,12 +316,15 @@ struct SessionRow: View {
         case .thinking:
             return "thinking\(elapsedSuffix)"
         case .attention:
-            return session.message.isEmpty ? "waiting for you" : session.message
+            // Lead with how long it's been waiting so a fresh pause reads apart
+            // from a stuck one; the time survives truncation, the message trails.
+            let msg = session.message.isEmpty ? "waiting for you" : session.message
+            return waitingSuffix.isEmpty ? msg : "\(waitingSuffix) · \(msg)"
         case .idle:
             if let dur = session.lastDuration {
                 return "done · \(FeedWatcher.formatDuration(dur))"
             }
-            return "idle"
+            return idleSuffix.isEmpty ? "idle" : "idle · \(idleSuffix)"
         }
     }
 
@@ -327,6 +334,14 @@ struct SessionRow: View {
         let elapsed = max(0, Int(now.timeIntervalSince(start)))
         return " · \(FeedWatcher.formatDuration(elapsed))"
     }
+
+    /// How long since the session last changed — used to show waiting/idle age.
+    private var sinceUpdated: String {
+        guard let updated = session.updated else { return "" }
+        return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(updated))))
+    }
+    private var waitingSuffix: String { sinceUpdated }
+    private var idleSuffix: String { sinceUpdated }
 }
 
 class HoverState: ObservableObject {
