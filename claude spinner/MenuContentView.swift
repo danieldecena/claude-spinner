@@ -174,7 +174,7 @@ struct SessionRow: View {
         .background(hover.isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .onHover { hover.isHovering = $0 }
         .onTapGesture {
-            openTerminal(at: session.cwd)
+            openSession()
         }
         .contextMenu {
             Button("Copy Session ID") { copyToPasteboard(session.id) }
@@ -184,7 +184,7 @@ struct SessionRow: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(session.projectName), \(statusText)")
-        .accessibilityHint("Opens a terminal at this project")
+        .accessibilityHint("Opens this session's app")
     }
 
     private func copyToPasteboard(_ string: String) {
@@ -201,17 +201,35 @@ struct SessionRow: View {
         return 1.0 - (1.0 - Constants.idleMinOpacity) * t
     }
     
-    /// Open a terminal at the session's project dir. Prefers Ghostty (the app's
-    /// styling target); falls back to Terminal.app when Ghostty isn't installed.
-    /// Uses `open -a` (no `-n`) with the folder as the argument: Ghostty handles
-    /// public.directory, so this reuses the running instance and opens a window
-    /// at the dir instead of spawning a duplicate Ghostty process each click.
-    private func openTerminal(at path: String) {
-        guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
+    /// Open/focus the session in the app it's actually running in (its captured
+    /// host), so a click lands you in the right place. Folder-aware hosts open the
+    /// project dir; others (iTerm2, the Claude desktop app) are just focused;
+    /// unknown host falls back to a terminal at the folder.
+    private func openSession() {
+        let path = session.cwd
+        let pathValid = !path.isEmpty && FileManager.default.fileExists(atPath: path)
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        let ghostty = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
-        task.arguments = ["-a", ghostty ? "Ghostty.app" : "Terminal", path]
+
+        switch session.host {
+        case "com.microsoft.VSCode", "vscode":
+            task.arguments = pathValid ? ["-b", "com.microsoft.VSCode", path]
+                                       : ["-b", "com.microsoft.VSCode"]
+        case "com.mitchellh.ghostty", "ghostty":
+            task.arguments = pathValid ? ["-a", "Ghostty.app", path]
+                                       : ["-b", "com.mitchellh.ghostty"]
+        case "com.apple.Terminal", "Apple_Terminal":
+            task.arguments = pathValid ? ["-a", "Terminal", path]
+                                       : ["-b", "com.apple.Terminal"]
+        case "com.googlecode.iterm2", "iTerm.app":
+            task.arguments = ["-b", "com.googlecode.iterm2"]   // can't target a folder; focus it
+        case "com.anthropic.claudefordesktop":
+            task.arguments = ["-b", "com.anthropic.claudefordesktop"]  // focus the desktop app
+        default:
+            guard pathValid else { return }
+            let ghostty = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
+            task.arguments = ["-a", ghostty ? "Ghostty.app" : "Terminal", path]
+        }
         try? task.run()
     }
 

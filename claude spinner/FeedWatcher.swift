@@ -102,6 +102,7 @@ private struct StateFile: Decodable {
     var tool: String?
     var message: String?
     var cwd: String?
+    var host: String?
     var turn_start: Double?
     var updated: Double?
     var last_seed: Double?
@@ -139,6 +140,7 @@ struct SessionFeed: Identifiable {
     var tool: String = ""
     var message: String = ""
     var cwd: String = ""
+    var host: String = ""
     var turnStart: Date?
     var updated: Date?
     var model: String?
@@ -160,6 +162,7 @@ struct SessionFeed: Identifiable {
         tool = s.tool ?? ""
         message = s.message ?? ""
         if let c = s.cwd, !c.isEmpty { cwd = c }
+        if let h = s.host, !h.isEmpty { host = h }
         turnStart = s.turn_start.map { Date(timeIntervalSince1970: $0) }  // null when idle
         if let up = s.updated { updated = Date(timeIntervalSince1970: up) }
         lastSeed = s.last_seed.map(Int.init)
