@@ -1214,6 +1214,24 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T01:05:00Z"
+    },
+    {
+      "id": "bug-073",
+      "timestamp": "2026-07-10T01:00:00Z",
+      "error_message": "Footer shows \"! blocked\" at 83% usage (false alarm)",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "usageOverageBlocked was true whenever the anthropic-ratelimit-unified-overage-status header == \"rejected\". But \"rejected\" is the normal setting for plans that do not allow overage (e.g. Max) at ANY utilization, not an actual block.",
+      "fix": "Gate usageOverageBlocked on a window actually being maxed: overageBlocked==true AND (5h>=100 || 7d>=100). Below the limit the reset countdown shows instead of a false notice.",
+      "tags": [
+        "usage",
+        "rate-limit",
+        "overage",
+        "footer",
+        "false-positive"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T01:00:00Z"
     }
   ]
 }

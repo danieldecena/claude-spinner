@@ -838,8 +838,14 @@ final class FeedWatcher: ObservableObject {
         return "Usage as of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)"
     }
 
-    /// The account is out of credits per the last poll (overage rejected).
-    var usageOverageBlocked: Bool { pollUsage?.overageBlocked ?? false }
+    /// Genuinely blocked: a window is maxed out AND the account can't buy overage.
+    /// The `overage-status: rejected` header alone is NOT a problem — it's the
+    /// normal setting for plans that don't allow overage (e.g. Max), so treating
+    /// it as "blocked" fires a false alarm at every utilization level.
+    var usageOverageBlocked: Bool {
+        guard pollUsage?.overageBlocked == true else { return false }
+        return (usageFiveHourPct ?? 0) >= 100 || (usageSevenDayPct ?? 0) >= 100
+    }
 
     /// A short, urgent footer note when polling can't refresh (auth expired) or the
     /// account is blocked on overage — nil when usage is flowing normally. The full
