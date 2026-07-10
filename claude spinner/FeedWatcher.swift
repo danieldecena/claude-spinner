@@ -361,11 +361,13 @@ final class FeedWatcher: ObservableObject {
         if let lead = working.first {
             let word = SpinnerWords.word(for: lead)
             let extra = working.count > 1 ? " +\(working.count - 1)" : ""
-            return "\(word)…\(parenthetical(for: lead))\(extra)"
+            // Word only — no live timer. The per-second timer changed the label
+            // width every tick and made the status item jitter; the elapsed time
+            // lives in the dropdown row instead.
+            return "\(word)…\(extra)"
         }
-        if let done = sortedSessions.first(where: { $0.lastDuration != nil }),
-           let dur = done.lastDuration {
-            return "\(SpinnerWords.pastWord(for: done)) for \(Self.formatDuration(dur))"
+        if let done = sortedSessions.first(where: { $0.lastDuration != nil }) {
+            return SpinnerWords.pastWord(for: done)
         }
         return ""
     }
@@ -376,16 +378,6 @@ final class FeedWatcher: ObservableObject {
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
         return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
-    }
-
-    /// The live `(22s)` timer suffix for a working session, reconstructed from
-    /// turn_start. Kept deliberately terse — just the elapsed time — so the menu
-    /// bar stays compact and doesn't shove other items around; the tool/thinking
-    /// hint lives in the dropdown row instead.
-    private func parenthetical(for s: SessionFeed) -> String {
-        guard let start = s.turnStart else { return "" }
-        let elapsed = max(0, Int(Date().timeIntervalSince(start)))
-        return " (\(Self.formatDuration(elapsed)))"
     }
 
     /// Most-urgent first: attention, then working, then idle; newest within each.

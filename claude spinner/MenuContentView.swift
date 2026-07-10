@@ -98,53 +98,51 @@ struct SessionRow: View {
     @StateObject private var hover = HoverState()
 
     var body: some View {
-        HStack(spacing: 11) {
+        // One line: [glyph] project-name  status…time   ctx% $cost
+        HStack(spacing: 7) {
             Text(glyph)
-                .font(.claudeMono(16))
+                .font(.claudeMono(14))
                 .foregroundStyle(tint)
-                .frame(width: 18)
+                .frame(width: 16)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(session.displayPath)
-                        .font(.claudeMono(13))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    
-                    Spacer()
-                    
-                    if let ctx = session.contextPct {
-                        Text("\(ctx)% ctx")
-                            .font(.claudeMono(11))
-                            .foregroundStyle(Color.claudeDim)
-                    }
-                    if let cost = session.costUsd {
-                        Text(String(format: "$%.2f", cost))
-                            .font(.claudeMono(11))
-                            .foregroundStyle(Color.claudeDim)
-                    }
-                }
-                Text(statusText)
-                    .font(.claudeMono(11))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
-            }
+            Text(session.projectName)
+                .font(.claudeMono(13))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(1)
 
-            Spacer(minLength: 8)
-            
+            Text(statusText)
+                .font(.claudeMono(12))
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 6)
+
             if hover.isHovering {
                 Button {
                     feed.clearSession(id: session.id)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(Color.claudeDim)
+            } else {
+                if let ctx = session.contextPct {
+                    Text("\(ctx)%")
+                        .font(.claudeMono(11))
+                        .foregroundStyle(Color.claudeDim)
+                }
+                if let cost = session.costUsd {
+                    Text(String(format: "$%.2f", cost))
+                        .font(.claudeMono(11))
+                        .foregroundStyle(Color.claudeDim)
+                }
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 9)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         .opacity(rowOpacity)
         .background(hover.isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .onHover { hover.isHovering = $0 }

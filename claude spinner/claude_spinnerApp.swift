@@ -75,21 +75,28 @@ struct MenuBarLabel: View {
     @ObservedObject var feed: FeedWatcher
 
     var body: some View {
-        // A single (concatenated) Text keeps the glyph and body on one baseline
-        // with independent fonts; the opacity pulse animates the glyph without
-        // changing width.
         let color = feed.menuBarActive ? Color.claude : Color.claudeDim
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
 
-        let glyph = Text(feed.menuBarGlyph)
-            .font(.claudeMono(17))
-            .foregroundColor(glyphColor)
-        let bodyText = Text(feed.menuBarBody.isEmpty ? "" : " \(feed.menuBarBody)")
-            .font(.claudeMono(13))
-            .foregroundColor(color)
-        return (glyph + bodyText)
-            .fixedSize()
-            .padding(.horizontal, 6)
+        // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
+        // fallback font, so cycling them shifts everything after and makes the
+        // status item shimmy. Pin the glyph to a fixed-width slot so it animates
+        // in place, and use monospaced digits so the timer never jitters either —
+        // width then only changes on rare digit-count/word rollovers.
+        HStack(spacing: 3) {
+            Text(feed.menuBarGlyph)
+                .font(.claudeMono(15))
+                .foregroundColor(glyphColor)
+                .frame(width: 16)
+            if !feed.menuBarBody.isEmpty {
+                Text(feed.menuBarBody)
+                    .font(.claudeMono(13))
+                    .monospacedDigit()
+                    .foregroundColor(color)
+            }
+        }
+        .fixedSize()
+        .padding(.horizontal, 4)
     }
 }
 
