@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T05:11:01.105Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T05:27:57.282Z
 > Files: 21 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/
@@ -13,7 +13,7 @@
 
 ## ../../.claude/spinnerfeed/
 
-- `emit.sh` — Menubar feed emitter — called by Claude Code lifecycle hooks. (~685 tok)
+- `emit.sh` — Menubar feed emitter — called by Claude Code lifecycle hooks. (~813 tok)
 
 ## ../.claude/plans/
 
@@ -52,8 +52,8 @@
 ## claude spinner/
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~2898 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~6768 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~2587 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~6795 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~3073 tok)
 
 ## claude spinner/Assets.xcassets/
 

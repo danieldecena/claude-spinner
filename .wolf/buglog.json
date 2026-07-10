@@ -407,6 +407,54 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T05:02:42.491Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-07-10T05:18:20.147Z",
+      "error_message": "Wrong reference: 320 should be 360",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"320\" instead of \"360\"",
+      "fix": "Changed 320 → 360",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:18:20.147Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-07-10T05:27:44.121Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 13→31 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:27:44.121Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-07-10T05:27:57.289Z",
+      "error_message": "Incorrect value in code",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Had \"Opens a terminal at this project\"",
+      "fix": "Changed to \"Opens this session'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:27:57.289Z"
     }
   ]
 }
