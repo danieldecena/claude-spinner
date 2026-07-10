@@ -1408,6 +1408,41 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T08:51:04.357Z"
+    },
+    {
+      "id": "bug-088",
+      "timestamp": "2026-07-10T09:36:28.415Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: let rawPct = feed.usageContextPctRaw ?? Double(pct); let filledCount = min(40, max(0, Int((rawPct / 2.5).rounded(",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T09:36:28.416Z"
+    },
+    {
+      "id": "bug-089",
+      "timestamp": "2026-07-10T09:40:00.000Z",
+      "error_message": "User: context-usage cylinder grid's filled cell count visually disagreed with the displayed percentage text (e.g. showed \"16%\" but looked like more cells were lit)",
+      "file": "claude spinner/FeedWatcher.swift, claude spinner/MenuContentView.swift",
+      "root_cause": "FeedWatcher.applyStatus rounded the raw Double used_percentage to an Int (contextPct) for display. MenuContentView then divided that already-rounded Int by 2.5 and rounded again to pick how many of the 40 grid cells to fill. Two independent roundings from two different value domains (percent, then cell count) could disagree by a visible cell.",
+      "fix": "Added SessionFeed.contextPctRaw: Double (stores ctx.used_percentage before rounding) and FeedWatcher.usageContextPctRaw computed property exposing it. MenuContentView's filledCount now derives from this raw double (falling back to Double(pct) if unavailable) instead of the pre-rounded Int, so only one rounding step occurs and the grid stays consistent with the underlying value.",
+      "tags": [
+        "swift",
+        "swiftui",
+        "rounding",
+        "double-rounding",
+        "context-usage",
+        "menu-bar"
+      ],
+      "related_bugs": ["bug-088"],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T09:40:00.000Z"
     }
   ]
 }

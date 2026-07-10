@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T08:58:26.648Z
-> Files: 29 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:36:28.410Z
+> Files: 30 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -22,6 +22,7 @@
 
 - `can-you-review-this-zippy-frost.md` — Improve claude-spinner — full cleanup pass (~1655 tok)
 - `hello-sorted-token.md` — Plan: Continue not-started tasks (concurrent-safe) (~1430 tok)
+- `var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md` — Fix cylinder-grid fill count vs displayed percentage mismatch (~982 tok)
 
 ## ../../.claude/spinnerfeed/
 
@@ -69,8 +70,8 @@
 ## claude spinner/
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~5019 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~13297 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~5563 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~14233 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~7232 tok)
 
 ## claude spinner/Assets.xcassets/
 

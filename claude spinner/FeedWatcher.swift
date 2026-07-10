@@ -204,6 +204,7 @@ struct SessionFeed: Identifiable {
     var lastSeed: Int?
     var lastDuration: Int?
     var contextPct: Int?
+    var contextPctRaw: Double?
     var contextInputTokens: Int?
     var contextOutputTokens: Int?
     var contextSize: Int?
@@ -238,7 +239,7 @@ struct SessionFeed: Identifiable {
         }
         if let p = s.rate_limits?.seven_day?.used_percentage { sevenDayPct = Int(p.rounded()) }
         if let ctx = s.context_window {
-            if let p = ctx.used_percentage { contextPct = Int(p.rounded()) }
+            if let p = ctx.used_percentage { contextPct = Int(p.rounded()); contextPctRaw = p }
             contextInputTokens = ctx.total_input_tokens
             contextOutputTokens = ctx.total_output_tokens
             contextSize = ctx.context_window_size
@@ -920,6 +921,7 @@ final class FeedWatcher: ObservableObject {
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
     var usageContextPct: Int? { usageSession?.contextPct }
+    var usageContextPctRaw: Double? { usageSession?.contextPctRaw }
     var usageContextInputTokens: Int? { usageSession?.contextInputTokens }
     var usageContextOutputTokens: Int? { usageSession?.contextOutputTokens }
     var usageContextSize: Int? { usageSession?.contextSize }

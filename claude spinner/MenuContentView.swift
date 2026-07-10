@@ -158,8 +158,9 @@ struct UsageFooter: View {
                                     let usedStr = FeedWatcher.formatTokens(inTok + outTok)
                                     
                                     let infoText = "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
-                                    
-                                    let filledCount = min(40, max(0, Int((Double(pct) / 2.5).rounded())))
+
+                                    let rawPct = feed.usageContextPctRaw ?? Double(pct)
+                                    let filledCount = min(40, max(0, Int((rawPct / 2.5).rounded())))
                                     
                                     VStack(alignment: .leading, spacing: 5) {
                                         // The 2 rows of 20 cylinders
