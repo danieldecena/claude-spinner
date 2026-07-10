@@ -577,7 +577,8 @@ final class FeedWatcher: ObservableObject {
     func clearAll() {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
-        for url in files {
+        // Only session feed files — never emit.sh or anything else living here.
+        for url in files where sessionId(from: url.lastPathComponent) != nil {
             try? fm.removeItem(at: url)
         }
         scheduleRescan()
