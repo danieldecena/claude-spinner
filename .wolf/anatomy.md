@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:46:46.956Z
-> Files: 32 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:51:31.007Z
+> Files: 33 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -36,6 +36,7 @@
 ## ./
 
 - `.gitignore` — Git ignore rules (~24 tok)
+- `buildServer.json` (~135 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
 - `STATUS.md` — STATUS (~15 tok)
@@ -73,7 +74,7 @@
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6723 tok)
 - `FeedWatcher.swift` — FeedWatcher.swift (~14233 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~7232 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~7243 tok)
 
 ## claude spinner/Assets.xcassets/
 

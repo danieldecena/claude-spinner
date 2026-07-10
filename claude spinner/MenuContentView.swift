@@ -373,8 +373,9 @@ struct SessionRow: View {
                     Text(timeText)
                         .font(.claudeMono(10))
                         .monospacedDigit()
+                        .lineLimit(1)
                         .foregroundStyle(isAnimatingDots ? Color.secondary.opacity(0.4) : Color.secondary)
-                        .frame(width: isAnimatingDots ? 14 : 34, alignment: isAnimatingDots ? .leading : .trailing)
+                        .frame(width: isAnimatingDots ? 14 : 44, alignment: isAnimatingDots ? .leading : .trailing)
                 }
 
                 // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
