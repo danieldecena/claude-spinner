@@ -98,6 +98,20 @@ enum SpinnerWords {
     }
 }
 
+/// "Needs you" words for the menu-bar attention title — the same seeded-so-stable
+/// idea as SpinnerWords: one word per pause, changing on the next one.
+enum AttentionWords {
+    static let all = ["Waiting", "Awaiting", "Yielding", "Pausing", "Hovering",
+                      "Poised", "Lingering", "Holding", "Wondering", "Expecting"]
+
+    /// Seeded by when the session entered attention so it stays put during the pause
+    /// and changes the next time a session stops for you.
+    static func word(for session: SessionFeed) -> String {
+        let seed = session.updated.map { Int($0.timeIntervalSince1970) } ?? abs(session.id.hashValue)
+        return all[((seed % all.count) + all.count) % all.count]
+    }
+}
+
 // MARK: - Feed file schemas
 
 /// `<id>.state.json`, written by emit.sh from lifecycle hooks.
@@ -622,8 +636,10 @@ final class FeedWatcher: ObservableObject {
         switch menuBarState {
         case .attention:
             // One word keeps the menu-bar title tight; the row carries the detail.
+            // Seeded per lead session so it stays put during the pause and alternates.
+            guard let lead = sortedSessions.first(where: { $0.status == .attention }) else { return "" }
             let extra = attentionCount > 1 ? " +\(attentionCount - 1)" : ""
-            return "waiting…\(extra)"
+            return "\(AttentionWords.word(for: lead))…\(extra)"
         case .working:
             guard let lead = sortedSessions.first(where: \.isWorking) else { return "" }
             let extra = workingCount > 1 ? " +\(workingCount - 1)" : ""
