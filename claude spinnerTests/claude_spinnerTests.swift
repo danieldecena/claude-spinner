@@ -161,4 +161,77 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNotEqual(Color.usageTint(89), Color.usageTint(90))   // -> red
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
     }
+
+    // MARK: - UsagePoller.parse (pure header -> Result mapping)
+
+    /// Utilization is a 0.0–1.0 fraction; parse scales to a rounded percentage.
+    func testParseMapsUtilizationToPercent() {
+        let now = Date(timeIntervalSince1970: 42)
+        let r = UsagePoller.parse(headers: [
+            "anthropic-ratelimit-unified-5h-utilization": "0.42",
+            "anthropic-ratelimit-unified-7d-utilization": "0.8",
+        ], now: now)
+        XCTAssertEqual(r?.fiveHourPct, 42)
+        XCTAssertEqual(r?.sevenDayPct, 80)
+        XCTAssertEqual(r?.fetchedAt, now)               // now echoes through unchanged
+    }
+
+    /// (u * 100).rounded() rounds to nearest, ties away from zero.
+    func testParseRounding() {
+        func pct(_ u5: String, _ u7: String) -> (Int?, Int?) {
+            let r = UsagePoller.parse(headers: [
+                "anthropic-ratelimit-unified-5h-utilization": u5,
+                "anthropic-ratelimit-unified-7d-utilization": u7,
+            ], now: Date())
+            return (r?.fiveHourPct, r?.sevenDayPct)
+        }
+        XCTAssertEqual(pct("0.005", "0.004").0, 1)      // 0.5 -> away from zero -> 1
+        XCTAssertEqual(pct("0.005", "0.004").1, 0)      // 0.4 -> 0
+    }
+
+    /// Either utilization key missing means the whole parse fails (nil).
+    func testParseReturnsNilWhenUtilizationMissing() {
+        let now = Date()
+        XCTAssertNil(UsagePoller.parse(headers: [
+            "anthropic-ratelimit-unified-7d-utilization": "0.5",
+        ], now: now))                                   // no 5h
+        XCTAssertNil(UsagePoller.parse(headers: [
+            "anthropic-ratelimit-unified-5h-utilization": "0.5",
+        ], now: now))                                   // no 7d
+        XCTAssertNil(UsagePoller.parse(headers: [:], now: now))
+    }
+
+    /// overageBlocked is true only for the exact "rejected" status.
+    func testParseOverageBlocked() {
+        func blocked(_ status: String?) -> Bool? {
+            var h = [
+                "anthropic-ratelimit-unified-5h-utilization": "0.1",
+                "anthropic-ratelimit-unified-7d-utilization": "0.1",
+            ]
+            if let status { h["anthropic-ratelimit-unified-overage-status"] = status }
+            return UsagePoller.parse(headers: h, now: Date())?.overageBlocked
+        }
+        XCTAssertEqual(blocked("rejected"), true)
+        XCTAssertEqual(blocked("allowed"), false)
+        XCTAssertEqual(blocked(nil), false)             // absent -> not blocked
+    }
+
+    /// Reset instants pass through as-is; absent -> nil.
+    func testParseResetInstants() {
+        let withResets = UsagePoller.parse(headers: [
+            "anthropic-ratelimit-unified-5h-utilization": "0.1",
+            "anthropic-ratelimit-unified-7d-utilization": "0.1",
+            "anthropic-ratelimit-unified-5h-reset": "1000",
+            "anthropic-ratelimit-unified-7d-reset": "2000",
+        ], now: Date())
+        XCTAssertEqual(withResets?.fiveHourResetsAt, 1000)
+        XCTAssertEqual(withResets?.sevenDayResetsAt, 2000)
+
+        let noResets = UsagePoller.parse(headers: [
+            "anthropic-ratelimit-unified-5h-utilization": "0.1",
+            "anthropic-ratelimit-unified-7d-utilization": "0.1",
+        ], now: Date())
+        XCTAssertNil(noResets?.fiveHourResetsAt)
+        XCTAssertNil(noResets?.sevenDayResetsAt)
+    }
 }
