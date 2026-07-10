@@ -11,6 +11,7 @@ import Foundation
 import Observation
 import ServiceManagement
 import UserNotifications
+import CoreGraphics
 
 /// Tunables gathered in one place so behavior isn't scattered across literals.
 enum Constants {
@@ -228,29 +229,58 @@ final class UsagePoller {
         var sevenDayPct: Int
         var fiveHourResetsAt: Double?
         var sevenDayResetsAt: Double?
+        var overageBlocked: Bool
         var fetchedAt: Date
     }
 
     /// Interval between polls. Modest: usage moves slowly and each poll is a
     /// (tiny) billable request.
     static let pollInterval: TimeInterval = 5 * 60
+    /// Skip polling once the user has been idle this long — nobody's consuming, so
+    /// the numbers aren't moving; the next input resumes it.
+    static let pauseAfterIdle: TimeInterval = 10 * 60
 
     private let session = URLSession(configuration: .ephemeral)
     private let onUpdate: (Result) -> Void
+    private let onAuthExpired: () -> Void
     private var timer: Timer?
 
-    init(onUpdate: @escaping (Result) -> Void) { self.onUpdate = onUpdate }
+    init(onUpdate: @escaping (Result) -> Void, onAuthExpired: @escaping () -> Void) {
+        self.onUpdate = onUpdate
+        self.onAuthExpired = onAuthExpired
+    }
 
     func start() {
-        poll()
+        poll(force: true)
         timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) {
-            [weak self] _ in self?.poll()
+            [weak self] _ in self?.poll(force: false)
         }
     }
 
     func stop() { timer?.invalidate(); timer = nil }
 
-    func refreshNow() { poll() }
+    func refreshNow() { poll(force: true) }
+
+    /// Seconds since the last user input, across the whole session (keyboard/mouse).
+    private static var userIdleSeconds: Double {
+        CGEventSource.secondsSinceLastEventType(.combinedSessionState,
+                                                eventType: CGEventType(rawValue: ~0)!)
+    }
+
+    /// Pure header→Result parse, so the mapping is unit-testable without a network
+    /// round-trip. Keys are the lowercased response header names.
+    static func parse(headers: [String: String], now: Date) -> Result? {
+        func num(_ key: String) -> Double? { headers[key].flatMap(Double.init) }
+        guard let u5 = num("anthropic-ratelimit-unified-5h-utilization"),
+              let u7 = num("anthropic-ratelimit-unified-7d-utilization") else { return nil }
+        return Result(
+            fiveHourPct: Int((u5 * 100).rounded()),
+            sevenDayPct: Int((u7 * 100).rounded()),
+            fiveHourResetsAt: num("anthropic-ratelimit-unified-5h-reset"),
+            sevenDayResetsAt: num("anthropic-ratelimit-unified-7d-reset"),
+            overageBlocked: headers["anthropic-ratelimit-unified-overage-status"] == "rejected",
+            fetchedAt: now)
+    }
 
     /// Read Claude Code's stored OAuth token from the login keychain via the
     /// `security` tool (avoids bundling keychain entitlements). May prompt for
@@ -273,7 +303,10 @@ final class UsagePoller {
         return token
     }
 
-    private func poll() {
+    private func poll(force: Bool) {
+        // Skip scheduled polls while the machine is idle; a manual refresh (force)
+        // or the launch poll always runs.
+        if !force && Self.userIdleSeconds > Self.pauseAfterIdle { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self, let token = self.oauthToken() else { return }
             var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
@@ -288,16 +321,19 @@ final class UsagePoller {
                 "messages": [["role": "user", "content": "."]],
             ])
             let task = self.session.dataTask(with: req) { [weak self] _, response, _ in
-                guard let self, let http = response as? HTTPURLResponse,
-                      let u5 = http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-5h-utilization").flatMap(Double.init),
-                      let u7 = http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-7d-utilization").flatMap(Double.init)
-                else { return }
-                let result = Result(
-                    fiveHourPct: Int((u5 * 100).rounded()),
-                    sevenDayPct: Int((u7 * 100).rounded()),
-                    fiveHourResetsAt: http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-5h-reset").flatMap(Double.init),
-                    sevenDayResetsAt: http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-7d-reset").flatMap(Double.init),
-                    fetchedAt: Date())
+                guard let self, let http = response as? HTTPURLResponse else { return }
+                if http.statusCode == 401 {
+                    DispatchQueue.main.async { self.onAuthExpired() }
+                    return
+                }
+                // Non-2xx (rate-limited, transient server error): ignore this poll,
+                // let the next timer tick retry — no rapid hammering.
+                guard (200..<300).contains(http.statusCode) else { return }
+                var headers: [String: String] = [:]
+                for (k, v) in http.allHeaderFields {
+                    if let ks = k as? String, let vs = v as? String { headers[ks.lowercased()] = vs }
+                }
+                guard let result = Self.parse(headers: headers, now: Date()) else { return }
                 DispatchQueue.main.async { self.onUpdate(result) }
             }
             task.resume()
@@ -331,6 +367,9 @@ final class FeedWatcher: ObservableObject {
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
     @Published private(set) var pollUsage: UsagePoller.Result?
+    /// Set when the poller hits an auth failure (expired token), so the footer can
+    /// explain why live usage stopped updating; cleared on the next good poll.
+    @Published private(set) var usageError: String?
     private var poller: UsagePoller?
     /// Whether to poll the API for live usage; persisted, on by default.
     @Published var usagePollingEnabled: Bool {
@@ -356,7 +395,11 @@ final class FeedWatcher: ObservableObject {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         ioQueue.async { [weak self] in self?.performRescan() }
         startWatching()
-        poller = UsagePoller { [weak self] result in self?.applyPollResult(result) }
+        poller = UsagePoller(
+            onUpdate: { [weak self] result in self?.applyPollResult(result) },
+            onAuthExpired: { [weak self] in
+                self?.usageError = "Usage auth expired — run any terminal Claude session to refresh"
+            })
         if usagePollingEnabled { poller?.start() }
         // Safety re-scan: catches any directory event the vnode source misses
         // and prunes sessions that ended without firing SessionEnd.
@@ -389,6 +432,7 @@ final class FeedWatcher: ObservableObject {
     /// relaunch and Clear All. Runs on main.
     private func applyPollResult(_ result: UsagePoller.Result) {
         pollUsage = result
+        usageError = nil
         let snap = UsageSnapshot(fiveHourPct: result.fiveHourPct,
                                  fiveHourResetsAt: result.fiveHourResetsAt,
                                  sevenDayPct: result.sevenDayPct,
@@ -577,8 +621,9 @@ final class FeedWatcher: ObservableObject {
     var menuBarBody: String {
         switch menuBarState {
         case .attention:
+            // One word keeps the menu-bar title tight; the row carries the detail.
             let extra = attentionCount > 1 ? " +\(attentionCount - 1)" : ""
-            return "Waiting for you…\(extra)"
+            return "waiting…\(extra)"
         case .working:
             guard let lead = sortedSessions.first(where: \.isWorking) else { return "" }
             let extra = workingCount > 1 ? " +\(workingCount - 1)" : ""
