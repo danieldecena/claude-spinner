@@ -155,21 +155,56 @@ struct UsageFooter: View {
                                 Spacer(minLength: 0)
                             }
 
-                            // Row 3: Context Window details
+                            // Row 3: Collapsible Context Window cylinders grid
                             if let pct = feed.usageContextPct,
                                let size = feed.usageContextSize {
-                                let inTok = feed.usageContextInputTokens ?? 0
-                                let outTok = feed.usageContextOutputTokens ?? 0
-                                HStack(spacing: 3) {
-                                    Text("ctx").font(.claudeMono(9)).fontWeight(.bold)
-                                        .foregroundStyle(Color.secondary.opacity(0.8))
-                                    Text("\(FeedWatcher.formatTokens(inTok)) in · \(FeedWatcher.formatTokens(outTok)) out / \(FeedWatcher.formatTokens(size)) limit")
-                                        .font(.claudeMono(10))
-                                    Text("(\(pct)%)")
-                                        .font(.claudeMono(10)).monospacedDigit()
-                                        .foregroundStyle(pct > 80 ? Color.red : Color.secondary)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 2) {
+                                        Text("⎿").font(.claudeMono(10))
+                                        Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
+                                    }
+                                    .foregroundStyle(Color.secondary.opacity(0.8))
+                                    .padding(.bottom, 2)
+                                    
+                                    let sizeStr = FeedWatcher.formatTokens(size)
+                                    let modelName = feed.usageModel ?? "Claude"
+                                    let modelId = feed.usageModelId ?? "unknown"
+                                    let inTok = feed.usageContextInputTokens ?? 0
+                                    let outTok = feed.usageContextOutputTokens ?? 0
+                                    let usedStr = FeedWatcher.formatTokens(inTok + outTok)
+                                    
+                                    let rightTexts = [
+                                        "\(modelName) (\(sizeStr) context)",
+                                        modelId,
+                                        "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
+                                    ]
+                                    
+                                    let filledCount = min(30, max(0, Int((Double(pct) / 3.33).rounded())))
+                                    ForEach(0..<3, id: \.self) { r in
+                                        HStack(spacing: 0) {
+                                            // The 10 cylinders for this row
+                                            HStack(spacing: 3) {
+                                                ForEach(0..<10, id: \.self) { c in
+                                                    let idx = r * 10 + c
+                                                    let isFilled = idx < filledCount
+                                                    Text(isFilled ? "⛁" : "⛶")
+                                                        .font(.claudeMono(10))
+                                                        .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.4))
+                                                }
+                                            }
+                                            
+                                            Spacer(minLength: 12)
+                                            
+                                            Text(rightTexts[r])
+                                                .font(.claudeMono(10))
+                                                .foregroundStyle(Color.secondary.opacity(0.8))
+                                                .lineLimit(1)
+                                            
+                                            Spacer()
+                                        }
+                                        .textCase(.lowercase) // Aligns with overall design
+                                    }
                                 }
-                                .foregroundStyle(Color.secondary.opacity(0.75))
                             }
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))

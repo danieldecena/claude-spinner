@@ -154,7 +154,10 @@ private struct StateFile: Decodable {
 /// integers and floats alike as `Double`, so `used_percentage` needs no special
 /// casing the way `JSONSerialization`'s `NSNumber` did.
 private struct StatusFile: Decodable {
-    struct Model: Decodable { var display_name: String? }
+    struct Model: Decodable {
+        var id: String?
+        var display_name: String?
+    }
     struct Workspace: Decodable { var current_dir: String? }
     struct RateLimits: Decodable {
         struct Window: Decodable {
@@ -193,6 +196,7 @@ struct SessionFeed: Identifiable {
     var turnStart: Date?
     var updated: Date?
     var model: String?
+    var modelId: String?
     var fiveHourPct: Int?
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
@@ -223,6 +227,7 @@ struct SessionFeed: Identifiable {
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }
+        if let mid = s.model?.id { modelId = mid }
         if cwd.isEmpty {
             if let c = s.cwd { cwd = c }
             else if let c = s.workspace?.current_dir { cwd = c }
@@ -265,6 +270,7 @@ struct UsageSnapshot: Codable {
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
     var model: String?
+    var modelId: String?
     var savedAt: Double
 }
 
@@ -545,6 +551,7 @@ final class FeedWatcher: ObservableObject {
                                  fiveHourResetsAt: result.fiveHourResetsAt,
                                  sevenDayPct: result.sevenDayPct,
                                  model: cachedUsage?.model,
+                                 modelId: cachedUsage?.modelId,
                                  savedAt: result.fetchedAt.timeIntervalSince1970)
         cachedUsage = snap
         if let data = try? JSONEncoder().encode(snap) {
@@ -718,7 +725,7 @@ final class FeedWatcher: ObservableObject {
             .max(by: { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) })
         else { return }
         let snap = UsageSnapshot(fiveHourPct: s.fiveHourPct, fiveHourResetsAt: s.fiveHourResetsAt,
-                                 sevenDayPct: s.sevenDayPct, model: s.model,
+                                 sevenDayPct: s.sevenDayPct, model: s.model, modelId: s.modelId,
                                  savedAt: Date().timeIntervalSince1970)
         cachedUsage = snap
         if let data = try? JSONEncoder().encode(snap) {
@@ -905,6 +912,7 @@ final class FeedWatcher: ObservableObject {
     // still survives Clear All / statusLine-less sessions (cache).
     var hasUsage: Bool { pollUsage != nil || usageSession != nil || cachedUsage != nil }
     var usageModel: String? { usageSession?.model ?? cachedUsage?.model }
+    var usageModelId: String? { usageSession?.modelId ?? cachedUsage?.modelId }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
     var usageContextPct: Int? { usageSession?.contextPct }
