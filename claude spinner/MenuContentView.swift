@@ -54,6 +54,10 @@ struct MenuContentView: View {
 /// "resets in" countdown current.
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
+    /// The reset line is secondary; it stays tucked away and slides in only when
+    /// the footer is hovered, so the resting footer is a single compact row.
+    /// (A HoverState class, not @State — the swiftc dev-loop lacks the macro plugin.)
+    @StateObject private var hover = HoverState()
 
     private var separator: some View {
         Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
@@ -105,8 +109,9 @@ struct UsageFooter: View {
                     .lineLimit(1)
 
                     // Line 2: both reset formats — clock time and the countdown —
-                    // which don't fit alongside the two bars at 360px on one line.
-                    if let clock = feed.usageFiveHourReset {
+                    // which don't fit alongside the two bars at 360px on one line,
+                    // so it reveals on hover instead of always taking a second row.
+                    if hover.isHovering, let clock = feed.usageFiveHourReset {
                         HStack(spacing: 0) {
                             Text("↺ resets \(clock)")
                             if let rel = feed.usageFiveHourResetRelative {
@@ -117,10 +122,15 @@ struct UsageFooter: View {
                         .font(.claudeMono(10))
                         .foregroundStyle(Color.claudeDim.opacity(0.7))
                         .lineLimit(1)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.12)) { hover.isHovering = hovering }
+                }
             }
         }
     }
