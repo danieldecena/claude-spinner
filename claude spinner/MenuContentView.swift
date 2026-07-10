@@ -176,6 +176,8 @@ struct UsageGauge: View {
                     .frame(width: max(pct > 0 ? 3 : 0,
                                       trackWidth * CGFloat(min(100, max(0, pct))) / 100),
                            height: trackHeight)
+                    .opacity(pct < 10 ? 0.35 : 1.0)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: pct)
             }
             Text("\(pct)%")
                 .font(.claudeMono(10)).monospacedDigit()
@@ -219,6 +221,7 @@ struct TrendGauge: View {
                     .frame(width: max(delta != 0 ? 3 : 0,
                                       trackWidth * min(fullScale, CGFloat(abs(delta))) / fullScale),
                            height: trackHeight)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: delta)
             }
             Text("\(delta > 0 ? "+" : "")\(delta)%")
                 .font(.claudeMono(10)).monospacedDigit()
@@ -338,7 +341,15 @@ struct SessionRow: View {
         .onTapGesture {
             openSession()
         }
+        .help(rowTooltip)
         .contextMenu {
+            Button("Open in Terminal") { openWithApp(bundleID: "com.apple.Terminal") }
+            Button("Open in VS Code") { openWithApp(bundleID: "com.microsoft.VSCode") }
+            Button("Open in Ghostty") { openWithApp(bundleID: "com.mitchellh.ghostty") }
+            Button("Reveal in Finder") {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: session.cwd)
+            }
+            Divider()
             Button("Copy Session ID") { copyToPasteboard(session.id) }
             Button("Copy Path") { copyToPasteboard(session.cwd) }
             Divider()
@@ -347,6 +358,13 @@ struct SessionRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(session.projectName), \(statusLabel) \(timeText)")
         .accessibilityHint("Opens this session's app")
+    }
+
+    private func openWithApp(bundleID: String) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-b", bundleID, session.cwd]
+        try? task.run()
     }
 
     private func copyToPasteboard(_ string: String) {
@@ -466,6 +484,18 @@ struct SessionRow: View {
     private var sinceUpdated: String {
         guard let updated = session.updated else { return "" }
         return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(updated))))
+    }
+
+    private var rowTooltip: String {
+        var parts: [String] = []
+        parts.append("path: \(session.cwd)")
+        if let pid = session.pid {
+            parts.append("pid: \(pid)")
+        }
+        if let updated = session.updated {
+            parts.append("updated: \(FeedWatcher.compactAge(since: updated, now: now)) ago")
+        }
+        return parts.joined(separator: "\n")
     }
 }
 
