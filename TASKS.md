@@ -2,6 +2,18 @@
 
 ## Tasks
 
+Remaining from the "apply all" improvement batch (poller hardening + menu title DONE):
+
+- [ ] Host tag on rows — small color-coded tag left of the time: vsc=VSCode (blue), trm=terminal (green), web=website (cyan), app=desktop app (purple), from `session.host`
+- [ ] Surface poller state in footer — show `usageError` (auth expired) and `pollUsage.overageBlocked` (out of credits) subtly; both already parsed in FeedWatcher
+- [ ] PID pruning — capture the claude PID in `~/.claude/spinnerfeed/emit.sh` (walk up from $PPID to the process whose command contains "claude"; write `pid`), prune sessions whose pid is dead (`kill(pid,0)`) on the 2s rescan. CAUTION: only prune idle sessions with a captured pid; a wrong/ephemeral pid would wrongly remove a live session — test capture first
+- [ ] Menu-bar urgency — flash/pulse the usage % red at 90%+ in usage mode
+- [ ] Notification action — add a "Focus session" button to the attention notification (UNNotificationAction + category)
+- [ ] 7-day reset in tooltip + a small usage sparkline (needs a persisted ring buffer of poll samples)
+- [ ] Cache `usageSession` per publish (review #5) — it re-scans `sessions` ~7x/sec in the footer tick
+- [ ] `openSession` data-driven table (review) — collapse the 4 identical `["-b", bundleid]` focus arms
+- [ ] First-run setup check — detect whether the spinner hooks + statusline are installed; show a warning/one-click fix. (Notarization needs an Apple Developer cert — can't be done in the agent env; note for the canonical build.)
+- [ ] Test `UsagePoller.parse(headers:now:)` — add harness + XCTest cases (pure, network-free)
 
 ## Completed
 
