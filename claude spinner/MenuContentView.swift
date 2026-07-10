@@ -26,7 +26,7 @@ struct MenuContentView: View {
                             SessionRow(feed: feed, item: item, now: context.date)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                             if item.id != feed.displayItems.last?.id {
-                                Divider().padding(.leading, 14)
+                                Divider().opacity(0.5)
                             }
                         }
                     }
@@ -61,15 +61,16 @@ struct UsageFooter: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider().opacity(0.6)
+            Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     if feed.hasUsage {
                         if let model = feed.globalModelFamily {
                             Text(model)
                                 .font(.claudeMono(11)).fontWeight(.semibold)
                                 .foregroundStyle(Color.modelTint(feed.globalModel))
+                                .fixedSize()
                         }
                         if let h5 = feed.usageFiveHourPct {
                             UsageGauge(label: "5h", pct: h5)
@@ -112,17 +113,18 @@ struct UsageGauge: View {
     let label: String
     let pct: Int
 
-    private let trackWidth: CGFloat = 38
+    private let trackWidth: CGFloat = 32
     private let trackHeight: CGFloat = 5
 
     var body: some View {
         HStack(spacing: 5) {
             Text(label)
-                .font(.claudeMono(10))
+                .font(.claudeMono(11))
                 .foregroundStyle(Color.secondary)
+                .fixedSize()
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.secondary.opacity(0.18))
+                    .fill(Color.secondary.opacity(0.22))
                     .frame(width: trackWidth, height: trackHeight)
                 Capsule()
                     .fill(Color.usageTint(pct))
@@ -134,6 +136,7 @@ struct UsageGauge: View {
             Text("\(pct)%")
                 .font(.claudeMono(11)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
+                .fixedSize()
         }
         .help("\(label == "5h" ? "5-hour" : "7-day") usage \(pct)%")
     }
@@ -168,7 +171,7 @@ struct SessionRow: View {
             if item.count > 1 {
                 Text("×\(item.count)")
                     .font(.claudeMono(11))
-                    .foregroundStyle(Color.claudeDim)
+                    .foregroundStyle(Color.secondary)
             }
 
             Text(statusText)
@@ -190,7 +193,7 @@ struct SessionRow: View {
                             .font(.system(size: 9, weight: .bold))
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(Color.claudeDim)
+                    .foregroundColor(Color.secondary)
                 } else if let ctx = session.contextPct {
                     Text("\(ctx)%")
                         .font(.claudeMono(11))

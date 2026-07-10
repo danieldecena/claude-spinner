@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T06:19:46.051Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T06:25:05.282Z
 > Files: 23 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/
@@ -58,7 +58,7 @@
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3345 tok)
 - `FeedWatcher.swift` — FeedWatcher.swift (~7137 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~3949 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~3974 tok)
 
 ## claude spinner/Assets.xcassets/
 

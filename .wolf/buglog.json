@@ -698,6 +698,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T06:17:16.141Z"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-07-10T06:23:41.642Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 7→4 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:23:41.642Z"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-07-10T06:25:05.289Z",
+      "error_message": "Wrong reference: claudeDim should be secondary",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Used \"claudeDim\" instead of \"secondary\"",
+      "fix": "Changed claudeDim → secondary",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:25:05.289Z"
     }
   ]
 }
