@@ -125,37 +125,7 @@ struct UsageFooter: View {
                     // Row 2 & 3: Collapsible reset countdowns / notices / context data
                     if feed.footerExpanded && feed.hasUsage {
                         VStack(alignment: .leading, spacing: 5) {
-                            // Row 2: resets countdowns / notices
-                            HStack(spacing: 0) {
-                                if let notice = feed.usageNotice {
-                                    // An urgent poller note (auth expired / out of credits)
-                                    // takes the slot when present — usage is stale or
-                                    // blocked, so a reset countdown would mislead.
-                                    HStack(spacing: 2) {
-                                        Text("!").font(.claudeMono(9)).fontWeight(.bold)
-                                        Text(notice).font(.claudeMono(10))
-                                    }
-                                    .foregroundStyle(Color.usageTint(95))
-                                    .help(feed.usageNoticeDetail)
-                                } else {
-                                    HStack(spacing: 3) {
-                                        Text("↺").font(.claudeMono(9))
-                                        if let clock = feed.usageFiveHourReset {
-                                            Text("resets \(clock)")
-                                                .font(.claudeMono(10))
-                                        }
-                                        if let rel = feed.usageFiveHourResetRelative {
-                                            Text("· in \(rel)")
-                                                .font(.claudeMono(10)).monospacedDigit()
-                                        }
-                                    }
-                                    .foregroundStyle(Color.secondary.opacity(0.75))
-                                    .help(feed.usageResetTooltip)
-                                }
-                                Spacer(minLength: 0)
-                            }
-
-                            // Row 3: Collapsible Context Window cylinders grid
+                            // Row 2 (previously 3): Collapsible Context Window cylinders grid
                             if let pct = feed.usageContextPct,
                                let size = feed.usageContextSize {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -210,8 +180,38 @@ struct UsageFooter: View {
                                     }
                                     .padding(.top, 2)
                                 }
-                                .padding(.top, 4)
                             }
+
+                            // Row 3 (previously 2): resets countdowns / notices
+                            HStack(spacing: 0) {
+                                if let notice = feed.usageNotice {
+                                    // An urgent poller note (auth expired / out of credits)
+                                    // takes the slot when present — usage is stale or
+                                    // blocked, so a reset countdown would mislead.
+                                    HStack(spacing: 2) {
+                                        Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                        Text(notice).font(.claudeMono(10))
+                                    }
+                                    .foregroundStyle(Color.usageTint(95))
+                                    .help(feed.usageNoticeDetail)
+                                } else {
+                                    HStack(spacing: 3) {
+                                        Text("↺").font(.claudeMono(9))
+                                        if let clock = feed.usageFiveHourReset {
+                                            Text("resets \(clock)")
+                                                .font(.claudeMono(10))
+                                        }
+                                        if let rel = feed.usageFiveHourResetRelative {
+                                            Text("· in \(rel)")
+                                                .font(.claudeMono(10)).monospacedDigit()
+                                        }
+                                    }
+                                    .foregroundStyle(Color.secondary.opacity(0.75))
+                                    .help(feed.usageResetTooltip)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.top, 2)
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
