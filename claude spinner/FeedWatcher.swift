@@ -531,12 +531,18 @@ final class FeedWatcher: ObservableObject {
         Self.formatReset(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
     }
 
+    /// The wall-clock time the 5h window resets, e.g. "2:00 AM" (respects the
+    /// user's 12/24h locale). The `resets_at` is a fixed instant, so this is exact.
+    private static let resetTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        f.dateStyle = .none
+        return f
+    }()
+
     private static func formatReset(_ resetsAt: Double?) -> String? {
         guard let resetsAt else { return nil }
-        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
-        let hours = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
+        return resetTimeFormatter.string(from: Date(timeIntervalSince1970: resetsAt))
     }
 
     var globalModel: String? {

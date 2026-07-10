@@ -1,5 +1,12 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
+# Compile-checks the menu-bar app's Swift sources on every push / PR.
+#
+# Why a type-check and not `xcodebuild archive`:
+#   - This is an Xcode app (.xcodeproj), not a SwiftPM package, so `swift build`
+#     doesn't apply.
+#   - The app's deployment target is macOS 27 (the dev machine); GitHub runners
+#     ship older macOS SDKs, so a full archive there is infeasible. We instead
+#     type-check the sources against the runner's SDK at a compatible target,
+#     which reliably catches compile errors without needing signing or a scheme.
 
 name: Swift
 
@@ -10,13 +17,13 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  typecheck:
     runs-on: macos-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - uses: actions/checkout@v4
+      - name: Type-check sources
+        working-directory: "claude spinner"
+        run: |
+          xcrun --sdk macosx swiftc -typecheck \
+            -target arm64-apple-macos14.0 \
+            claude_spinnerApp.swift FeedWatcher.swift MenuContentView.swift
