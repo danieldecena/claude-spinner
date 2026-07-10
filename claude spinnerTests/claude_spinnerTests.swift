@@ -304,4 +304,58 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: "/some/proj"), .openPath)
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
+
+    // MARK: - SetupInstaller.mergeSpinnerHooks (settings.json merge)
+
+    /// Casts the emit.sh command out of a merged settings dict for one event.
+    private func emitCommands(_ settings: [String: Any], _ event: String) -> [String] {
+        guard let hooks = settings["hooks"] as? [String: Any],
+              let groups = hooks[event] as? [[String: Any]] else { return [] }
+        return groups.flatMap { ($0["hooks"] as? [[String: Any]]) ?? [] }
+            .compactMap { $0["command"] as? String }
+            .filter { $0.contains("emit.sh") }
+    }
+
+    func testMergeAddsAllHookEventsToEmptySettings() {
+        let merged = SetupInstaller.mergeSpinnerHooks(into: [:])
+        for event in SetupInstaller.hookEvents {
+            XCTAssertEqual(emitCommands(merged, event), ["~/.claude/spinnerfeed/emit.sh \(event)"],
+                           "expected one emit.sh entry for \(event)")
+        }
+        let statusLine = merged["statusLine"] as? [String: Any]
+        XCTAssertEqual(statusLine?["command"] as? String, "bash ~/.claude/statusline-command.sh")
+    }
+
+    func testMergeIsIdempotent() {
+        let once = SetupInstaller.mergeSpinnerHooks(into: [:])
+        let twice = SetupInstaller.mergeSpinnerHooks(into: once)
+        for event in SetupInstaller.hookEvents {
+            XCTAssertEqual(emitCommands(twice, event).count, 1, "\(event) must not duplicate")
+        }
+    }
+
+    func testMergePreservesExistingStatusLineAndOtherKeys() {
+        let existing: [String: Any] = [
+            "model": "opus",
+            "statusLine": ["type": "command", "command": "my-custom-statusline"],
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(merged["model"] as? String, "opus")
+        let statusLine = merged["statusLine"] as? [String: Any]
+        XCTAssertEqual(statusLine?["command"] as? String, "my-custom-statusline") // untouched
+        XCTAssertEqual(emitCommands(merged, "SessionStart").count, 1)             // still wired
+    }
+
+    func testMergeOnlyAddsMissingEvents() {
+        // SessionStart already wired by hand; the rest are missing.
+        let existing: [String: Any] = [
+            "hooks": ["SessionStart": [
+                ["matcher": "", "hooks": [["type": "command",
+                  "command": "~/.claude/spinnerfeed/emit.sh SessionStart"]]]
+            ]]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(emitCommands(merged, "SessionStart").count, 1)  // not duplicated
+        XCTAssertEqual(emitCommands(merged, "Stop").count, 1)          // added
+    }
 }
