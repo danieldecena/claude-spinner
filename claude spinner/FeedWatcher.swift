@@ -216,6 +216,95 @@ struct SessionRowItem: Identifiable {
     var count: Int { ids.count }
 }
 
+/// Polls Anthropic's API for the account's live 5h/7d rate-limit utilization,
+/// using the OAuth token Claude Code stores in the login keychain. Unlike the
+/// statusLine feed (which only refreshes during an interactive TUI session), this
+/// gives live usage in ANY session — one minimal `max_tokens: 1` request per poll
+/// (~1 token), reading the numbers straight from the response's
+/// `anthropic-ratelimit-unified-*` headers.
+final class UsagePoller {
+    struct Result {
+        var fiveHourPct: Int
+        var sevenDayPct: Int
+        var fiveHourResetsAt: Double?
+        var sevenDayResetsAt: Double?
+        var fetchedAt: Date
+    }
+
+    /// Interval between polls. Modest: usage moves slowly and each poll is a
+    /// (tiny) billable request.
+    static let pollInterval: TimeInterval = 5 * 60
+
+    private let session = URLSession(configuration: .ephemeral)
+    private let onUpdate: (Result) -> Void
+    private var timer: Timer?
+
+    init(onUpdate: @escaping (Result) -> Void) { self.onUpdate = onUpdate }
+
+    func start() {
+        poll()
+        timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) {
+            [weak self] _ in self?.poll()
+        }
+    }
+
+    func stop() { timer?.invalidate(); timer = nil }
+
+    func refreshNow() { poll() }
+
+    /// Read Claude Code's stored OAuth token from the login keychain via the
+    /// `security` tool (avoids bundling keychain entitlements). May prompt for
+    /// access on first use; returns nil if unavailable, so usage falls back to the
+    /// statusLine/cache path.
+    private func oauthToken() -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        task.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard task.terminationStatus == 0,
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let oauth = obj["claudeAiOauth"] as? [String: Any],
+              let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
+        return token
+    }
+
+    private func poll() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self, let token = self.oauthToken() else { return }
+            var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+            req.httpMethod = "POST"
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "authorization")
+            req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            req.setValue("application/json", forHTTPHeaderField: "content-type")
+            req.httpBody = try? JSONSerialization.data(withJSONObject: [
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 1,
+                "messages": [["role": "user", "content": "."]],
+            ])
+            let task = self.session.dataTask(with: req) { [weak self] _, response, _ in
+                guard let self, let http = response as? HTTPURLResponse,
+                      let u5 = http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-5h-utilization").flatMap(Double.init),
+                      let u7 = http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-7d-utilization").flatMap(Double.init)
+                else { return }
+                let result = Result(
+                    fiveHourPct: Int((u5 * 100).rounded()),
+                    sevenDayPct: Int((u7 * 100).rounded()),
+                    fiveHourResetsAt: http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-5h-reset").flatMap(Double.init),
+                    sevenDayResetsAt: http.value(forHTTPHeaderField: "anthropic-ratelimit-unified-7d-reset").flatMap(Double.init),
+                    fetchedAt: Date())
+                DispatchQueue.main.async { self.onUpdate(result) }
+            }
+            task.resume()
+        }
+    }
+}
+
 final class FeedWatcher: ObservableObject {
     @Published private(set) var sessions: [SessionFeed] = []
 
@@ -239,6 +328,18 @@ final class FeedWatcher: ObservableObject {
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
 
+    /// Live account usage from the API poller (preferred over the statusLine feed
+    /// because it refreshes in any session, not just an interactive TUI one).
+    @Published private(set) var pollUsage: UsagePoller.Result?
+    private var poller: UsagePoller?
+    /// Whether to poll the API for live usage; persisted, on by default.
+    @Published var usagePollingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(usagePollingEnabled, forKey: "usagePollingEnabled")
+            usagePollingEnabled ? poller?.start() : stopPolling()
+        }
+    }
+
     /// All disk reads/parses and file pruning happen here, off the main thread.
     private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
     private var pendingScan: DispatchWorkItem?
@@ -248,11 +349,15 @@ final class FeedWatcher: ObservableObject {
             .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
         cachedUsage = UserDefaults.standard.data(forKey: "usageSnapshot")
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
+        // Default on; the key is absent on first launch, so read with a default.
+        usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         ioQueue.async { [weak self] in self?.performRescan() }
         startWatching()
+        poller = UsagePoller { [weak self] result in self?.applyPollResult(result) }
+        if usagePollingEnabled { poller?.start() }
         // Safety re-scan: catches any directory event the vnode source misses
         // and prunes sessions that ended without firing SessionEnd.
         timer = Timer.scheduledTimer(withTimeInterval: Constants.safetyRescanInterval,
@@ -272,6 +377,27 @@ final class FeedWatcher: ObservableObject {
         source?.cancel()
         timer?.invalidate()
         animTimer?.invalidate()
+        poller?.stop()
+    }
+
+    private func stopPolling() { poller?.stop() }
+
+    /// Force an immediate usage poll (right-click → Refresh).
+    func refreshUsage() { poller?.refreshNow() }
+
+    /// Store a fresh poll result and persist it to the usage cache so it survives
+    /// relaunch and Clear All. Runs on main.
+    private func applyPollResult(_ result: UsagePoller.Result) {
+        pollUsage = result
+        let snap = UsageSnapshot(fiveHourPct: result.fiveHourPct,
+                                 fiveHourResetsAt: result.fiveHourResetsAt,
+                                 sevenDayPct: result.sevenDayPct,
+                                 model: cachedUsage?.model,
+                                 savedAt: result.fetchedAt.timeIntervalSince1970)
+        cachedUsage = snap
+        if let data = try? JSONEncoder().encode(snap) {
+            UserDefaults.standard.set(data, forKey: "usageSnapshot")
+        }
     }
 
     // Atomic mv from the hook scripts replaces directory entries, so watching
@@ -535,27 +661,26 @@ final class FeedWatcher: ObservableObject {
             .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
     }
 
-    // Usage prefers a live session's numbers, else the persisted snapshot — so it
-    // keeps showing after Clear All or in a session with no statusLine feed.
-    var hasUsage: Bool { usageSession != nil || cachedUsage != nil }
-    var usageFiveHourPct: Int? { usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
-    var usageSevenDayPct: Int? { usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
-    var usageFiveHourReset: String? {
-        Self.formatReset(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
+    // Usage prefers live API-poll data, then a live session's statusLine numbers,
+    // then the persisted snapshot — so it stays live in any session (poller) and
+    // still survives Clear All / statusLine-less sessions (cache).
+    var hasUsage: Bool { pollUsage != nil || usageSession != nil || cachedUsage != nil }
+    var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
+    var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
+    private var fiveHourResetsAt: Double? {
+        pollUsage?.fiveHourResetsAt ?? usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt
     }
-    /// The 5h reset as a relative countdown, e.g. "3h29m" — the footer pairs this
-    /// with the clock time so the second line reads "resets 2:00 AM · in 3h29m".
-    var usageFiveHourResetRelative: String? {
-        Self.formatResetRelative(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
-    }
+    var usageFiveHourReset: String? { Self.formatReset(fiveHourResetsAt) }
+    /// The 5h reset as a relative countdown, e.g. "3h29m".
+    var usageFiveHourResetRelative: String? { Self.formatResetRelative(fiveHourResetsAt) }
 
-    /// When the shown usage was last refreshed — the freshest live source's update
-    /// time, else the persisted snapshot's save time.
+    /// When the shown usage was last refreshed. The poll's fetch time is the true
+    /// freshness; the statusLine path falls back to the session/cache timestamp.
     var usageUpdatedAt: Date? {
-        usageSession?.updated ?? cachedUsage.map { Date(timeIntervalSince1970: $0.savedAt) }
+        pollUsage?.fetchedAt ?? usageSession?.updated ?? cachedUsage.map { Date(timeIntervalSince1970: $0.savedAt) }
     }
-    /// True when the shown usage is old enough to flag: account usage only refreshes
-    /// via a statusLine render, so a long gap means the numbers may be behind.
+    /// True when usage hasn't refreshed recently (polling off/failing, or no live
+    /// statusLine) — the footer dims to signal the numbers may be behind.
     var usageIsStale: Bool {
         guard let t = usageUpdatedAt else { return false }
         return Date().timeIntervalSince(t) > Constants.usageStaleAfter

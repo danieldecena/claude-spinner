@@ -107,6 +107,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launch.state = feed.launchAtLogin ? .on : .off
         menu.addItem(launch)
 
+        // Live usage: poll the API for 5h/7d limits so they refresh in any session
+        // (not just interactive TUI ones). One tiny request per poll.
+        let liveUsage = NSMenuItem(title: "Live usage (polls API)",
+                                   action: #selector(toggleUsagePolling), keyEquivalent: "")
+        liveUsage.target = self
+        liveUsage.state = feed.usagePollingEnabled ? .on : .off
+        menu.addItem(liveUsage)
+
         let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshFeed), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
@@ -132,8 +140,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func toggleLaunchAtLogin() { feed.launchAtLogin.toggle() }
+    @objc private func toggleUsagePolling() { feed.usagePollingEnabled.toggle() }
     @objc private func clearAllSessions() { feed.clearAll() }
-    @objc private func refreshFeed() { feed.refresh() }
+    @objc private func refreshFeed() { feed.refresh(); feed.refreshUsage() }
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
