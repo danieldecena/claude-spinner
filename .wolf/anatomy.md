@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T10:11:04.633Z
-> Files: 35 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T10:42:41.875Z
+> Files: 43 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -55,6 +55,14 @@
 
 - `swift.yml` — Builds the menu-bar app and runs its unit tests on every push / PR. (~477 tok)
 
+## .superpowers/sdd/
+
+- `progress.md` — First-run installer — SDD progress (~108 tok)
+- `task-1-report.md` — Task 1 Report: Vendor feed scripts into app bundle (~523 tok)
+- `task-2-report.md` — Task 2 Report: SetupInstaller with a pure, tested settings.json merge (~1429 tok)
+- `task-3-report.md` — Task 3 Report: Wire the Install button into the UI (~759 tok)
+- `task-4-report.md` — Task 4 — End-to-end installer verification (controller-run) (~375 tok)
+
 ## claude spinner.xcodeproj/
 
 - `project.pbxproj` — !$*UTF8*$! (~6176 tok)
@@ -78,8 +86,9 @@
 ## claude spinner/
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6723 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~14237 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~7247 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~14317 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~7718 tok)
+- `SetupInstaller.swift` — / Writes the feed plumbing on first run: copies the bundled scripts into (~1290 tok)
 
 ## claude spinner/Assets.xcassets/
 
@@ -95,8 +104,16 @@
 
 ## claude spinnerTests/
 
-- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~3674 tok)
+- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~4373 tok)
 
 ## claude spinnerUITests/
 
 - `claude_spinnerUITests.swift` — claude_spinnerUITests.swift (~382 tok)
+
+## docs/superpowers/plans/
+
+- `2026-07-10-first-run-installer.md` — First-run one-click installer Implementation Plan (~5666 tok)
+
+## docs/superpowers/specs/
+
+- `2026-07-10-first-run-installer-design.md` — First-run one-click installer — design (~1505 tok)

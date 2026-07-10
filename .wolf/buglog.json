@@ -1623,6 +1623,72 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T10:20:00.000Z"
+    },
+    {
+      "id": "bug-100",
+      "timestamp": "2026-07-10T10:29:05.911Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinnerTests/claude_spinnerTests.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:29:05.911Z"
+    },
+    {
+      "id": "bug-101",
+      "timestamp": "2026-07-10T10:34:50.099Z",
+      "error_message": "Function not marked async",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T10:34:50.101Z"
+    },
+    {
+      "id": "bug-102",
+      "timestamp": "2026-07-10T10:42:41.881Z",
+      "error_message": "Wrong reference: pending should be complete",
+      "file": ".superpowers/sdd/progress.md",
+      "root_cause": "Used \"pending\" instead of \"complete\"",
+      "fix": "Changed pending \u2192 complete",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:42:41.881Z"
+    },
+    {
+      "id": "bug-096",
+      "timestamp": "2026-07-10T10:40:00.000Z",
+      "error_message": "Review-caught: SetupInstaller.install() returned a generic Cocoa error instead of SetupError.malformedSettings for genuinely malformed settings.json",
+      "file": "claude spinner/SetupInstaller.swift",
+      "root_cause": "`guard let x = try JSONSerialization.jsonObject(with:) as? [String:Any] else { .malformedSettings }` \u2014 a THROW from invalid JSON syntax propagates to the outer catch (generic error); the else branch only fires for valid-but-non-dict JSON. So the friendly .malformedSettings message never surfaced for the common syntax-error case.",
+      "fix": "Wrap the parse in try? so any failure (throw or wrong-shape) maps to the else -> .malformedSettings: `guard let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return .failure(SetupError.malformedSettings) }`.",
+      "tags": [
+        "swift",
+        "error-handling",
+        "jsonserialization",
+        "try-vs-try-optional",
+        "code-review"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:40:00.000Z"
     }
   ]
 }
