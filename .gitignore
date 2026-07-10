@@ -18,3 +18,9 @@ buildServer.json
 .wolf/designqc-report.json
 .wolf/designqc-captures/
 .wolf/identity.md
+
+# Build artifacts / local scratch
+/claude-spinner
+*.profraw
+.metadata_never_index
+.wolf/daemon.log

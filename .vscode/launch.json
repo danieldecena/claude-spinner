@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Claude Spinner",
+            "program": "/Users/home/Library/Developer/Xcode/DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/Build/Products/Debug/claude spinner.app/Contents/MacOS/claude spinner",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false
+        }
+    ]
+}
