@@ -186,19 +186,17 @@ struct UsageFooter: View {
                                             Spacer(minLength: 12)
                                             
                                             if let notice = feed.usageNotice {
-                                                HStack(spacing: 2) {
-                                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
-                                                    Text(notice).font(.claudeMono(9.5))
-                                                }
-                                                .foregroundStyle(Color.usageTint(95))
-                                                .help(feed.usageNoticeDetail)
-                                                .lineLimit(1)
-                                                .fixedSize(horizontal: true, vertical: false)
+                                                Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
+                                                    .font(.claudeMono(9.5))
+                                                    .foregroundStyle(Color.usageTint(95))
+                                                    .help(feed.usageNoticeDetail)
+                                                    .lineLimit(1)
+                                                    .fixedSize(horizontal: true, vertical: false)
                                             } else {
                                                 let clock = feed.usageFiveHourReset ?? ""
                                                 let rel = feed.usageFiveHourResetRelative ?? ""
                                                 let resetsStr = rel.isEmpty ? "resets \(clock)" : "resets \(clock) · in \(rel)"
-                                                Text("↺ \(resetsStr)")
+                                                Text("\(Image(systemName: "arrow.clockwise")) \(resetsStr)")
                                                     .font(.claudeMono(9.5))
                                                     .foregroundStyle(Color.secondary.opacity(0.75))
                                                     .help(feed.usageResetTooltip)
