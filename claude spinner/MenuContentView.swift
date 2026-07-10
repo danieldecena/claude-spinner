@@ -177,6 +177,7 @@ struct SessionRow: View {
                     Text("\(ctx)%")
                         .font(.claudeMono(11))
                         .foregroundStyle(Color.contextTint(ctx))
+                        .help("Context window \(ctx)% full")
                 }
             }
             .frame(width: 34, alignment: .trailing)

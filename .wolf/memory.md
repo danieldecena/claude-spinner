@@ -503,3 +503,5 @@
 | 23:17 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~531 |
 | 23:17 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~531 |
 | 23:30 | Footer -> permanent single row: model + 5h/7d bars + inline live countdown ↺2h47m; clock time moved to .help() tooltip (both formats don't fit 360px). Removed hover-reveal. Diagnosed live-usage: 5h/7d rate limits ONLY come via statusLine stdin (not hooks/transcript), so live only in TUI sessions; countdown is the live element | MenuContentView.swift | built+signed+relaunched | ~3k |
+| 23:17 | Edited claude spinner/MenuContentView.swift | 5→6 lines | ~76 |
+| 23:17 | Edited claude spinner/MenuContentView.swift | 5→6 lines | ~76 |
