@@ -567,14 +567,10 @@ final class FeedWatcher: ObservableObject {
         guard let t = usageUpdatedAt else { return false }
         return Date().timeIntervalSince(t) > Constants.usageStaleAfter
     }
-    /// Compact freshness for the footer, e.g. "3m" / "1h20m", or nil if unknown.
-    var usageAgeString: String? {
-        usageUpdatedAt.map { Self.compactAge(since: $0) }
-    }
-    /// Tooltip line, e.g. "Usage as of 10:14 PM".
+    /// Tooltip line, e.g. "Usage as of 10:14 PM (1h24m ago)".
     var usageAsOfString: String {
         guard let t = usageUpdatedAt else { return "No usage data yet" }
-        return "Usage as of \(Self.resetTimeFormatter.string(from: t))"
+        return "Usage as of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)"
     }
 
     /// "45s" / "12m" / "1h20m" elapsed since `date`.

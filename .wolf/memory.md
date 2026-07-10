@@ -578,3 +578,12 @@
 | 23:38 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageTintTiers() | ~180 |
 | 23:38 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageTintTiers() | ~180 |
 | 23:56 | Big batch: stale-usage freshness (usageIsStale/AgeString/AsOfString + footer "Xm old" + dim); testability seam (static displayItems/menuBarState/sorted over [SessionFeed]); tests (swiftc harness 17 asserts ALL PASS + XCTest incl usageTint tiers); times -> right-aligned column (statusLabel/timeText split); row .textCase(.lowercase); removed per-row ctx% + contextTint (dead); fixed time-shift-on-hover via always-reserved ZStack slot | FeedWatcher.swift, MenuContentView.swift, claude_spinnerApp.swift, tests | typecheck+harness+build OK | ~8k |
+| 23:40 | Edited claude spinner/MenuContentView.swift | others() → Terminals() | ~440 |
+| 23:40 | Edited claude spinner/MenuContentView.swift | others() → Terminals() | ~440 |
+| 23:40 | Edited claude spinner/claude_spinnerApp.swift | 15→13 lines | ~195 |
+| 23:40 | Edited claude spinner/claude_spinnerApp.swift | 15→13 lines | ~195 |
+| 23:41 | Edited claude spinner/MenuContentView.swift | reduced (-6 lines) | ~87 |
+| 23:41 | Edited claude spinner/MenuContentView.swift | reduced (-6 lines) | ~87 |
+| 23:41 | Edited claude spinner/FeedWatcher.swift | 9→5 lines | ~76 |
+| 23:41 | Edited claude spinner/FeedWatcher.swift | 9→5 lines | ~76 |
+| 00:04 | Click -> focus-only (terminals just come to front, no new window; VSCode opens folder; unknown host focuses terminal). Fixed Usage-toggle looking broken (attention override in .usage removed; blue glyph still signals attention). Footer: dropped cryptic "Xm old" text -> just dim stale + fold age into "as of" tooltip | MenuContentView.swift, claude_spinnerApp.swift, FeedWatcher.swift | typecheck+harness+build OK | ~4k |

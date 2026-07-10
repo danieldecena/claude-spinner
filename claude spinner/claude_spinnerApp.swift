@@ -182,12 +182,10 @@ struct MenuBarLabel: View {
                 .frame(width: 16)
             switch feed.menuBarMode {
             case .usage:
-                // A waiting session is time-sensitive, so it wins the title even in
-                // usage mode; the 5h % returns once nothing needs you.
-                if feed.menuBarState == .attention, !feed.menuBarBody.isEmpty {
-                    Text(feed.menuBarBody)
-                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
-                } else if let h5 = feed.usageFiveHourPct {
+                // Usage mode always shows the 5h % (that's what the toggle promises);
+                // attention is still carried by the blue glyph, not the title text.
+                // Fall back to the activity word only when there's no usage data yet.
+                if let h5 = feed.usageFiveHourPct {
                     Text("5h \(h5)%")
                         .font(.claudeMono(13))
                         .monospacedDigit()

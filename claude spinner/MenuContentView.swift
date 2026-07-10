@@ -82,16 +82,10 @@ struct UsageFooter: View {
                                 UsageGauge(label: "7d", pct: d7)
                             }
                         }
+                        // Dim when stale so a frozen snapshot doesn't read as live;
+                        // the "as of" time and age live in the hover tooltip.
                         .opacity(feed.usageIsStale ? 0.6 : 1)
                         .help(feed.usageAsOfString)
-
-                        if feed.usageIsStale, let age = feed.usageAgeString {
-                            Text("\(age) old")
-                                .font(.claudeMono(10))
-                                .foregroundStyle(Color.secondary.opacity(0.8))
-                                .fixedSize()
-                                .help(feed.usageAsOfString)
-                        }
 
                         Spacer(minLength: 8)
 
@@ -275,10 +269,11 @@ struct SessionRow: View {
         return 1.0 - (1.0 - Constants.idleMinOpacity) * t
     }
     
-    /// Open/focus the session in the app it's actually running in (its captured
-    /// host), so a click lands you in the right place. Folder-aware hosts open the
-    /// project dir; others (iTerm2, the Claude desktop app) are just focused;
-    /// unknown host falls back to a terminal at the folder.
+    /// Bring the session's host app to the front. Terminals (Ghostty/Terminal/
+    /// iTerm) are only focused — macOS `open` can't target the exact tab running a
+    /// session, so passing a folder would spawn a new window; we avoid that. VS Code
+    /// does reuse its window, so it opens the project folder in place. An unknown
+    /// host focuses the user's terminal rather than spawning a fresh one.
     private func openSession() {
         let path = session.cwd
         let pathValid = !path.isEmpty && FileManager.default.fileExists(atPath: path)
@@ -290,19 +285,17 @@ struct SessionRow: View {
             task.arguments = pathValid ? ["-b", "com.microsoft.VSCode", path]
                                        : ["-b", "com.microsoft.VSCode"]
         case "com.mitchellh.ghostty", "ghostty":
-            task.arguments = pathValid ? ["-a", "Ghostty.app", path]
-                                       : ["-b", "com.mitchellh.ghostty"]
+            task.arguments = ["-b", "com.mitchellh.ghostty"]
         case "com.apple.Terminal", "Apple_Terminal":
-            task.arguments = pathValid ? ["-a", "Terminal", path]
-                                       : ["-b", "com.apple.Terminal"]
+            task.arguments = ["-b", "com.apple.Terminal"]
         case "com.googlecode.iterm2", "iTerm.app":
-            task.arguments = ["-b", "com.googlecode.iterm2"]   // can't target a folder; focus it
+            task.arguments = ["-b", "com.googlecode.iterm2"]
         case "com.anthropic.claudefordesktop":
-            task.arguments = ["-b", "com.anthropic.claudefordesktop"]  // focus the desktop app
+            task.arguments = ["-b", "com.anthropic.claudefordesktop"]
         default:
-            guard pathValid else { return }
+            // Unknown host — focus the user's terminal, no new window.
             let ghostty = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
-            task.arguments = ["-a", ghostty ? "Ghostty.app" : "Terminal", path]
+            task.arguments = ["-b", ghostty ? "com.mitchellh.ghostty" : "com.apple.Terminal"]
         }
         try? task.run()
     }
