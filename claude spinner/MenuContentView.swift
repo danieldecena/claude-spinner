@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 
 struct MenuContentView: View {
     @ObservedObject var feed: FeedWatcher

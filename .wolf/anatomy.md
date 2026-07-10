@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:51:31.007Z
-> Files: 33 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T10:07:24.063Z
+> Files: 34 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -40,7 +40,7 @@
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
 - `STATUS.md` — STATUS (~15 tok)
-- `TASKS.md` — claude-spinner — Tasks (~1012 tok)
+- `TASKS.md` — claude-spinner — Tasks (~1049 tok)
 
 ## .claude/
 
@@ -52,7 +52,7 @@
 
 ## .github/workflows/
 
-- `swift.yml` — Compile-checks the menu-bar app's Swift sources on every push / PR. (~282 tok)
+- `swift.yml` — Builds the menu-bar app and runs its unit tests on every push / PR. (~457 tok)
 
 ## claude spinner.xcodeproj/
 
@@ -66,6 +66,10 @@
 
 - `UserInterfaceState.xcuserstate` (~3436 tok)
 
+## claude spinner.xcodeproj/xcshareddata/xcschemes/
+
+- `claude spinner.xcscheme` (~1016 tok)
+
 ## claude spinner.xcodeproj/xcuserdata/home.xcuserdatad/xcschemes/
 
 - `xcschememanagement.plist` (~94 tok)
@@ -73,8 +77,8 @@
 ## claude spinner/
 
 - `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6723 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~14233 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~7243 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~14237 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~7247 tok)
 
 ## claude spinner/Assets.xcassets/
 

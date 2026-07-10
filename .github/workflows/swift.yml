@@ -1,12 +1,20 @@
-# Compile-checks the menu-bar app's Swift sources on every push / PR.
+# Builds the menu-bar app and runs its unit tests on every push / PR.
 #
-# Why a type-check and not `xcodebuild archive`:
-#   - This is an Xcode app (.xcodeproj), not a SwiftPM package, so `swift build`
-#     doesn't apply.
-#   - The app's deployment target is macOS 27 (the dev machine); GitHub runners
-#     ship older macOS SDKs, so a full archive there is infeasible. We instead
-#     type-check the sources against the runner's SDK at a compatible target,
-#     which reliably catches compile errors without needing signing or a scheme.
+# Why a real `xcodebuild test` and not just `swiftc -typecheck`:
+#   - A prior type-check-only CI passed while the app failed to BUILD (a missing
+#     `import Combine` for ObservableObject/@Published compiled under -typecheck
+#     but not under a full module build). Only a real build catches that class of
+#     error, so CI builds the app + test bundle for real.
+#
+# Two constraints this works around:
+#   - The app is an Xcode project (.xcodeproj), not a SwiftPM package, and its
+#     deployment target is macOS 27 (the dev machine). GitHub runners ship an
+#     older macOS SDK, so we override MACOSX_DEPLOYMENT_TARGET at build time to a
+#     version the runner can build (the sources compile clean there). This does
+#     NOT change the app's shipped deployment target in the project.
+#   - The unit tests are hosted in the app; the shared "claude spinner" scheme
+#     runs only the claude_spinnerTests target and skips claude_spinnerUITests
+#     (XCUITest can't launch a menu-bar/agent app, so those are excluded).
 
 name: Swift
 
@@ -17,13 +25,16 @@ on:
     branches: [ "main" ]
 
 jobs:
-  typecheck:
+  test:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Type-check sources
-        working-directory: "claude spinner"
+      - name: Build and run unit tests
         run: |
-          xcrun --sdk macosx swiftc -typecheck \
-            -target arm64-apple-macos14.0 \
-            claude_spinnerApp.swift FeedWatcher.swift MenuContentView.swift
+          set -o pipefail
+          xcodebuild test \
+            -project "claude spinner.xcodeproj" \
+            -scheme "claude spinner" \
+            -destination 'platform=macOS' \
+            MACOSX_DEPLOYMENT_TARGET=14.0 \
+            CODE_SIGNING_ALLOWED=NO

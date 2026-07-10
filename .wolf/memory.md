@@ -1113,3 +1113,14 @@
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
 | 09:55 | Fixed row elapsed time wrapping to two lines (lineLimit(1) + 34->44pt frame) | MenuContentView.swift | fixed, logged bug-092 | ~5k |
+| 02:55 | Edited claude spinner/FeedWatcher.swift | added 1 import(s) | ~14 |
+| 02:55 | Edited claude spinner/FeedWatcher.swift | added 1 import(s) | ~14 |
+| 02:55 | Edited claude spinner/MenuContentView.swift | added 1 import(s) | ~12 |
+| 02:55 | Edited claude spinner/MenuContentView.swift | added 1 import(s) | ~12 |
+| 03:05 | Created claude spinner.xcodeproj/xcshareddata/xcschemes/claude spinner.xcscheme | — | ~1016 |
+| 03:05 | Created claude spinner.xcodeproj/xcshareddata/xcschemes/claude spinner.xcscheme | — | ~1016 |
+| 03:06 | Created .github/workflows/swift.yml | — | ~457 |
+| 03:06 | Created .github/workflows/swift.yml | — | ~457 |
+| 10:10 | Installed Xcode 27; fixed missing import Combine (bug-093); added shared scheme + CI workflow running 27 unit tests (UI tests skipped); all pass | FeedWatcher.swift, MenuContentView.swift, *.xcscheme, .github/workflows/swift.yml | 27/27 pass | ~12k |
+| 03:07 | Edited TASKS.md | 3→4 lines | ~79 |
+| 03:07 | Edited TASKS.md | 3→4 lines | ~79 |

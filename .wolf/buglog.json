@@ -1534,6 +1534,61 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T09:55:00.000Z"
+    },
+    {
+      "id": "bug-095",
+      "timestamp": "2026-07-10T09:55:24.936Z",
+      "error_message": "Wrong reference: Observation should be Combine",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"Observation\" instead of \"Combine\"",
+      "fix": "Changed Observation \u2192 Combine",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T09:55:24.936Z"
+    },
+    {
+      "id": "bug-093",
+      "timestamp": "2026-07-10T10:00:00.000Z",
+      "error_message": "xcodebuild (Xcode 27 / Swift 6.4): type 'FeedWatcher' does not conform to protocol 'ObservableObject'; @Published init(wrappedValue:) not available due to missing import of defining module 'Combine' (also HoverState)",
+      "file": "claude spinner/FeedWatcher.swift, claude spinner/MenuContentView.swift",
+      "root_cause": "FeedWatcher (imports Foundation/Observation, not SwiftUI/Combine) and HoverState (imports SwiftUI) declare ObservableObject/@Published, which are Combine symbols. Older SDKs re-exported Combine transitively through SwiftUI/Foundation so it compiled without an explicit import; Xcode 27's SDK no longer does, so both types failed to compile. The swiftc -typecheck harness did NOT catch this (more lenient module resolution / implicit Combine), so it only surfaced under a real xcodebuild build.",
+      "fix": "Added explicit `import Combine` to FeedWatcher.swift and MenuContentView.swift.",
+      "tags": [
+        "swift",
+        "swiftui",
+        "combine",
+        "observableobject",
+        "xcode27",
+        "import",
+        "toolchain"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:00:00.000Z"
+    },
+    {
+      "id": "bug-094",
+      "timestamp": "2026-07-10T10:10:00.000Z",
+      "error_message": "xcodebuild test: 'Early unexpected exit, operation never finished bootstrapping ... test runner exited with code 0 before establishing connection' for the claude_spinnerTests unit target",
+      "file": "claude spinner/claude_spinnerApp.swift (AppDelegate.applicationDidFinishLaunching)",
+      "root_cause": "Unit tests are hosted in the app (TEST_HOST). The app's single-instance guard calls exit(0) when another copy with the same bundle id is already running. When a normal copy of the app was already running (e.g. left open by /run), launching the test-host copy tripped the guard and exit(0)'d before XCTest could attach, so the whole unit suite failed to bootstrap.",
+      "fix": "Quit any running copy before `xcodebuild test` (killall \"claude spinner\"). Not a code change \u2014 CI runners are a clean env so the guard never fires there. Documented as a local gotcha; the shared scheme + CI run the unit target cleanly.",
+      "tags": [
+        "xcode",
+        "xctest",
+        "test-host",
+        "single-instance",
+        "menu-bar",
+        "gotcha"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:10:00.000Z"
     }
   ]
 }

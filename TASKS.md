@@ -11,6 +11,7 @@ Remaining open items:
 
 ## Completed
 
+- [x] CI — shared scheme + GitHub Actions run the 27 unit tests (real xcodebuild build, UI tests skipped); caught missing import Combine (bug-093)
 - [x] Regression test — SessionLauncher.guiFocusAction pure fn + XCTest locks "running host wins over path launch" (bug-072/073/091)
 - [x] Host chip (vsc/trm/web/app) RIGHT of the row time, flips to ✕ on hover (one 26px slot)
 - [x] Attention row label -> one alternating word (AttentionWords)
