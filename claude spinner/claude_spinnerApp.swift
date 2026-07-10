@@ -111,6 +111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh.target = self
         menu.addItem(refresh)
 
+        let relaunch = NSMenuItem(title: "Relaunch", action: #selector(relaunchApp), keyEquivalent: "")
+        relaunch.target = self
+        menu.addItem(relaunch)
+
         let clear = NSMenuItem(title: "Clear All Sessions",
                                action: #selector(clearAllSessions), keyEquivalent: "")
         clear.target = self
@@ -133,6 +137,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
+
+    /// Quit and reopen. A short-lived helper reopens after this instance exits, so
+    /// the single-instance guard doesn't reject the new copy.
+    @objc private func relaunchApp() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.6; open \"\(Bundle.main.bundlePath)\""]
+        try? task.run()
+        NSApp.terminate(nil)
+    }
 }
 
 /// The status-bar label: the animated spinner glyph plus the compact status

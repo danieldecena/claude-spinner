@@ -130,7 +130,7 @@ struct SessionRow: View {
             // leaves room for both the name and a short "thinking · 35s".
             Text(session.projectName)
                 .font(.claudeMono(13))
-                .foregroundStyle(.primary)
+                .foregroundStyle(nameColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .layoutPriority(1)
@@ -241,19 +241,25 @@ struct SessionRow: View {
         }
     }
 
+    // Idle/done rows go fully grey (glyph, name, and status) so a finished
+    // session recedes — the way Claude Code greys out completed work.
     private var tint: Color {
         switch session.status {
         case .attention: return .orange
         case .thinking, .tool: return .claude
-        case .idle: return .claudeDim
+        case .idle: return .secondary
         }
+    }
+
+    private var nameColor: Color {
+        session.status == .idle ? .secondary : .primary
     }
 
     private var statusColor: Color {
         switch session.status {
         case .attention: return .orange
         case .thinking, .tool: return .claude
-        case .idle: return .claudeDim
+        case .idle: return .secondary
         }
     }
 
