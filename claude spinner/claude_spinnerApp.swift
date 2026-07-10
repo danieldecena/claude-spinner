@@ -166,7 +166,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         if response.actionIdentifier == NotificationConfig.focusAction
             || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             let host = response.notification.request.content.userInfo["host"] as? String ?? ""
-            SessionLauncher.focus(host: host)
+            let pidVal = response.notification.request.content.userInfo["pid"] as? Int
+            let pid = pidVal == 0 ? nil : pidVal
+            let cwd = response.notification.request.content.userInfo["cwd"] as? String ?? ""
+            SessionLauncher.focus(host: host, pid: pid, cwd: cwd)
         }
         completionHandler()
     }
@@ -319,25 +322,171 @@ enum SessionLauncher {
         "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
     ]
 
-    static func focus(host: String) {
+    static func focus(host: String, pid: Int?, cwd: String) {
         // Unknown host — focus the user's terminal, never spawn a fresh window.
         let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
             ? "com.mitchellh.ghostty" : "com.apple.Terminal"
         let bundleID = hostBundleIDs[host] ?? fallback
 
-        // Activate the already-running instance — this brings the session's
-        // existing window(s) to the front and never opens a new one. Passing the
-        // folder path to `open` (as we used to) made VS Code open the folder in a
-        // *new* window; just activating the running app avoids that entirely.
-        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
-            app.activate(options: [.activateAllWindows])
+        if bundleID == "com.apple.Terminal" {
+            if let pid = pid, let tty = getTTY(for: pid) {
+                if focusTerminalByTTY(tty) { return }
+            }
+            let folderName = (cwd as NSString).lastPathComponent
+            if !folderName.isEmpty {
+                if focusTerminalByTitle(folderName) { return }
+            }
+            openPath(cwd, withBundleID: "com.apple.Terminal")
+        } else if bundleID == "com.googlecode.iterm2" {
+            if let pid = pid, let tty = getTTY(for: pid) {
+                if focusITermByTTY(tty) { return }
+            }
+            let folderName = (cwd as NSString).lastPathComponent
+            if !folderName.isEmpty {
+                if focusITermByTitle(folderName) { return }
+            }
+            openPath(cwd, withBundleID: "com.googlecode.iterm2")
         } else {
-            // Not running — launch it (only case where a window legitimately opens).
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            task.arguments = ["-b", bundleID]
-            try? task.run()
+            // VS Code, Ghostty, Claude for Desktop, etc.
+            if !cwd.isEmpty {
+                openPath(cwd, withBundleID: bundleID)
+            } else {
+                // fallback to simple app activation
+                if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
+                    app.activate(options: [.activateAllWindows])
+                } else {
+                    let task = Process()
+                    task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                    task.arguments = ["-b", bundleID]
+                    try? task.run()
+                }
+            }
         }
+    }
+
+    private static func openPath(_ path: String, withBundleID bundleID: String) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-b", bundleID, path]
+        try? task.run()
+    }
+
+    private static func runAppleScript(_ script: String) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return false }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return false }
+        let output = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return output == "true"
+    }
+
+    private static func getTTY(for pid: Int) -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/ps")
+        task.arguments = ["-o", "tty=", "-p", "\(pid)"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return nil }
+        let tty = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if tty == "?" || tty?.isEmpty == true { return nil }
+        if let t = tty {
+            return t.hasPrefix("tty") ? t : "tty" + t
+        }
+        return nil
+    }
+
+    private static func focusTerminalByTTY(_ tty: String) -> Bool {
+        let script = """
+        tell application "Terminal"
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if tty of t contains "\(tty)" then
+                        set frontmost to true
+                        set index of w to 1
+                        set selected of t to true
+                        return true
+                    end if
+                end repeat
+            end repeat
+        end tell
+        return false
+        """
+        return runAppleScript(script)
+    }
+
+    private static func focusTerminalByTitle(_ title: String) -> Bool {
+        let script = """
+        tell application "Terminal"
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if name of t contains "\(title)" or custom title of t contains "\(title)" then
+                        set frontmost to true
+                        set index of w to 1
+                        set selected of t to true
+                        return true
+                    end if
+                end repeat
+            end repeat
+        end tell
+        return false
+        """
+        return runAppleScript(script)
+    }
+
+    private static func focusITermByTTY(_ tty: String) -> Bool {
+        let script = """
+        tell application "iTerm"
+            repeat with w in windows
+                repeat with t in tabs of w
+                    repeat with s in sessions of t
+                        if tty of s contains "\(tty)" then
+                            select s
+                            select t
+                            set index of w to 1
+                            set frontmost to true
+                            return true
+                        end if
+                    end repeat
+                end repeat
+            end repeat
+        end tell
+        return false
+        """
+        return runAppleScript(script)
+    }
+
+    private static func focusITermByTitle(_ title: String) -> Bool {
+        let script = """
+        tell application "iTerm"
+            repeat with w in windows
+                repeat with t in tabs of w
+                    repeat with s in sessions of t
+                        if name of s contains "\(title)" then
+                            select s
+                            select t
+                            set index of w to 1
+                            set frontmost to true
+                            return true
+                        end if
+                    end repeat
+                end repeat
+            end repeat
+        end tell
+        return false
+        """
+        return runAppleScript(script)
     }
 }
 

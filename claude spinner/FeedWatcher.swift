@@ -745,7 +745,11 @@ final class FeedWatcher: ObservableObject {
             content.sound = .default
             // Attach the "Focus session" action and the host to activate on tap.
             content.categoryIdentifier = NotificationConfig.attentionCategory
-            content.userInfo = ["host": s.host]
+            content.userInfo = [
+                "host": s.host,
+                "pid": s.pid ?? 0,
+                "cwd": s.cwd
+            ]
             let request = UNNotificationRequest(identifier: "attention-\(id)", content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request)
         }

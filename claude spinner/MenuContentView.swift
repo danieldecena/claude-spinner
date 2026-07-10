@@ -472,7 +472,7 @@ struct SessionRow: View {
     /// Bring the session's host app (and its existing window) to the front —
     /// never a new window. See `SessionLauncher.focus`.
     private func openSession() {
-        SessionLauncher.focus(host: session.host)
+        SessionLauncher.focus(host: session.host, pid: session.pid, cwd: session.cwd)
     }
 
     private var glyph: String {
