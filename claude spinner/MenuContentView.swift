@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct MenuContentView: View {
     @ObservedObject var feed: FeedWatcher
@@ -174,9 +175,20 @@ struct SessionRow: View {
         .onTapGesture {
             openTerminal(at: session.cwd)
         }
+        .contextMenu {
+            Button("Copy Session ID") { copyToPasteboard(session.id) }
+            Button("Copy Path") { copyToPasteboard(session.cwd) }
+            Divider()
+            Button("Clear") { feed.clear(item) }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(session.projectName), \(statusText)")
         .accessibilityHint("Opens a terminal at this project")
+    }
+
+    private func copyToPasteboard(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
     }
 
     /// Idle rows fade with age so a stale session recedes instead of sitting at
