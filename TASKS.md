@@ -2,21 +2,33 @@
 
 ## Tasks
 
-Remaining from the "apply all" improvement batch (poller hardening + menu title DONE):
+Remaining open items:
 
-- [ ] Host tag on rows — small color-coded tag left of the time: vsc=VSCode (blue), trm=terminal (green), web=website (cyan), app=desktop app (purple), from `session.host`
-- [ ] Surface poller state in footer — show `usageError` (auth expired) and `pollUsage.overageBlocked` (out of credits) subtly; both already parsed in FeedWatcher
-- [ ] PID pruning — [capture DONE + verified live: emit.sh walks $PPID up to the `claude` process by exact comm basename and writes `pid`; installed app ignores the unknown key]. PENDING the Swift consumer (StateFile.pid, SessionFeed.pid, prune idle dead-pid sessions via kill(pid,0)==-1 && errno==ESRCH in performRescan) — BLOCKED: FeedWatcher.swift is under concurrent edit by another session; do 3b once it lands. CAUTION: only prune idle sessions with a captured pid
-- [ ] Menu-bar urgency — flash/pulse the usage % red at 90%+ in usage mode
-- [ ] Notification action — add a "Focus session" button to the attention notification (UNNotificationAction + category)
-- [ ] 7-day reset in tooltip + a small usage sparkline (needs a persisted ring buffer of poll samples)
-- [ ] Cache `usageSession` per publish (review #5) — it re-scans `sessions` ~7x/sec in the footer tick
-- [ ] `openSession` data-driven table (review) — collapse the 4 identical `["-b", bundleid]` focus arms
-- [ ] First-run setup check — detect whether the spinner hooks + statusline are installed; show a warning/one-click fix. (Notarization needs an Apple Developer cert — can't be done in the agent env; note for the canonical build.)
+- [ ] Usage sparkline — the poll ring buffer (`usageHistory`) is persisted; still
+      need to draw the tiny trend line. Deferred: the 360px footer is full
+      (model + 5h + 7d + countdown), so it needs a second thin row or a layout
+      rethink before it fits without crowding.
+- [ ] First-run one-click fix — the panel now *detects* missing hooks and shows a
+      "Setup needed" hint; an actual installer that edits `~/.claude/settings.json`
+      is still open (kept manual to avoid clobbering user config).
+- [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed
 
-- [x] Test `UsagePoller.parse(headers:now:)` — network-free XCTest cases (util->pct scaling + rounding, nil on missing keys, overageBlocked only for "rejected", reset passthrough); verified via swiftc harness
+- [x] Host chip (vsc/trm/web/app) RIGHT of the row time, flips to ✕ on hover (one 26px slot)
+- [x] Attention row label -> one alternating word (AttentionWords)
+- [x] Surface poller state in footer — "blocked"/"expired" notice + tooltip detail
+- [x] Footer countdown/notice aligns to the row times by construction (bug-071)
+- [x] Fix clicking a session opening a NEW window — activate the running host, no path (bug-072)
+- [x] Notification "Focus session" action (ATTENTION category + delegate)
+- [x] PID pruning — emit.sh captures pid; FeedWatcher prunes idle dead-pid sessions (kill(pid,0))
+- [x] Menu-bar urgency — usage % pulses red at 90%+ in usage mode
+- [x] 7-day reset in the countdown tooltip; usage ring buffer persisted
+- [x] Cache `usageSession` per publish (review #5) — sessions.didSet
+- [x] `openSession` data-driven table — hostBundleIDs
+- [x] First-run setup check — "Setup needed" hint when hooks aren't installed
+- [x] Test `UsagePoller.parse(headers:now:)` — network-free XCTest + swiftc harness
+- [x] Test `HostTag.from` classification
 
 - [x] Testability seam + tests: extracted static displayItems/menuBarState/sorted over [SessionFeed]; swiftc harness + XCTest (usageTint tiers, grouping, menuBarState transitions)
 - [x] Footer stale-usage freshness indicator (dim + "Xm old" + as-of tooltip)

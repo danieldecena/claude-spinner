@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:54:06.950Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:55:06.614Z
 > Files: 29 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
@@ -36,7 +36,7 @@
 - `.gitignore` — Git ignore rules (~24 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
-- `TASKS.md` — claude-spinner — Tasks (~1090 tok)
+- `TASKS.md` — claude-spinner — Tasks (~1050 tok)
 
 ## .claude/
 
