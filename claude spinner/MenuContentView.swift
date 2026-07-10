@@ -58,10 +58,6 @@ struct MenuContentView: View {
 /// "resets in" countdown current.
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
-    /// The reset line is secondary; it stays tucked away and slides in only when
-    /// the footer is hovered, so the resting footer is a single compact row.
-    /// (A HoverState class, not @State — the swiftc dev-loop lacks the macro plugin.)
-    @StateObject private var hover = HoverState()
 
     private var separator: some View {
         Text("·").foregroundStyle(Color.secondary.opacity(0.5))
@@ -83,58 +79,43 @@ struct UsageFooter: View {
     var body: some View {
         VStack(spacing: 0) {
             Divider()
+            // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                VStack(alignment: .leading, spacing: 3) {
-                    // Line 1: model · 5h bar · 7d bar (no reset — it moves below).
-                    HStack(spacing: 6) {
-                        if feed.hasUsage {
-                            if let model = feed.globalModelFamily {
-                                Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
-                                separator
-                            }
-                            if let h5 = feed.usageFiveHourPct {
-                                Text("5h").foregroundStyle(Color.secondary)
-                                bar(h5)
-                                Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
-                            }
-                            if let d7 = feed.usageSevenDayPct {
-                                separator
-                                Text("7d").foregroundStyle(Color.secondary)
-                                bar(d7)
-                                Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
-                            }
-                        } else {
-                            Text("no usage data yet").foregroundStyle(Color.secondary.opacity(0.6))
+                HStack(spacing: 6) {
+                    if feed.hasUsage {
+                        if let model = feed.globalModelFamily {
+                            Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
+                            separator
                         }
-
-                        Spacer(minLength: 0)
-                    }
-                    .font(.claudeMono(11))
-                    .lineLimit(1)
-
-                    // Line 2: both reset formats — clock time and the countdown —
-                    // which don't fit alongside the two bars at 360px on one line,
-                    // so it reveals on hover instead of always taking a second row.
-                    if hover.isHovering, let clock = feed.usageFiveHourReset {
-                        HStack(spacing: 0) {
-                            Text("↺ resets \(clock)")
-                            if let rel = feed.usageFiveHourResetRelative {
-                                Text(" · in \(rel)")
-                            }
-                            Spacer(minLength: 0)
+                        if let h5 = feed.usageFiveHourPct {
+                            Text("5h").foregroundStyle(Color.secondary)
+                            bar(h5)
+                            Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
                         }
-                        .font(.claudeMono(10))
-                        .foregroundStyle(Color.secondary.opacity(0.75))
-                        .lineLimit(1)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        if let d7 = feed.usageSevenDayPct {
+                            separator
+                            Text("7d").foregroundStyle(Color.secondary)
+                            bar(d7)
+                            Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
+                        }
+                        // Live countdown inline (both reset formats don't fit one
+                        // row at 360px); the exact clock time is in the tooltip.
+                        if let rel = feed.usageFiveHourResetRelative {
+                            separator
+                            Text("↺\(rel)")
+                                .foregroundStyle(Color.secondary.opacity(0.8))
+                                .help(feed.usageFiveHourReset.map { "Resets at \($0)" } ?? "")
+                        }
+                    } else {
+                        Text("no usage data yet").foregroundStyle(Color.secondary.opacity(0.6))
                     }
+
+                    Spacer(minLength: 0)
                 }
+                .font(.claudeMono(11))
+                .lineLimit(1)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .contentShape(Rectangle())
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.12)) { hover.isHovering = hovering }
-                }
             }
         }
     }

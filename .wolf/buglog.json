@@ -657,15 +657,15 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "6 lines replaced/restructured",
-      "fix": "Rewrote 9→17 lines (6 removed)",
+      "fix": "Rewrote 9→17 lines (6 removed) | Also: /// The reset line is secondary; it stays tucked a; /// the footer is hovered, so the resting footer i",
       "tags": [
         "auto-detected",
         "refactor",
         "swift"
       ],
       "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-07-10T06:13:32.761Z"
+      "occurrences": 2,
+      "last_seen": "2026-07-10T06:16:58.571Z"
     },
     {
       "id": "bug-042",
@@ -682,6 +682,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T06:13:56.128Z"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-07-10T06:17:16.141Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T06:17:16.141Z"
     }
   ]
 }

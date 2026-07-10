@@ -498,3 +498,8 @@
 | 23:14 | Edited claude spinner/MenuContentView.swift | inline fix | ~26 |
 | 23:14 | Edited claude spinner/MenuContentView.swift | inline fix | ~26 |
 | 23:24 | Row highlight -> inset rounded pill (stronger hover 0.09, blue attention wash, 0.12s fade). Footer de-orange: labels/separators/empty bars/reset -> Color.secondary neutral grey; only model(purple)+usage bars keep color | MenuContentView.swift | built+signed+relaunched | ~3k |
+| 23:16 | Edited claude spinner/MenuContentView.swift | 8→4 lines | ~29 |
+| 23:16 | Edited claude spinner/MenuContentView.swift | 8→4 lines | ~29 |
+| 23:17 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~531 |
+| 23:17 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~531 |
+| 23:30 | Footer -> permanent single row: model + 5h/7d bars + inline live countdown ↺2h47m; clock time moved to .help() tooltip (both formats don't fit 360px). Removed hover-reveal. Diagnosed live-usage: 5h/7d rate limits ONLY come via statusLine stdin (not hooks/transcript), so live only in TUI sessions; countdown is the live element | MenuContentView.swift | built+signed+relaunched | ~3k |
