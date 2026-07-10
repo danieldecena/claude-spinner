@@ -118,7 +118,6 @@ private struct StateFile: Decodable {
 /// casing the way `JSONSerialization`'s `NSNumber` did.
 private struct StatusFile: Decodable {
     struct Model: Decodable { var display_name: String? }
-    struct ContextWindow: Decodable { var used_percentage: Double? }
     struct Workspace: Decodable { var current_dir: String? }
     struct RateLimits: Decodable {
         struct Window: Decodable {
@@ -129,7 +128,6 @@ private struct StatusFile: Decodable {
         var seven_day: Window?
     }
     var model: Model?
-    var context_window: ContextWindow?
     var cwd: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
@@ -145,7 +143,6 @@ struct SessionFeed: Identifiable {
     var turnStart: Date?
     var updated: Date?
     var model: String?
-    var contextPct: Int?
     var fiveHourPct: Int?
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
@@ -171,7 +168,6 @@ struct SessionFeed: Identifiable {
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }
-        if let p = s.context_window?.used_percentage { contextPct = Int(p.rounded()) }
         if cwd.isEmpty {
             if let c = s.cwd { cwd = c }
             else if let c = s.workspace?.current_dir { cwd = c }
@@ -199,14 +195,6 @@ struct SessionFeed: Identifiable {
         return cwd
     }
 
-    /// Compact "resets in" string for the 5h window, e.g. "2h14m" or "43m".
-    var fiveHourResetString: String? {
-        guard let resetsAt = fiveHourResetsAt else { return nil }
-        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
-        let hours = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
-        return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
-    }
 }
 
 /// Last-known account usage, persisted so the footer/title keep showing it after
@@ -516,20 +504,25 @@ final class FeedWatcher: ObservableObject {
     /// never-worked) collapse by directory onto the freshest, with a count.
     static func displayItems(from sessions: [SessionFeed]) -> [SessionRowItem] {
         var items: [SessionRowItem] = []
-        var idleByDir: [String: [SessionFeed]] = [:]
-        var dirOrder: [String] = []
+        // Collapse idle sessions by directory — but keep finished "done" sessions in
+        // a SEPARATE bucket from never-worked idles (key prefix), so a fresher
+        // never-worked session can't become the representative and hide a finished
+        // turn. Each bucket's representative is the freshest of its own kind.
+        var groups: [String: [SessionFeed]] = [:]
+        var order: [String] = []
         for s in sorted(sessions) {
-            if s.status == .idle {
-                if idleByDir[s.cwd] == nil { dirOrder.append(s.cwd) }
-                idleByDir[s.cwd, default: []].append(s)
-            } else {
+            guard s.status == .idle else {
                 items.append(SessionRowItem(id: s.id, session: s, ids: [s.id]))
+                continue
             }
+            let key = (s.lastDuration != nil ? "done:" : "idle:") + s.cwd
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(s)
         }
-        for dir in dirOrder {
-            let group = idleByDir[dir]!
+        for key in order {
+            let group = groups[key]!
             let rep = group.max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }!
-            items.append(SessionRowItem(id: "idle:\(dir)", session: rep, ids: group.map(\.id)))
+            items.append(SessionRowItem(id: key, session: rep, ids: group.map(\.id)))
         }
         return items
     }

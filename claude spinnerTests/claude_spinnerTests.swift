@@ -83,18 +83,36 @@ final class claude_spinnerTests: XCTestCase {
 
     // MARK: - Row grouping (displayItems)
 
-    func testDisplayItemsCollapsesIdleByDirectory() {
+    func testDisplayItemsSeparatesDoneFromNeverWorkedIdle() {
         let now = Date()
         let items = FeedWatcher.displayItems(from: [
-            mk("a", .idle, cwd: "/home", updated: now, lastDuration: 10),      // done
-            mk("b", .idle, cwd: "/home", updated: now.addingTimeInterval(-5)), // never-worked
-            mk("c", .thinking, cwd: "/proj", updated: now),                    // working
+            mk("a", .idle, cwd: "/home", updated: now, lastDuration: 10),        // done
+            mk("b", .idle, cwd: "/home", updated: now.addingTimeInterval(-5)),   // never-worked
+            mk("b2", .idle, cwd: "/home", updated: now.addingTimeInterval(-9)),  // never-worked
+            mk("c", .thinking, cwd: "/proj", updated: now),                      // working
         ])
-        XCTAssertEqual(items.count, 2)                                  // working + one idle group
-        XCTAssertEqual(items.first?.session.status, .thinking)          // working sorts first
+        // working row + a done group + a never-worked idle group — the done turn is
+        // NOT hidden behind the fresher never-worked sessions in the same dir.
+        XCTAssertEqual(items.count, 3)
+        XCTAssertEqual(items.first?.session.status, .thinking)               // working sorts first
+        let done = items.first { $0.id == "done:/home" }
+        XCTAssertEqual(done?.count, 1)
+        XCTAssertEqual(done?.session.id, "a")
+        XCTAssertNotNil(done?.session.lastDuration)
         let idle = items.first { $0.id == "idle:/home" }
-        XCTAssertEqual(idle?.count, 2)
-        XCTAssertEqual(idle?.session.id, "a")                          // freshest is representative
+        XCTAssertEqual(idle?.count, 2)                                       // b + b2
+    }
+
+    func testDisplayItemsCollapsesDoneByDirectory() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("d1", .idle, cwd: "/r", updated: now, lastDuration: 30),
+            mk("d2", .idle, cwd: "/r", updated: now.addingTimeInterval(-10), lastDuration: 120),
+        ])
+        XCTAssertEqual(items.count, 1)
+        let done = items.first { $0.id == "done:/r" }
+        XCTAssertEqual(done?.count, 2)
+        XCTAssertEqual(done?.session.id, "d1")                               // freshest rep
     }
 
     func testDisplayItemsKeepsDistinctDirsSeparate() {

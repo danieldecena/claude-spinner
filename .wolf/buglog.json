@@ -842,6 +842,86 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T06:41:41.144Z"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-07-10T07:09:20.636Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 19→24 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:09:20.636Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-07-10T07:09:52.262Z",
+      "error_message": "Wrong reference: contextPct should be fiveHourPct",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"contextPct\" instead of \"fiveHourPct\"",
+      "fix": "Changed contextPct → fiveHourPct",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:09:52.262Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-07-10T07:10:27.124Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 14→18 lines (3 removed) | Also: ForEach(feed.displayItems) { item in; if item.id != feed.displayItems.last?.id {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:10:27.126Z"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-07-10T07:10:44.855Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinnerTests/claude_spinnerTests.swift",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 22→40 lines (8 removed) | Also: func testDisplayItemsCollapsesIdleByDirectory() {; mk(\"a\", .idle, cwd: \"/home\", updated: now, lastDur",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:10:44.856Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-07-10T07:11:25.093Z",
+      "error_message": "Significant refactor of ",
+      "file": "../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→18 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:11:25.093Z"
     }
   ]
 }

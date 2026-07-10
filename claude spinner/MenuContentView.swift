@@ -21,18 +21,22 @@ struct MenuContentView: View {
             } else {
                 // One ticking clock drives every row's spinner + timer in phase.
                 TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                    // Resolve the row list once per tick — displayItems does a full
+                    // sort + grouping, so evaluating it per-row (ForEach, last, and
+                    // the animation value) would repeat that work every 100ms.
+                    let rows = feed.displayItems
                     VStack(spacing: 0) {
-                        ForEach(feed.displayItems) { item in
+                        ForEach(rows) { item in
                             SessionRow(feed: feed, item: item, now: context.date)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
-                            if item.id != feed.displayItems.last?.id {
+                            if item.id != rows.last?.id {
                                 Divider().opacity(0.5)
                             }
                         }
                     }
                     // Animate only when the set/order of rows changes (keyed by ids),
                     // not on every 0.1s spinner tick.
-                    .animation(.easeInOut(duration: 0.2), value: feed.displayItems.map(\.id))
+                    .animation(.easeInOut(duration: 0.2), value: rows.map(\.id))
                 }
                 // Only pad the top; the last row's own vertical padding plus the
                 // footer's divider/padding already separate it from the footer, so
