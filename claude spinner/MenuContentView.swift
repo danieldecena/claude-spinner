@@ -296,7 +296,7 @@ struct SessionRow: View {
                     Text(timeText)
                         .font(.claudeMono(10))
                         .monospacedDigit()
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(isAnimatingDots ? Color.secondary.opacity(0.4) : Color.secondary)
                         .frame(width: isAnimatingDots ? 14 : 34, alignment: isAnimatingDots ? .leading : .trailing)
                 }
 
