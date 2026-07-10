@@ -180,6 +180,8 @@ struct UsageFooter: View {
                                             Text(infoText)
                                                 .font(.claudeMono(9.5))
                                                 .foregroundStyle(Color.secondary.opacity(0.8))
+                                                .lineLimit(1)
+                                                .fixedSize(horizontal: true, vertical: false)
                                             
                                             Spacer(minLength: 12)
                                             
@@ -190,20 +192,18 @@ struct UsageFooter: View {
                                                 }
                                                 .foregroundStyle(Color.usageTint(95))
                                                 .help(feed.usageNoticeDetail)
+                                                .lineLimit(1)
+                                                .fixedSize(horizontal: true, vertical: false)
                                             } else {
-                                                HStack(spacing: 3) {
-                                                    Text("↺").font(.claudeMono(9))
-                                                    if let clock = feed.usageFiveHourReset {
-                                                        Text("resets \(clock)")
-                                                            .font(.claudeMono(9.5))
-                                                    }
-                                                    if let rel = feed.usageFiveHourResetRelative {
-                                                        Text("· in \(rel)")
-                                                            .font(.claudeMono(9.5)).monospacedDigit()
-                                                    }
-                                                }
-                                                .foregroundStyle(Color.secondary.opacity(0.75))
-                                                .help(feed.usageResetTooltip)
+                                                let clock = feed.usageFiveHourReset ?? ""
+                                                let rel = feed.usageFiveHourResetRelative ?? ""
+                                                let resetsStr = rel.isEmpty ? "resets \(clock)" : "resets \(clock) · in \(rel)"
+                                                Text("↺ \(resetsStr)")
+                                                    .font(.claudeMono(9.5))
+                                                    .foregroundStyle(Color.secondary.opacity(0.75))
+                                                    .help(feed.usageResetTooltip)
+                                                    .lineLimit(1)
+                                                    .fixedSize(horizontal: true, vertical: false)
                                             }
                                         }
                                         .textCase(.lowercase)
