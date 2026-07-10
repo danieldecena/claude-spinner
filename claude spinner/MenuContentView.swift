@@ -182,37 +182,31 @@ struct UsageFooter: View {
                                     let outTok = feed.usageContextOutputTokens ?? 0
                                     let usedStr = FeedWatcher.formatTokens(inTok + outTok)
                                     
-                                    let rightTexts = [
-                                        "\(displayName) (\(sizeStr) context)",
-                                        "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
-                                    ]
+                                    let infoText = "\(displayName) (\(sizeStr) context) · \(usedStr)/\(sizeStr) tokens (\(pct)%)"
                                     
-                                    let filledCount = min(20, max(0, Int((Double(pct) / 5.0).rounded())))
+                                    let filledCount = min(40, max(0, Int((Double(pct) / 2.5).rounded())))
                                     
-                                    VStack(alignment: .leading, spacing: 6) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        // The 2 rows of 20 cylinders
                                         ForEach(0..<2, id: \.self) { r in
-                                            HStack(spacing: 0) {
-                                                // The 10 cylinders for this row
-                                                HStack(spacing: 3) {
-                                                    ForEach(0..<10, id: \.self) { c in
-                                                        let idx = r * 10 + c
-                                                        let isFilled = idx < filledCount
-                                                        Text("⛁")
-                                                            .font(.claudeMono(10))
-                                                            .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
-                                                    }
+                                            HStack(spacing: 3) {
+                                                ForEach(0..<20, id: \.self) { c in
+                                                    let idx = r * 20 + c
+                                                    let isFilled = idx < filledCount
+                                                    Text("⛁")
+                                                        .font(.claudeMono(10))
+                                                        .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
+                                                    
                                                 }
-                                                .frame(width: 95, alignment: .leading)
-                                                
-                                                Text(rightTexts[r])
-                                                    .font(.claudeMono(10))
-                                                    .foregroundStyle(Color.secondary.opacity(0.8))
-                                                    .lineLimit(1)
-                                                
-                                                Spacer()
                                             }
-                                            .textCase(.lowercase) // Aligns with overall design
                                         }
+                                        
+                                        Text(infoText)
+                                            .font(.claudeMono(10))
+                                            .foregroundStyle(Color.secondary.opacity(0.8))
+                                            .lineLimit(1)
+                                            .textCase(.lowercase)
+                                            .padding(.top, 2)
                                     }
                                     .padding(.top, 2)
                                 }
