@@ -32,6 +32,18 @@ enum Constants {
     /// …then fade to `idleMinOpacity` linearly over this span.
     static let idleFadeSpan: TimeInterval = 30 * 60
     static let idleMinOpacity: Double = 0.45
+    /// After a turn finishes, the menu title flashes the past-tense word for this
+    /// long, then goes quiet grey.
+    static let doneFlashDuration: TimeInterval = 5
+}
+
+/// What the menu-bar label is conveying right now, so the label can color and
+/// animate accordingly.
+enum MenuBarState {
+    case working    // a session is thinking/using a tool — bright, animated
+    case attention  // a session needs the user — bright
+    case doneFlash  // a turn just finished — grey past-word flash
+    case idle       // nothing active — quiet grey icon
 }
 
 enum SessionStatus: String {
@@ -336,32 +348,47 @@ final class FeedWatcher: ObservableObject {
         return 0.65 + 0.35 * (0.5 + 0.5 * cos(phase * 2 * .pi))
     }
 
-    /// The text after the glyph: `Calculating… (22s · still thinking)` while
-    /// working, the grey `Sautéed for 5m 18s` done line when finished, or empty
-    /// when idle with no history. Uses Menlo's monospaced digits, so the only
-    /// width changes are digit-count rollovers — never per-animation-frame.
-    var menuBarBody: String {
-        if attentionCount > 0 {
-            let extra = attentionCount > 1 ? " +\(attentionCount - 1)" : ""
-            return "Waiting for you…\(extra)"
-        }
-        let working = sortedSessions.filter(\.isWorking)
-        if let lead = working.first {
-            let word = SpinnerWords.word(for: lead)
-            let extra = working.count > 1 ? " +\(working.count - 1)" : ""
-            // Word only — no live timer. The per-second timer changed the label
-            // width every tick and made the status item jitter; the elapsed time
-            // lives in the dropdown row instead.
-            return "\(word)…\(extra)"
-        }
-        if let done = sortedSessions.first(where: { $0.lastDuration != nil }) {
-            return SpinnerWords.pastWord(for: done)
-        }
-        return ""
+    /// A session that finished its turn within the done-flash window: idle, has a
+    /// last-turn duration, and was updated moments ago. Falls out of the data —
+    /// no extra state to track.
+    private var justFinished: SessionFeed? {
+        let cutoff = Date().addingTimeInterval(-Constants.doneFlashDuration)
+        return sessions
+            .filter { $0.status == .idle && $0.lastDuration != nil && ($0.updated ?? .distantPast) > cutoff }
+            .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
     }
 
-    /// Orange while working or needing attention, grey for the idle/done line.
-    var menuBarActive: Bool { workingCount > 0 || attentionCount > 0 }
+    /// The current menu-bar presentation state (drives label text, color, motion).
+    var menuBarState: MenuBarState {
+        if attentionCount > 0 { return .attention }
+        if workingCount > 0 { return .working }
+        if justFinished != nil { return .doneFlash }
+        return .idle
+    }
+
+    /// The text after the glyph. Word-only (no live timer — that changed the label
+    /// width every tick and jittered the status item; elapsed time lives in the
+    /// dropdown row). Empty when idle so only the glyph shows.
+    var menuBarBody: String {
+        switch menuBarState {
+        case .attention:
+            let extra = attentionCount > 1 ? " +\(attentionCount - 1)" : ""
+            return "Waiting for you…\(extra)"
+        case .working:
+            guard let lead = sortedSessions.first(where: \.isWorking) else { return "" }
+            let extra = workingCount > 1 ? " +\(workingCount - 1)" : ""
+            return "\(SpinnerWords.word(for: lead))…\(extra)"
+        case .doneFlash:
+            return justFinished.map(SpinnerWords.pastWord(for:)) ?? ""
+        case .idle:
+            return ""
+        }
+    }
+
+    /// Bright + animated for working/attention; grey/static for done/idle.
+    var menuBarActive: Bool {
+        menuBarState == .working || menuBarState == .attention
+    }
 
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)

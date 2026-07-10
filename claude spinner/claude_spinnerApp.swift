@@ -116,7 +116,9 @@ struct MenuBarLabel: View {
     @ObservedObject var feed: FeedWatcher
 
     var body: some View {
-        let color = feed.menuBarActive ? Color.claudeBright : Color.claudeBright.opacity(0.8)
+        // Bright + pulsing while working/attention; quiet grey for the done-flash
+        // and idle states so a finished session recedes into the menu bar.
+        let color: Color = feed.menuBarActive ? .claudeBright : .menuIdle
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
 
         // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
@@ -160,12 +162,27 @@ extension Color {
     /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
     /// against the translucent menu bar over any wallpaper.
     static let claudeBright = Color(red: 0.98, green: 0.62, blue: 0.34)
+    /// Neutral grey for the menu-bar label when idle/done — recedes into the bar.
+    static let menuIdle = Color(white: 0.60)
 
-    /// Urgency tint for a 0–100 usage percentage: quiet when there's headroom,
-    /// amber past 75%, red past 90% — so a rate limit reads at a glance.
+    /// Urgency gradient for a 0–100 usage percentage: green (headroom) → yellow →
+    /// amber → red (near limit), so a rate limit reads at a glance.
     static func usageTint(_ pct: Int) -> Color {
-        if pct >= 90 { return Color(red: 0.85, green: 0.32, blue: 0.28) }  // red
-        if pct >= 75 { return Color(red: 0.88, green: 0.62, blue: 0.24) }  // amber
+        switch pct {
+        case 90...: return Color(red: 0.85, green: 0.32, blue: 0.28)  // red
+        case 75...: return Color(red: 0.90, green: 0.58, blue: 0.24)  // amber
+        case 50...: return Color(red: 0.82, green: 0.72, blue: 0.30)  // yellow
+        default:    return Color(red: 0.45, green: 0.70, blue: 0.45)  // green
+        }
+    }
+
+    /// Model-family accent, matching the statusLine's color language.
+    static func modelTint(_ name: String?) -> Color {
+        guard let n = name?.lowercased() else { return .claudeDim }
+        if n.contains("opus")   { return Color(red: 0.62, green: 0.47, blue: 0.86) }  // purple
+        if n.contains("sonnet") { return Color(red: 0.35, green: 0.68, blue: 0.80) }  // cyan
+        if n.contains("haiku")  { return Color(red: 0.45, green: 0.72, blue: 0.45) }  // green
+        if n.contains("fable")  { return Color(red: 0.42, green: 0.56, blue: 0.86) }  // blue
         return .claudeDim
     }
 }

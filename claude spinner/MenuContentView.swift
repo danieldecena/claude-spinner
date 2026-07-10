@@ -72,7 +72,7 @@ struct UsageFooter: View {
                 HStack(spacing: 6) {
                     if feed.hasUsage {
                         if let model = feed.globalModelShort {
-                            Text(model).foregroundStyle(Color.claudeDim.opacity(0.85))
+                            Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
                             separator
                         }
                         if let h5 = feed.usageFiveHourPct {
@@ -203,35 +203,30 @@ struct SessionRow: View {
         }
     }
 
-    /// Mirrors the terminal spinner line: `Calculating… (22s · still thinking)`
-    /// while active, or the grey `Sautéed for 5m 18s` done line when finished.
+    /// The concrete activity, not the whimsical spinner word (that lives in the
+    /// menu title): `running Bash · 4m 57s`, `thinking · 22s`, `done · 5m 18s`.
     private var statusText: String {
         switch session.status {
-        case .thinking, .tool:
-            let word = SpinnerWords.word(for: session)
-            return "\(word)…\(hint)"
+        case .tool:
+            let what = session.tool.isEmpty ? "running" : "running \(session.tool)"
+            return "\(what)\(elapsedSuffix)"
+        case .thinking:
+            return "thinking\(elapsedSuffix)"
         case .attention:
-            return session.message.isEmpty ? "Waiting for you…" : session.message
+            return session.message.isEmpty ? "waiting for you" : session.message
         case .idle:
             if let dur = session.lastDuration {
-                return "\(SpinnerWords.pastWord(for: session)) for \(FeedWatcher.formatDuration(dur))"
+                return "done · \(FeedWatcher.formatDuration(dur))"
             }
-            return "Idle"
+            return "idle"
         }
     }
 
-    private var hint: String {
+    /// ` · 4m 57s` elapsed since the turn started, or empty if not in a turn.
+    private var elapsedSuffix: String {
         guard let start = session.turnStart else { return "" }
         let elapsed = max(0, Int(now.timeIntervalSince(start)))
-        let timer = FeedWatcher.formatDuration(elapsed)
-        switch session.status {
-        case .tool:
-            return session.tool.isEmpty ? " (\(timer))" : " (\(timer) · running \(session.tool))"
-        case .thinking:
-            return " (\(timer))"
-        default:
-            return ""
-        }
+        return " · \(FeedWatcher.formatDuration(elapsed))"
     }
 }
 

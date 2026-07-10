@@ -213,6 +213,136 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T04:16:17.898Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-07-10T04:21:45.520Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 22→8 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:21:45.520Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-07-10T04:21:57.267Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:21:57.267Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-07-10T04:22:29.263Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 46→62 lines (7 removed) | Also: /// Always-present footer: live usage (model · 5h ; /// left, the settings gear on the right so it's r | Also: Spacer(minLength: 6); Menu { | Also: } else {; if let ctx = session.contextPct {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-07-10T04:27:46.264Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-07-10T04:25:09.914Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 16→57 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:25:09.914Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-07-10T04:25:40.094Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Was returning: 0.4 + 0.6 * (0.5 + 0.5 * cos(phase * 2 * .pi))",
+      "fix": "Now returns: 0.65 + 0.35 * (0.5 + 0.5 * cos(phase * 2 * .pi))",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:25:40.094Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-07-10T04:38:02.937Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:38:02.937Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-07-10T05:00:00.000Z",
+      "error_message": "User: footer usage is wrong/frozen (5h 78%, 7d 45% never change)",
+      "file": "~/.claude/spinnerfeed/33dba2a5-...status.json (injected demo data, not app code)",
+      "root_cause": "For a live demo I wrote a static status.json with hardcoded usage into the user's real feed dir; this session's statusLine never runs, so nothing overwrote it and the app faithfully rendered the frozen fake numbers",
+      "fix": "Deleted the injected demo status.json; footer reverts to honest 'no usage data yet', real statusLine populates it in normal terminal sessions",
+      "tags": [
+        "usage",
+        "footer",
+        "demo-data",
+        "self-inflicted",
+        "not-a-code-bug"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T05:00:00.000Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-07-10T04:42:37.155Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T04:42:37.155Z"
     }
   ]
 }
