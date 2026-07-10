@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 763507,
-    "total_reads": 204,
-    "total_writes": 1405,
+    "total_tokens_estimated": 764323,
+    "total_reads": 205,
+    "total_writes": 1408,
     "total_sessions": 11,
-    "anatomy_hits": 127,
+    "anatomy_hits": 128,
     "anatomy_misses": 77,
     "repeated_reads_blocked": 618,
-    "estimated_savings_vs_bare_cli": 2312163
+    "estimated_savings_vs_bare_cli": 2312363
   },
   "sessions": [
     {
@@ -8958,6 +8958,44 @@
       "id": "session-2026-07-10-2255",
       "started": "2026-07-10T05:55:19.667Z",
       "ended": "2026-07-10T05:56:53.510Z",
+      "reads": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/TASKS.md",
+          "tokens_estimated": 592,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/TASKS.md",
+          "tokens_estimated": 166,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/HANDOFF.md",
+          "tokens_estimated": 29,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/HANDOFF.md",
+          "tokens_estimated": 29,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 592,
+        "output_tokens_estimated": 224,
+        "reads_count": 1,
+        "writes_count": 3,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-10-2255",
+      "started": "2026-07-10T05:55:19.667Z",
+      "ended": "2026-07-10T05:57:30.505Z",
       "reads": [
         {
           "file": "/Users/home/Developer/claude-spinner/TASKS.md",

@@ -209,11 +209,12 @@ struct SessionRow: View {
         NSPasteboard.general.setString(string, forType: .string)
     }
 
-    /// Attention rows get a persistent faint orange wash so "needs you" stands
-    /// out from a merely-working row at a glance; others just highlight on hover.
+    /// Attention rows get a persistent faint wash in the Claude accent so "needs
+    /// you" stands out from a merely-working row at a glance; others just highlight
+    /// on hover. Same hue as the text/glyph, so the row reads as one color.
     private var rowBackground: Color {
         if session.status == .attention {
-            return Color.orange.opacity(hover.isHovering ? 0.16 : 0.10)
+            return Color.claude.opacity(hover.isHovering ? 0.20 : 0.13)
         }
         return hover.isHovering ? Color.primary.opacity(0.05) : Color.clear
     }

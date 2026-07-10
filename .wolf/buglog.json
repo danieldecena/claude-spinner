@@ -551,6 +551,22 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-07-10T05:56:05.889Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-07-10T05:58:50.192Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 12→16 lines (2 removed) | Also: // Usage view: show the 5h limit % (urgency-colore; if let h5 = feed.usageFiveHourPct {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T05:58:50.193Z"
     }
   ]
 }

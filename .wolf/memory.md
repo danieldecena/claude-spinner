@@ -421,3 +421,10 @@
 | 22:56 | Executed HANDOFF open items: unify attention text to .claude, two-line footer (clock + countdown reset), trim footer bottom gap | MenuContentView.swift, FeedWatcher.swift | typecheck clean; built+signed+relaunched live app; TASKS/HANDOFF updated | ~4k |
 | 22:56 | Session end: 3 writes across 2 files (TASKS.md, HANDOFF.md) | 1 reads | ~816 tok |
 | 22:56 | Session end: 3 writes across 2 files (TASKS.md, HANDOFF.md) | 1 reads | ~816 tok |
+| 22:57 | Session end: 3 writes across 2 files (TASKS.md, HANDOFF.md) | 1 reads | ~816 tok |
+| 22:57 | Session end: 3 writes across 2 files (TASKS.md, HANDOFF.md) | 1 reads | ~816 tok |
+| 22:58 | Edited claude spinner/claude_spinnerApp.swift | 12→16 lines | ~236 |
+| 22:58 | Edited claude spinner/claude_spinnerApp.swift | 12→16 lines | ~236 |
+| 22:58 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~131 |
+| 22:58 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~131 |
+| 23:00 | UI review from live screenshot: surface attention in usage-mode menu title; attention row wash -> .claude hue (one-orange) | claude_spinnerApp.swift, MenuContentView.swift | built+signed+relaunched | ~3k |

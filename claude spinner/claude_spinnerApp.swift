@@ -174,8 +174,12 @@ struct MenuBarLabel: View {
                 .frame(width: 16)
             switch feed.menuBarMode {
             case .usage:
-                // Usage view: show the 5h limit % (urgency-colored) in the title.
-                if let h5 = feed.usageFiveHourPct {
+                // A waiting session is time-sensitive, so it wins the title even in
+                // usage mode; the 5h % returns once nothing needs you.
+                if feed.menuBarState == .attention, !feed.menuBarBody.isEmpty {
+                    Text(feed.menuBarBody)
+                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
+                } else if let h5 = feed.usageFiveHourPct {
                     Text("5h \(h5)%")
                         .font(.claudeMono(13))
                         .monospacedDigit()
