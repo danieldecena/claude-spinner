@@ -235,7 +235,7 @@ struct SessionRow: View {
 
     private var glyph: String {
         switch session.status {
-        case .attention: return "⚠"
+        case .attention: return "✻"   // same star as the others; the orange tint carries "needs you"
         case .thinking, .tool: return Spinner.frame(at: now)
         case .idle: return "✻"
         }
