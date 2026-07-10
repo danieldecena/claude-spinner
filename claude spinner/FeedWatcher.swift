@@ -27,8 +27,6 @@ enum Constants {
     static let spinnerFPS = 10.0
     /// Dropdown panel width.
     static let panelWidth: CGFloat = 320
-    /// Segments in the footer usage bar.
-    static let usageBarSegments = 8
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -102,11 +100,12 @@ private struct StatusFile: Decodable {
     struct Cost: Decodable { var total_cost_usd: Double? }
     struct Workspace: Decodable { var current_dir: String? }
     struct RateLimits: Decodable {
-        struct FiveHour: Decodable {
+        struct Window: Decodable {
             var used_percentage: Double?
             var resets_at: Double?
         }
-        var five_hour: FiveHour?
+        var five_hour: Window?
+        var seven_day: Window?
     }
     var model: Model?
     var context_window: ContextWindow?
@@ -129,6 +128,7 @@ struct SessionFeed: Identifiable {
     var costUsd: Double?
     var fiveHourPct: Int?
     var fiveHourResetsAt: Double?
+    var sevenDayPct: Int?
     /// The just-finished turn, for Claude's grey "Sautéed for 5m 18s" done line.
     var lastSeed: Int?
     var lastDuration: Int?
@@ -160,6 +160,7 @@ struct SessionFeed: Identifiable {
             if let p = five.used_percentage { fiveHourPct = Int(p.rounded()) }
             if let r = five.resets_at { fiveHourResetsAt = r }
         }
+        if let p = s.rate_limits?.seven_day?.used_percentage { sevenDayPct = Int(p.rounded()) }
     }
 
     var isWorking: Bool { status == .thinking || status == .tool }
@@ -178,27 +179,13 @@ struct SessionFeed: Identifiable {
         return cwd
     }
 
-    var rateLimitText: String? {
-        guard let pct = fiveHourPct, let resetsAt = fiveHourResetsAt else { return nil }
-        let now = Date().timeIntervalSince1970
-        let remaining = max(0, resetsAt - now)
+    /// Compact "resets in" string for the 5h window, e.g. "2h14m" or "43m".
+    var fiveHourResetString: String? {
+        guard let resetsAt = fiveHourResetsAt else { return nil }
+        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
         let hours = Int(remaining) / 3600
         let minutes = (Int(remaining) % 3600) / 60
-
-        let resetStr: String
-        if hours > 0 {
-            resetStr = "\(hours)h\(minutes)m"
-        } else {
-            resetStr = "\(minutes)m"
-        }
-
-        let segments = Constants.usageBarSegments
-        let fullBlocks = Int(round(Double(pct) / 100.0 * Double(segments)))
-        let filled = String(repeating: "█", count: fullBlocks)
-        let empty = String(repeating: "░", count: segments - fullBlocks)
-        let bar = filled + empty
-
-        return "\(bar) 5h \(pct)% ↺\(resetStr)"
+        return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
     }
 }
 
@@ -396,12 +383,18 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
-    var globalRateLimitText: String? {
-        guard let mostRecent = sessions.filter({ $0.fiveHourPct != nil }).max(by: {
-            ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast)
-        }) else { return nil }
-        return mostRecent.rateLimitText
+    /// The session whose status feed carries the account-wide rate-limit
+    /// numbers (any recent session has them; they're not per-project).
+    private var usageSession: SessionFeed? {
+        sessions
+            .filter { $0.fiveHourPct != nil || $0.sevenDayPct != nil }
+            .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
     }
+
+    var hasUsage: Bool { usageSession != nil }
+    var usageFiveHourPct: Int? { usageSession?.fiveHourPct }
+    var usageFiveHourReset: String? { usageSession?.fiveHourResetString }
+    var usageSevenDayPct: Int? { usageSession?.sevenDayPct }
 
     var globalModel: String? {
         guard let mostRecent = sessions.filter({ $0.model != nil }).max(by: {

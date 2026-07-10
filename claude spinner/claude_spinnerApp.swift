@@ -116,6 +116,14 @@ extension Color {
     static let claude = Color(red: 0.76, green: 0.42, blue: 0.24)
     /// Muted variant for the idle/done line — colored, but quieter than active.
     static let claudeDim = Color(red: 0.76, green: 0.42, blue: 0.24).opacity(0.65)
+
+    /// Urgency tint for a 0–100 usage percentage: quiet when there's headroom,
+    /// amber past 75%, red past 90% — so a rate limit reads at a glance.
+    static func usageTint(_ pct: Int) -> Color {
+        if pct >= 90 { return Color(red: 0.85, green: 0.32, blue: 0.28) }  // red
+        if pct >= 75 { return Color(red: 0.88, green: 0.62, blue: 0.24) }  // amber
+        return .claudeDim
+    }
 }
 
 extension Font {

@@ -44,25 +44,41 @@ struct MenuContentView: View {
     }
 }
 
-/// Always-present footer: live usage (model · 5h limit · total cost) on the
-/// left, the settings gear on the right so it's reachable even with no usage
-/// data yet. A 1s clock keeps the "resets in" countdown current.
+/// Always-present footer: live account usage — model, 5-hour and 7-day rate
+/// limits (colored by urgency), reset countdown, and total spend — on the left,
+/// with the settings gear always reachable on the right. A 1s clock keeps the
+/// "resets in" countdown current.
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
+
+    private var separator: some View {
+        Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Divider()
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 8) {
-                    if let usage = feed.globalRateLimitText {
+                HStack(spacing: 6) {
+                    if feed.hasUsage {
                         if let model = feed.globalModelShort {
-                            Text(model).foregroundStyle(Color.claudeDim.opacity(0.8))
-                            Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+                            Text(model).foregroundStyle(Color.claudeDim.opacity(0.85))
+                            separator
                         }
-                        Text(usage).foregroundStyle(Color.claudeDim)
+                        if let h5 = feed.usageFiveHourPct {
+                            Text("5h").foregroundStyle(Color.claudeDim.opacity(0.6))
+                            Text("\(h5)%").foregroundStyle(Color.usageTint(h5))
+                            if let reset = feed.usageFiveHourReset {
+                                Text("↺\(reset)").foregroundStyle(Color.claudeDim.opacity(0.7))
+                            }
+                        }
+                        if let d7 = feed.usageSevenDayPct {
+                            separator
+                            Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
+                            Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
+                        }
                         if let cost = feed.globalCost {
-                            Text("·").foregroundStyle(Color.claudeDim.opacity(0.4))
+                            separator
                             Text(String(format: "$%.2f", cost)).foregroundStyle(Color.claudeDim)
                         }
                     } else {
