@@ -4,12 +4,11 @@
 
 Remaining open items:
 
-- [ ] First-run one-click fix — the panel now *detects* missing hooks and shows a
-      "Setup needed" hint; an actual installer that edits `~/.claude/settings.json`
-      is still open (kept manual to avoid clobbering user config).
 - [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed
+
+- [x] First-run one-click fix — Install button in the Setup-needed panel: SetupInstaller writes the scripts + back-up-then-merges the hooks/statusLine into ~/.claude/settings.json (tested merge, e2e verified)
 
 - [x] CI — shared scheme + GitHub Actions run the 27 unit tests (real xcodebuild build, UI tests skipped); caught missing import Combine (bug-093)
 - [x] Regression test — SessionLauncher.guiFocusAction pure fn + XCTest locks "running host wins over path launch" (bug-072/073/091)
