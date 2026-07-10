@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T10:07:24.063Z
-> Files: 34 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T10:11:04.633Z
+> Files: 35 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -39,6 +39,7 @@
 - `buildServer.json` (~135 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
+- `run.sh` (~424 tok)
 - `STATUS.md` — STATUS (~15 tok)
 - `TASKS.md` — claude-spinner — Tasks (~1049 tok)
 
@@ -52,7 +53,7 @@
 
 ## .github/workflows/
 
-- `swift.yml` — Builds the menu-bar app and runs its unit tests on every push / PR. (~457 tok)
+- `swift.yml` — Builds the menu-bar app and runs its unit tests on every push / PR. (~477 tok)
 
 ## claude spinner.xcodeproj/
 

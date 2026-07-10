@@ -7,9 +7,13 @@ echo "Building Claude Spinner..."
 if xcodebuild -version &>/dev/null; then
     echo "Using xcodebuild..."
     xcodebuild -scheme "claude spinner" build | xcbeautify
+    # Derive the built .app path from build settings so it survives the
+    # DerivedData hash changing (it's keyed on the project path, not fixed).
+    app=$(xcodebuild -scheme "claude spinner" -configuration Debug -showBuildSettings 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{d=$2} / FULL_PRODUCT_NAME /{n=$2} END{print d"/"n}')
     killall "claude spinner" 2>/dev/null || true
-    echo "Launching app..."
-    open "/Users/home/Library/Developer/Xcode/DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/Build/Products/Debug/claude spinner.app"
+    echo "Launching $app..."
+    open "$app"
 else
     echo "xcodebuild not available or CommandLineTools selected. Falling back to swiftc..."
     xcrun --sdk macosx swiftc -O -o claude-spinner "claude spinner/FeedWatcher.swift" "claude spinner/MenuContentView.swift" "claude spinner/claude_spinnerApp.swift"

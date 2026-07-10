@@ -1,20 +1,19 @@
 # Builds the menu-bar app and runs its unit tests on every push / PR.
 #
+# Runs on a SELF-HOSTED macOS runner because the project is saved in Xcode 27
+# format (objectVersion 110), which GitHub's hosted runners (Xcode 26.x) cannot
+# open. The self-hosted runner is a Mac with Xcode 27 selected as the active
+# toolchain (xcode-select). See CONTRIBUTING / repo Settings > Actions > Runners
+# for registration.
+#
 # Why a real `xcodebuild test` and not just `swiftc -typecheck`:
 #   - A prior type-check-only CI passed while the app failed to BUILD (a missing
 #     `import Combine` for ObservableObject/@Published compiled under -typecheck
 #     but not under a full module build). Only a real build catches that class of
 #     error, so CI builds the app + test bundle for real.
 #
-# Two constraints this works around:
-#   - The app is an Xcode project (.xcodeproj), not a SwiftPM package, and its
-#     deployment target is macOS 27 (the dev machine). GitHub runners ship an
-#     older macOS SDK, so we override MACOSX_DEPLOYMENT_TARGET at build time to a
-#     version the runner can build (the sources compile clean there). This does
-#     NOT change the app's shipped deployment target in the project.
-#   - The unit tests are hosted in the app; the shared "claude spinner" scheme
-#     runs only the claude_spinnerTests target and skips claude_spinnerUITests
-#     (XCUITest can't launch a menu-bar/agent app, so those are excluded).
+# The shared "claude spinner" scheme runs only claude_spinnerTests and skips
+# claude_spinnerUITests (XCUITest can't launch a menu-bar/agent app).
 
 name: Swift
 
@@ -26,15 +25,18 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@v4
       - name: Build and run unit tests
         run: |
           set -o pipefail
+          # The unit tests are hosted in the app; its single-instance guard
+          # exit(0)s a second copy, which would kill the test host if a normal
+          # copy is already running on this machine. Quit it first.
+          killall "claude spinner" 2>/dev/null || true
           xcodebuild test \
             -project "claude spinner.xcodeproj" \
             -scheme "claude spinner" \
             -destination 'platform=macOS' \
-            MACOSX_DEPLOYMENT_TARGET=14.0 \
             CODE_SIGNING_ALLOWED=NO

@@ -1124,3 +1124,8 @@
 | 10:10 | Installed Xcode 27; fixed missing import Combine (bug-093); added shared scheme + CI workflow running 27 unit tests (UI tests skipped); all pass | FeedWatcher.swift, MenuContentView.swift, *.xcscheme, .github/workflows/swift.yml | 27/27 pass | ~12k |
 | 03:07 | Edited TASKS.md | 3→4 lines | ~79 |
 | 03:07 | Edited TASKS.md | 3→4 lines | ~79 |
+| 03:10 | Created .github/workflows/swift.yml | — | ~477 |
+| 03:10 | Created .github/workflows/swift.yml | — | ~477 |
+| 03:11 | Edited run.sh | 5→9 lines | ~142 |
+| 03:11 | Edited run.sh | 5→9 lines | ~142 |
+| 10:20 | CI -> self-hosted runner (project is Xcode-27 format 110, GH hosted has Xcode 26.5 only); fixed run.sh hardcoded DerivedData path (bug-095) | .github/workflows/swift.yml, run.sh | pushed | ~5k |

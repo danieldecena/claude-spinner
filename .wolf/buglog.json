@@ -1589,6 +1589,40 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T10:10:00.000Z"
+    },
+    {
+      "id": "bug-098",
+      "timestamp": "2026-07-10T10:11:04.637Z",
+      "error_message": "Significant refactor of ",
+      "file": "run.sh",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5\u21929 lines (2 removed) | Also: echo \"Launching app...\"; open \"/Users/home/Library/Developer/Xcode/DerivedD",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "sh"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T10:11:04.638Z"
+    },
+    {
+      "id": "bug-095",
+      "timestamp": "2026-07-10T10:20:00.000Z",
+      "error_message": "run.sh: 'The file .../DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/.../claude spinner.app does not exist' after Build Succeeded",
+      "file": "run.sh",
+      "root_cause": "Once full Xcode was installed, run.sh took its xcodebuild branch, which hardcoded a DerivedData path with a specific hash. DerivedData hashes are keyed on the project path and differ per machine/checkout; the real dir was claude_spinner-gpbowahboasvplfocecxcbflsboa, so the hardcoded launch path didn't exist. (Latent until Xcode existed to trigger that branch.)",
+      "fix": "Derive the built .app path from `xcodebuild -showBuildSettings` (BUILT_PRODUCTS_DIR + FULL_PRODUCT_NAME) instead of a hardcoded hash, so it survives the hash changing.",
+      "tags": [
+        "shell",
+        "run.sh",
+        "xcodebuild",
+        "deriveddata",
+        "hardcoded-path"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T10:20:00.000Z"
     }
   ]
 }
