@@ -609,7 +609,23 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7→9 lines (4 removed) | Also: /// Animated by cycling characters to match the fo; if menuBarActive {",
+      "fix": "Rewrote 7→9 lines (4 removed) | Also: /// Animated by cycling characters to match the fo; if menuBarActive { | Also: /// Bright title color for working/attention; grey; /// Only a working session animates (pulsing glyph",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-07-10T06:09:47.671Z"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-07-10T06:09:15.873Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 8→5 lines (3 removed) | Also: let color: Color = feed.menuBarActive ? .claudeBri; // Bright for working+attention, but only working ",
       "tags": [
         "auto-detected",
         "refactor",
@@ -617,7 +633,23 @@
       ],
       "related_bugs": [],
       "occurrences": 2,
-      "last_seen": "2026-07-10T06:05:20.115Z"
+      "last_seen": "2026-07-10T06:09:23.223Z"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-07-10T06:09:53.612Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Was returning: Spinner.attention   // steady marker, distinct fro",
+      "fix": "Now returns: Spinner.idle   // the star, same as the rest; the ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T06:09:58.679Z"
     }
   ]
 }

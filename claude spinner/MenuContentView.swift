@@ -223,12 +223,12 @@ struct SessionRow: View {
         NSPasteboard.general.setString(string, forType: .string)
     }
 
-    /// Attention rows get a persistent faint wash in the Claude accent so "needs
-    /// you" stands out from a merely-working row at a glance; others just highlight
-    /// on hover. Same hue as the text/glyph, so the row reads as one color.
+    /// Attention rows get a persistent faint blue wash so "needs you" stands out
+    /// from a merely-working row at a glance; others just highlight on hover. Same
+    /// hue as the text/glyph, so the row reads as one color.
     private var rowBackground: Color {
         if session.status == .attention {
-            return Color.claude.opacity(hover.isHovering ? 0.20 : 0.13)
+            return Color.attention.opacity(hover.isHovering ? 0.22 : 0.14)
         }
         return hover.isHovering ? Color.primary.opacity(0.05) : Color.clear
     }
@@ -276,7 +276,7 @@ struct SessionRow: View {
 
     private var glyph: String {
         switch session.status {
-        case .attention: return Spinner.attention   // steady marker, distinct from the animated spinner
+        case .attention: return Spinner.idle   // the star, same as the rest; the blue tint carries "needs you"
         case .thinking, .tool: return Spinner.frame(at: now)
         case .idle: return Spinner.idle
         }
@@ -286,9 +286,9 @@ struct SessionRow: View {
     // session recedes — the way Claude Code greys out completed work.
     private var tint: Color {
         switch session.status {
-        // Attention matches working (.claude); the orange background wash and the
-        // message carry "needs you" without a second, redundant orange.
-        case .attention: return .claude
+        // Blue signals "needs you" — a different state from busy orange, not a
+        // second shade of it.
+        case .attention: return .attention
         case .thinking, .tool: return .claude
         case .idle: return .secondary
         }
@@ -300,7 +300,7 @@ struct SessionRow: View {
 
     private var statusColor: Color {
         switch session.status {
-        case .attention: return .claude
+        case .attention: return .attention
         case .thinking, .tool: return .claude
         case .idle: return .secondary
         }

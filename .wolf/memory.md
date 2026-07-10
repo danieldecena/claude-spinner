@@ -460,3 +460,26 @@
 | 23:06 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~217 |
 | 23:06 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~217 |
 | 23:12 | UI pass (4): distinct steady attention glyph (◆, bright but not pulsing); waiting/idle age on rows; collapse all idle-status rows by dir (done rows too); animate list changes keyed by row ids | FeedWatcher.swift, MenuContentView.swift, claude_spinnerApp.swift | built+signed+relaunched | ~5k |
+| 23:06 | Session end: 23 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 2 reads | ~7342 tok |
+| 23:06 | Session end: 23 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 2 reads | ~7342 tok |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | modified frame() | ~50 |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | modified frame() | ~50 |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~129 |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~129 |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | 5→10 lines | ~193 |
+| 23:09 | Edited claude spinner/claude_spinnerApp.swift | 5→10 lines | ~193 |
+| 23:09 | Edited claude spinner/FeedWatcher.swift | 9→5 lines | ~71 |
+| 23:09 | Edited claude spinner/FeedWatcher.swift | 9→5 lines | ~71 |
+| 23:09 | Edited claude spinner/FeedWatcher.swift | 8→4 lines | ~47 |
+| 23:09 | Edited claude spinner/FeedWatcher.swift | 8→4 lines | ~47 |
+| 23:09 | Edited claude spinner/MenuContentView.swift | inline fix | ~30 |
+| 23:09 | Edited claude spinner/MenuContentView.swift | inline fix | ~30 |
+| 23:09 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~41 |
+| 23:09 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~41 |
+| 23:10 | Edited claude spinner/MenuContentView.swift | 7→7 lines | ~57 |
+| 23:10 | Edited claude spinner/MenuContentView.swift | 7→7 lines | ~57 |
+| 23:10 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~127 |
+| 23:10 | Edited claude spinner/MenuContentView.swift | modified opacity() | ~127 |
+| 23:10 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~138 |
+| 23:10 | Edited claude spinner/claude_spinnerApp.swift | modified opacity() | ~138 |
+| 23:20 | Revert ◆ attention glyph -> star spinner; attention now signaled by BLUE (glyph+text+wash+menu-bar label), distinct from busy orange. Added Color.attention/.attentionBright | claude_spinnerApp.swift, FeedWatcher.swift, MenuContentView.swift | built+signed+relaunched | ~4k |

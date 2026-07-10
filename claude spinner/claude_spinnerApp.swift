@@ -159,10 +159,16 @@ struct MenuBarLabel: View {
     var body: some View {
         // Bright + pulsing while working/attention; quiet grey for the done-flash
         // and idle states so a finished session recedes into the menu bar.
-        let color: Color = feed.menuBarActive ? .claudeBright : .menuIdle
-        // Bright for working+attention, but only working pulses — a waiting glyph
-        // holds steady so it doesn't read as busy motion.
-        let glyphColor = feed.menuBarAnimating ? color.opacity(feed.glyphPulse) : color
+        // Blue while a session needs you, the Claude orange while working, grey at
+        // rest. Both active states pulse the animated spinner, like the terminal.
+        let color: Color = {
+            switch feed.menuBarState {
+            case .attention:        return .attentionBright
+            case .working:          return .claudeBright
+            case .doneFlash, .idle: return .menuIdle
+            }
+        }()
+        let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
 
         // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
         // fallback font, so cycling them shifts everything after and makes the
@@ -210,9 +216,6 @@ enum Spinner {
     static let frames = ["✶", "✸", "✹", "✺", "✻", "✽", "✻", "✺", "✹", "✸"]
     /// The idle/done resting glyph.
     static let idle = "✻"
-    /// A steady, distinct marker for a session that has stopped and needs you —
-    /// so "waiting" never looks like the animated "busy" spinner.
-    static let attention = "◆"
 
     static func frame(at date: Date) -> String {
         let i = Int((date.timeIntervalSinceReferenceDate * Constants.spinnerFPS).rounded(.down))
@@ -230,6 +233,11 @@ extension Color {
     static let claudeBright = Color(red: 0.98, green: 0.62, blue: 0.34)
     /// Neutral grey for the menu-bar label when idle/done — recedes into the bar.
     static let menuIdle = Color(white: 0.60)
+    /// Blue "needs you" accent — deliberately unlike the busy orange, so an
+    /// attention session reads as a different state, not just a louder one.
+    static let attention = Color(red: 0.30, green: 0.58, blue: 0.92)
+    /// Brighter attention blue for menu-bar-label legibility over any wallpaper.
+    static let attentionBright = Color(red: 0.40, green: 0.66, blue: 1.0)
 
     /// Urgency gradient for a 0–100 usage percentage: green (headroom) → yellow →
     /// amber → red (near limit), so a rate limit reads at a glance.

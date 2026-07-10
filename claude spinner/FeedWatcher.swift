@@ -415,14 +415,10 @@ final class FeedWatcher: ObservableObject {
     var workingCount: Int { sessions.filter(\.isWorking).count }
     var attentionCount: Int { sessions.filter { $0.status == .attention }.count }
 
-    /// The animated spinner while working; a steady distinct marker while a
-    /// session waits on you; the resting star when done/idle.
+    /// The animated spinner while a session is working or waiting on you (the blue
+    /// vs orange label color carries which); the resting star when done/idle.
     var menuBarGlyph: String {
-        switch menuBarState {
-        case .working:   return Spinner.frame(at: Date())
-        case .attention: return Spinner.attention
-        case .doneFlash, .idle: return Spinner.idle
-        }
+        menuBarActive ? Spinner.frame(at: Date()) : Spinner.idle
     }
 
     /// 0.65–1.0 opacity pulse for the active glyph, driven by the 10 Hz phase.
@@ -469,14 +465,10 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
-    /// Bright title color for working/attention; grey for done/idle.
+    /// Bright + pulsing for working/attention; grey/static for done/idle.
     var menuBarActive: Bool {
         menuBarState == .working || menuBarState == .attention
     }
-
-    /// Only a working session animates (pulsing glyph + cycling frames). A waiting
-    /// session stays bright but steady, so "needs you" reads apart from "busy".
-    var menuBarAnimating: Bool { menuBarState == .working }
 
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
