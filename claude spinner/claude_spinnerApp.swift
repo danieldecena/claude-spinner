@@ -35,7 +35,11 @@ struct claude_spinnerApp: App {
 /// bound to the watcher's timer-driven `menuBarText` — a TimelineView here can
 /// collapse the status item to zero size and make the icon invisible.
 struct MenuBarLabel: View {
-    let feed: FeedWatcher
+    // Must observe the watcher directly: the App re-renders on every glyphPhase
+    // tick, but if this were a plain `let` the struct compares equal (same object
+    // reference) and SwiftUI skips its body, freezing the spinner. @ObservedObject
+    // subscribes the label so it redraws each tick.
+    @ObservedObject var feed: FeedWatcher
 
     var body: some View {
         // A single (concatenated) Text — MenuBarExtra renders this fully, unlike a

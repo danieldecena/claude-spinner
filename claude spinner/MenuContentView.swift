@@ -207,7 +207,7 @@ struct SessionRow: View {
         let timer = FeedWatcher.formatDuration(elapsed)
         switch session.status {
         case .tool:
-            return session.tool.isEmpty ? " (\(timer))" : " (\(timer) · \(session.tool))"
+            return session.tool.isEmpty ? " (\(timer))" : " (\(timer) · running \(session.tool))"
         case .thinking:
             return elapsed >= Constants.stillThinkingThreshold ? " (\(timer) · still thinking)" : " (\(timer))"
         default:
