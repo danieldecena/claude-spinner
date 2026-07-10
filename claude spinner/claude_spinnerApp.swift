@@ -6,56 +6,90 @@
 //
 
 import SwiftUI
+import AppKit
 
 @main
 struct claude_spinnerApp: App {
-    @StateObject private var feed = FeedWatcher()
-
-    init() {
-        if let bundleID = Bundle.main.bundleIdentifier {
-            let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            if runningApps.count > 1 {
-                exit(0)
-            }
-        }
-    }
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuContentView(feed: feed)
-        } label: {
-            MenuBarLabel(feed: feed)
-        }
-        .menuBarExtraStyle(.window)
+        // No SwiftUI window/scene: the menu bar item and its popover are owned by
+        // AppDelegate. Settings gives the App a valid (empty) scene body.
+        Settings { EmptyView() }
     }
 }
 
-/// The status-bar glyph: an animated braille spinner while any session works, a
-/// warning mark when one needs attention, an idle star otherwise. Plain Text
-/// bound to the watcher's timer-driven `menuBarText` — a TimelineView here can
-/// collapse the status item to zero size and make the icon invisible.
+/// Owns the status-bar item and the popover anchored beneath it. Using
+/// NSStatusItem + NSPopover (instead of SwiftUI's MenuBarExtra) lets the panel
+/// sit flush under the icon with a pointer arrow, rather than floating detached.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let feed = FeedWatcher()
+    private var statusItem: NSStatusItem!
+    private let popover = NSPopover()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Single instance: a second copy exits immediately.
+        if let bundleID = Bundle.main.bundleIdentifier,
+           NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).count > 1 {
+            exit(0)
+        }
+        NSApp.setActivationPolicy(.accessory)
+
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentViewController = NSHostingController(rootView: MenuContentView(feed: feed))
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem.button {
+            let host = NSHostingView(rootView: MenuBarLabel(feed: feed))
+            host.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(host)
+            NSLayoutConstraint.activate([
+                host.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+                host.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+                host.topAnchor.constraint(equalTo: button.topAnchor),
+                host.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+            ])
+            button.action = #selector(togglePopover)
+            button.target = self
+        }
+    }
+
+    @objc private func togglePopover() {
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // Make the popover key so its ⌘Q shortcut and the gear menu respond.
+            popover.contentViewController?.view.window?.makeKey()
+        }
+    }
+}
+
+/// The status-bar label: the animated spinner glyph plus the compact status
+/// text, rendered via an NSHostingView inside the status item's button.
 struct MenuBarLabel: View {
-    // Must observe the watcher directly: the App re-renders on every glyphPhase
-    // tick, but if this were a plain `let` the struct compares equal (same object
-    // reference) and SwiftUI skips its body, freezing the spinner. @ObservedObject
-    // subscribes the label so it redraws each tick.
+    // @ObservedObject so the label redraws on every glyphPhase tick (spinner
+    // animation) and whenever the session list changes.
     @ObservedObject var feed: FeedWatcher
 
     var body: some View {
-        // A single (concatenated) Text — MenuBarExtra renders this fully, unlike a
-        // multi-view HStack label which drops everything after the first element.
-        // Concatenation lets the glyph use a larger font; opacity pulse animates it
-        // without changing width (so the item never jitters).
+        // A single (concatenated) Text keeps the glyph and body on one baseline
+        // with independent fonts; the opacity pulse animates the glyph without
+        // changing width.
         let color = feed.menuBarActive ? Color.claude : Color.claudeDim
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
-        
+
         let glyph = Text(feed.menuBarGlyph)
             .font(.claudeMono(17))
             .foregroundColor(glyphColor)
         let bodyText = Text(feed.menuBarBody.isEmpty ? "" : " \(feed.menuBarBody)")
             .font(.claudeMono(13))
             .foregroundColor(color)
-        return glyph + bodyText
+        return (glyph + bodyText)
+            .fixedSize()
+            .padding(.horizontal, 6)
     }
 }
 
