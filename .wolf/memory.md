@@ -1079,3 +1079,16 @@
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
 | 09:45 | Fixed SessionLauncher.focus opening new windows instead of focusing running app (VS Code/Ghostty/Claude Desktop) | claude_spinnerApp.swift | fixed, logged bug-091 | ~4k |
+| 02:45 | Edited TASKS.md | 4→6 lines | ~129 |
+| 02:45 | Edited TASKS.md | 4→6 lines | ~129 |
+| 02:45 | Edited claude spinner/claude_spinnerApp.swift | modified guiFocusAction() | ~243 |
+| 02:45 | Edited claude spinner/claude_spinnerApp.swift | modified guiFocusAction() | ~243 |
+| 02:45 | Edited claude spinner/claude_spinnerApp.swift | added optional chaining | ~183 |
+| 02:45 | Edited claude spinner/claude_spinnerApp.swift | added optional chaining | ~183 |
+| 02:45 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testWorkingDotsCyclesThreePhases() | ~377 |
+| 02:45 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testWorkingDotsCyclesThreePhases() | ~377 |
+| 02:46 | Edited TASKS.md | removed 3 lines | ~8 |
+| 02:46 | Edited TASKS.md | removed 3 lines | ~8 |
+| 02:46 | Edited TASKS.md | 3→4 lines | ~64 |
+| 02:46 | Edited TASKS.md | 3→4 lines | ~64 |
+| 09:52 | Extracted SessionLauncher.guiFocusAction pure fn + XCTest; verified via swiftc harness (4/4 pass) | claude_spinnerApp.swift, claude_spinnerTests.swift | lockdown for bug-091 | ~6k |

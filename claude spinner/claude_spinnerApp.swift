@@ -322,6 +322,22 @@ enum SessionLauncher {
         "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
     ]
 
+    /// What `focus` does for a GUI app (VS Code, Ghostty, Claude for Desktop). A
+    /// running instance is ALWAYS activated in place; a path launch — which spawns a
+    /// NEW window for the folder — is used only when the app isn't running yet.
+    /// Pure so the "running instance wins" ordering can be locked down by a test; it
+    /// has regressed every time this branch was refactored (bug-072/073/091).
+    enum GUIFocusAction: Equatable {
+        case activateRunning   // focus the already-open window in place
+        case openPath          // launch and open cwd (spawns a window)
+        case launchBare        // launch with no path
+    }
+
+    static func guiFocusAction(isRunning: Bool, cwd: String) -> GUIFocusAction {
+        if isRunning { return .activateRunning }
+        return cwd.isEmpty ? .launchBare : .openPath
+    }
+
     static func focus(host: String, pid: Int?, cwd: String) {
         // Unknown host — focus the user's terminal, never spawn a fresh window.
         let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
@@ -348,14 +364,13 @@ enum SessionLauncher {
             openPath(cwd, withBundleID: "com.googlecode.iterm2")
         } else {
             // VS Code, Ghostty, Claude for Desktop, etc.
-            // Focus the running instance first — `open -b <bundle> <cwd>` always opens a
-            // NEW window for that folder even when one is already open, so only launch
-            // with a path when the app isn't running yet.
-            if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
-                app.activate(options: [.activateAllWindows])
-            } else if !cwd.isEmpty {
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
+            switch guiFocusAction(isRunning: running != nil, cwd: cwd) {
+            case .activateRunning:
+                running?.activate(options: [.activateAllWindows])
+            case .openPath:
                 openPath(cwd, withBundleID: bundleID)
-            } else {
+            case .launchBare:
                 let task = Process()
                 task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
                 task.arguments = ["-b", bundleID]

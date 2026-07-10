@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:42:29.536Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:46:46.956Z
 > Files: 32 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
@@ -39,7 +39,7 @@
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
 - `STATUS.md` — STATUS (~15 tok)
-- `TASKS.md` — claude-spinner — Tasks (~979 tok)
+- `TASKS.md` — claude-spinner — Tasks (~1012 tok)
 
 ## .claude/
 
@@ -71,7 +71,7 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6531 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6723 tok)
 - `FeedWatcher.swift` — FeedWatcher.swift (~14233 tok)
 - `MenuContentView.swift` — MenuContentView.swift (~7232 tok)
 
@@ -89,7 +89,7 @@
 
 ## claude spinnerTests/
 
-- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~3412 tok)
+- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~3674 tok)
 
 ## claude spinnerUITests/
 

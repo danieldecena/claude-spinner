@@ -11,6 +11,7 @@ Remaining open items:
 
 ## Completed
 
+- [x] Regression test — SessionLauncher.guiFocusAction pure fn + XCTest locks "running host wins over path launch" (bug-072/073/091)
 - [x] Host chip (vsc/trm/web/app) RIGHT of the row time, flips to ✕ on hover (one 26px slot)
 - [x] Attention row label -> one alternating word (AttentionWords)
 - [x] Surface poller state in footer — "blocked"/"expired" notice + tooltip detail

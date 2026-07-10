@@ -1477,9 +1477,28 @@
         "vscode",
         "regression"
       ],
-      "related_bugs": ["bug-072", "bug-073"],
+      "related_bugs": [
+        "bug-072",
+        "bug-073"
+      ],
       "occurrences": 1,
       "last_seen": "2026-07-10T09:45:00.000Z"
+    },
+    {
+      "id": "bug-092",
+      "timestamp": "2026-07-10T09:45:28.522Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T09:45:28.522Z"
     }
   ]
 }

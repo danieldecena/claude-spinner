@@ -288,4 +288,20 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.workingDots(at: d0.addingTimeInterval(1.0)), "")
         XCTAssertEqual(FeedWatcher.workingDots(at: d0.addingTimeInterval(1.5)), ".")
     }
+
+    // MARK: - SessionLauncher.guiFocusAction (running instance wins over path launch)
+
+    /// Regression guard for bug-072/073/091: a running VS Code/Ghostty/Claude-Desktop
+    /// must be activated in place, NOT relaunched with a path (which opens a new window).
+    /// This ordering has silently regressed every time the focus branch was refactored.
+    func testGUIFocusActivatesRunningInstanceEvenWhenCwdIsSet() {
+        XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: true, cwd: "/some/proj"), .activateRunning)
+        XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: true, cwd: ""), .activateRunning)
+    }
+
+    /// A path launch (new window) is used only when the app isn't already running.
+    func testGUIFocusLaunchesWithPathOnlyWhenNotRunning() {
+        XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: "/some/proj"), .openPath)
+        XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
+    }
 }
