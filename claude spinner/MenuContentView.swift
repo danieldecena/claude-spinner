@@ -85,7 +85,7 @@ struct UsageFooter: View {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 VStack(alignment: .leading, spacing: 6) {
                     // Row 1: Always visible gauges + toggle chevron
-                    HStack(spacing: 5) {
+                    HStack(spacing: 14) {
                         if feed.hasUsage {
                             Group {
                                 if let h5 = feed.usageFiveHourPct {
