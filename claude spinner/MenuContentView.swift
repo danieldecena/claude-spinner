@@ -83,34 +83,35 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 5) {
-                    if feed.hasUsage {
-                        // Dim the numbers when stale so a frozen snapshot doesn't
-                        // read as live; the "as of" time is in the tooltip.
-                        Group {
-                            if let h5 = feed.usageFiveHourPct {
-                                UsageGauge(label: "5h", pct: h5)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 5) {
+                        if feed.hasUsage {
+                            Group {
+                                if let h5 = feed.usageFiveHourPct {
+                                    UsageGauge(label: "5h", pct: h5)
+                                }
+                                if let d7 = feed.usageSevenDayPct {
+                                    UsageGauge(label: "7d", pct: d7)
+                                }
+                                // Recent 5h change, once there are ≥2 poll samples.
+                                if let trend = feed.usageFiveHourTrend {
+                                    TrendGauge(delta: trend)
+                                }
                             }
-                            if let d7 = feed.usageSevenDayPct {
-                                UsageGauge(label: "7d", pct: d7)
-                            }
-                            // Recent 5h change, once there are ≥2 poll samples.
-                            if let trend = feed.usageFiveHourTrend {
-                                TrendGauge(delta: trend)
-                            }
+                            // Dim when stale so a frozen snapshot doesn't read as live;
+                            // the "as of" time and age live in the hover tooltip.
+                            .opacity(feed.usageIsStale ? 0.5 : 1)
+                            .help(feed.usageAsOfString)
+                        } else {
+                            Text("no usage data yet")
+                                .font(.claudeMono(10))
+                                .foregroundStyle(Color.secondary.opacity(0.6))
                         }
-                        // Dim when stale so a frozen snapshot doesn't read as live;
-                        // the "as of" time and age live in the hover tooltip.
-                        .opacity(feed.usageIsStale ? 0.5 : 1)
-                        .help(feed.usageAsOfString)
+                        Spacer(minLength: 0)
+                    }
 
-                        Spacer(minLength: 3)
-
-                        // Mirror the row's trailing structure exactly — content, a
-                        // gap, then a clear box the width of the row's chip/✕ slot —
-                        // so this right element's text lines up with the row times
-                        // above it by construction, not by a hand-tuned padding.
-                        HStack(spacing: 4) {
+                    if feed.hasUsage {
+                        HStack(spacing: 0) {
                             if let notice = feed.usageNotice {
                                 // An urgent poller note (auth expired / out of credits)
                                 // takes the slot when present — usage is stale or
@@ -120,31 +121,28 @@ struct UsageFooter: View {
                                     Text(notice).font(.claudeMono(10))
                                 }
                                 .foregroundStyle(Color.usageTint(95))
-                                .fixedSize()
                                 .help(feed.usageNoticeDetail)
-                            } else if let rel = feed.usageFiveHourResetRelative {
-                                // Live countdown (both reset formats don't fit one row
-                                // at 320px); the reset clock times are in the tooltip.
-                                HStack(spacing: 2) {
+                            } else {
+                                HStack(spacing: 3) {
                                     Text("↺").font(.claudeMono(9))
-                                    Text(rel).font(.claudeMono(10)).monospacedDigit()
+                                    if let clock = feed.usageFiveHourReset {
+                                        Text("resets \(clock)")
+                                            .font(.claudeMono(10))
+                                    }
+                                    if let rel = feed.usageFiveHourResetRelative {
+                                        Text("· in \(rel)")
+                                            .font(.claudeMono(10)).monospacedDigit()
+                                    }
                                 }
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .help(feed.usageResetTooltip)
                             }
-                            Color.clear.frame(width: Constants.rowTrailingSlot, height: 1)
+                            Spacer(minLength: 0)
                         }
-                    } else {
-                        Text("no usage data yet")
-                            .font(.claudeMono(10))
-                            .foregroundStyle(Color.secondary.opacity(0.6))
-                        Spacer(minLength: 0)
                     }
                 }
-                .lineLimit(1)
-                .padding(.leading, 14)
-                .padding(.trailing, 10)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
             }
         }
     }
