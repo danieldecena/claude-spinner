@@ -195,10 +195,12 @@ struct MenuBarLabel: View {
                 // attention is still carried by the blue glyph, not the title text.
                 // Fall back to the activity word only when there's no usage data yet.
                 if let h5 = feed.usageFiveHourPct {
+                    // Pulse the % when it crosses the red threshold so an imminent
+                    // rate limit catches the eye even with nothing running.
                     Text("5h \(h5)%")
                         .font(.claudeMono(13))
                         .monospacedDigit()
-                        .foregroundColor(Color.usageTint(h5))
+                        .foregroundColor(Color.usageTint(h5).opacity(feed.usageAlarm ? feed.glyphPulse : 1))
                 } else if !feed.menuBarBody.isEmpty {
                     Text(feed.menuBarBody)
                         .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
@@ -265,6 +267,52 @@ extension Color {
         if n.contains("haiku")  { return Color(red: 0.45, green: 0.72, blue: 0.45) }  // green
         if n.contains("fable")  { return Color(red: 0.42, green: 0.56, blue: 0.86) }  // blue
         return .claudeDim
+    }
+}
+
+/// A compact, color-coded tag for where a session runs, shown just left of the
+/// row's time. Collapses the many possible host strings (macOS bundle IDs and
+/// `TERM_PROGRAM` values) into four buckets so the row reads at a glance.
+enum HostTag {
+    case vsc, trm, web, app
+
+    var label: String {
+        switch self {
+        case .vsc: return "vsc"
+        case .trm: return "trm"
+        case .web: return "web"
+        case .app: return "app"
+        }
+    }
+
+    /// Distinct hue per surface: editor blue, terminal green, web cyan, app purple.
+    var color: Color {
+        switch self {
+        case .vsc: return Color(red: 0.35, green: 0.60, blue: 0.90)  // blue
+        case .trm: return Color(red: 0.45, green: 0.72, blue: 0.45)  // green
+        case .web: return Color(red: 0.35, green: 0.72, blue: 0.78)  // cyan
+        case .app: return Color(red: 0.62, green: 0.47, blue: 0.86)  // purple
+        }
+    }
+
+    /// Classify a raw host string (a macOS bundle ID or a `TERM_PROGRAM` value).
+    /// Returns nil only when the host is unknown/empty, so no tag is drawn rather
+    /// than a wrong one.
+    static func from(_ host: String) -> HostTag? {
+        let h = host.lowercased()
+        if h.isEmpty { return nil }
+        // VS Code and its forks (Cursor, VSCodium, Windsurf) share the vscode host.
+        if h.contains("vscode") || h.contains("cursor")
+            || h.contains("vscodium") || h.contains("windsurf") { return .vsc }
+        // Anthropic's desktop app.
+        if h.contains("claudefordesktop") || h.contains("claude-desktop") { return .app }
+        // The web app (claude.ai/code).
+        if h.contains("claude.ai") || h == "web" { return .web }
+        // Known terminal emulators.
+        if h.contains("ghostty") || h.contains("terminal") || h.contains("iterm")
+            || h.contains("wezterm") || h.contains("alacritty") || h.contains("kitty")
+            || h.contains("hyper") || h.contains("tabby") || h.contains("warp") { return .trm }
+        return nil
     }
 }
 

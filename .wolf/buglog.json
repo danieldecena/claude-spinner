@@ -970,6 +970,184 @@
       "related_bugs": [],
       "occurrences": 3,
       "last_seen": "2026-07-10T07:27:48.022Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-07-10T07:34:15.087Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Was returning: session.message.isEmpty ? \"waiting for you\" : sess",
+      "fix": "Now returns: AttentionWords.word(for: session)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:34:15.087Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-07-10T07:36:50.389Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// In usage mode, the 5h window is at/over the red threshol; /// pulses to flag that a rate limit is imminent even while  | Also: usageHistory = (UserDefaults.standard.array(forKey: \"usageHi | Also: /// The 7d window's reset instant (only the poller carries i; private var sevenDayResetsAt: Double? { pollUsage?.sevenDayR",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-07-10T07:41:40.195Z"
+    },
+    {
+      "id": "bug-063",
+      "timestamp": "2026-07-10T07:37:37.490Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 7→8 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:37:37.490Z"
+    },
+    {
+      "id": "bug-064",
+      "timestamp": "2026-07-10T07:38:03.452Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// Host string (bundle ID or `TERM_PROGRAM` value) → the ap; private static let hostBundleIDs: [String: String] = [",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:38:03.454Z"
+    },
+    {
+      "id": "bug-065",
+      "timestamp": "2026-07-10T07:40:23.553Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: // Pulse the % when it crosses the red threshold so an immin; // rate limit catches the eye even with nothing running.",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:40:23.554Z"
+    },
+    {
+      "id": "bug-066",
+      "timestamp": "2026-07-10T07:41:28.253Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinnerTests/claude_spinnerTests.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:41:28.253Z"
+    },
+    {
+      "id": "bug-067",
+      "timestamp": "2026-07-10T07:42:04.893Z",
+      "error_message": "Wrong reference: formatReset should be formatResetDay",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"formatReset\" instead of \"formatResetDay\"",
+      "fix": "Changed formatReset → formatResetDay",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:42:04.893Z"
+    },
+    {
+      "id": "bug-068",
+      "timestamp": "2026-07-10T07:45:41.842Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Was returning: \"out of credits\" }",
+      "fix": "Now returns: \"blocked\" }",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:45:41.842Z"
+    },
+    {
+      "id": "bug-069",
+      "timestamp": "2026-07-10T07:46:46.525Z",
+      "error_message": "Null/undefined access in ",
+      "file": "../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: // UsagePoller.parse: response header map -> Result (network; let fullHeaders: [String: String] = [",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T07:46:46.526Z"
+    },
+    {
+      "id": "bug-070",
+      "timestamp": "2026-07-10T07:47:18.442Z",
+      "error_message": "Incorrect value in code",
+      "file": "TASKS.md",
+      "root_cause": "Had `~/.claude/spinnerfeed/emit.sh`",
+      "fix": "Changed to `claude`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T07:47:18.442Z"
+    },
+    {
+      "id": "bug-071",
+      "timestamp": "2026-07-10T00:45:00Z",
+      "error_message": "User: row times shifted left / footer countdown misaligned with row times after moving host tag to the right of the time",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Aligned the footer countdown to the row time column with a hand-computed trailing padding (panelPad + slot + spacing). Every layout tweak (slot width, spacing, tag-vs-x) changed the target, so the magic-number padding drifted out of alignment repeatedly.",
+      "fix": "Made both trailing groups structurally identical instead of arithmetically matched: row = [time][6pt][Constants.rowTrailingSlot box]; footer = [countdown/notice][6pt][same box]. Same construction => same right edge, no magic numbers. Shared slot width via Constants.rowTrailingSlot.",
+      "tags": [
+        "swiftui",
+        "layout",
+        "alignment",
+        "footer",
+        "hstack"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T00:45:00Z"
     }
   ]
 }

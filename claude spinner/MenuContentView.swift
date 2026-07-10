@@ -93,18 +93,33 @@ struct UsageFooter: View {
 
                         Spacer(minLength: 8)
 
-                        // Live countdown (both reset formats don't fit one row at
-                        // 360px); the exact clock time is in the tooltip.
-                        if let rel = feed.usageFiveHourResetRelative {
-                            HStack(spacing: 2) {
-                                Text("↺").font(.claudeMono(10))
-                                Text(rel).font(.claudeMono(11)).monospacedDigit()
+                        // Mirror the row's trailing structure exactly — content, a
+                        // 6pt gap, then a clear box the width of the row's chip/✕ slot
+                        // — so this right element's text lines up with the row times
+                        // above it by construction, not by a hand-tuned padding.
+                        HStack(spacing: 6) {
+                            if let notice = feed.usageNotice {
+                                // An urgent poller note (auth expired / out of credits)
+                                // takes the slot when present — usage is stale or
+                                // blocked, so a reset countdown would mislead.
+                                HStack(spacing: 2) {
+                                    Text("!").font(.claudeMono(11)).fontWeight(.bold)
+                                    Text(notice).font(.claudeMono(11))
+                                }
+                                .foregroundStyle(Color.usageTint(95))
+                                .fixedSize()
+                                .help(feed.usageNoticeDetail)
+                            } else if let rel = feed.usageFiveHourResetRelative {
+                                // Live countdown (both reset formats don't fit one row
+                                // at 360px); the reset clock times are in the tooltip.
+                                HStack(spacing: 2) {
+                                    Text("↺").font(.claudeMono(10))
+                                    Text(rel).font(.claudeMono(11)).monospacedDigit()
+                                }
+                                .foregroundStyle(Color.secondary.opacity(0.75))
+                                .help(feed.usageResetTooltip)
                             }
-                            .foregroundStyle(Color.secondary.opacity(0.75))
-                            .help(feed.usageFiveHourReset.map { "Resets at \($0)" } ?? "")
-                            // Match the rows' trailing ✕-slot width so the countdown's
-                            // right edge lines up with the times above it.
-                            .padding(.trailing, 14)
+                            Color.clear.frame(width: Constants.rowTrailingSlot, height: 1)
                         }
                     } else {
                         Text("no usage data yet")
@@ -197,28 +212,43 @@ struct SessionRow: View {
 
             Spacer(minLength: 6)
 
-            // Elapsed / waiting / done time in its own right-aligned column so the
-            // times line up down the panel, independent of the activity label width.
-            if !timeText.isEmpty {
-                Text(timeText)
-                    .font(.claudeMono(11))
-                    .monospacedDigit()
-                    .foregroundStyle(Color.secondary)
-            }
+            // Time + host chip travel together as one right-flush unit with a tight
+            // gap, so the time stays near the right edge with the tag just after it.
+            HStack(spacing: 6) {
+                // Elapsed / waiting / done time. Right-aligned in a fixed-width
+                // column so the times line up down the panel regardless of label.
+                if !timeText.isEmpty {
+                    Text(timeText)
+                        .font(.claudeMono(11))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.secondary)
+                }
 
-            // Trailing hover-only clear button. A clear spacer holds the slot width
-            // at all times, so the time column never shifts when the ✕ appears.
-            ZStack(alignment: .trailing) {
-                Color.clear.frame(width: 14, height: 1)
-                if hover.isHovering {
-                    Button {
-                        feed.clear(item)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .bold))
+                // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
+                // an ✕ clear button on hover so a session can be dismissed in place.
+                // A fixed width holds the slot constant so the time never shifts.
+                ZStack(alignment: .trailing) {
+                    Color.clear.frame(width: Constants.rowTrailingSlot, height: 1)
+                    if hover.isHovering {
+                        Button {
+                            feed.clear(item)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(Color.secondary)
+                        .help("Clear this session")
+                    } else if let tag = HostTag.from(session.host) {
+                        Text(tag.label)
+                            .font(.claudeMono(9))
+                            .foregroundStyle(tag.color)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .fill(tag.color.opacity(0.16))
+                            )
                     }
-                    .buttonStyle(.plain)
-                    .foregroundColor(Color.secondary)
                 }
             }
         }
@@ -281,28 +311,32 @@ struct SessionRow: View {
     /// session, so passing a folder would spawn a new window; we avoid that. VS Code
     /// does reuse its window, so it opens the project folder in place. An unknown
     /// host focuses the user's terminal rather than spawning a fresh one.
+    /// Host string (bundle ID or `TERM_PROGRAM` value) → the app bundle to focus.
+    private static let hostBundleIDs: [String: String] = [
+        "com.microsoft.VSCode": "com.microsoft.VSCode", "vscode": "com.microsoft.VSCode",
+        "com.mitchellh.ghostty": "com.mitchellh.ghostty", "ghostty": "com.mitchellh.ghostty",
+        "com.apple.Terminal": "com.apple.Terminal", "Apple_Terminal": "com.apple.Terminal",
+        "com.googlecode.iterm2": "com.googlecode.iterm2", "iTerm.app": "com.googlecode.iterm2",
+        "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
+    ]
+
     private func openSession() {
         let path = session.cwd
         let pathValid = !path.isEmpty && FileManager.default.fileExists(atPath: path)
+        // Unknown host — focus the user's terminal, never spawn a fresh window.
+        let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
+            ? "com.mitchellh.ghostty" : "com.apple.Terminal"
+        let bundleID = Self.hostBundleIDs[session.host] ?? fallback
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-
-        switch session.host {
-        case "com.microsoft.VSCode", "vscode":
-            task.arguments = pathValid ? ["-b", "com.microsoft.VSCode", path]
-                                       : ["-b", "com.microsoft.VSCode"]
-        case "com.mitchellh.ghostty", "ghostty":
-            task.arguments = ["-b", "com.mitchellh.ghostty"]
-        case "com.apple.Terminal", "Apple_Terminal":
-            task.arguments = ["-b", "com.apple.Terminal"]
-        case "com.googlecode.iterm2", "iTerm.app":
-            task.arguments = ["-b", "com.googlecode.iterm2"]
-        case "com.anthropic.claudefordesktop":
-            task.arguments = ["-b", "com.anthropic.claudefordesktop"]
-        default:
-            // Unknown host — focus the user's terminal, no new window.
-            let ghostty = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
-            task.arguments = ["-b", ghostty ? "com.mitchellh.ghostty" : "com.apple.Terminal"]
+        // VS Code reuses its window, so it can open the project folder in place.
+        // Terminals can't target the exact tab running a session, so passing a
+        // folder would spawn a stray window — focus only.
+        if bundleID == "com.microsoft.VSCode", pathValid {
+            task.arguments = ["-b", bundleID, path]
+        } else {
+            task.arguments = ["-b", bundleID]
         }
         try? task.run()
     }
@@ -348,7 +382,9 @@ struct SessionRow: View {
         case .thinking:
             return "thinking"
         case .attention:
-            return session.message.isEmpty ? "waiting for you" : session.message
+            // One word, same vocabulary as the menu-bar title — the full hook
+            // message ("Claude is waiting for your input") only truncates anyway.
+            return AttentionWords.word(for: session)
         case .idle:
             return session.lastDuration != nil ? "done" : "idle"
         }

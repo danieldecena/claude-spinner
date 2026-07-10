@@ -1,11 +1,16 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:29:43.666Z
-> Files: 25 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T07:47:31.242Z
+> Files: 28 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
+
+- `parse_harness.swift` — Minimal stub for the symbol FeedWatcher.swift references from the app file, (~771 tok)
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/
 
-- `main.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~1075 tok)
+- `build.sh` — Dev-loop build: swiftc the three app sources into the installed bundle, (~199 tok)
+- `main.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~1482 tok)
 - `testmain.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~926 tok)
 
 ## ../../.claude/
@@ -15,10 +20,11 @@
 ## ../../.claude/plans/
 
 - `can-you-review-this-zippy-frost.md` — Improve claude-spinner — full cleanup pass (~1655 tok)
+- `hello-sorted-token.md` — Plan: Continue not-started tasks (concurrent-safe) (~1430 tok)
 
 ## ../../.claude/spinnerfeed/
 
-- `emit.sh` — Menubar feed emitter — called by Claude Code lifecycle hooks. (~813 tok)
+- `emit.sh` — Menubar feed emitter — called by Claude Code lifecycle hooks. (~1052 tok)
 
 ## ../.claude/plans/
 
@@ -29,7 +35,7 @@
 - `.gitignore` — Git ignore rules (~24 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
-- `TASKS.md` — claude-spinner — Tasks (~1033 tok)
+- `TASKS.md` — claude-spinner — Tasks (~1090 tok)
 
 ## .claude/
 
@@ -61,9 +67,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3350 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~10292 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~4290 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3944 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~11334 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~4953 tok)
 
 ## claude spinner/Assets.xcassets/
 
@@ -79,7 +85,7 @@
 
 ## claude spinnerTests/
 
-- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~1915 tok)
+- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~3008 tok)
 
 ## claude spinnerUITests/
 

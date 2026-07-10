@@ -234,4 +234,22 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(noResets?.fiveHourResetsAt)
         XCTAssertNil(noResets?.sevenDayResetsAt)
     }
+
+    // MARK: - HostTag (host string -> row chip bucket)
+
+    func testHostTagClassifiesKnownHosts() {
+        XCTAssertEqual(HostTag.from("com.microsoft.VSCode"), .vsc)
+        XCTAssertEqual(HostTag.from("vscode"), .vsc)
+        XCTAssertEqual(HostTag.from("Cursor"), .vsc)
+        XCTAssertEqual(HostTag.from("com.mitchellh.ghostty"), .trm)
+        XCTAssertEqual(HostTag.from("Apple_Terminal"), .trm)
+        XCTAssertEqual(HostTag.from("iTerm.app"), .trm)
+        XCTAssertEqual(HostTag.from("com.anthropic.claudefordesktop"), .app)
+        XCTAssertEqual(HostTag.from("claude.ai"), .web)
+    }
+
+    func testHostTagUnknownAndEmptyReturnNil() {
+        XCTAssertNil(HostTag.from(""))
+        XCTAssertNil(HostTag.from("some.unknown.bundle"))
+    }
 }

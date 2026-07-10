@@ -29,6 +29,10 @@ enum Constants {
     static let spinnerFPS = 10.0
     /// Dropdown panel width.
     static let panelWidth: CGFloat = 360
+    /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
+    /// button on hover. Shared so the footer can right-align its countdown to the
+    /// same column as the row times above it.
+    static let rowTrailingSlot: CGFloat = 26
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -37,6 +41,10 @@ enum Constants {
     /// After a turn finishes, the menu title flashes the past-tense word for this
     /// long, then goes quiet grey.
     static let doneFlashDuration: TimeInterval = 5
+    /// At/over this 5h utilization, the menu-bar usage % pulses red as a warning.
+    static let usageAlarmPct = 90
+    /// Most recent 5h samples kept for the footer sparkline (~2.5h at a 5m poll).
+    static let usageHistoryMax = 30
     /// Usage older than this is flagged stale in the footer — no statusLine session
     /// has refreshed it recently (the only source of the 5h/7d percentages).
     static let usageStaleAfter: TimeInterval = 15 * 60
@@ -356,7 +364,13 @@ final class UsagePoller {
 }
 
 final class FeedWatcher: ObservableObject {
-    @Published private(set) var sessions: [SessionFeed] = []
+    @Published private(set) var sessions: [SessionFeed] = [] {
+        // Recompute the usage-bearing session once per publish, not on every footer
+        // tick — the 1s countdown + glyph ticks read usage ~7x/sec (review #5).
+        didSet { usageSession = Self.pickUsageSession(sessions) }
+    }
+    /// Cached snapshot of `usageSession`, refreshed by `sessions`' didSet.
+    private var usageSession: SessionFeed?
 
     /// Advances ~10x/sec to animate the menu-bar spinner glyph. Kept as plain
     /// observable state (not a TimelineView in the MenuBarExtra label, which can
@@ -377,6 +391,9 @@ final class FeedWatcher: ObservableObject {
     private var notifiedAttention: Set<String> = []
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
+    /// Recent 5h utilization samples (oldest→newest) for the footer sparkline,
+    /// persisted so the trend survives relaunch. Capped at `usageHistoryMax`.
+    @Published private(set) var usageHistory: [Int] = []
 
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
@@ -402,6 +419,7 @@ final class FeedWatcher: ObservableObject {
             .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
         cachedUsage = UserDefaults.standard.data(forKey: "usageSnapshot")
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
+        usageHistory = (UserDefaults.standard.array(forKey: "usageHistory") as? [Int]) ?? []
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
         dir = FileManager.default.homeDirectoryForCurrentUser
@@ -424,7 +442,7 @@ final class FeedWatcher: ObservableObject {
         animTimer = Timer.scheduledTimer(withTimeInterval: Constants.animInterval,
                                          repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            if self.menuBarActive {
+            if self.menuBarActive || self.usageAlarm {
                 self.glyphPhase &+= 1
             }
         }
@@ -456,6 +474,16 @@ final class FeedWatcher: ObservableObject {
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: "usageSnapshot")
         }
+        recordUsageSample(result.fiveHourPct)
+    }
+
+    /// Append a 5h sample to the sparkline ring buffer and persist it.
+    private func recordUsageSample(_ pct: Int) {
+        usageHistory.append(pct)
+        if usageHistory.count > Constants.usageHistoryMax {
+            usageHistory.removeFirst(usageHistory.count - Constants.usageHistoryMax)
+        }
+        UserDefaults.standard.set(usageHistory, forKey: "usageHistory")
     }
 
     // Atomic mv from the hook scripts replaces directory entries, so watching
@@ -656,6 +684,12 @@ final class FeedWatcher: ObservableObject {
         menuBarState == .working || menuBarState == .attention
     }
 
+    /// In usage mode, the 5h window is at/over the red threshold — the menu-bar %
+    /// pulses to flag that a rate limit is imminent even while nothing's running.
+    var usageAlarm: Bool {
+        menuBarMode == .usage && (usageFiveHourPct ?? 0) >= Constants.usageAlarmPct
+    }
+
     static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
         return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
@@ -714,9 +748,10 @@ final class FeedWatcher: ObservableObject {
         return items
     }
 
-    /// The session whose status feed carries the account-wide rate-limit
-    /// numbers (any recent session has them; they're not per-project).
-    private var usageSession: SessionFeed? {
+    /// The session whose status feed carries the account-wide rate-limit numbers
+    /// (any recent session has them; they're not per-project). Cached in
+    /// `usageSession` and refreshed only when `sessions` changes.
+    private static func pickUsageSession(_ sessions: [SessionFeed]) -> SessionFeed? {
         sessions
             .filter { $0.fiveHourPct != nil || $0.sevenDayPct != nil }
             .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
@@ -735,6 +770,19 @@ final class FeedWatcher: ObservableObject {
     /// The 5h reset as a relative countdown, e.g. "3h29m".
     var usageFiveHourResetRelative: String? { Self.formatResetRelative(fiveHourResetsAt) }
 
+    /// The 7d window's reset instant (only the poller carries it).
+    private var sevenDayResetsAt: Double? { pollUsage?.sevenDayResetsAt }
+    var usageSevenDayReset: String? { Self.formatResetDay(sevenDayResetsAt) }
+
+    /// Tooltip for the footer countdown — both windows' reset clock times when
+    /// known, e.g. "5h resets at 2:00 AM · 7d resets at Mon".
+    var usageResetTooltip: String {
+        var parts: [String] = []
+        if let f = usageFiveHourReset { parts.append("5h resets at \(f)") }
+        if let s = usageSevenDayReset { parts.append("7d resets at \(s)") }
+        return parts.joined(separator: " · ")
+    }
+
     /// When the shown usage was last refreshed. The poll's fetch time is the true
     /// freshness; the statusLine path falls back to the session/cache timestamp.
     var usageUpdatedAt: Date? {
@@ -750,6 +798,22 @@ final class FeedWatcher: ObservableObject {
     var usageAsOfString: String {
         guard let t = usageUpdatedAt else { return "No usage data yet" }
         return "Usage as of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)"
+    }
+
+    /// The account is out of credits per the last poll (overage rejected).
+    var usageOverageBlocked: Bool { pollUsage?.overageBlocked ?? false }
+
+    /// A short, urgent footer note when polling can't refresh (auth expired) or the
+    /// account is blocked on overage — nil when usage is flowing normally. The full
+    /// sentence lives in `usageNoticeDetail` for the tooltip.
+    var usageNotice: String? {
+        if usageOverageBlocked { return "blocked" }
+        if usageError != nil { return "expired" }
+        return nil
+    }
+    var usageNoticeDetail: String {
+        if usageOverageBlocked { return "Account is out of credits — usage is blocked (overage rejected)." }
+        return usageError ?? ""
     }
 
     /// "45s" / "12m" / "1h20m" elapsed since `date`.
@@ -773,6 +837,19 @@ final class FeedWatcher: ObservableObject {
     private static func formatReset(_ resetsAt: Double?) -> String? {
         guard let resetsAt else { return nil }
         return resetTimeFormatter.string(from: Date(timeIntervalSince1970: resetsAt))
+    }
+
+    /// Weekday + time for a multi-day window, e.g. "Mon 2:00 AM" — a bare clock
+    /// time would misread for a reset up to 7 days out.
+    private static let resetDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("EEE j:mm")
+        return f
+    }()
+
+    private static func formatResetDay(_ resetsAt: Double?) -> String? {
+        guard let resetsAt else { return nil }
+        return resetDayFormatter.string(from: Date(timeIntervalSince1970: resetsAt))
     }
 
     /// "3h29m" / "43m" left until the given instant. Recomputed each render (the
