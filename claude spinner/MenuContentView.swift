@@ -11,6 +11,7 @@ import Combine
 
 struct MenuContentView: View {
     @ObservedObject var feed: FeedWatcher
+    @StateObject private var install = InstallState()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,15 +22,39 @@ struct MenuContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
-                    // Nothing will ever appear until the hooks are wired up — say so
-                    // instead of a silent empty panel that looks broken.
-                    VStack(alignment: .leading, spacing: 4) {
+                    // Nothing will ever appear until the hooks are wired up — offer a
+                    // one-click install instead of a silent empty panel.
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Setup needed")
                             .font(.claudeMono(11)).fontWeight(.semibold)
                             .foregroundStyle(Color.usageTint(95))
-                        Text("The feed hooks aren't installed, so no sessions can show. Add the spinner hooks + statusLine to ~/.claude/settings.json.")
+                        Text("The feed hooks aren't installed, so no sessions can show.")
                             .font(.claudeMono(10)).foregroundStyle(Color.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let message = install.message {
+                            Text(message)
+                                .font(.claudeMono(10)).foregroundStyle(Color.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Button(install.installing ? "Installing…" : "Install hooks") {
+                            install.installing = true
+                            install.message = nil
+                            DispatchQueue.global(qos: .userInitiated).async {
+                                let result = SetupInstaller.install()
+                                DispatchQueue.main.async {
+                                    install.installing = false
+                                    switch result {
+                                    case .success:
+                                        feed.refreshSetupState()
+                                        install.message = "Installed — restart your Claude Code sessions to start the feed."
+                                    case .failure(let error):
+                                        install.message = "Couldn't install: \(error.localizedDescription)"
+                                    }
+                                }
+                            }
+                        }
+                        .font(.claudeMono(10))
+                        .disabled(install.installing)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10).padding(.vertical, 12)
@@ -572,4 +597,12 @@ struct SessionRow: View {
 
 class HoverState: ObservableObject {
     @Published var isHovering = false
+}
+
+/// Drives the one-click installer button in the Setup-needed panel. A small
+/// ObservableObject rather than @State, matching HoverState (the codebase avoids
+/// @State so the swiftc dev-loop build keeps working).
+class InstallState: ObservableObject {
+    @Published var installing = false
+    @Published var message: String?
 }

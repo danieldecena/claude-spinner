@@ -506,6 +506,7 @@ final class FeedWatcher: ObservableObject {
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        isSetupInstalled = Self.checkSetupInstalled(dir: dir)
         ioQueue.async { [weak self] in self?.performRescan() }
         startWatching()
         poller = UsagePoller(
@@ -706,7 +707,13 @@ final class FeedWatcher: ObservableObject {
     /// sessions". Computed once (on refresh) and cached — the empty-panel view can
     /// re-render up to 10x/sec (the menu-bar glyph pulse ticks even with no
     /// sessions, e.g. a usage alarm), and this does real disk I/O.
-    private(set) lazy var isSetupInstalled: Bool = Self.checkSetupInstalled(dir: dir)
+    @Published private(set) var isSetupInstalled: Bool = false
+
+    /// Re-check whether the feed plumbing is installed and publish the result.
+    /// Called after the one-click installer runs so the panel updates in place.
+    func refreshSetupState() {
+        isSetupInstalled = Self.checkSetupInstalled(dir: dir)
+    }
 
     private static func checkSetupInstalled(dir: URL) -> Bool {
         guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("emit.sh").path)
