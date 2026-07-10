@@ -57,7 +57,10 @@ struct UsageFooter: View {
 
     /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
     /// part muted. Returned as a concatenated Text so it sits inline in the row.
-    private func bar(_ pct: Int, segments: Int = 8) -> Text {
+    /// A block-bar for a 0–100 percentage: filled part tinted by urgency, empty
+    /// part muted. Six segments so 5h and 7d both fit on one line. Returned as a
+    /// concatenated Text so it sits inline in the row.
+    private func bar(_ pct: Int, segments: Int = 6) -> Text {
         let filled = min(segments, max(0, Int((Double(pct) / 100 * Double(segments)).rounded())))
         return Text(String(repeating: "█", count: filled))
                 .foregroundColor(Color.usageTint(pct))
@@ -71,7 +74,7 @@ struct UsageFooter: View {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 HStack(spacing: 6) {
                     if feed.hasUsage {
-                        if let model = feed.globalModelShort {
+                        if let model = feed.globalModelFamily {
                             Text(model).foregroundStyle(Color.modelTint(feed.globalModel))
                             separator
                         }
@@ -86,6 +89,7 @@ struct UsageFooter: View {
                         if let d7 = feed.usageSevenDayPct {
                             separator
                             Text("7d").foregroundStyle(Color.claudeDim.opacity(0.6))
+                            bar(d7)
                             Text("\(d7)%").foregroundStyle(Color.usageTint(d7))
                         }
                     } else {
@@ -144,7 +148,7 @@ struct SessionRow: View {
             } else if let ctx = session.contextPct {
                 Text("\(ctx)%")
                     .font(.claudeMono(11))
-                    .foregroundStyle(Color.claudeDim)
+                    .foregroundStyle(Color.contextTint(ctx))
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -154,6 +158,9 @@ struct SessionRow: View {
         .onTapGesture {
             openTerminal(at: session.cwd)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(session.projectName), \(statusText)")
+        .accessibilityHint("Opens a terminal at this project")
     }
 
     /// Idle rows fade with age so a stale session recedes instead of sitting at

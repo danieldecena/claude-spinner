@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UserNotifications
 
 @main
 struct claude_spinnerApp: App {
@@ -34,6 +35,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(0)
         }
         NSApp.setActivationPolicy(.accessory)
+
+        // Ask once for notification permission (used for attention alerts).
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
         popover.behavior = .transient
         popover.animates = true
@@ -81,6 +85,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem.button else { return }
         let menu = NSMenu()
 
+        // Menu-bar title mode: activity (spinner word) vs usage (5h %).
+        let modeItem = NSMenuItem(title: "Menu bar shows", action: nil, keyEquivalent: "")
+        let modeMenu = NSMenu()
+        let activity = NSMenuItem(title: "Activity", action: #selector(setModeActivity), keyEquivalent: "")
+        activity.target = self
+        activity.state = feed.menuBarMode == .activity ? .on : .off
+        let usage = NSMenuItem(title: "Usage", action: #selector(setModeUsage), keyEquivalent: "")
+        usage.target = self
+        usage.state = feed.menuBarMode == .usage ? .on : .off
+        modeMenu.addItem(activity)
+        modeMenu.addItem(usage)
+        modeItem.submenu = modeMenu
+        menu.addItem(modeItem)
+
+        menu.addItem(.separator())
+
         let launch = NSMenuItem(title: "Launch at Login",
                                 action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launch.target = self
@@ -106,6 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleLaunchAtLogin() { feed.launchAtLogin.toggle() }
     @objc private func clearAllSessions() { feed.clearAll() }
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
+    @objc private func setModeActivity() { feed.menuBarMode = .activity }
+    @objc private func setModeUsage() { feed.menuBarMode = .usage }
 }
 
 /// The status-bar label: the animated spinner glyph plus the compact status
@@ -131,15 +153,29 @@ struct MenuBarLabel: View {
                 .font(.claudeMono(15))
                 .foregroundColor(glyphColor)
                 .frame(width: 16)
-            if !feed.menuBarBody.isEmpty {
-                Text(feed.menuBarBody)
-                    .font(.claudeMono(13))
-                    .monospacedDigit()
-                    .foregroundColor(color)
+            switch feed.menuBarMode {
+            case .usage:
+                // Usage view: show the 5h limit % (urgency-colored) in the title.
+                if let h5 = feed.usageFiveHourPct {
+                    Text("5h \(h5)%")
+                        .font(.claudeMono(13))
+                        .monospacedDigit()
+                        .foregroundColor(Color.usageTint(h5))
+                } else if !feed.menuBarBody.isEmpty {
+                    Text(feed.menuBarBody)
+                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
+                }
+            case .activity:
+                if !feed.menuBarBody.isEmpty {
+                    Text(feed.menuBarBody)
+                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
+                }
             }
         }
         .fixedSize()
         .padding(.horizontal, 4)
+        .accessibilityLabel(feed.menuBarBody.isEmpty ? "Claude spinner, idle"
+                                                     : "Claude spinner, \(feed.menuBarBody)")
     }
 }
 
@@ -174,6 +210,14 @@ extension Color {
         case 50...: return Color(red: 0.82, green: 0.72, blue: 0.30)  // yellow
         default:    return Color(red: 0.45, green: 0.70, blue: 0.45)  // green
         }
+    }
+
+    /// Tint for a context-window percentage in a row: quiet until it's filling,
+    /// amber past 65%, red past 85% (running out of context is disruptive early).
+    static func contextTint(_ pct: Int) -> Color {
+        if pct >= 85 { return Color(red: 0.85, green: 0.32, blue: 0.28) }  // red
+        if pct >= 65 { return Color(red: 0.90, green: 0.58, blue: 0.24) }  // amber
+        return .claudeDim
     }
 
     /// Model-family accent, matching the statusLine's color language.

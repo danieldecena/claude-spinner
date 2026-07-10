@@ -10,6 +10,7 @@
 import Foundation
 import Observation
 import ServiceManagement
+import UserNotifications
 
 /// Tunables gathered in one place so behavior isn't scattered across literals.
 enum Constants {
@@ -35,6 +36,11 @@ enum Constants {
     /// After a turn finishes, the menu title flashes the past-tense word for this
     /// long, then goes quiet grey.
     static let doneFlashDuration: TimeInterval = 5
+}
+
+/// What the menu-bar title displays: live activity, or the 5h usage limit.
+enum MenuBarMode: String {
+    case activity, usage
 }
 
 /// What the menu-bar label is conveying right now, so the label can color and
@@ -209,17 +215,26 @@ final class FeedWatcher: ObservableObject {
     /// collapse the status item to zero size and render it invisible).
     @Published private(set) var glyphPhase = 0
 
+    /// What the menu-bar title shows; persisted across launches.
+    @Published var menuBarMode: MenuBarMode {
+        didSet { UserDefaults.standard.set(menuBarMode.rawValue, forKey: "menuBarMode") }
+    }
+
     private let dir: URL
     private var source: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
     private var timer: Timer?
     private var animTimer: Timer?
+    /// Session ids already alerted for attention, so each pause notifies once.
+    private var notifiedAttention: Set<String> = []
 
     /// All disk reads/parses and file pruning happen here, off the main thread.
     private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
     private var pendingScan: DispatchWorkItem?
 
     init() {
+        menuBarMode = UserDefaults.standard.string(forKey: "menuBarMode")
+            .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -327,7 +342,26 @@ final class FeedWatcher: ObservableObject {
         }
 
         let result = Array(live)
-        DispatchQueue.main.async { [weak self] in self?.sessions = result }
+        DispatchQueue.main.async { [weak self] in
+            self?.notifyAttention(result)
+            self?.sessions = result
+        }
+    }
+
+    /// Post a macOS notification the first time each session enters attention, so
+    /// the user is pulled back without watching the menu bar. Runs on main.
+    private func notifyAttention(_ newSessions: [SessionFeed]) {
+        let attentionNow = Set(newSessions.filter { $0.status == .attention }.map(\.id))
+        for id in attentionNow.subtracting(notifiedAttention) {
+            guard let s = newSessions.first(where: { $0.id == id }) else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = "Claude needs you"
+            content.body = s.message.isEmpty ? s.projectName : "\(s.projectName) — \(s.message)"
+            content.sound = .default
+            let request = UNNotificationRequest(identifier: "attention-\(id)", content: content, trigger: nil)
+            UNUserNotificationCenter.current().add(request)
+        }
+        notifiedAttention = attentionNow
     }
 
     var workingCount: Int { sessions.filter(\.isWorking).count }
@@ -435,6 +469,11 @@ final class FeedWatcher: ObservableObject {
     /// "Opus 4.8 (1M context)" -> "Opus 4.8".
     var globalModelShort: String? {
         globalModel.map { String($0.prefix { $0 != "(" }).trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Just the family word (e.g. "Opus"), for the space-tight two-bar footer.
+    var globalModelFamily: String? {
+        globalModelShort?.split(separator: " ").first.map(String.init)
     }
 
     // MARK: - Actions
