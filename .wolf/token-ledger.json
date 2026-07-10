@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 31674,
-    "total_reads": 30,
-    "total_writes": 33,
+    "total_tokens_estimated": 59262,
+    "total_reads": 46,
+    "total_writes": 63,
     "total_sessions": 4,
-    "anatomy_hits": 14,
-    "anatomy_misses": 16,
-    "repeated_reads_blocked": 24,
-    "estimated_savings_vs_bare_cli": 3884
+    "anatomy_hits": 20,
+    "anatomy_misses": 26,
+    "repeated_reads_blocked": 42,
+    "estimated_savings_vs_bare_cli": 5472
   },
   "sessions": [
     {
@@ -423,6 +423,286 @@
         "writes_count": 15,
         "repeated_reads_blocked": 9,
         "anatomy_lookups": 2
+      }
+    },
+    {
+      "id": "session-2026-07-09-1629",
+      "started": "2026-07-09T23:29:14.863Z",
+      "ended": "2026-07-10T00:02:41.676Z",
+      "reads": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 194,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/LoginItem.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/CLAUDE.md",
+          "tokens_estimated": 57,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/.claude/spinnerfeed/emit.sh",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/.gitignore",
+          "tokens_estimated": 24,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/.claude/plans/can-you-review-this-zippy-frost.md",
+          "tokens_estimated": 1891,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 5120,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 5120,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 233,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 233,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 13,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 156,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 156,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 65,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 74,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 74,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/spinnerfeed/emit.sh",
+          "tokens_estimated": 15,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 39,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 18,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 312,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 275,
+        "output_tokens_estimated": 13519,
+        "reads_count": 8,
+        "writes_count": 15,
+        "repeated_reads_blocked": 9,
+        "anatomy_lookups": 3
+      }
+    },
+    {
+      "id": "session-2026-07-09-1629",
+      "started": "2026-07-09T23:29:14.863Z",
+      "ended": "2026-07-10T00:02:41.680Z",
+      "reads": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 194,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/LoginItem.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/CLAUDE.md",
+          "tokens_estimated": 57,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/.claude/spinnerfeed/emit.sh",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/.gitignore",
+          "tokens_estimated": 24,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/.claude/plans/can-you-review-this-zippy-frost.md",
+          "tokens_estimated": 1891,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 5120,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 5120,
+          "action": "create"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 233,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 233,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 13,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 156,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 156,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 65,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 74,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/statusline-command.sh",
+          "tokens_estimated": 74,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/.claude/spinnerfeed/emit.sh",
+          "tokens_estimated": 15,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 39,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 18,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 312,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 275,
+        "output_tokens_estimated": 13519,
+        "reads_count": 8,
+        "writes_count": 15,
+        "repeated_reads_blocked": 9,
+        "anatomy_lookups": 3
       }
     }
   ],
