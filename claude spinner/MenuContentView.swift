@@ -128,31 +128,36 @@ struct UsageFooter: View {
                             // Row 2 (previously 3): Collapsible Context Window cylinders grid
                             if let pct = feed.usageContextPct,
                                let size = feed.usageContextSize {
+                                
+                                let sizeStr = FeedWatcher.formatTokens(size)
+                                let modelName = feed.usageModel ?? "Claude"
+                                
+                                // Strip redundant " (1M context)" from modelName
+                                let displayName: String = {
+                                    var name = modelName
+                                    if let range = name.range(of: " (") {
+                                        name = String(name[..<range.lowerBound])
+                                    }
+                                    return name
+                                }()
+                                
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "cpu")
                                             .font(.system(size: 9, weight: .bold))
                                         Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
+                                        Text("· \(displayName) (\(sizeStr) context)")
+                                            .font(.claudeMono(9))
+                                            .foregroundStyle(Color.secondary.opacity(0.8))
                                     }
                                     .foregroundStyle(Color.secondary.opacity(0.8))
-                                    
-                                    let sizeStr = FeedWatcher.formatTokens(size)
-                                    let modelName = feed.usageModel ?? "Claude"
-                                    
-                                    // Strip redundant " (1M context)" from modelName
-                                    let displayName: String = {
-                                        var name = modelName
-                                        if let range = name.range(of: " (") {
-                                            name = String(name[..<range.lowerBound])
-                                        }
-                                        return name
-                                    }()
+                                    .textCase(.lowercase)
                                     
                                     let inTok = feed.usageContextInputTokens ?? 0
                                     let outTok = feed.usageContextOutputTokens ?? 0
                                     let usedStr = FeedWatcher.formatTokens(inTok + outTok)
                                     
-                                    let infoText = "\(displayName) (\(sizeStr) context) · \(usedStr)/\(sizeStr) tokens (\(pct)%)"
+                                    let infoText = "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
                                     
                                     let filledCount = min(40, max(0, Int((Double(pct) / 2.5).rounded())))
                                     
