@@ -85,18 +85,7 @@ struct UsageFooter: View {
                         Text("no usage data yet").foregroundStyle(Color.claudeDim.opacity(0.55))
                     }
 
-                    Spacer(minLength: 6)
-
-                    Menu {
-                        Toggle("Launch at Login", isOn: $feed.launchAtLogin)
-                        Button("Clear All Sessions") { feed.clearAll() }
-                        Button("Quit") { NSApplication.shared.terminate(nil) }
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundStyle(Color.claudeDim)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .frame(width: 16)
+                    Spacer(minLength: 0)
                 }
                 .font(.claudeMono(11))
                 .lineLimit(1)

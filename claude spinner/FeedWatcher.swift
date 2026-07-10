@@ -329,10 +329,11 @@ final class FeedWatcher: ObservableObject {
         return "✻"
     }
 
-    /// 0.4–1.0 opacity pulse for the active glyph, driven by the 10 Hz phase.
+    /// 0.65–1.0 opacity pulse for the active glyph, driven by the 10 Hz phase.
+    /// Floor kept high so the glyph stays clearly visible at the trough.
     var glyphPulse: Double {
         let phase = Double(glyphPhase % 12) / 12.0
-        return 0.4 + 0.6 * (0.5 + 0.5 * cos(phase * 2 * .pi))
+        return 0.65 + 0.35 * (0.5 + 0.5 * cos(phase * 2 * .pi))
     }
 
     /// The text after the glyph: `Calculating… (22s · still thinking)` while

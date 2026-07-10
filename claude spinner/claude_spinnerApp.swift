@@ -50,21 +50,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 host.topAnchor.constraint(equalTo: button.topAnchor),
                 host.bottomAnchor.constraint(equalTo: button.bottomAnchor),
             ])
-            button.action = #selector(togglePopover)
+            button.action = #selector(handleClick)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
     }
 
-    @objc private func togglePopover() {
+    /// Left-click toggles the panel; right-click shows the settings menu.
+    @objc private func handleClick() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            if popover.isShown { popover.performClose(nil) }
+            showSettingsMenu()
+        } else {
+            togglePopover()
+        }
+    }
+
+    private func togglePopover() {
         guard let button = statusItem.button else { return }
         if popover.isShown {
             popover.performClose(nil)
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            // Make the popover key so its ⌘Q shortcut and the gear menu respond.
+            // Make the popover key so its ⌘Q shortcut responds.
             popover.contentViewController?.view.window?.makeKey()
         }
     }
+
+    private func showSettingsMenu() {
+        guard let button = statusItem.button else { return }
+        let menu = NSMenu()
+
+        let launch = NSMenuItem(title: "Launch at Login",
+                                action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launch.target = self
+        launch.state = feed.launchAtLogin ? .on : .off
+        menu.addItem(launch)
+
+        let clear = NSMenuItem(title: "Clear All Sessions",
+                               action: #selector(clearAllSessions), keyEquivalent: "")
+        clear.target = self
+        menu.addItem(clear)
+
+        menu.addItem(.separator())
+
+        let quit = NSMenuItem(title: "Quit claude spinner",
+                              action: #selector(quitApp), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+
+        menu.popUp(positioning: nil,
+                   at: NSPoint(x: 0, y: button.bounds.maxY + 4), in: button)
+    }
+
+    @objc private func toggleLaunchAtLogin() { feed.launchAtLogin.toggle() }
+    @objc private func clearAllSessions() { feed.clearAll() }
+    @objc private func quitApp() { NSApplication.shared.terminate(nil) }
 }
 
 /// The status-bar label: the animated spinner glyph plus the compact status
@@ -75,7 +116,7 @@ struct MenuBarLabel: View {
     @ObservedObject var feed: FeedWatcher
 
     var body: some View {
-        let color = feed.menuBarActive ? Color.claude : Color.claudeDim
+        let color = feed.menuBarActive ? Color.claudeBright : Color.claudeBright.opacity(0.8)
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
 
         // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
@@ -116,6 +157,9 @@ extension Color {
     static let claude = Color(red: 0.76, green: 0.42, blue: 0.24)
     /// Muted variant for the idle/done line — colored, but quieter than active.
     static let claudeDim = Color(red: 0.76, green: 0.42, blue: 0.24).opacity(0.65)
+    /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
+    /// against the translucent menu bar over any wallpaper.
+    static let claudeBright = Color(red: 0.98, green: 0.62, blue: 0.34)
 
     /// Urgency tint for a 0–100 usage percentage: quiet when there's headroom,
     /// amber past 75%, red past 90% — so a rate limit reads at a glance.
