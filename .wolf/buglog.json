@@ -1440,9 +1440,46 @@
         "context-usage",
         "menu-bar"
       ],
-      "related_bugs": ["bug-088"],
+      "related_bugs": [
+        "bug-088"
+      ],
       "occurrences": 1,
       "last_seen": "2026-07-10T09:40:00.000Z"
+    },
+    {
+      "id": "bug-090",
+      "timestamp": "2026-07-10T09:40:41.898Z",
+      "error_message": "Wrong reference: true should be false",
+      "file": "../../.claude/settings.json",
+      "root_cause": "Used \"true\" instead of \"false\"",
+      "fix": "Changed true → false",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T09:40:41.898Z"
+    },
+    {
+      "id": "bug-091",
+      "timestamp": "2026-07-10T09:45:00.000Z",
+      "error_message": "User: clicking a session opens a NEW window instead of focusing the one it's already running in (VS Code/Ghostty/Claude for Desktop)",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "SessionLauncher.focus's else-branch (VS Code, Ghostty, Claude for Desktop) called openPath(cwd, withBundleID:) -> `open -b <bundle> <cwd>` whenever cwd was non-empty, which is the normal case. `open -b` with a path always opens a NEW window for that folder even if one is already open; it only fell back to NSRunningApplication.activate() (focus existing) when cwd was empty. This is the same failure mode previously logged and believed fixed in bug-072/bug-073, but the fix never landed in this branch (or was overwritten by one of the many claude_spinnerApp.swift refactors logged since, e.g. bug-039/bug-041) -- the cwd-present path always launched fresh regardless of whether the app was already running.",
+      "fix": "Reordered the branch to check NSRunningApplication.runningApplications(withBundleIdentifier:).first and activate(options:[.activateAllWindows]) FIRST, unconditionally. Only falls through to openPath(cwd, withBundleID:) (or bare `open -b` with no path) when the app isn't running yet, so an already-open window is always focused instead of a duplicate being spawned.",
+      "tags": [
+        "swift",
+        "menubar",
+        "click-to-open",
+        "window-focus",
+        "vscode",
+        "regression"
+      ],
+      "related_bugs": ["bug-072", "bug-073"],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T09:45:00.000Z"
     }
   ]
 }

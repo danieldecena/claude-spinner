@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:36:28.410Z
-> Files: 30 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T09:42:29.536Z
+> Files: 32 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -16,6 +16,7 @@
 
 ## ../../.claude/
 
+- `settings.json` (~2481 tok)
 - `statusline-command.sh` — Claude Code status line — danieldecena (~1698 tok)
 
 ## ../../.claude/plans/
@@ -37,11 +38,12 @@
 - `.gitignore` — Git ignore rules (~24 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
 - `HANDOFF.md` — claude-spinner — Handoff (~1544 tok)
+- `STATUS.md` — STATUS (~15 tok)
 - `TASKS.md` — claude-spinner — Tasks (~979 tok)
 
 ## .claude/
 
-- `settings.json` (~441 tok)
+- `settings.json` (~462 tok)
 
 ## .claude/rules/
 
@@ -69,7 +71,7 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~5019 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6531 tok)
 - `FeedWatcher.swift` — FeedWatcher.swift (~14233 tok)
 - `MenuContentView.swift` — MenuContentView.swift (~7232 tok)
 

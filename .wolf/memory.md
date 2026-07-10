@@ -1058,3 +1058,24 @@
 | 02:37 | Session end: 7 writes across 3 files (var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md, FeedWatcher.swift, MenuContentView.swift) | 3 reads | ~21180 tok |
 | 02:37 | Session end: 7 writes across 3 files (var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md, FeedWatcher.swift, MenuContentView.swift) | 3 reads | ~21180 tok |
 | 09:40 | Fixed context-usage cylinder grid double-rounding vs displayed % | FeedWatcher.swift, MenuContentView.swift | fixed, logged bug-089 | ~5k |
+| 02:38 | Session end: 7 writes across 3 files (var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md, FeedWatcher.swift, MenuContentView.swift) | 3 reads | ~21180 tok |
+| 02:38 | Session end: 7 writes across 3 files (var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md, FeedWatcher.swift, MenuContentView.swift) | 3 reads | ~21180 tok |
+| 02:40 | Edited ../../.claude/settings.json | inline fix | ~14 |
+| 02:40 | Edited ../../.claude/settings.json | inline fix | ~14 |
+| 02:41 | Edited claude spinner/claude_spinnerApp.swift | 16→16 lines | ~216 |
+| 02:41 | Edited claude spinner/claude_spinnerApp.swift | 16→16 lines | ~216 |
+| 02:42 | Edited .claude/settings.json | 4→7 lines | ~27 |
+| 02:42 | Edited .claude/settings.json | 4→7 lines | ~27 |
+| 02:42 | Created STATUS.md | — | ~16 |
+| 02:42 | Created STATUS.md | — | ~16 |
+
+## Session: 2026-07-10 02:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-10 02:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:45 | Fixed SessionLauncher.focus opening new windows instead of focusing running app (VS Code/Ghostty/Claude Desktop) | claude_spinnerApp.swift | fixed, logged bug-091 | ~4k |

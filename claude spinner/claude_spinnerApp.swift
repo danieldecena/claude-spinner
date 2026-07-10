@@ -348,18 +348,18 @@ enum SessionLauncher {
             openPath(cwd, withBundleID: "com.googlecode.iterm2")
         } else {
             // VS Code, Ghostty, Claude for Desktop, etc.
-            if !cwd.isEmpty {
+            // Focus the running instance first — `open -b <bundle> <cwd>` always opens a
+            // NEW window for that folder even when one is already open, so only launch
+            // with a path when the app isn't running yet.
+            if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
+                app.activate(options: [.activateAllWindows])
+            } else if !cwd.isEmpty {
                 openPath(cwd, withBundleID: bundleID)
             } else {
-                // fallback to simple app activation
-                if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
-                    app.activate(options: [.activateAllWindows])
-                } else {
-                    let task = Process()
-                    task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-                    task.arguments = ["-b", bundleID]
-                    try? task.run()
-                }
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                task.arguments = ["-b", bundleID]
+                try? task.run()
             }
         }
     }
