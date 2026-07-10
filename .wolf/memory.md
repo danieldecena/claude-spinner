@@ -602,3 +602,5 @@
 | 23:48 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~74 |
 | 23:48 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~74 |
 | 00:20 | Lowercased menu-bar title (.textCase(.lowercase)) to match rows; strengthened stale-usage dim 0.6->0.5. Confirmed usage "stuck at 16%" = 93m-old snapshot, only source is 9b32ccf2, no live TUI statusLine writing (all work in VSCode which writes no statusLine) | claude_spinnerApp.swift, MenuContentView.swift | built+relaunched | ~2k |
+| 23:49 | Session end: 30 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~13162 tok |
+| 23:49 | Session end: 30 writes across 6 files (FeedWatcher.swift, MenuContentView.swift, testmain.swift, claude_spinnerApp.swift, claude_spinnerTests.swift) | 2 reads | ~13162 tok |
