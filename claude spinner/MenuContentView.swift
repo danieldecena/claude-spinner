@@ -159,8 +159,9 @@ struct UsageFooter: View {
                             if let pct = feed.usageContextPct,
                                let size = feed.usageContextSize {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 2) {
-                                        Text("⎿").font(.claudeMono(10))
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "cpu")
+                                            .font(.system(size: 9, weight: .bold))
                                         Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
                                     }
                                     .foregroundStyle(Color.secondary.opacity(0.8))
@@ -198,9 +199,9 @@ struct UsageFooter: View {
                                                     ForEach(0..<10, id: \.self) { c in
                                                         let idx = r * 10 + c
                                                         let isFilled = idx < filledCount
-                                                        Text(isFilled ? "⛁" : "⛶")
+                                                        Text("⛁")
                                                             .font(.claudeMono(10))
-                                                            .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.4))
+                                                            .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
                                                     }
                                                 }
                                                 .frame(width: 108, alignment: .leading)
