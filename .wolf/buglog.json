@@ -1232,6 +1232,86 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T01:00:00Z"
+    },
+    {
+      "id": "bug-077",
+      "timestamp": "2026-07-10T08:03:08.518Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// language as the gauges (capsule bars, each tinted by its; /// heights are normalized to the window's own min…max so a ",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T08:06:20.684Z"
+    },
+    {
+      "id": "bug-078",
+      "timestamp": "2026-07-10T08:04:15.991Z",
+      "error_message": "Significant refactor of ",
+      "file": "TASKS.md",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→3 lines (4 removed) | Also: - [ ] Usage sparkline — the poll ring buffer (`usa; need to draw the tiny trend line. Deferred: the 36",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-10T08:04:15.992Z"
+    },
+    {
+      "id": "bug-079",
+      "timestamp": "2026-07-10T08:09:08.780Z",
+      "error_message": "Wrong operator: ?? should be !=",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Used \"??\" instead of \"!=\"",
+      "fix": "Changed operator ?? → !=",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:09:08.780Z"
+    },
+    {
+      "id": "bug-080",
+      "timestamp": "2026-07-10T08:13:42.353Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→4 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T08:13:42.353Z"
+    },
+    {
+      "id": "bug-081",
+      "timestamp": "2026-07-10T08:16:15.648Z",
+      "error_message": "Wrong reference: 360 should be 400",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Used \"360\" instead of \"400\"",
+      "fix": "Changed 360 → 400",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-07-10T08:20:24.352Z"
     }
   ]
 }

@@ -83,14 +83,14 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     if feed.hasUsage {
                         // Dim the numbers when stale so a frozen snapshot doesn't
                         // read as live; the "as of" time is in the tooltip.
                         Group {
                             if let model = feed.globalModelFamily {
                                 Text(model)
-                                    .font(.claudeMono(11)).fontWeight(.semibold)
+                                    .font(.claudeMono(10)).fontWeight(.semibold)
                                     .foregroundStyle(Color.modelTint(feed.globalModel))
                                     .fixedSize()
                             }
@@ -99,6 +99,10 @@ struct UsageFooter: View {
                             }
                             if let d7 = feed.usageSevenDayPct {
                                 UsageGauge(label: "7d", pct: d7)
+                            }
+                            // Recent 5h change, once there are ≥2 poll samples.
+                            if let trend = feed.usageFiveHourTrend {
+                                TrendGauge(delta: trend)
                             }
                         }
                         // Dim when stale so a frozen snapshot doesn't read as live;
@@ -118,8 +122,8 @@ struct UsageFooter: View {
                                 // takes the slot when present — usage is stale or
                                 // blocked, so a reset countdown would mislead.
                                 HStack(spacing: 2) {
-                                    Text("!").font(.claudeMono(11)).fontWeight(.bold)
-                                    Text(notice).font(.claudeMono(11))
+                                    Text("!").font(.claudeMono(10)).fontWeight(.bold)
+                                    Text(notice).font(.claudeMono(10))
                                 }
                                 .foregroundStyle(Color.usageTint(95))
                                 .fixedSize()
@@ -128,8 +132,8 @@ struct UsageFooter: View {
                                 // Live countdown (both reset formats don't fit one row
                                 // at 360px); the reset clock times are in the tooltip.
                                 HStack(spacing: 2) {
-                                    Text("↺").font(.claudeMono(10))
-                                    Text(rel).font(.claudeMono(11)).monospacedDigit()
+                                    Text("↺").font(.claudeMono(9))
+                                    Text(rel).font(.claudeMono(10)).monospacedDigit()
                                 }
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .help(feed.usageResetTooltip)
@@ -158,13 +162,13 @@ struct UsageGauge: View {
     let label: String
     let pct: Int
 
-    private let trackWidth: CGFloat = 32
+    private let trackWidth = Constants.usageTrackWidth
     private let trackHeight: CGFloat = 5
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Text(label)
-                .font(.claudeMono(11))
+                .font(.claudeMono(10))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -179,11 +183,54 @@ struct UsageGauge: View {
                            height: trackHeight)
             }
             Text("\(pct)%")
-                .font(.claudeMono(11)).monospacedDigit()
+                .font(.claudeMono(10)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
                 .fixedSize()
         }
         .help("\(label == "5h" ? "5-hour" : "7-day") usage \(pct)%")
+    }
+}
+
+/// A capsule gauge in the same language as `UsageGauge`, showing the recent
+/// *change* in 5h utilization rather than an absolute level: how far it moved
+/// across the sample window, signed. Rising usage tints warm (heading toward the
+/// limit); falling tints green; the fill length is the magnitude (a 20-point
+/// move fills the track).
+struct TrendGauge: View {
+    let delta: Int
+
+    private let trackWidth = Constants.usageTrackWidth
+    private let trackHeight: CGFloat = 5
+    private let fullScale: CGFloat = 20  // points of change that fill the track
+
+    private var tint: Color {
+        if delta > 0 { return Color(red: 0.90, green: 0.58, blue: 0.24) }  // amber: rising
+        if delta < 0 { return Color(red: 0.45, green: 0.70, blue: 0.45) }  // green: falling
+        return Color.secondary
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("chg")
+                .font(.claudeMono(10))
+                .foregroundStyle(Color.secondary)
+                .fixedSize()
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.22))
+                    .frame(width: trackWidth, height: trackHeight)
+                Capsule()
+                    .fill(tint)
+                    .frame(width: max(delta != 0 ? 3 : 0,
+                                      trackWidth * min(fullScale, CGFloat(abs(delta))) / fullScale),
+                           height: trackHeight)
+            }
+            Text("\(delta > 0 ? "+" : "")\(delta)%")
+                .font(.claudeMono(10)).monospacedDigit()
+                .foregroundStyle(tint)
+                .fixedSize()
+        }
+        .help("5h usage change over recent polls")
     }
 }
 

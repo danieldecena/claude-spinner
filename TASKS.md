@@ -4,10 +4,6 @@
 
 Remaining open items:
 
-- [ ] Usage sparkline — the poll ring buffer (`usageHistory`) is persisted; still
-      need to draw the tiny trend line. Deferred: the 360px footer is full
-      (model + 5h + 7d + countdown), so it needs a second thin row or a layout
-      rethink before it fits without crowding.
 - [ ] First-run one-click fix — the panel now *detects* missing hooks and shows a
       "Setup needed" hint; an actual installer that edits `~/.claude/settings.json`
       is still open (kept manual to avoid clobbering user config).

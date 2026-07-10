@@ -850,3 +850,58 @@
 | 00:58 | Edited claude spinner/FeedWatcher.swift | poll() → overage() | ~136 |
 | 00:58 | Edited claude spinner/FeedWatcher.swift | poll() → overage() | ~136 |
 | 01:00 | FIXED footer false "! blocked" at 83% usage — anthropic-ratelimit-unified-overage-status:"rejected" is the NORMAL setting for plans that disallow overage (Max), not a block. usageOverageBlocked now requires a window >=100% AND rejected; below the limit the reset countdown shows instead. Verified live via popover screenshot (osascript click menu bar item + screencapture) | FeedWatcher.swift | build OK | ~2k |
+| 00:59 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 00:59 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 01:00 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 01:00 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 01:00 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 01:00 | Session end: 80 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 13 reads | ~47311 tok |
+| 01:02 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~92 |
+| 01:02 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~92 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~370 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~370 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~329 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~329 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~84 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~84 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~86 |
+| 01:03 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~86 |
+| 01:04 | Edited TASKS.md | 7→3 lines | ~28 |
+| 01:04 | Edited TASKS.md | 7→3 lines | ~28 |
+| 01:04 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~282 |
+| 01:04 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~282 |
+| 01:06 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~397 |
+| 01:06 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~397 |
+| 01:08 | Edited claude spinner/FeedWatcher.swift | modified window() | ~126 |
+| 01:08 | Edited claude spinner/FeedWatcher.swift | modified window() | ~126 |
+| 01:09 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~459 |
+| 01:09 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~459 |
+| 01:09 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~63 |
+| 01:09 | Edited claude spinner/MenuContentView.swift | 4→4 lines | ~63 |
+| 01:11 | Edited claude spinner/FeedWatcher.swift | 1→4 lines | ~67 |
+| 01:11 | Edited claude spinner/FeedWatcher.swift | 1→4 lines | ~67 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~90 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~90 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | 5→5 lines | ~53 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | 5→5 lines | ~53 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~46 |
+| 01:12 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~46 |
+| 01:13 | Edited claude spinner/FeedWatcher.swift | 3→4 lines | ~76 |
+| 01:13 | Edited claude spinner/FeedWatcher.swift | 3→4 lines | ~76 |
+| 01:16 | Edited claude spinner/FeedWatcher.swift | 360 → 400 | ~11 |
+| 01:16 | Edited claude spinner/FeedWatcher.swift | 360 → 400 | ~11 |
+| 01:16 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~74 |
+| 01:16 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~74 |
+| 01:16 | Session end: 102 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~50963 tok |
+| 01:16 | Session end: 102 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~50963 tok |
+| 01:17 | Edited claude spinner/FeedWatcher.swift | 400 → 380 | ~11 |
+| 01:17 | Edited claude spinner/FeedWatcher.swift | 400 → 380 | ~11 |
+| 01:19 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~72 |
+| 01:19 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~72 |
+| 01:20 | Edited claude spinner/FeedWatcher.swift | 380 → 360 | ~11 |
+| 01:20 | Edited claude spinner/FeedWatcher.swift | 380 → 360 | ~11 |
+| 01:20 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~77 |
+| 01:20 | Edited claude spinner/FeedWatcher.swift | 4→4 lines | ~77 |
+| 01:20 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~51228 tok |
+| 01:20 | Session end: 107 writes across 11 files (claude_spinnerApp.swift, MenuContentView.swift, build.sh, FeedWatcher.swift, hello-sorted-token.md) | 19 reads | ~51228 tok |
+| 01:20 | Footer trend: added "chg" capsule gauge (5h delta over the sample window, usageFiveHourTrend = last-first of usageHistory; +amber/-green, 20pt fills). Replaced the vertical-bars Sparkline (removed). Compacted footer fonts 11->10, shared Constants.usageTrackWidth for all 3 gauges. Width/fit iteration (user): 360->400 (off screen) -> 380 -> back to 360 w/ track 22 so model+5h+7d+chg+countdown fit. VERIFIED usage data live via OAuth poll: 5h 0.89=89%, 7d 0.16=16%, chg +10% (79->89) all correct; 5h-status "allowed" at 89% confirms bug-073 gate (block only >=100%) is right; overage-disabled-reason=out_of_credits present. Harness 28 ALL PASS | FeedWatcher.swift, MenuContentView.swift | build+harness OK | ~6k |

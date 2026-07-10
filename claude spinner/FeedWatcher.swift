@@ -33,6 +33,10 @@ enum Constants {
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
     static let rowTrailingSlot: CGFloat = 26
+    /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
+    /// identical in size, kept short enough that the model name, all three gauges,
+    /// and the reset countdown fit within the 360px panel without clipping.
+    static let usageTrackWidth: CGFloat = 22
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
     /// …then fade to `idleMinOpacity` linearly over this span.
@@ -807,6 +811,15 @@ final class FeedWatcher: ObservableObject {
     var usageFiveHourReset: String? { Self.formatReset(fiveHourResetsAt) }
     /// The 5h reset as a relative countdown, e.g. "3h29m".
     var usageFiveHourResetRelative: String? { Self.formatResetRelative(fiveHourResetsAt) }
+
+    /// Signed change in 5h utilization across the retained sample window (~2.5h at
+    /// a 5m poll): how many points it has climbed (+) or fallen (−). nil until
+    /// there are ≥2 samples to compare.
+    var usageFiveHourTrend: Int? {
+        guard usageHistory.count >= 2, let first = usageHistory.first, let last = usageHistory.last
+        else { return nil }
+        return last - first
+    }
 
     /// The 7d window's reset instant (only the poller carries it).
     private var sevenDayResetsAt: Double? { pollUsage?.sevenDayResetsAt }
