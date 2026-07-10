@@ -176,47 +176,42 @@ struct UsageFooter: View {
                                             }
                                         }
                                         
-                                        Text(infoText)
-                                            .font(.claudeMono(10))
-                                            .foregroundStyle(Color.secondary.opacity(0.8))
-                                            .lineLimit(1)
-                                            .textCase(.lowercase)
-                                            .padding(.top, 2)
+                                        HStack(spacing: 0) {
+                                            Text(infoText)
+                                                .font(.claudeMono(9.5))
+                                                .foregroundStyle(Color.secondary.opacity(0.8))
+                                            
+                                            Spacer(minLength: 12)
+                                            
+                                            if let notice = feed.usageNotice {
+                                                HStack(spacing: 2) {
+                                                    Text("!").font(.claudeMono(9)).fontWeight(.bold)
+                                                    Text(notice).font(.claudeMono(9.5))
+                                                }
+                                                .foregroundStyle(Color.usageTint(95))
+                                                .help(feed.usageNoticeDetail)
+                                            } else {
+                                                HStack(spacing: 3) {
+                                                    Text("↺").font(.claudeMono(9))
+                                                    if let clock = feed.usageFiveHourReset {
+                                                        Text("resets \(clock)")
+                                                            .font(.claudeMono(9.5))
+                                                    }
+                                                    if let rel = feed.usageFiveHourResetRelative {
+                                                        Text("· in \(rel)")
+                                                            .font(.claudeMono(9.5)).monospacedDigit()
+                                                    }
+                                                }
+                                                .foregroundStyle(Color.secondary.opacity(0.75))
+                                                .help(feed.usageResetTooltip)
+                                            }
+                                        }
+                                        .textCase(.lowercase)
+                                        .padding(.top, 2)
                                     }
                                     .padding(.top, 2)
                                 }
                             }
-
-                            // Row 3 (previously 2): resets countdowns / notices
-                            HStack(spacing: 0) {
-                                if let notice = feed.usageNotice {
-                                    // An urgent poller note (auth expired / out of credits)
-                                    // takes the slot when present — usage is stale or
-                                    // blocked, so a reset countdown would mislead.
-                                    HStack(spacing: 2) {
-                                        Text("!").font(.claudeMono(9)).fontWeight(.bold)
-                                        Text(notice).font(.claudeMono(10))
-                                    }
-                                    .foregroundStyle(Color.usageTint(95))
-                                    .help(feed.usageNoticeDetail)
-                                } else {
-                                    HStack(spacing: 3) {
-                                        Text("↺").font(.claudeMono(9))
-                                        if let clock = feed.usageFiveHourReset {
-                                            Text("resets \(clock)")
-                                                .font(.claudeMono(10))
-                                        }
-                                        if let rel = feed.usageFiveHourResetRelative {
-                                            Text("· in \(rel)")
-                                                .font(.claudeMono(10)).monospacedDigit()
-                                        }
-                                    }
-                                    .foregroundStyle(Color.secondary.opacity(0.75))
-                                    .help(feed.usageResetTooltip)
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.top, 2)
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
