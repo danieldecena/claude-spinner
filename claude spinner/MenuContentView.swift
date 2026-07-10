@@ -85,9 +85,9 @@ struct UsageFooter: View {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 VStack(alignment: .leading, spacing: 6) {
                     // Row 1: Always visible gauges + toggle chevron
-                    HStack(spacing: 14) {
+                    HStack(spacing: 0) {
                         if feed.hasUsage {
-                            Group {
+                            HStack(spacing: 12) {
                                 if let h5 = feed.usageFiveHourPct {
                                     UsageGauge(label: "5h", pct: h5)
                                 }
@@ -109,7 +109,7 @@ struct UsageFooter: View {
                                 .foregroundStyle(Color.secondary.opacity(0.6))
                         }
                         
-                        Spacer(minLength: 3)
+                        Spacer(minLength: 4)
                         
                         // Toggle Button with chevron (Image + onTapGesture to prevent focus highlighting)
                         Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
