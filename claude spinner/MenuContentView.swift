@@ -427,13 +427,16 @@ struct SessionRow: View {
         case .tool:
             return session.tool.isEmpty ? "running" : "running \(session.tool)"
         case .thinking:
-            return "thinking"
+            return SpinnerWords.word(for: session)
         case .attention:
             // One word, same vocabulary as the menu-bar title — the full hook
             // message ("Claude is waiting for your input") only truncates anyway.
             return AttentionWords.word(for: session)
         case .idle:
-            return session.lastDuration != nil ? "done" : "idle"
+            if session.lastDuration != nil {
+                return SpinnerWords.pastWord(for: session)
+            }
+            return "idle"
         }
     }
 
