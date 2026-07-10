@@ -1,7 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T06:25:05.282Z
-> Files: 23 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T06:38:07.633Z
+> Files: 24 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/
+
+- `testmain.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~926 tok)
 
 ## ../../.claude/
 
@@ -56,9 +60,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3345 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~7137 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~3974 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~3235 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~7877 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~4244 tok)
 
 ## claude spinner/Assets.xcassets/
 
@@ -74,7 +78,7 @@
 
 ## claude spinnerTests/
 
-- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~617 tok)
+- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~1674 tok)
 
 ## claude spinnerUITests/
 

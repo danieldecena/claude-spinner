@@ -2,9 +2,12 @@
 
 ## Tasks
 
-- [ ] More tests: usageTint/contextTint tiers, displayItems grouping, menuBarState transitions (extract derivations to take `[SessionFeed]` for testability).
 
 ## Completed
+
+- [x] Testability seam + tests: extracted static displayItems/menuBarState/sorted over [SessionFeed]; swiftc harness + XCTest (usageTint tiers, grouping, menuBarState transitions)
+- [x] Footer stale-usage freshness indicator (dim + "Xm old" + as-of tooltip)
+- [x] Times right-aligned in their own column; row text lowercased; removed per-row context %
 
 - [x] Unify attention text color — attention tint/statusColor now `.claude`; the orange background wash carries "needs you" without a second, redundant orange
 - [x] Footer: show both reset formats — two-line footer, clock time + countdown (`↺ resets 2:00 AM · in 3h29m`)

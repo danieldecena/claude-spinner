@@ -36,6 +36,9 @@ enum Constants {
     /// After a turn finishes, the menu title flashes the past-tense word for this
     /// long, then goes quiet grey.
     static let doneFlashDuration: TimeInterval = 5
+    /// Usage older than this is flagged stale in the footer — no statusLine session
+    /// has refreshed it recently (the only source of the 5h/7d percentages).
+    static let usageStaleAfter: TimeInterval = 15 * 60
 }
 
 /// What the menu-bar title displays: live activity, or the 5h usage limit.
@@ -439,10 +442,18 @@ final class FeedWatcher: ObservableObject {
     }
 
     /// The current menu-bar presentation state (drives label text, color, motion).
-    var menuBarState: MenuBarState {
-        if attentionCount > 0 { return .attention }
-        if workingCount > 0 { return .working }
-        if justFinished != nil { return .doneFlash }
+    var menuBarState: MenuBarState { Self.menuBarState(for: sessions, now: Date()) }
+
+    /// Pure derivation of the menu-bar state — extracted so its transitions are
+    /// unit-testable without I/O. Attention wins, then working, then a just-finished
+    /// turn's done-flash, else idle.
+    static func menuBarState(for sessions: [SessionFeed], now: Date) -> MenuBarState {
+        if sessions.contains(where: { $0.status == .attention }) { return .attention }
+        if sessions.contains(where: { $0.isWorking }) { return .working }
+        let cutoff = now.addingTimeInterval(-Constants.doneFlashDuration)
+        if sessions.contains(where: {
+            $0.status == .idle && $0.lastDuration != nil && ($0.updated ?? .distantPast) > cutoff
+        }) { return .doneFlash }
         return .idle
     }
 
@@ -476,15 +487,18 @@ final class FeedWatcher: ObservableObject {
     }
 
     /// Most-urgent first: attention, then working, then idle; newest within each.
-    var sortedSessions: [SessionFeed] {
+    var sortedSessions: [SessionFeed] { Self.sorted(sessions) }
+
+    /// Pure sort used by the row list — extracted so it's unit-testable without I/O.
+    static func sorted(_ sessions: [SessionFeed]) -> [SessionFeed] {
         sessions.sorted { a, b in
-            if rank(a) != rank(b) { return rank(a) < rank(b) }
+            if rank(a.status) != rank(b.status) { return rank(a.status) < rank(b.status) }
             return (a.updated ?? .distantPast) > (b.updated ?? .distantPast)
         }
     }
 
-    private func rank(_ s: SessionFeed) -> Int {
-        switch s.status {
+    static func rank(_ status: SessionStatus) -> Int {
+        switch status {
         case .attention: return 0
         case .thinking, .tool: return 1
         case .idle: return 2
@@ -495,11 +509,16 @@ final class FeedWatcher: ObservableObject {
     /// (both just-finished "done" and never-worked) collapsed by directory into one
     /// row with a count, so a stack of finished `claude-spinner done` sessions reads
     /// as a single `claude-spinner done · 2m 56s ×3` on the freshest of the group.
-    var displayItems: [SessionRowItem] {
+    var displayItems: [SessionRowItem] { Self.displayItems(from: sessions) }
+
+    /// Pure row-grouping used by the panel — extracted so grouping is unit-testable
+    /// without I/O. Attention/working sessions stay individual; idle ones (done and
+    /// never-worked) collapse by directory onto the freshest, with a count.
+    static func displayItems(from sessions: [SessionFeed]) -> [SessionRowItem] {
         var items: [SessionRowItem] = []
         var idleByDir: [String: [SessionFeed]] = [:]
         var dirOrder: [String] = []
-        for s in sortedSessions {
+        for s in sorted(sessions) {
             if s.status == .idle {
                 if idleByDir[s.cwd] == nil { dirOrder.append(s.cwd) }
                 idleByDir[s.cwd, default: []].append(s)
@@ -535,6 +554,36 @@ final class FeedWatcher: ObservableObject {
     /// with the clock time so the second line reads "resets 2:00 AM · in 3h29m".
     var usageFiveHourResetRelative: String? {
         Self.formatResetRelative(usageSession?.fiveHourResetsAt ?? cachedUsage?.fiveHourResetsAt)
+    }
+
+    /// When the shown usage was last refreshed — the freshest live source's update
+    /// time, else the persisted snapshot's save time.
+    var usageUpdatedAt: Date? {
+        usageSession?.updated ?? cachedUsage.map { Date(timeIntervalSince1970: $0.savedAt) }
+    }
+    /// True when the shown usage is old enough to flag: account usage only refreshes
+    /// via a statusLine render, so a long gap means the numbers may be behind.
+    var usageIsStale: Bool {
+        guard let t = usageUpdatedAt else { return false }
+        return Date().timeIntervalSince(t) > Constants.usageStaleAfter
+    }
+    /// Compact freshness for the footer, e.g. "3m" / "1h20m", or nil if unknown.
+    var usageAgeString: String? {
+        usageUpdatedAt.map { Self.compactAge(since: $0) }
+    }
+    /// Tooltip line, e.g. "Usage as of 10:14 PM".
+    var usageAsOfString: String {
+        guard let t = usageUpdatedAt else { return "No usage data yet" }
+        return "Usage as of \(Self.resetTimeFormatter.string(from: t))"
+    }
+
+    /// "45s" / "12m" / "1h20m" elapsed since `date`.
+    static func compactAge(since date: Date, now: Date = Date()) -> String {
+        let s = max(0, Int(now.timeIntervalSince(date)))
+        if s < 60 { return "\(s)s" }
+        if s < 3600 { return "\(s / 60)m" }
+        let h = s / 3600, m = (s % 3600) / 60
+        return m > 0 ? "\(h)h\(m)m" : "\(h)h"
     }
 
     /// The wall-clock time the 5h window resets, e.g. "2:00 AM" (respects the

@@ -66,17 +66,31 @@ struct UsageFooter: View {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 HStack(spacing: 10) {
                     if feed.hasUsage {
-                        if let model = feed.globalModelFamily {
-                            Text(model)
-                                .font(.claudeMono(11)).fontWeight(.semibold)
-                                .foregroundStyle(Color.modelTint(feed.globalModel))
+                        // Dim the numbers when stale so a frozen snapshot doesn't
+                        // read as live; the "as of" time is in the tooltip.
+                        Group {
+                            if let model = feed.globalModelFamily {
+                                Text(model)
+                                    .font(.claudeMono(11)).fontWeight(.semibold)
+                                    .foregroundStyle(Color.modelTint(feed.globalModel))
+                                    .fixedSize()
+                            }
+                            if let h5 = feed.usageFiveHourPct {
+                                UsageGauge(label: "5h", pct: h5)
+                            }
+                            if let d7 = feed.usageSevenDayPct {
+                                UsageGauge(label: "7d", pct: d7)
+                            }
+                        }
+                        .opacity(feed.usageIsStale ? 0.6 : 1)
+                        .help(feed.usageAsOfString)
+
+                        if feed.usageIsStale, let age = feed.usageAgeString {
+                            Text("\(age) old")
+                                .font(.claudeMono(10))
+                                .foregroundStyle(Color.secondary.opacity(0.8))
                                 .fixedSize()
-                        }
-                        if let h5 = feed.usageFiveHourPct {
-                            UsageGauge(label: "5h", pct: h5)
-                        }
-                        if let d7 = feed.usageSevenDayPct {
-                            UsageGauge(label: "7d", pct: d7)
+                                .help(feed.usageAsOfString)
                         }
 
                         Spacer(minLength: 8)
@@ -174,7 +188,7 @@ struct SessionRow: View {
                     .foregroundStyle(Color.secondary)
             }
 
-            Text(statusText)
+            Text(statusLabel)
                 .font(.claudeMono(12))
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
@@ -182,9 +196,19 @@ struct SessionRow: View {
 
             Spacer(minLength: 6)
 
-            // Fixed trailing slot so ctx% aligns across rows and the hover ✕ never
-            // squeezes the activity text.
-            Group {
+            // Elapsed / waiting / done time in its own right-aligned column so the
+            // times line up down the panel, independent of the activity label width.
+            if !timeText.isEmpty {
+                Text(timeText)
+                    .font(.claudeMono(11))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.secondary)
+            }
+
+            // Trailing hover-only clear button. A clear spacer holds the slot width
+            // at all times, so the time column never shifts when the ✕ appears.
+            ZStack(alignment: .trailing) {
+                Color.clear.frame(width: 14, height: 1)
                 if hover.isHovering {
                     Button {
                         feed.clear(item)
@@ -194,15 +218,12 @@ struct SessionRow: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(Color.secondary)
-                } else if let ctx = session.contextPct {
-                    Text("\(ctx)%")
-                        .font(.claudeMono(11))
-                        .foregroundStyle(Color.contextTint(ctx))
-                        .help("Context window \(ctx)% full")
                 }
             }
-            .frame(width: 34, alignment: .trailing)
         }
+        // Everything in a row renders lowercase — including hook-supplied text like
+        // the attention message and tool names — for one consistent visual voice.
+        .textCase(.lowercase)
         .padding(.horizontal, 14).padding(.vertical, 8)
         .opacity(rowOpacity)
         .background(rowHighlight)
@@ -217,7 +238,7 @@ struct SessionRow: View {
             Button("Clear") { feed.clear(item) }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(session.projectName), \(statusText)")
+        .accessibilityLabel("\(session.projectName), \(statusLabel) \(timeText)")
         .accessibilityHint("Opens this session's app")
     }
 
@@ -318,42 +339,42 @@ struct SessionRow: View {
         }
     }
 
-    /// The concrete activity, not the whimsical spinner word (that lives in the
-    /// menu title): `running Bash · 4m 57s`, `thinking · 22s`, `done · 5m 18s`.
-    private var statusText: String {
+    /// The concrete activity word, without the time (which lives in its own
+    /// right-aligned column): `running Bash`, `thinking`, `done`, or the message.
+    private var statusLabel: String {
         switch session.status {
         case .tool:
-            let what = session.tool.isEmpty ? "running" : "running \(session.tool)"
-            return "\(what)\(elapsedSuffix)"
+            return session.tool.isEmpty ? "running" : "running \(session.tool)"
         case .thinking:
-            return "thinking\(elapsedSuffix)"
+            return "thinking"
         case .attention:
-            // Lead with how long it's been waiting so a fresh pause reads apart
-            // from a stuck one; the time survives truncation, the message trails.
-            let msg = session.message.isEmpty ? "waiting for you" : session.message
-            return waitingSuffix.isEmpty ? msg : "\(waitingSuffix) · \(msg)"
+            return session.message.isEmpty ? "waiting for you" : session.message
         case .idle:
-            if let dur = session.lastDuration {
-                return "done · \(FeedWatcher.formatDuration(dur))"
-            }
-            return idleSuffix.isEmpty ? "idle" : "idle · \(idleSuffix)"
+            return session.lastDuration != nil ? "done" : "idle"
         }
     }
 
-    /// ` · 4m 57s` elapsed since the turn started, or empty if not in a turn.
-    private var elapsedSuffix: String {
-        guard let start = session.turnStart else { return "" }
-        let elapsed = max(0, Int(now.timeIntervalSince(start)))
-        return " · \(FeedWatcher.formatDuration(elapsed))"
+    /// The time shown right-aligned at the end of the row: elapsed in-turn while
+    /// working, how long it's been waiting for attention, the finished turn's
+    /// duration when done, or how long idle. Empty when there's nothing to show.
+    private var timeText: String {
+        switch session.status {
+        case .tool, .thinking:
+            guard let start = session.turnStart else { return "" }
+            return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(start))))
+        case .attention:
+            return sinceUpdated
+        case .idle:
+            if let dur = session.lastDuration { return FeedWatcher.formatDuration(dur) }
+            return sinceUpdated
+        }
     }
 
-    /// How long since the session last changed — used to show waiting/idle age.
+    /// How long since the session last changed — used for waiting/idle age.
     private var sinceUpdated: String {
         guard let updated = session.updated else { return "" }
         return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(updated))))
     }
-    private var waitingSuffix: String { sinceUpdated }
-    private var idleSuffix: String { sinceUpdated }
 }
 
 class HoverState: ObservableObject {

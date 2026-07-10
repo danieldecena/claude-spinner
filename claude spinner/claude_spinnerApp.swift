@@ -250,14 +250,6 @@ extension Color {
         }
     }
 
-    /// Tint for a context-window percentage in a row: quiet until it's filling,
-    /// amber past 65%, red past 85% (running out of context is disruptive early).
-    static func contextTint(_ pct: Int) -> Color {
-        if pct >= 85 { return Color(red: 0.85, green: 0.32, blue: 0.28) }  // red
-        if pct >= 65 { return Color(red: 0.90, green: 0.58, blue: 0.24) }  // amber
-        return .claudeDim
-    }
-
     /// Model-family accent, matching the statusLine's color language.
     static func modelTint(_ name: String?) -> Color {
         guard let n = name?.lowercased() else { return .claudeDim }

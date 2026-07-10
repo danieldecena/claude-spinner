@@ -531,3 +531,50 @@
 | 23:25 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~26 |
 | 23:25 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~26 |
 | 23:46 | Uniformity pass: fix footer "7d"->"…" truncation (fixedSize on gauge label/%/model); unify fonts to 11; dividers full-width opacity 0.5 everywhere; row meta ×N/✕ .claudeDim->.secondary to match footer greys; gauge track 32px/0.22. Recommended AGAINST focus-based row reorder (jumpy + host!=session) | MenuContentView.swift | built+signed+relaunched | ~3k |
+| 23:25 | Session end: 58 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 3 reads | ~15859 tok |
+| 23:25 | Session end: 58 writes across 5 files (TASKS.md, HANDOFF.md, claude_spinnerApp.swift, MenuContentView.swift, FeedWatcher.swift) | 3 reads | ~15859 tok |
+
+## Session: 2026-07-10 23:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-10 23:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 23:27 | Edited claude spinner/FeedWatcher.swift | 4→7 lines | ~104 |
+| 23:27 | Edited claude spinner/FeedWatcher.swift | 4→7 lines | ~104 |
+| 23:27 | Edited claude spinner/FeedWatcher.swift | modified compactAge() | ~410 |
+| 23:27 | Edited claude spinner/FeedWatcher.swift | modified compactAge() | ~410 |
+| 23:28 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~407 |
+| 23:28 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~407 |
+| 23:28 | Edited claude spinner/FeedWatcher.swift | modified sorted() | ~192 |
+| 23:28 | Edited claude spinner/FeedWatcher.swift | modified sorted() | ~192 |
+| 23:28 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~238 |
+| 23:28 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~238 |
+| 23:29 | Edited claude spinner/FeedWatcher.swift | modified displayItems() | ~309 |
+| 23:29 | Edited claude spinner/FeedWatcher.swift | modified displayItems() | ~309 |
+| 23:30 | Created ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/testmain.swift | — | ~926 |
+| 23:30 | Created ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/testmain.swift | — | ~926 |
+| 23:31 | Edited claude spinner/claude_spinnerApp.swift | modified contextTint() | ~134 |
+| 23:31 | Edited claude spinner/claude_spinnerApp.swift | modified contextTint() | ~134 |
+| 23:31 | Edited claude spinnerTests/claude_spinnerTests.swift | modified mk() | ~131 |
+| 23:31 | Edited claude spinnerTests/claude_spinnerTests.swift | modified mk() | ~131 |
+| 23:31 | Edited claude spinnerTests/claude_spinnerTests.swift | added optional chaining | ~1182 |
+| 23:31 | Edited claude spinnerTests/claude_spinnerTests.swift | added optional chaining | ~1182 |
+| 23:32 | Edited claude spinner/MenuContentView.swift | word() → time() | ~420 |
+| 23:32 | Edited claude spinner/MenuContentView.swift | word() → time() | ~420 |
+| 23:33 | Edited claude spinner/MenuContentView.swift | expanded (+9 lines) | ~201 |
+| 23:33 | Edited claude spinner/MenuContentView.swift | expanded (+9 lines) | ~201 |
+| 23:34 | Edited claude spinner/MenuContentView.swift | modified Button() | ~243 |
+| 23:34 | Edited claude spinner/MenuContentView.swift | modified Button() | ~243 |
+| 23:36 | Edited claude spinner/MenuContentView.swift | 20→15 lines | ~160 |
+| 23:36 | Edited claude spinner/MenuContentView.swift | 20→15 lines | ~160 |
+| 23:37 | Edited claude spinner/MenuContentView.swift | modified ZStack() | ~179 |
+| 23:37 | Edited claude spinner/MenuContentView.swift | modified ZStack() | ~179 |
+| 23:37 | Edited claude spinner/claude_spinnerApp.swift | removed 10 lines | ~19 |
+| 23:37 | Edited claude spinner/claude_spinnerApp.swift | removed 10 lines | ~19 |
+| 23:38 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageTintTiers() | ~180 |
+| 23:38 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageTintTiers() | ~180 |
+| 23:56 | Big batch: stale-usage freshness (usageIsStale/AgeString/AsOfString + footer "Xm old" + dim); testability seam (static displayItems/menuBarState/sorted over [SessionFeed]); tests (swiftc harness 17 asserts ALL PASS + XCTest incl usageTint tiers); times -> right-aligned column (statusLabel/timeText split); row .textCase(.lowercase); removed per-row ctx% + contextTint (dead); fixed time-shift-on-hover via always-reserved ZStack slot | FeedWatcher.swift, MenuContentView.swift, claude_spinnerApp.swift, tests | typecheck+harness+build OK | ~8k |
