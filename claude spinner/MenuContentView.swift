@@ -304,7 +304,7 @@ struct SessionRow: View {
     private var session: SessionFeed { item.session }
 
     var body: some View {
-        // One line: [glyph] project-name ×N  status…time   ctx%
+        // One line: [glyph] project-name ×N  model  status…  ctx%  time  [chip]
         HStack(spacing: 5) {
             Text(glyph)
                 .font(.claudeMono(12))
@@ -340,14 +340,22 @@ struct SessionRow: View {
             }
             .frame(width: 42, alignment: .leading)
 
-            // Column 3: Status / Activity (flexible width, truncating if necessary).
-            Text(statusLabel)
-                .font(.claudeMono(10))
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: 4)
+            // Column 3: Status / Activity (flexible width, truncating if necessary),
+            // with the working-dots attached to the word they belong to. The
+            // maxWidth frame — not a Spacer — pushes the trailing columns right.
+            HStack(spacing: 0) {
+                Text(statusLabel)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                // A fixed slot: the dots grow and shrink every 0.5s, and letting that
+                // reflow the status text would make its truncation flicker in time
+                // with them. Reserved even at rest so the column edge never moves.
+                Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
+                    .frame(width: 12, alignment: .leading)
+            }
+            .font(.claudeMono(10))
+            .foregroundStyle(statusColor)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Time + host chip travel together as one right-flush unit with a tight
             // gap, so the time stays near the right edge with the tag just after it.
@@ -361,20 +369,14 @@ struct SessionRow: View {
                     .foregroundStyle(contextColor)
                     .frame(width: 30, alignment: .trailing)
 
-                // Elapsed / waiting / done time in a fixed-width column so the
-                // times line up down the panel regardless of label. Right-aligned
-                // normally; the animated working-dots use leading alignment
-                // instead, so a new dot appends on the right (growing naturally)
-                // rather than on the left, which a right-aligned fixed frame would
-                // otherwise produce as the string lengthens.
-                if !timeText.isEmpty {
-                    Text(timeText)
-                        .font(.claudeMono(10))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .foregroundStyle(isAnimatingDots ? Color.secondary.opacity(0.4) : Color.secondary)
-                        .frame(width: isAnimatingDots ? 14 : 44, alignment: isAnimatingDots ? .leading : .trailing)
-                }
+                // Elapsed / waiting / done time in a fixed-width column so the times
+                // line up down the panel regardless of label.
+                Text(timeText)
+                    .font(.claudeMono(10))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .foregroundStyle(Color.secondary)
+                    .frame(width: 44, alignment: .trailing)
 
                 // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
                 // an ✕ clear button on hover so a session can be dismissed in place.
@@ -533,9 +535,8 @@ struct SessionRow: View {
         }
     }
 
-    /// True while the time slot shows the animated working-dots rather than a
-    /// number — used to flip its frame alignment so the dots grow rightward.
-    private var isAnimatingDots: Bool { session.status == .tool || session.status == .thinking }
+    /// True while the row is mid-turn — the dots animate and the time counts up.
+    private var isWorking: Bool { session.status == .tool || session.status == .thinking }
 
     /// The time shown right-aligned at the end of the row: elapsed in-turn while
     /// working, how long it's been waiting for attention, the finished turn's
@@ -543,7 +544,10 @@ struct SessionRow: View {
     private var timeText: String {
         switch session.status {
         case .tool, .thinking:
-            return FeedWatcher.workingDots(at: now)
+            // Time in the current turn. turn_start is null when nothing is running,
+            // so a working row without one has no elapsed time to show.
+            guard let start = session.turnStart else { return "" }
+            return FeedWatcher.formatDuration(max(0, Int(now.timeIntervalSince(start))))
         case .attention:
             return sinceUpdated
         case .idle:

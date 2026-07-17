@@ -1808,6 +1808,57 @@
       ],
       "occurrences": 3,
       "last_seen": "2026-07-17T03:10:00Z"
+    },
+    {
+      "id": "bug-111",
+      "timestamp": "2026-07-17T10:14:03.654Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 3\u21926 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:14:03.654Z"
+    },
+    {
+      "id": "bug-112",
+      "timestamp": "2026-07-17T10:14:12.145Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8\u219216 lines (2 removed) | Also: // Elapsed / waiting / done time in a fixed-width ; // times line up down the panel regardless of labe",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-17T10:14:26.148Z"
+    },
+    {
+      "id": "bug-111",
+      "timestamp": "2026-07-17T03:20:00Z",
+      "error_message": "User (design review): attention row renders 'needs\u2026' instead of 'needs input' \u2014 the panel truncates the label on the row that most needs reading",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Shipped in 2534e98 (the per-session context column): it added 34pt of columns but widened panelWidth by only 32pt, a net 2pt loss on a column already at its limit. SessionRow's outer HStack(spacing:5) holds SIX elements, so it pays 5 gaps x 5 = 25pt -- easy to miscount as 3 gaps. Real fixed budget at rest: padding 20 + glyph 14 + name 95 + model 42 + gaps 25 + spacer 4 + trailing 108 = 308pt, leaving the flexible status just 44pt against 'needs input' at ~66pt (Menlo 10 is ~6.02pt/char). Working rows escaped only because they swapped the 44pt time column for a 14pt dots slot, lifting status to 74pt -- which is why 'running edit' fit while 'needs input' did not.",
+      "fix": "panelWidth 352 -> 384; replaced the status Text + Spacer with an HStack(spacing:0) composite (status + a fixed 12pt dots slot) using .frame(maxWidth:.infinity) instead of a Spacer, which reclaims 9pt and removes an element. New fixed budget 299pt, leaving 85pt for the status composite -- enough for the worst common case 'running bash' + dots (~84.2pt). Verified live across 4 capture frames: 'needs input' renders in full and the status does not reflow as the dots animate.",
+      "tags": [
+        "layout",
+        "truncation",
+        "swiftui",
+        "panel-width",
+        "regression",
+        "design"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T03:20:00Z"
     }
   ]
 }

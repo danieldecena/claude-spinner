@@ -29,9 +29,12 @@ enum Constants {
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
-    /// Dropdown panel width. Widened from 320 to pay for the per-session context
-    /// column; at 320 the flexible status text ("running Bash") truncated.
-    static let panelWidth: CGFloat = 352
+    /// Dropdown panel width. A row spends 299pt on fixed columns — padding 20 +
+    /// glyph 14 + name 95 + model 42 + four 5pt gaps + trailing 108 (ctx 30, time
+    /// 44, chip 26, two 4pt gaps) — and the rest goes to the flexible status text.
+    /// 384 leaves it 85pt: enough for "running edit" plus its dots (~84pt) in Menlo
+    /// 10 (~6.02pt/char). Below this, "needs input" truncates to "needs…".
+    static let panelWidth: CGFloat = 384
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
