@@ -308,6 +308,7 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(HostTag.from("com.microsoft.VSCode"), .vsc)
         XCTAssertEqual(HostTag.from("vscode"), .vsc)
         XCTAssertEqual(HostTag.from("Cursor"), .vsc)
+        XCTAssertEqual(HostTag.from("dev.zed.Zed"), .vsc)
         XCTAssertEqual(HostTag.from("com.mitchellh.ghostty"), .trm)
         XCTAssertEqual(HostTag.from("Apple_Terminal"), .trm)
         XCTAssertEqual(HostTag.from("iTerm.app"), .trm)
@@ -318,6 +319,40 @@ final class claude_spinnerTests: XCTestCase {
     func testHostTagUnknownAndEmptyReturnNil() {
         XCTAssertNil(HostTag.from(""))
         XCTAssertNil(HostTag.from("some.unknown.bundle"))
+    }
+
+    // MARK: - SessionLauncher.resolveBundleID (host string -> app to focus)
+
+    private let never: (String) -> Bool = { _ in false }
+    private let always: (String) -> Bool = { _ in true }
+
+    func testResolveBundleIDPrefersTheKnownTable() {
+        XCTAssertEqual(SessionLauncher.resolveBundleID(
+            host: "vscode", fallback: "com.apple.Terminal", isRunning: never),
+            "com.microsoft.VSCode")
+        XCTAssertEqual(SessionLauncher.resolveBundleID(
+            host: "dev.zed.Zed", fallback: "com.apple.Terminal", isRunning: never),
+            "dev.zed.Zed")
+    }
+
+    /// The Zed regression: a GUI editor missing from the table reports its own
+    /// bundle ID as the host, so it must resolve to itself rather than taking the
+    /// terminal fallback and opening a new Ghostty window (bug-072/091/110 class).
+    func testResolveBundleIDFocusesAnUntabledEditorThatIsRunning() {
+        XCTAssertEqual(SessionLauncher.resolveBundleID(
+            host: "com.todesktop.230313mzl4w4u92",  // Cursor, not in the table
+            fallback: "com.mitchellh.ghostty", isRunning: always),
+            "com.todesktop.230313mzl4w4u92")
+    }
+
+    func testResolveBundleIDFallsBackForUnplaceableHosts() {
+        // A TERM_PROGRAM value is never a bundle ID, so nothing is running under it.
+        XCTAssertEqual(SessionLauncher.resolveBundleID(
+            host: "some_unknown_term", fallback: "com.mitchellh.ghostty", isRunning: never),
+            "com.mitchellh.ghostty")
+        XCTAssertEqual(SessionLauncher.resolveBundleID(
+            host: "", fallback: "com.apple.Terminal", isRunning: always),
+            "com.apple.Terminal")
     }
 
     // MARK: - FeedWatcher.trend (reset-aware 5h delta)

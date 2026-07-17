@@ -363,7 +363,25 @@ enum SessionLauncher {
         "com.apple.Terminal": "com.apple.Terminal", "Apple_Terminal": "com.apple.Terminal",
         "com.googlecode.iterm2": "com.googlecode.iterm2", "iTerm.app": "com.googlecode.iterm2",
         "com.anthropic.claudefordesktop": "com.anthropic.claudefordesktop",
+        "dev.zed.Zed": "dev.zed.Zed", "zed": "dev.zed.Zed",
     ]
+
+    /// Which bundle to focus for a host string. A known host maps through
+    /// `hostBundleIDs`; an unknown host that is ITSELF the bundle ID of a running
+    /// app resolves to itself, because every GUI editor reports its bundle ID as
+    /// the host (`dev.zed.Zed`, Cursor, VSCodium, Windsurf). Without that, a host
+    /// missing from the table silently took the terminal fallback and opened a
+    /// brand-new Ghostty window instead of the editor the session is running in —
+    /// the same wrong-window failure as bug-072/091/110, arriving through the
+    /// table rather than the branch logic. Only a host we genuinely can't place
+    /// (an unrecognized `TERM_PROGRAM`, whose value is never a bundle ID) falls
+    /// back. Pure, with the running-app check injected, so it's testable.
+    static func resolveBundleID(host: String, fallback: String,
+                                isRunning: (String) -> Bool) -> String {
+        if let known = hostBundleIDs[host] { return known }
+        if !host.isEmpty && isRunning(host) { return host }
+        return fallback
+    }
 
     /// What `focus` does for a GUI app (VS Code, Ghostty, Claude for Desktop). A
     /// running instance is ALWAYS activated in place; a path launch — which spawns a
@@ -382,10 +400,12 @@ enum SessionLauncher {
     }
 
     static func focus(host: String, pid: Int?, cwd: String) {
-        // Unknown host — focus the user's terminal, never spawn a fresh window.
+        // Unplaceable host — focus the user's terminal, never spawn a fresh window.
         let fallback = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
             ? "com.mitchellh.ghostty" : "com.apple.Terminal"
-        let bundleID = hostBundleIDs[host] ?? fallback
+        let bundleID = resolveBundleID(host: host, fallback: fallback) { id in
+            !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty
+        }
 
         if bundleID == "com.apple.Terminal" {
             if let pid = pid, let tty = getTTY(for: pid) {
@@ -585,9 +605,11 @@ enum HostTag {
     static func from(_ host: String) -> HostTag? {
         let h = host.lowercased()
         if h.isEmpty { return nil }
-        // VS Code and its forks (Cursor, VSCodium, Windsurf) share the vscode host.
+        // VS Code and its forks (Cursor, VSCodium, Windsurf) share the vscode host;
+        // Zed reports `dev.zed.Zed`. All are editors, so all read as the editor blue.
         if h.contains("vscode") || h.contains("cursor")
-            || h.contains("vscodium") || h.contains("windsurf") { return .vsc }
+            || h.contains("vscodium") || h.contains("windsurf")
+            || h.contains("zed") { return .vsc }
         // Anthropic's desktop app.
         if h.contains("claudefordesktop") || h.contains("claude-desktop") { return .app }
         // The web app (claude.ai/code).
