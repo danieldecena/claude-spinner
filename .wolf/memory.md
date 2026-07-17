@@ -1293,3 +1293,7 @@
 | 03:04 | Unified left padding (header/rows/footer all 10) + fixed stale UsageFooter doc comment | MenuContentView.swift | 31 tests pass | ~2k |
 | 03:02 | Edited claude spinner/claude_spinnerApp.swift | modified runAppleScript() | ~140 |
 | 03:02 | Edited claude spinner/claude_spinnerApp.swift | modified runAppleScript() | ~140 |
+| 03:03 | Session end: 2 writes across 1 files (claude_spinnerApp.swift) | 1 reads | ~300 tok |
+| 03:03 | Session end: 2 writes across 1 files (claude_spinnerApp.swift) | 1 reads | ~300 tok |
+| 03:10 | Root-caused session-click opening a new tab: iTerm rejects `set frontmost to true` (-10006), script threw, focus() fell through to openPath() | claude_spinnerApp.swift | Fixed with `activate`; logged bug-110 (3rd report; bug-072/091 patched the wrong branch) | ~9k |
+| 03:12 | Confirmed origin has only `main` — no "ultra review" branch, no PRs, no worktrees | (git) | /code-review ultra bundles the branch to the cloud; it doesn't create one | ~1k |
