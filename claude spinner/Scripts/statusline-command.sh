@@ -19,12 +19,13 @@ input=$(cat)
 # become empty strings (not "null"), so the downstream `[ -n ... ]` guards
 # behave exactly as before.
 US=$(printf '\037')
-IFS="$US" read -r sid cwd model model_id fast_mode sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
+IFS="$US" read -r sid cwd model cws over200k fast_mode sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
 $(echo "$input" | jq -r '[
     .session_id // "",
     (.cwd // .workspace.current_dir // ""),
     (.model.display_name // ""),
-    (.model.id // ""),
+    (.context_window.context_window_size // 0),
+    (.exceeds_200k_tokens // false),
     (.fast_mode // false),
     ((.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)),
     (.context_window.used_percentage // ""),
@@ -40,11 +41,12 @@ EOF
 model="${model%% *}"    # keep just the family name (e.g. "Opus")
 
 # --- menubar feed: dump raw session JSON for the menubar app to read ---
+feed="$HOME/.claude/spinnerfeed"
 if [ -n "$sid" ]; then
-    mkdir -p "$HOME/.claude/spinnerfeed"
+    mkdir -p "$feed"
     # Atomic write (temp + mv) so a concurrent menubar rescan never reads a
     # half-written file.
-    sf="$HOME/.claude/spinnerfeed/$sid.status.json"
+    sf="$feed/$sid.status.json"
     printf '%s' "$input" > "$sf.tmp.$$" && mv "$sf.tmp.$$" "$sf"
 fi
 
@@ -169,6 +171,33 @@ now=$(date +%s)
 [ -n "$ctx" ]    && ctx_int=$(printf '%.0f' "$ctx")
 [ -n "$h5_pct" ] && h5_int=$(printf '%.0f' "$h5_pct")
 [ -n "$d7_pct" ] && d7_int=$(printf '%.0f' "$d7_pct")
+
+# Prune the feed dir. Nothing else does: every session ever run leaves a
+# status.json and two trend anchors here forever.
+#
+# The last-sweep epoch lives in the stamp's *contents*, not its mtime, so the
+# common path reads it with a redirect and compares two integers — both builtin.
+# Reading the mtime instead would need a `find -mmin` or `date -r` fork on every
+# render, which costs more than the sweep saves. The sweep itself (one `find`,
+# hourly, backgrounded) never blocks the render.
+#
+# Only the suffixes this script writes are named, plus the now-dead .status.txt
+# it used to write. emit.sh lives in this directory too, and deleting it kills
+# the whole feed silently — the app just reports "No active sessions" forever.
+# This must never widen to a bare *.
+if [ -n "$sid" ]; then
+    gc_stamp="$feed/.gc-stamp"
+    last_gc=0
+    [ -f "$gc_stamp" ] && read -r last_gc < "$gc_stamp" 2>/dev/null
+    case "$last_gc" in *[!0-9]*|"") last_gc=0 ;; esac
+    if [ "$(( now - last_gc ))" -ge 3600 ]; then
+        printf '%s' "$now" > "$gc_stamp.tmp.$$" && mv "$gc_stamp.tmp.$$" "$gc_stamp"
+        find "$feed" -maxdepth 1 -type f -mtime +7 \
+            \( -name '*.status.json' -o -name '*.status.txt' \
+               -o -name '*.prevctx' -o -name '*.prevlim' \) \
+            -delete 2>/dev/null &
+    fi
+fi
 IFS="$US" read -r cc cb cb7 <<EOF
 $(gradient_triple "$ctx_int" "$h5_int" "$d7_int")
 EOF
@@ -186,30 +215,42 @@ $(git -C "$cwd" rev-parse --abbrev-ref HEAD --show-toplevel 2>/dev/null)
 EOF
     [ -z "$git_root" ] && git_branch=""   # no root line = not a repo
     if [ -n "$git_root" ]; then
-        if ! git -C "$cwd" diff --quiet 2>/dev/null || ! git -C "$cwd" diff --cached --quiet 2>/dev/null; then
-            git_dirty="*"
-        fi
+        # One diff against HEAD covers index and worktree together; the separate
+        # --cached pass was a second fork asking half the same question.
+        # HEAD always resolves here: on an unborn branch rev-parse above emits no
+        # toplevel, so git_root is empty and this block never runs.
+        git -C "$cwd" diff --quiet HEAD 2>/dev/null || git_dirty="*"
     fi
 fi
 
-# Model detail: 1M-context tier tag (from the id's "[1m]" suffix) and a compact
-# count of the current context window in tokens. Same quantity the ctx bar shows
-# as a percentage, deliberately duplicated: the 200k pricing cliff is an absolute
-# threshold, invisible on a 1M-window bar (200k reads as a harmless 20%).
+# Model detail: 1M-context tier tag and a compact count of the current context
+# window in tokens. Same quantity the ctx bar shows as a percentage, deliberately
+# duplicated: the 200k pricing cliff is an absolute threshold, invisible on a
+# 1M-window bar (200k reads as a harmless 20%).
+#
+# The tier comes from the window size the payload reports, not from an "[1m]"
+# substring in the model id. The id's shape is a naming convention that can
+# change without notice; the window size is the thing the tag is actually about.
 tier=""
-case "$model_id" in *"[1m]"*) tier="1M" ;; esac
+[ "${cws:-0}" -gt 200000 ] && tier="1M"
 tok_disp=""
 if [ "${sess_tok:-0}" -ge 1000 ]; then tok_disp="$(( sess_tok / 1000 ))k"
 elif [ "${sess_tok:-0}" -gt 0 ]; then tok_disp="$sess_tok"; fi
 
 # 200k long-context-pricing cliff: on 1M-tier models, requests over 200k input
 # tokens bill at a premium (2x in / 1.5x out). Regular models cap at 200k, so
-# the marker only carries signal on the 1M tier. Amber from 150k (approaching),
-# red at/after 200k (in premium). tokc defaults to dim (no signal).
+# the marker only carries signal on the 1M tier. tokc defaults to dim (no signal).
+#
+# Red is driven by the payload's own exceeds_200k_tokens rather than by
+# re-deriving the threshold here. The old comparison summed total input AND
+# output, which isn't the quantity the cliff is priced on — it billed on input —
+# so it could turn red early. The payload states the answer; take it.
+# Amber stays hand-rolled: it's an "approaching" warning the payload has no
+# equivalent for, and it's advisory rather than a billing fact.
 tokc="$dim"
 if [ "$tier" = "1M" ] && [ "${sess_tok:-0}" -gt 0 ]; then
-    if   [ "$sess_tok" -ge 200000 ]; then tokc="$bright_red"
-    elif [ "$sess_tok" -ge 150000 ]; then tokc="$bright_yellow"; fi
+    if   [ "$over200k" = "true" ];      then tokc="$bright_red"
+    elif [ "$sess_tok" -ge 150000 ];    then tokc="$bright_yellow"; fi
 fi
 
 # Burn-rate ETA: keep a rate-limit sample (h5:d7:ts) and re-anchor it only every
@@ -242,15 +283,19 @@ if [ -n "$sid" ]; then
 fi
 
 # ===== Row 1: identity (repo-aware project, git branch, model, tokens) =====
+# ${x##*/} is basename's whole job here and costs no fork. It differs only for
+# trailing slashes and the bare "/" — neither of which git or Claude Code emit
+# as a path.
 if [ -n "$git_root" ]; then
-    reponame=$(basename "$git_root")
+    reponame="${git_root##*/}"
     if [ "$cwd" != "$git_root" ]; then
-        dir_name="$reponame/$(basename "$cwd")"   # repo root + leaf when nested
+        dir_name="$reponame/${cwd##*/}"   # repo root + leaf when nested
     else
         dir_name="$reponame"
     fi
 else
-    dir_name="$(basename "${cwd:-$PWD}")"
+    d="${cwd:-$PWD}"
+    dir_name="${d##*/}"
 fi
 
 mc="$dim"  # default to dim if no model
@@ -289,7 +334,9 @@ if [ -n "$ctx" ]; then
     if [ -n "$sid" ]; then
         prevfile="$HOME/.claude/spinnerfeed/$sid.prevctx"
         if [ -f "$prevfile" ]; then
-            prev_data=$(cat "$prevfile")
+            # Redirect + read is a builtin; $(cat) would fork a shell and a cat
+            # for a single short line.
+            read -r prev_data < "$prevfile" 2>/dev/null
             prev_ctx="${prev_data%%:*}"
             prev_time="${prev_data#*:}"
             if [ -n "$prev_ctx" ] && [ "$prev_time" != "$prev_data" ]; then
@@ -400,12 +447,6 @@ fi
 
 # Build the meter line: [⚠] project model | ctx-bar % │ session-bar % reset
 out="${warn_seg}${ident} ${ctx_seg} ${mc}│${reset} ${lim_seg}"
-
-# Write plain-text (ANSI-stripped) version to menubar text feed
-if [ -n "$sid" ]; then
-    out_plain=$(printf '%b' "$out" | sed 's/\x1b\[[0-9;]*m//g')
-    printf '%s' "$out_plain" > "$HOME/.claude/spinnerfeed/$sid.status.txt"
-fi
 
 # Trailing blank line adds vertical spacing between the status line and Claude
 # Code's mode indicator (e.g. "auto mode on") rendered directly below it.
