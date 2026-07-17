@@ -308,7 +308,9 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(HostTag.from("com.microsoft.VSCode"), .vsc)
         XCTAssertEqual(HostTag.from("vscode"), .vsc)
         XCTAssertEqual(HostTag.from("Cursor"), .vsc)
-        XCTAssertEqual(HostTag.from("dev.zed.Zed"), .vsc)
+        XCTAssertEqual(HostTag.from("dev.zed.Zed"), .vsc)          // __CFBundleIdentifier
+        XCTAssertEqual(HostTag.from("dev.zed.Zed-Preview"), .vsc)
+        XCTAssertEqual(HostTag.from("zed"), .vsc)                 // TERM_PROGRAM
         XCTAssertEqual(HostTag.from("com.mitchellh.ghostty"), .trm)
         XCTAssertEqual(HostTag.from("Apple_Terminal"), .trm)
         XCTAssertEqual(HostTag.from("iTerm.app"), .trm)
@@ -319,6 +321,13 @@ final class claude_spinnerTests: XCTestCase {
     func testHostTagUnknownAndEmptyReturnNil() {
         XCTAssertNil(HostTag.from(""))
         XCTAssertNil(HostTag.from("some.unknown.bundle"))
+    }
+
+    /// "zed" is short enough to appear inside unrelated hosts, and the editor branch
+    /// runs before the terminal one — so it must match exactly, not by `contains`.
+    func testHostTagDoesNotClaimEveryHostContainingZed() {
+        XCTAssertNil(HostTag.from("com.example.customized"))
+        XCTAssertEqual(HostTag.from("com.zedterm.ghostty"), .trm)
     }
 
     // MARK: - SessionLauncher.resolveBundleID (host string -> app to focus)

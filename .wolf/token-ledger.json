@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 3354227,
-    "total_reads": 964,
-    "total_writes": 5519,
+    "total_tokens_estimated": 3381264,
+    "total_reads": 968,
+    "total_writes": 5549,
     "total_sessions": 32,
-    "anatomy_hits": 467,
-    "anatomy_misses": 497,
-    "repeated_reads_blocked": 2568,
-    "estimated_savings_vs_bare_cli": 17511935
+    "anatomy_hits": 470,
+    "anatomy_misses": 498,
+    "repeated_reads_blocked": 2569,
+    "estimated_savings_vs_bare_cli": 17517781
   },
   "sessions": [
     {
@@ -35675,6 +35675,197 @@
         "writes_count": 21,
         "repeated_reads_blocked": 1,
         "anatomy_lookups": 2
+      }
+    },
+    {
+      "id": "session-2026-07-17-0427",
+      "started": "2026-07-17T11:27:16.582Z",
+      "ended": "2026-07-17T12:11:24.976Z",
+      "reads": [
+        {
+          "file": "/private/tmp/claude-501/-Users-home-Developer-claude-spinner/1d41969f-c522-44f3-b607-2ee59b10a162/scratchpad/menubar_right.png",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 5246,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 15020,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 746,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 497,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 497,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 118,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 118,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/claude_spinnerApp.swift",
+          "tokens_estimated": 98,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 317,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 80,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 16,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 16,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 153,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 108,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 108,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 6,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 33,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 15,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 15,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 838,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 838,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/TASKS.md",
+          "tokens_estimated": 377,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 0,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 163,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/run.sh",
+          "tokens_estimated": 112,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/TASKS.md",
+          "tokens_estimated": 6,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/TASKS.md",
+          "tokens_estimated": 232,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 210,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 395,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 395,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 21012,
+        "output_tokens_estimated": 6025,
+        "reads_count": 4,
+        "writes_count": 30,
+        "repeated_reads_blocked": 1,
+        "anatomy_lookups": 3
       }
     }
   ],

@@ -605,11 +605,15 @@ enum HostTag {
     static func from(_ host: String) -> HostTag? {
         let h = host.lowercased()
         if h.isEmpty { return nil }
-        // VS Code and its forks (Cursor, VSCodium, Windsurf) share the vscode host;
-        // Zed reports `dev.zed.Zed`. All are editors, so all read as the editor blue.
+        // VS Code and its forks (Cursor, VSCodium, Windsurf) share the vscode host.
         if h.contains("vscode") || h.contains("cursor")
-            || h.contains("vscodium") || h.contains("windsurf")
-            || h.contains("zed") { return .vsc }
+            || h.contains("vscodium") || h.contains("windsurf") { return .vsc }
+        // Zed reports `dev.zed.Zed` (bundle ID, also `dev.zed.Zed-Preview`) or `zed`
+        // (TERM_PROGRAM). Matched exactly rather than by `contains`, which the other
+        // tokens above can afford but a three-letter "zed" can't — it would claim
+        // any host merely containing those letters, and this branch runs before the
+        // terminal one below.
+        if h == "zed" || h.hasPrefix("dev.zed.") { return .vsc }
         // Anthropic's desktop app.
         if h.contains("claudefordesktop") || h.contains("claude-desktop") { return .app }
         // The web app (claude.ai/code).
