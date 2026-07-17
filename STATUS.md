@@ -6,10 +6,12 @@
   feed files (hooks + statusLine in `~/.claude/settings.json`).
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 49 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 56 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
-- Row names get whatever the status column doesn't need: 24 characters on an
-  idle row, 16 on `running bash`. Every status label fits, TodoWrite included.
+- Row names get every point the model and status columns don't need, and the
+  columns are sized once per panel so they still align. Verified on screen:
+  `compact-vscode-density`, `statusline-drift-perf` and `scan-jobs-task-runner`
+  all render in full at panelWidth 470, where they truncated at 424.
 - Panel rows carry the session's own name (`session_name` from status.json,
   falling back to the directory), its context token count banded on absolute
   usage (100k/150k/200k), and sort heaviest-first within each status band.
@@ -26,16 +28,12 @@
 
 ## Known broken
 
-- Names still truncate on rows whose status is long (`statusline-drift-pe…`
-  beside `thinking`). The dynamic split helps most where the status is short;
-  a row running a long tool still spends its budget on the status. Widening
-  `panelWidth` past 424 is now a one-constant change if it's worth it.
 - A long tool name draws two ellipses in a row: `running askuserqu……` — the
   status truncates and the animated dots sit right after it.
-- Because the name column's width now varies per row, the model and status
-  columns no longer align vertically down the panel (the ctx/time/chip columns
-  still do, being right-flush). Mild, but it's a real trade the old fixed
-  columns bought.
+- `.wolf/buglog.json` has 10 duplicate bug IDs. Two Claude sessions run in this
+  repo at once and both mint `max+1` from their own read of the file. Duplicate
+  ids are the visible damage; a silently lost entry is the real risk. Needs a
+  decision: one file per bug, a lock, or don't run two sessions here (bug-200).
 
 ## Scope / by-design limitations
 
@@ -50,9 +48,7 @@
 
 ## Next Up
 
-- Decide whether the remaining name truncation is worth widening the panel for,
-  or whether the model column (46pt fixed, "opus" needs 27pt) should join the
-  name/status budget — same class of fix, ~20pt back on the common case.
+- Decide how `.wolf/buglog.json` should survive concurrent sessions (bug-200).
 - Notarization — blocked on a **Developer ID Application** cert. Only an Apple
   Development cert is installed, which cannot notarize, and notarytool has no
   stored credentials. Needs a paid Developer Program account and an Apple ID.

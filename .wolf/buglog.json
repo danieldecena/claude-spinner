@@ -2461,6 +2461,97 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-07-17T05:55:00.000Z"
+    },
+    {
+      "id": "bug-148",
+      "timestamp": "2026-07-17T12:51:15.025Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 13\u219227 lines (9 removed) | Also: /// The model word as drawn \u2014 the same string the ; /// against, so the two can't drift apart.",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-17T12:54:44.839Z"
+    },
+    {
+      "id": "bug-149",
+      "timestamp": "2026-07-17T12:51:37.586Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// The model word as drawn \u2014 the same string the layout bud; /// against, so the two can't drift apart. | Also: /// The name and model column widths, shared by every row in; struct Columns: Equatable { | Also: // Sized once per panel, not per row, so the columns line up; // down the list instead of jagging with each row's content.",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-07-17T12:54:29.517Z"
+    },
+    {
+      "id": "bug-150",
+      "timestamp": "2026-07-17T12:52:03.169Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinnerTests/claude_spinnerTests.swift",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 41\u219276 lines (15 removed) | Also: /// The width the status column actually ends up w; private func statusWidth(_ label: String) -> CGFlo",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-17T12:52:03.192Z"
+    },
+    {
+      "id": "bug-140",
+      "timestamp": "2026-07-17T06:05:00Z",
+      "error_message": "Row columns jag: model and status start at a different x on every row",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Self-inflicted by 4a6ccb7. Sizing the name column per row (from that row's own status) fixed truncation but made the name width vary down the panel, so the model and status columns after it no longer lined up. Only visible on screen \u2014 the unit tests all passed, because each row's arithmetic was individually correct. Alignment is a property of the SET of rows, and nothing was checking the set.",
+      "fix": "RowLayout.columns(statusLabels:models:) sizes the columns once per panel from the widest label in each, and MenuContentView passes the result to every SessionRow. Columns align and names still take every spare point; the bounded cost is that one long-tool row narrows every name. Also folded the model column (fixed 46pt holding a 27pt 'opus') into the same budget and widened panelWidth 424 -> 470.",
+      "tags": [
+        "ui",
+        "layout",
+        "alignment",
+        "panel-width",
+        "regression",
+        "visual-only"
+      ],
+      "related_bugs": [
+        "bug-111",
+        "bug-122",
+        "bug-138"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T06:05:00Z"
+    },
+    {
+      "id": "bug-200",
+      "timestamp": "2026-07-17T06:07:00Z",
+      "error_message": "buglog.json has 10 duplicate bug IDs (bug-133/134/137 from today's concurrent sessions; bug-032/072/073/092/093/095/111 older)",
+      "file": ".wolf/buglog.json",
+      "root_cause": "IDs are allocated as max+1 from whatever the writer last read. Two Claude sessions run in this repo at once (the spinner exists to show them), so both read the same tail and both mint the same next id. Read-modify-write on one JSON file with no locking: duplicate ids are the visible damage, and a lost entry is the invisible one \u2014 if both sessions read before either writes, the first write vanishes.",
+      "fix": "NOT renumbered: the other session is live and this is shared data, so rewriting the file mid-flight is exactly how an entry gets lost. Mitigation used here: re-read immediately before writing, and pick an id proven free against the ids actually present rather than max+1. A real fix needs either one-file-per-bug (no shared mutable file) or a lock; that's a decision for the user.",
+      "tags": [
+        "concurrency",
+        "buglog",
+        "race",
+        "multi-session",
+        "data-integrity"
+      ],
+      "related_bugs": [
+        "bug-139"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T06:07:00Z"
     }
   ]
 }

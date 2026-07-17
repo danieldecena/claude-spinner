@@ -1716,3 +1716,29 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:50 | MISTAKE: git add -A swept the concurrent statusline session's work into 306e2bf; not rewritten (pushed + session live), logged bug-139 | .wolf/buglog.json, .wolf/cerebrum.md | logged | ~3k |
 | 05:35 | Session end: 28 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 5 reads | ~28038 tok |
 | 05:35 | Session end: 28 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 5 reads | ~28038 tok |
+| 05:50 | Edited claude spinner/FeedWatcher.swift | 12→11 lines | ~208 |
+| 05:50 | Edited claude spinner/FeedWatcher.swift | 12→11 lines | ~208 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | 8→10 lines | ~161 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | 8→10 lines | ~161 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | modified width() | ~398 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | modified width() | ~398 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~97 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~97 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | Model() → modelWidth() | ~165 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | Model() → modelWidth() | ~165 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~80 |
+| 05:51 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~80 |
+| 05:52 | Edited claude spinnerTests/claude_spinnerTests.swift | modified statusWidth() | ~1062 |
+| 05:52 | Edited claude spinnerTests/claude_spinnerTests.swift | modified statusWidth() | ~1062 |
+| 05:53 | Edited claude spinner/MenuContentView.swift | removed 12 lines | ~16 |
+| 05:53 | Edited claude spinner/MenuContentView.swift | removed 12 lines | ~16 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | expanded (+14 lines) | ~174 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | expanded (+14 lines) | ~174 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~500 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~500 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~171 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~171 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | reduced (-6 lines) | ~22 |
+| 05:54 | Edited claude spinner/MenuContentView.swift | reduced (-6 lines) | ~22 |
+| 06:00 | panelWidth 424->470, model column folded into the shared budget, columns sized once per panel (fixes the jag 4a6ccb7 introduced) | MenuContentView.swift, FeedWatcher.swift, tests | 2710980, 56 tests green, verified on screen | ~12k |
+| 06:07 | Found 10 duplicate ids in buglog.json from concurrent sessions minting max+1; logged bug-200, did NOT renumber (other session live) | .wolf/buglog.json | logged | ~3k |
