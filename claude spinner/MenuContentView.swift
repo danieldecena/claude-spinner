@@ -15,6 +15,8 @@ struct MenuContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            UsageHeader(feed: feed)
+
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
@@ -97,8 +99,49 @@ struct MenuContentView: View {
     }
 }
 
+/// Panel header: the 5-hour reset countdown (or the limit notice, which takes
+/// precedence) pinned above the session list so it reads first. A 1s clock keeps
+/// the "in …" countdown live-ticking.
+struct UsageHeader: View {
+    @ObservedObject var feed: FeedWatcher
+
+    var body: some View {
+        if feed.hasUsage && (feed.usageNotice != nil || feed.usageFiveHourReset != nil) {
+            VStack(spacing: 0) {
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    HStack(spacing: 0) {
+                        if let notice = feed.usageNotice {
+                            Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
+                                .font(.claudeMono(9.5))
+                                .foregroundStyle(Color.usageTint(95))
+                                .help(feed.usageNoticeDetail)
+                                .lineLimit(1)
+                                .textCase(.lowercase)
+                        } else {
+                            let clock = feed.usageFiveHourReset ?? ""
+                            let rel = feed.usageFiveHourResetRelative ?? ""
+                            let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
+                            Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
+                                .font(.claudeMono(9.5))
+                                .foregroundStyle(Color.secondary.opacity(0.75))
+                                .help(feed.usageResetTooltip)
+                                .lineLimit(1)
+                                .textCase(.lowercase)
+                        }
+                        Spacer(minLength: 4)
+                    }
+                    .opacity(feed.usageIsStale ? 0.5 : 1)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                Divider().opacity(0.5)
+            }
+        }
+    }
+}
+
 /// Always-present footer: live account usage — model, 5-hour and 7-day rate
-/// limits (colored by urgency), reset countdown, and total spend — on the left,
+/// limits (colored by urgency), and total spend — on the left,
 /// with the settings gear always reachable on the right. A 1s clock keeps the
 /// "resets in" countdown current.
 struct UsageFooter: View {
@@ -136,28 +179,6 @@ struct UsageFooter: View {
                         }
                         
                         Spacer(minLength: 4)
-
-                        // Reset countdown / limit notice, inline with the gauges.
-                        if feed.hasUsage {
-                            if let notice = feed.usageNotice {
-                                Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
-                                    .font(.claudeMono(9.5))
-                                    .foregroundStyle(Color.usageTint(95))
-                                    .help(feed.usageNoticeDetail)
-                                    .lineLimit(1)
-                                    .textCase(.lowercase)
-                            } else if feed.usageFiveHourReset != nil {
-                                let clock = feed.usageFiveHourReset ?? ""
-                                let rel = feed.usageFiveHourResetRelative ?? ""
-                                let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
-                                Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
-                                    .font(.claudeMono(9.5))
-                                    .foregroundStyle(Color.secondary.opacity(0.75))
-                                    .help(feed.usageResetTooltip)
-                                    .lineLimit(1)
-                                    .textCase(.lowercase)
-                            }
-                        }
 
                         // Toggle Button with chevron (Image + onTapGesture to prevent focus highlighting)
                         Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")

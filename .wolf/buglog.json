@@ -1721,6 +1721,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-17T08:07:11.891Z"
+    },
+    {
+      "id": "bug-106",
+      "timestamp": "2026-07-17T09:15:29.858Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "21 lines replaced/restructured",
+      "fix": "Rewrote 25→3 lines (21 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T09:15:29.858Z"
+    },
+    {
+      "id": "bug-107",
+      "timestamp": "2026-07-17T09:15:40.198Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// Panel header: the 5-hour reset countdown (or the limit n; /// precedence) pinned above the session list so it reads fi",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-17T09:15:40.200Z"
     }
   ]
 }
