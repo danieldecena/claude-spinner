@@ -386,6 +386,12 @@ enum SessionLauncher {
         try? task.run()
     }
 
+    /// Runs `script`, treating any error as "couldn't focus" so the caller can fall
+    /// back. Note the failure mode this hides: an AppleScript that half-executes
+    /// (selects the tab) and then throws still reports false, so the caller opens a
+    /// new tab on top of the tab it just selected. Use only verbs the target app
+    /// actually supports — `activate`, never `set frontmost to true`, which iTerm
+    /// rejects with -10006 (bug-110).
     private static func runAppleScript(_ script: String) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -428,7 +434,7 @@ enum SessionLauncher {
             repeat with w in windows
                 repeat with t in tabs of w
                     if tty of t contains "\(tty)" then
-                        set frontmost to true
+                        activate
                         set index of w to 1
                         set selected of t to true
                         return true
@@ -447,7 +453,7 @@ enum SessionLauncher {
             repeat with w in windows
                 repeat with t in tabs of w
                     if name of t contains "\(title)" or custom title of t contains "\(title)" then
-                        set frontmost to true
+                        activate
                         set index of w to 1
                         set selected of t to true
                         return true
@@ -470,7 +476,7 @@ enum SessionLauncher {
                             select s
                             select t
                             set index of w to 1
-                            set frontmost to true
+                            activate
                             return true
                         end if
                     end repeat
@@ -492,7 +498,7 @@ enum SessionLauncher {
                             select s
                             select t
                             set index of w to 1
-                            set frontmost to true
+                            activate
                             return true
                         end if
                     end repeat

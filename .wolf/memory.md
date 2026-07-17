@@ -1291,3 +1291,5 @@
 | 03:02 | Added per-session context% column to SessionRow, tinted by usageTint | MenuContentView.swift | Each row tracks its own context fill | ~3k |
 | 03:03 | Widened panel 320->352 to pay for the new column | FeedWatcher.swift | "running bash" no longer truncates | ~1k |
 | 03:04 | Unified left padding (header/rows/footer all 10) + fixed stale UsageFooter doc comment | MenuContentView.swift | 31 tests pass | ~2k |
+| 03:02 | Edited claude spinner/claude_spinnerApp.swift | modified runAppleScript() | ~140 |
+| 03:02 | Edited claude spinner/claude_spinnerApp.swift | modified runAppleScript() | ~140 |
