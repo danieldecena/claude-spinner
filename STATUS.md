@@ -13,9 +13,19 @@
   usage (100k/150k/200k), and sort heaviest-first within each status band.
   The header totals context across all sessions. Legible in both appearances.
 
+- Clicking a row focuses the editor the session actually runs in — including
+  Zed and any editor not in `hostBundleIDs`, which previously opened a stray
+  Ghostty window (bug-130). Verified by unit test, **not yet by hand**.
+
 ## Known broken
 
-(none)
+- Row names truncate (`continue from…`) while the status column beside them
+  sits half empty. Session names are unbounded prose; status text is bounded.
+  The flexible column should be the name — needs the `Constants.panelWidth`
+  budget rederived as a whole.
+- The 7d gauge reads as empty below 10%: `UsageGauge` dims the fill to 35%
+  opacity under 10%, so an 8% bar is indistinguishable from an empty track.
+- The `chg` gauge saturates at ≥20 points, so `+52%` and `+20%` look identical.
 
 ## Scope / by-design limitations
 
@@ -30,7 +40,26 @@
 
 ## Next Up
 
+- Verify the Zed click by hand (see Known broken's sibling note above) — this
+  branch has regressed four times and can't be driven from an agent session.
+- The three panel issues under Known broken.
+- Settle the invisible ⌘Q button (`MenuContentView.swift:94`): `.opacity(0)`
+  stays hit-testable in SwiftUI, so a real quit button sits at the panel's
+  centre behind the rows. Likely unreachable; `.allowsHitTesting(false)` is free.
 - Notarization (needs an Apple Developer cert).
+
+### 2026-07-17 (review session)
+- Decided: an unknown host that names a *running* app resolves to itself rather
+  than falling back to a terminal. Fixes Zed/Cursor/VSCodium/Windsurf at once
+  without hardcoding bundle IDs, and keeps the fallback for `TERM_PROGRAM`
+  values, which are never bundle IDs.
+- Decided: `run.sh`'s swiftc fallback globs `"claude spinner"/*.swift` rather
+  than listing sources. The folder is a synchronized root group, so any literal
+  list rots silently behind it — which is exactly how it broke (bug-132).
+- Noted: the code-defined dark-mode colors decision below was justified by "the
+  fallback compiles only the three sources". That premise was stale. The
+  conclusion stands for the real reason — the fallback has no asset-catalog
+  step, so a colorset would vanish from the dev loop.
 
 ### 2026-07-17
 - Decided: the row names the session, not the project — `session_name` is the

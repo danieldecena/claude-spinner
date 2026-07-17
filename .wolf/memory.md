@@ -1612,3 +1612,7 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:10 | Edited TASKS.md | removed 2 lines | ~5 |
 | 05:10 | Edited TASKS.md | 3→8 lines | ~217 |
 | 05:10 | Edited TASKS.md | 3→8 lines | ~217 |
+| 05:10 | Edited STATUS.md | expanded (+10 lines) | ~196 |
+| 05:10 | Edited STATUS.md | expanded (+10 lines) | ~196 |
+| 05:11 | Edited STATUS.md | modified button() | ~369 |
+| 05:11 | Edited STATUS.md | modified button() | ~369 |
