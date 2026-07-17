@@ -307,6 +307,47 @@ struct TrendGauge: View {
     }
 }
 
+/// How a row divides the space its name and status columns share.
+///
+/// Both columns were fixed (name 105 / status 103), so the split was a guess made
+/// once for every row: `done` sat in a 103pt slot needing 26pt while the name
+/// truncated beside it, and `running TodoWrite` overran anyway. The status text is
+/// the measurable one — it's drawn from a known vocabulary, in a monospaced font,
+/// always ASCII — so it takes what it needs and the name gets the rest.
+enum RowLayout {
+    /// Width of the animated working-dots slot, held even at rest so the column
+    /// edge doesn't move as the dots grow (see the SessionRow comment).
+    static let dotsSlot: CGFloat = 13
+    /// The name never shrinks past this, even if a long tool name wants more —
+    /// past this point the status is the one that truncates.
+    static let minNameWidth: CGFloat = 70
+    /// Headroom on the measured status width. Menlo's advance measures exact, but
+    /// bug-111/122 both truncated a column budgeted to its arithmetic minimum.
+    static let statusSlack: CGFloat = 4
+
+    /// One character's advance in the row font. Menlo is monospaced, so a string's
+    /// width is its count times this — no per-string measurement per render, and
+    /// exact rather than the ~0.602×size estimate the old widths were derived from.
+    static let monoAdvance: CGFloat = {
+        let font = NSFont(name: Font.claudeFontName, size: 11)
+            ?? .monospacedSystemFont(ofSize: 11, weight: .regular)
+        return ("m" as NSString).size(withAttributes: [.font: font]).width
+    }()
+
+    /// The name column's width for a given status label. Pure so the budget is
+    /// testable without standing up a view — the whole class of bug this fixes is
+    /// arithmetic, and arithmetic is checkable.
+    ///
+    /// Only ASCII status labels are measured this way; session names may hold
+    /// emoji or wide glyphs, which is exactly why the name is the column that
+    /// flexes and truncates rather than the one being measured.
+    static func nameWidth(statusLabel: String) -> CGFloat {
+        let need = CGFloat(statusLabel.count) * monoAdvance + statusSlack
+        let maxStatus = Constants.rowNameStatusBudget - dotsSlot - minNameWidth
+        return Constants.rowNameStatusBudget - dotsSlot - min(need, maxStatus)
+    }
+}
+
 struct SessionRow: View {
     @ObservedObject var feed: FeedWatcher
     let item: SessionRowItem
@@ -340,7 +381,10 @@ struct SessionRow: View {
                         .foregroundStyle(Color.secondary)
                 }
             }
-            .frame(width: 105, alignment: .leading)
+            // Sized against the status beside it, not fixed: the status is drawn
+            // from a bounded vocabulary and takes only what it needs, so the name
+            // — unbounded prose — gets everything left over.
+            .frame(width: RowLayout.nameWidth(statusLabel: statusLabel), alignment: .leading)
 
             // Column 2: Model (fixed width). Keeps Status aligned.
             Group {
@@ -366,7 +410,7 @@ struct SessionRow: View {
                 // reflow the status text would make its truncation flicker in time
                 // with them. Reserved even at rest so the column edge never moves.
                 Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
-                    .frame(width: 13, alignment: .leading)
+                    .frame(width: RowLayout.dotsSlot, alignment: .leading)
             }
             .font(.claudeMono(11))
             .foregroundStyle(statusColor)

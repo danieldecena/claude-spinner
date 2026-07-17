@@ -210,6 +210,48 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
     }
 
+    /// The width the status column actually ends up with, given the name's.
+    private func statusWidth(_ label: String) -> CGFloat {
+        Constants.rowNameStatusBudget - RowLayout.dotsSlot
+            - RowLayout.nameWidth(statusLabel: label)
+    }
+
+    /// Every status label fits its column — the bug-111/122 class, checked as
+    /// arithmetic rather than by eye. "running TodoWrite" is the long tail that
+    /// truncated even under the old fixed 103pt slot.
+    func testEveryStatusLabelFitsItsColumn() {
+        for label in ["done", "idle", "thinking", "needs input", "running",
+                      "running bash", "running Edit", "running TodoWrite"] {
+            let need = CGFloat(label.count) * RowLayout.monoAdvance
+            XCTAssertGreaterThanOrEqual(statusWidth(label), need,
+                                        "\"\(label)\" truncates")
+        }
+    }
+
+    func testShortStatusHandsItsSlackToTheName() {
+        // The reported bug: `done` sat in a 103pt slot needing 26pt while the
+        // name truncated beside it. The name should now get that back.
+        XCTAssertGreaterThan(RowLayout.nameWidth(statusLabel: "done"),
+                             RowLayout.nameWidth(statusLabel: "running bash"))
+        XCTAssertGreaterThan(RowLayout.nameWidth(statusLabel: "done"), 105)
+    }
+
+    func testNameNeverShrinksBelowItsFloor() {
+        // A pathologically long tool name gives up rather than eating the name.
+        let name = RowLayout.nameWidth(statusLabel: "running " + String(repeating: "x", count: 200))
+        XCTAssertEqual(name, RowLayout.minNameWidth)
+    }
+
+    func testNameAndStatusNeverOverrunTheirBudget() {
+        for label in ["done", "needs input", "running bash", "running TodoWrite",
+                      "running " + String(repeating: "x", count: 200)] {
+            let total = RowLayout.nameWidth(statusLabel: label)
+                + RowLayout.dotsSlot + statusWidth(label)
+            XCTAssertEqual(total, Constants.rowNameStatusBudget, accuracy: 0.01,
+                           "\"\(label)\" overruns the row")
+        }
+    }
+
     func testTrendGaugeDoesNotSaturateAboveTwentyPoints() {
         // The bug: a linear 20-point scale drew +20 and +52 identically.
         let twenty = TrendGauge.fillFraction(delta: 20)

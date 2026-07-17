@@ -29,17 +29,18 @@ enum Constants {
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
-    /// Dropdown panel width. A row spends 321pt on fixed columns — padding 20 +
-    /// glyph 15 + name 105 + model 46 + four 5pt gaps + trailing 115 (ctx 30, time
-    /// 48, chip 29, two 4pt gaps) — and the rest goes to the flexible status text.
-    /// 424 leaves it 103pt for "running edit" plus its dots, which need ~92pt in
-    /// Menlo 11 (~6.62pt/char). The 11pt of slack is deliberate: at 93pt — the
-    /// arithmetic minimum — "running bash" still truncated, so the per-character
-    /// figure is an estimate to leave headroom against, not a budget to spend.
+    /// Dropdown panel width. A row spends 216pt on genuinely fixed columns —
+    /// padding 20 + glyph 15 + model 46 + four 5pt gaps + trailing 115 (ctx 30,
+    /// time 48, chip 29, two 4pt gaps) — leaving `rowNameStatusBudget` for the
+    /// name and status pair, which divide it per row rather than by a hand-picked
+    /// constant. See `RowLayout` for that split.
     ///
     /// Every width here and in SessionRow is derived from that figure, so changing
     /// the row font size means rederiving all of them together.
     static let panelWidth: CGFloat = 424
+    /// What's left of `panelWidth` for the name and status columns together.
+    /// They share it: whatever the status doesn't need, the name gets.
+    static let rowNameStatusBudget: CGFloat = 208
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
