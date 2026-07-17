@@ -979,8 +979,6 @@ final class FeedWatcher: ObservableObject {
         let counts = sessions.compactMap(\.contextTokens)
         return counts.isEmpty ? nil : counts.reduce(0, +)
     }
-    var usageModel: String? { usageSession?.model ?? cachedUsage?.model }
-    var usageModelId: String? { usageSession?.modelId ?? cachedUsage?.modelId }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
     /// A row's context token count, e.g. `212k`. Rounded to whole units so it never
@@ -1151,14 +1149,6 @@ final class FeedWatcher: ObservableObject {
             try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.json"))
             try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.txt"))
         }
-        scheduleRescan()
-    }
-
-    func clearSession(id: String) {
-        let fm = FileManager.default
-        try? fm.removeItem(at: dir.appendingPathComponent("\(id).state.json"))
-        try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.json"))
-        try? fm.removeItem(at: dir.appendingPathComponent("\(id).status.txt"))
         scheduleRescan()
     }
 

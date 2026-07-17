@@ -581,7 +581,7 @@ struct SessionRow: View {
 
     private var rowTooltip: String {
         var parts: [String] = []
-        parts.append("path: \(session.cwd)")
+        parts.append("path: \(session.displayPath)")
         if let pid = session.pid {
             parts.append("pid: \(pid)")
         }
