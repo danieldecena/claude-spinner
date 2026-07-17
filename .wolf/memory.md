@@ -1500,3 +1500,34 @@ both appearances, 33 tests green.
 Two bugs of the same class this session: budgeting a flexible column to its computed
 minimum. bug-122 — "running bash" truncated at 93pt against a 92.4pt estimate. The
 Menlo advance figure is an estimate to leave headroom against, not a budget to spend.
+| 03:56 | Edited claude spinner/FeedWatcher.swift | modified sorted() | ~167 |
+| 03:56 | Edited claude spinner/FeedWatcher.swift | modified sorted() | ~167 |
+| 03:56 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~31 |
+| 03:56 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~31 |
+| 03:56 | Edited claude spinner/FeedWatcher.swift | expanded (+7 lines) | ~176 |
+| 03:56 | Edited claude spinner/FeedWatcher.swift | expanded (+7 lines) | ~176 |
+| 03:56 | Edited claude spinner/MenuContentView.swift | reduced (-7 lines) | ~78 |
+| 03:56 | Edited claude spinner/MenuContentView.swift | reduced (-7 lines) | ~78 |
+| 03:56 | Edited claude spinnerTests/claude_spinnerTests.swift | modified mk() | ~105 |
+| 03:56 | Edited claude spinnerTests/claude_spinnerTests.swift | modified mk() | ~105 |
+| 03:57 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testSortedOrdersByRankThenTokensThenRecency() | ~471 |
+| 03:57 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testSortedOrdersByRankThenTokensThenRecency() | ~471 |
+| 03:57 | Edited claude spinner/FeedWatcher.swift | expanded (+9 lines) | ~148 |
+| 03:57 | Edited claude spinner/FeedWatcher.swift | expanded (+9 lines) | ~148 |
+| 03:57 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~868 |
+| 03:57 | Edited claude spinner/MenuContentView.swift | modified VStack() | ~868 |
+| 03:57 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testContextTokensIsNilUntilReported() | ~103 |
+| 03:57 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testContextTokensIsNilUntilReported() | ~103 |
+
+### Follow-ups (04:00)
+
+- **Sort**: `FeedWatcher.sorted` now ranks status first (a waiting session still
+  outranks any amount of context — that's the panel's job), then heaviest context,
+  then freshest. A session with no reported context sorts as 0, last. Chosen over a
+  pure token sort, which would bury `needs input` under a heavy idle row.
+- **Header**: fills its dead right side with `482k total` — every session's context
+  summed, the one number no row can show. Deliberately untinted: separate windows,
+  so 210k across three light sessions isn't one 210k session. The header now also
+  renders when there are sessions but no usage line.
+- `contextTokens` moved from a private View computed onto `SessionFeed`, so the sort
+  and the row share one definition.

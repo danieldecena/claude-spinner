@@ -266,6 +266,13 @@ struct SessionFeed: Identifiable {
     /// directory. The cwd stays in the row's tooltip either way.
     var displayName: String { sessionName ?? projectName }
 
+    /// Context tokens in play, or nil when the statusLine hasn't reported a window
+    /// yet — which the row draws as an empty column rather than a misleading `0`.
+    var contextTokens: Int? {
+        guard contextInputTokens != nil || contextOutputTokens != nil else { return nil }
+        return (contextInputTokens ?? 0) + (contextOutputTokens ?? 0)
+    }
+
     /// Home-relative path the way the terminal shows it, e.g. `~/apply`.
     var displayPath: String {
         guard !cwd.isEmpty else { return "session" }
@@ -866,9 +873,14 @@ final class FeedWatcher: ObservableObject {
     var sortedSessions: [SessionFeed] { Self.sorted(sessions) }
 
     /// Pure sort used by the row list — extracted so it's unit-testable without I/O.
+    /// Status rank first — a session waiting on you outranks any amount of context —
+    /// then heaviest context first within the band, then freshest. A session with no
+    /// reported context sorts as 0, below every session that has one.
     static func sorted(_ sessions: [SessionFeed]) -> [SessionFeed] {
         sessions.sorted { a, b in
             if rank(a.status) != rank(b.status) { return rank(a.status) < rank(b.status) }
+            let (at, bt) = (a.contextTokens ?? 0, b.contextTokens ?? 0)
+            if at != bt { return at > bt }
             return (a.updated ?? .distantPast) > (b.updated ?? .distantPast)
         }
     }
@@ -928,6 +940,15 @@ final class FeedWatcher: ObservableObject {
     // then the persisted snapshot — so it stays live in any session (poller) and
     // still survives Clear All / statusLine-less sessions (cache).
     var hasUsage: Bool { pollUsage != nil || usageSession != nil || cachedUsage != nil }
+
+    /// Every session's context tokens added together — the one number no single row
+    /// can show. nil when nothing has reported a context window yet. Deliberately
+    /// untinted: these are separate windows, so a 210k sum across three light
+    /// sessions is not the same "heavy" as one 210k session.
+    var totalContextTokens: Int? {
+        let counts = sessions.compactMap(\.contextTokens)
+        return counts.isEmpty ? nil : counts.reduce(0, +)
+    }
     var usageModel: String? { usageSession?.model ?? cachedUsage?.model }
     var usageModelId: String? { usageSession?.modelId ?? cachedUsage?.modelId }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }

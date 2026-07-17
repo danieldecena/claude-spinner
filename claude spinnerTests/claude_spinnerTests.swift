@@ -14,9 +14,11 @@ final class claude_spinnerTests: XCTestCase {
 
     /// Build a bare session fixture for the pure-derivation tests.
     private func mk(_ id: String, _ status: SessionStatus, cwd: String = "/x",
-                    updated: Date? = nil, lastDuration: Int? = nil) -> SessionFeed {
+                    updated: Date? = nil, lastDuration: Int? = nil,
+                    tokens: Int? = nil) -> SessionFeed {
         var s = SessionFeed(id: id)
         s.status = status; s.cwd = cwd; s.updated = updated; s.lastDuration = lastDuration
+        s.contextInputTokens = tokens
         return s
     }
 
@@ -152,7 +154,7 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.menuBarState(for: [mk("i", .idle, updated: now)], now: now), .idle)
     }
 
-    func testSortedOrdersByRankThenRecency() {
+    func testSortedOrdersByRankThenTokensThenRecency() {
         let now = Date()
         let sorted = FeedWatcher.sorted([
             mk("i", .idle, updated: now),
@@ -160,6 +162,39 @@ final class claude_spinnerTests: XCTestCase {
             mk("a", .attention, updated: now.addingTimeInterval(-200)),
         ])
         XCTAssertEqual(sorted.map(\.id), ["a", "w", "i"])
+    }
+
+    /// Rank wins outright: a waiting session outranks any amount of context.
+    func testSortedRanksAttentionAboveHeavierWorkingSession() {
+        let now = Date()
+        let sorted = FeedWatcher.sorted([
+            mk("heavy", .tool, updated: now, tokens: 900_000),
+            mk("light", .attention, updated: now, tokens: 1_000),
+        ])
+        XCTAssertEqual(sorted.map(\.id), ["light", "heavy"])
+    }
+
+    /// Within one band, heaviest context first.
+    func testSortedOrdersByTokensWithinABand() {
+        let now = Date()
+        let sorted = FeedWatcher.sorted([
+            mk("mid", .tool, updated: now, tokens: 150_000),
+            mk("big", .tool, updated: now, tokens: 400_000),
+            mk("none", .tool, updated: now),
+            mk("small", .tool, updated: now, tokens: 20_000),
+        ])
+        // A session with no reported context sorts as 0 — last, not first.
+        XCTAssertEqual(sorted.map(\.id), ["big", "mid", "small", "none"])
+    }
+
+    /// Recency still breaks ties when the token counts match.
+    func testSortedFallsBackToRecencyOnEqualTokens() {
+        let now = Date()
+        let sorted = FeedWatcher.sorted([
+            mk("old", .tool, updated: now.addingTimeInterval(-100), tokens: 50_000),
+            mk("new", .tool, updated: now, tokens: 50_000),
+        ])
+        XCTAssertEqual(sorted.map(\.id), ["new", "old"])
     }
 
     // MARK: - Color tier boundaries
@@ -173,6 +208,14 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(75), Color.usageTint(89))      // amber band
         XCTAssertNotEqual(Color.usageTint(89), Color.usageTint(90))   // -> red
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
+    }
+
+    func testContextTokensIsNilUntilReported() {
+        XCTAssertNil(mk("a", .tool).contextTokens)
+        XCTAssertEqual(mk("a", .tool, tokens: 0).contextTokens, 0)
+        var s = mk("a", .tool, tokens: 100)
+        s.contextOutputTokens = 25
+        XCTAssertEqual(s.contextTokens, 125)
     }
 
     /// Banded on absolute tokens, not percentage — 200k is heavy on a 1m window too.

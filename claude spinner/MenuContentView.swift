@@ -105,36 +105,58 @@ struct MenuContentView: View {
 struct UsageHeader: View {
     @ObservedObject var feed: FeedWatcher
 
+    /// The usage line only exists once there's something to say about the account.
+    private var hasUsageLine: Bool {
+        feed.hasUsage && (feed.usageNotice != nil || feed.usageFiveHourReset != nil)
+    }
+
     var body: some View {
-        if feed.hasUsage && (feed.usageNotice != nil || feed.usageFiveHourReset != nil) {
+        if hasUsageLine || feed.totalContextTokens != nil {
             VStack(spacing: 0) {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     HStack(spacing: 0) {
-                        if let notice = feed.usageNotice {
-                            Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
-                                .font(.claudeMono(10.5))
-                                .foregroundStyle(Color.usageTint(95))
-                                .help(feed.usageNoticeDetail)
-                                .lineLimit(1)
-                                .textCase(.lowercase)
-                                .accessibilityLabel("Usage warning: \(notice)")
-                        } else {
-                            let clock = feed.usageFiveHourReset ?? ""
-                            let rel = feed.usageFiveHourResetRelative ?? ""
-                            let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
-                            Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
-                                .font(.claudeMono(10.5))
-                                .foregroundStyle(Color.secondary.opacity(0.75))
-                                .help(feed.usageResetTooltip)
-                                .lineLimit(1)
-                                .textCase(.lowercase)
-                                // The bare glyph + clock reads as nothing without this.
-                                .accessibilityLabel(
-                                    "5-hour limit resets at \(clock)\(rel.isEmpty ? "" : ", in \(rel)")")
+                        if hasUsageLine {
+                            Group {
+                                if let notice = feed.usageNotice {
+                                    Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
+                                        .foregroundStyle(Color.usageTint(95))
+                                        .help(feed.usageNoticeDetail)
+                                        .accessibilityLabel("Usage warning: \(notice)")
+                                } else {
+                                    let clock = feed.usageFiveHourReset ?? ""
+                                    let rel = feed.usageFiveHourResetRelative ?? ""
+                                    let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
+                                    Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
+                                        .foregroundStyle(Color.secondary.opacity(0.75))
+                                        .help(feed.usageResetTooltip)
+                                        // The bare glyph + clock reads as nothing without this.
+                                        .accessibilityLabel(
+                                            "5-hour limit resets at \(clock)\(rel.isEmpty ? "" : ", in \(rel)")")
+                                }
+                            }
+                            .font(.claudeMono(10.5))
+                            .lineLimit(1)
+                            .textCase(.lowercase)
+                            // Only the account numbers go stale; the total below is
+                            // read from the sessions, which are live regardless.
+                            .opacity(feed.usageIsStale ? 0.5 : 1)
                         }
-                        Spacer(minLength: 4)
+
+                        Spacer(minLength: 8)
+
+                        // Context across every session at once — the one number no
+                        // single row can show.
+                        if let total = feed.totalContextTokens {
+                            Text("\(FeedWatcher.formatTokens(total)) total")
+                                .font(.claudeMono(10.5))
+                                .monospacedDigit()
+                                .foregroundStyle(Color.secondary.opacity(0.75))
+                                .lineLimit(1)
+                                .textCase(.lowercase)
+                                .help("Total context tokens across all sessions")
+                                .accessibilityLabel("\(FeedWatcher.formatTokens(total)) context tokens across all sessions")
+                        }
                     }
-                    .opacity(feed.usageIsStale ? 0.5 : 1)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -496,19 +518,12 @@ struct SessionRow: View {
     /// An idle row's context number recedes with the rest of the row; a live one
     /// is tinted by how many tokens it's carrying.
     private var contextColor: Color {
-        guard let used = contextTokenCount, session.status != .idle else { return .secondary }
+        guard let used = session.contextTokens, session.status != .idle else { return .secondary }
         return .contextTint(used)
     }
 
-    /// This session's context tokens, or nil when its statusLine hasn't reported a
-    /// context window yet — an empty column, not a zero.
-    private var contextTokenCount: Int? {
-        guard session.contextInputTokens != nil || session.contextOutputTokens != nil else { return nil }
-        return (session.contextInputTokens ?? 0) + (session.contextOutputTokens ?? 0)
-    }
-
     private var contextTokens: String {
-        contextTokenCount.map(FeedWatcher.formatTokens) ?? ""
+        session.contextTokens.map(FeedWatcher.formatTokens) ?? ""
     }
 
     private var statusColor: Color {
