@@ -1714,3 +1714,5 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:46 | Corrected the stale cerebrum entry claiming the transient panel can't be driven; logged the blind-click hazard | .wolf/cerebrum.md | done | ~2k |
 | 05:47 | Confirmed notarization blocked: 0 Developer ID Application certs, no notarytool creds | — | blocked | ~1k |
 | 05:50 | MISTAKE: git add -A swept the concurrent statusline session's work into 306e2bf; not rewritten (pushed + session live), logged bug-139 | .wolf/buglog.json, .wolf/cerebrum.md | logged | ~3k |
+| 05:35 | Session end: 28 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 5 reads | ~28038 tok |
+| 05:35 | Session end: 28 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 5 reads | ~28038 tok |

@@ -19,7 +19,7 @@ input=$(cat)
 # become empty strings (not "null"), so the downstream `[ -n ... ]` guards
 # behave exactly as before.
 US=$(printf '\037')
-IFS="$US" read -r sid cwd model cws over200k fast_mode effort cost_cents repo_owner repo_name sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
+IFS="$US" read -r sid cwd model cws over200k fast_mode effort cost_cents repo_owner repo_name project_dir sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
 $(echo "$input" | jq -r '[
     .session_id // "",
     (.cwd // .workspace.current_dir // ""),
@@ -31,6 +31,7 @@ $(echo "$input" | jq -r '[
     (((.cost.total_cost_usd // 0) * 100) | round),
     (.workspace.repo.owner // ""),
     (.workspace.repo.name // ""),
+    (.workspace.project_dir // ""),
     ((.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)),
     (.context_window.used_percentage // ""),
     (.context_window.current_usage.cache_read_input_tokens // 0),
@@ -326,10 +327,18 @@ fi
 # The owner is dimmed: it's identical across every repo one person owns, so at
 # full weight it's width without signal. Dim keeps it available for the case it
 # does matter (a fork, someone else's repo) while the eye lands on the name.
+#
+# workspace.repo describes project_dir — the directory the session STARTED in —
+# not the cwd, and the two diverge the moment a session cds into another repo.
+# Taking the name unconditionally printed the project's repo beside the cwd
+# repo's branch and dirty flag: "danieldecena/home main*" while actually sitting
+# in claude-spinner, one segment naming two different repos. So the remote is
+# only trusted when project_dir IS this repo's root; otherwise fall back to the
+# directory name, which always describes what git is being asked about.
 owner_seg=""
 if [ -n "$git_root" ]; then
     reponame="${git_root##*/}"
-    if [ -n "$repo_owner" ] && [ -n "$repo_name" ]; then
+    if [ -n "$repo_owner" ] && [ -n "$repo_name" ] && [ "$project_dir" = "$git_root" ]; then
         reponame="$repo_name"
         owner_seg="${dim}${repo_owner}/${reset}"
     fi

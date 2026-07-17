@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 3445198,
-    "total_reads": 975,
-    "total_writes": 5622,
+    "total_tokens_estimated": 3473236,
+    "total_reads": 980,
+    "total_writes": 5650,
     "total_sessions": 34,
-    "anatomy_hits": 476,
-    "anatomy_misses": 499,
-    "repeated_reads_blocked": 2571,
-    "estimated_savings_vs_bare_cli": 17539150
+    "anatomy_hits": 478,
+    "anatomy_misses": 502,
+    "repeated_reads_blocked": 2573,
+    "estimated_savings_vs_bare_cli": 17554473
   },
   "sessions": [
     {
@@ -36339,6 +36339,193 @@
         "reads_count": 2,
         "writes_count": 24,
         "repeated_reads_blocked": 1,
+        "anatomy_lookups": 2
+      }
+    },
+    {
+      "id": "session-2026-07-17-0518",
+      "started": "2026-07-17T12:18:46.378Z",
+      "ended": "2026-07-17T12:35:35.777Z",
+      "reads": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 7289,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 14923,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/private/tmp/claude-501/-Users-home-Developer-claude-spinner/1d41969f-c522-44f3-b607-2ee59b10a162/scratchpad/panel_crop.png",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/private/tmp/claude-501/-Users-home-Developer-claude-spinner/1d41969f-c522-44f3-b607-2ee59b10a162/scratchpad/panel2.png",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/private/tmp/claude-501/-Users-home-Developer-claude-spinner/1d41969f-c522-44f3-b607-2ee59b10a162/scratchpad/p2c.png",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 39,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 39,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 282,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 282,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 131,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 131,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 382,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 382,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 75,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 276,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 220,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 710,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 92,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 92,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 42,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 42,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinnerTests/claude_spinnerTests.swift",
+          "tokens_estimated": 618,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 81,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 81,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 82,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 82,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 290,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 290,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 378,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 378,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 137,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/STATUS.md",
+          "tokens_estimated": 137,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 22212,
+        "output_tokens_estimated": 5826,
+        "reads_count": 5,
+        "writes_count": 28,
+        "repeated_reads_blocked": 2,
         "anatomy_lookups": 2
       }
     }

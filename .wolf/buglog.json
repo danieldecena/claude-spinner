@@ -2441,6 +2441,26 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-07-17T05:50:00Z"
+    },
+    {
+      "id": "bug-146",
+      "timestamp": "2026-07-17T05:55:00.000Z",
+      "error_message": "Status line rendered 'danieldecena/home main*' while the cwd was ~/Developer/claude-spinner \u2014 the repo NAME came from one repo and the branch/dirty flag from another.",
+      "file": "claude spinner/Scripts/statusline-command.sh",
+      "root_cause": "workspace.repo describes workspace.project_dir (the directory the session started in), NOT .cwd. The two diverge as soon as a session cds into a different repo. The new owner/repo segment took .workspace.repo.name unconditionally while branch/dirty still came from `git -C $cwd`, so one segment named two different repos. Caught only because the rendered dirty marker contradicted `git status` in /Users/home, which was clean.",
+      "fix": "Gate the remote on `[ \"$project_dir\" = \"$git_root\" ]` \u2014 trust workspace.repo only when project_dir IS the cwd's repo root; otherwise fall back to ${git_root##*/}, which always describes the repo git is actually being asked about.",
+      "tags": [
+        "statusline",
+        "git",
+        "payload",
+        "workspace",
+        "correctness"
+      ],
+      "related_bugs": [
+        "bug-145"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T05:55:00.000Z"
     }
   ]
 }
