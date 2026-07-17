@@ -1549,3 +1549,60 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 04:01 | Edited STATUS.md | expanded (+11 lines) | ~180 |
 | 04:02 | Session end: 3 writes across 1 files (STATUS.md) | 1 reads | ~789 tok |
 | 04:02 | Session end: 3 writes across 1 files (STATUS.md) | 1 reads | ~789 tok |
+
+## Session: 2026-07-17 04:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 04:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 04:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 04:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified resolveBundleID() | ~464 |
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified resolveBundleID() | ~464 |
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified resolveBundleID() | ~111 |
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified resolveBundleID() | ~111 |
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified contains() | ~91 |
+| 04:34 | Edited claude spinner/claude_spinnerApp.swift | modified contains() | ~91 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | modified transient() | ~296 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | modified transient() | ~296 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | failure() → off() | ~82 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | failure() → off() | ~82 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | 8→4 lines | ~75 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | 8→4 lines | ~75 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | modified stopPolling() | ~82 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | modified stopPolling() | ~82 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | 2→2 lines | ~15 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | 2→2 lines | ~15 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | added optional chaining | ~143 |
+| 04:34 | Edited claude spinner/FeedWatcher.swift | added optional chaining | ~143 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | modified start() | ~100 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | modified start() | ~100 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | removed 9 lines | ~6 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | removed 9 lines | ~6 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | 3→1 lines | ~31 |
+| 04:35 | Edited claude spinner/FeedWatcher.swift | 3→1 lines | ~31 |
+| 04:35 | Edited claude spinner/MenuContentView.swift | "path: \(session.cwd)" → "path: \(session.displayPa" | ~14 |
+| 04:35 | Edited claude spinner/MenuContentView.swift | "path: \(session.cwd)" → "path: \(session.displayPa" | ~14 |
+| 04:36 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagClassifiesKnownHosts() | ~783 |
+| 04:36 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagClassifiesKnownHosts() | ~783 |
+| 04:36 | Session end: 21 writes across 4 files (claude_spinnerApp.swift, FeedWatcher.swift, MenuContentView.swift, claude_spinnerTests.swift) | 3 reads | ~24401 tok |
+| 04:36 | Session end: 21 writes across 4 files (claude_spinnerApp.swift, FeedWatcher.swift, MenuContentView.swift, claude_spinnerTests.swift) | 3 reads | ~24401 tok |
+| 04:38 | Edited TASKS.md | 3→8 lines | ~352 |
+| 04:38 | Edited TASKS.md | 3→8 lines | ~352 |
+| 04:36 | Code+UI review; fixed Zed wrong-window launch (resolveBundleID, pure+tested), split UsageFailure auth vs transient, removed dead clearSession/usageModel(Id), wired displayPath into tooltip, stop() on poller start | claude_spinnerApp.swift, FeedWatcher.swift, MenuContentView.swift, claude_spinnerTests.swift | 41 tests green (was 37); Zed click unverified by hand (no Accessibility perm) | ~48k |
+| 05:05 | Edited claude spinnerTests/claude_spinnerTests.swift | — | ~0 |
+| 05:05 | Edited claude spinnerTests/claude_spinnerTests.swift | — | ~0 |
+| 05:06 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageFailureDistinguishesAuthFromTransient() | ~152 |
+| 05:06 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageFailureDistinguishesAuthFromTransient() | ~152 |
