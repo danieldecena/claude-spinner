@@ -192,7 +192,6 @@ private struct StateFile: Decodable {
 /// casing the way `JSONSerialization`'s `NSNumber` did.
 private struct StatusFile: Decodable {
     struct Model: Decodable {
-        var id: String?
         var display_name: String?
     }
     struct Workspace: Decodable { var current_dir: String? }
@@ -232,7 +231,6 @@ struct SessionFeed: Identifiable {
     var turnStart: Date?
     var updated: Date?
     var model: String?
-    var modelId: String?
     /// Claude Code's generated name for the session. Two forms occur in the wild —
     /// a kebab slug (`panel-status-truncation-fix`) and a prose sentence (`Set up
     /// iTerm2 shell integration`) — and older sessions have neither.
@@ -264,7 +262,6 @@ struct SessionFeed: Identifiable {
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }
-        if let mid = s.model?.id { modelId = mid }
         if let n = s.session_name, !n.isEmpty { sessionName = n }
         if cwd.isEmpty {
             if let c = s.cwd { cwd = c }
@@ -318,7 +315,6 @@ struct UsageSnapshot: Codable {
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
     var model: String?
-    var modelId: String?
     var savedAt: Double
 }
 
@@ -598,7 +594,6 @@ final class FeedWatcher: ObservableObject {
                                  fiveHourResetsAt: result.fiveHourResetsAt,
                                  sevenDayPct: result.sevenDayPct,
                                  model: cachedUsage?.model,
-                                 modelId: cachedUsage?.modelId,
                                  savedAt: result.fetchedAt.timeIntervalSince1970)
         cachedUsage = snap
         if let data = try? JSONEncoder().encode(snap) {
@@ -778,7 +773,7 @@ final class FeedWatcher: ObservableObject {
             .max(by: { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) })
         else { return }
         let snap = UsageSnapshot(fiveHourPct: s.fiveHourPct, fiveHourResetsAt: s.fiveHourResetsAt,
-                                 sevenDayPct: s.sevenDayPct, model: s.model, modelId: s.modelId,
+                                 sevenDayPct: s.sevenDayPct, model: s.model,
                                  savedAt: Date().timeIntervalSince1970)
         cachedUsage = snap
         if let data = try? JSONEncoder().encode(snap) {
