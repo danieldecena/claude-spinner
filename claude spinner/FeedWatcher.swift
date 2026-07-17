@@ -373,6 +373,9 @@ final class UsagePoller {
     }
 
     func start() {
+        // Reassigning `timer` would drop the old one without invalidating it, so a
+        // double-start would leave an orphaned timer polling forever.
+        stop()
         poll(force: true)
         timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) {
             [weak self] _ in self?.poll(force: false)
