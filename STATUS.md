@@ -17,14 +17,25 @@
 
 - Clicking a row focuses the editor the session actually runs in — including
   Zed and any editor not in `hostBundleIDs`, which previously opened a stray
-  Ghostty window (bug-130). Verified by unit test, **not yet by hand**.
+  Ghostty window (bug-130). **Verified by hand 2026-07-17**: clicking the Zed
+  row focused zed and Ghostty never launched. The panel *can* be driven from an
+  agent session after all, when the host app has Accessibility permission.
+- The panel's gauges and row layout are verified on screen, not just in tests:
+  7d at 9% draws a visible sliver, `chg +52%` fills ~72% of its track rather
+  than saturating, and `review code and ui` / `needs input` render in full.
 
 ## Known broken
 
-- Nothing outstanding. The panel issues (name truncation, 7d gauge, `chg`
-  gauge, ⌘Q hit-testing) are all fixed but verified by arithmetic and unit
-  test only — the panel is `.transient` and can't be captured from an agent
-  session, so they want one look by eye.
+- Names still truncate on rows whose status is long (`statusline-drift-pe…`
+  beside `thinking`). The dynamic split helps most where the status is short;
+  a row running a long tool still spends its budget on the status. Widening
+  `panelWidth` past 424 is now a one-constant change if it's worth it.
+- A long tool name draws two ellipses in a row: `running askuserqu……` — the
+  status truncates and the animated dots sit right after it.
+- Because the name column's width now varies per row, the model and status
+  columns no longer align vertically down the panel (the ctx/time/chip columns
+  still do, being right-flush). Mild, but it's a real trade the old fixed
+  columns bought.
 
 ## Scope / by-design limitations
 
@@ -39,10 +50,12 @@
 
 ## Next Up
 
-- Verify the Zed click by hand — this branch has regressed four times and
-  can't be driven from an agent session.
-- Look at the panel once: four visual fixes landed unseen (see Known broken).
-- Notarization (needs an Apple Developer cert).
+- Decide whether the remaining name truncation is worth widening the panel for,
+  or whether the model column (46pt fixed, "opus" needs 27pt) should join the
+  name/status budget — same class of fix, ~20pt back on the common case.
+- Notarization — blocked on a **Developer ID Application** cert. Only an Apple
+  Development cert is installed, which cannot notarize, and notarytool has no
+  stored credentials. Needs a paid Developer Program account and an Apple ID.
 
 ### 2026-07-17 (row layout)
 - Decided: the status column takes its measured width and the name takes the

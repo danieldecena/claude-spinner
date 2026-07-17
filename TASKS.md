@@ -4,11 +4,11 @@
 
 Remaining open items:
 
-- [ ] Verify the Zed fix by hand — click a Zed session's row; it must focus the running Zed window, not open a Ghostty one. Unit-green only; this branch has regressed 4x (bug-004/072/091/110) and can't be driven without Accessibility permission.
-- [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
+- [ ] Notarization — needs a **Developer ID Application** cert (only an Apple Development cert is installed, which can't notarize) plus notarytool credentials. Needs a paid Developer Program account and the user's Apple ID.
 
 ## Completed
 
+- [x] Verify the Zed fix by hand — verified 2026-07-17: clicking the row focused zed, Ghostty never launched
 - [x] Name column truncates while the status column idles — fixed 2026-07-17 (4a6ccb7, bug-138)
 - [x] 7d gauge reads as empty below 10% — fixed 2026-07-17 (9c675c5, bug-135)
 - [x] `chg` gauge saturates at ≥20 points — fixed 2026-07-17 (ad68451, bug-136)

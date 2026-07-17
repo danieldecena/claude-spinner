@@ -546,4 +546,71 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(emitCommands(merged, "SessionStart").count, 1)  // not duplicated
         XCTAssertEqual(emitCommands(merged, "Stop").count, 1)          // added
     }
+
+    // MARK: - SetupInstaller.copyExecutable (script replacement)
+    //
+    // Exercised in a throwaway temp dir, never against ~/.claude: the installer's
+    // real destination is the user's live config and feed dir.
+
+    /// Temp dir seeded with a src/dst pair; removed when `body` returns.
+    private func withTempDir(_ body: (URL) throws -> Void) rethrows {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("copyexec-\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try body(dir)
+    }
+
+    private func backups(in dir: URL) -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+            .filter { $0.contains(".backup-") }.sorted()
+    }
+
+    func testCopyExecutablePreservesADifferingDestination() throws {
+        try withTempDir { dir in
+            let src = dir.appendingPathComponent("src.sh")
+            let dst = dir.appendingPathComponent("statusline-command.sh")
+            try "bundled".write(to: src, atomically: true, encoding: .utf8)
+            try "hand-edited, must survive".write(to: dst, atomically: true, encoding: .utf8)
+
+            try SetupInstaller.copyExecutable(from: src, to: dst, now: Date(timeIntervalSince1970: 1000))
+
+            XCTAssertEqual(try String(contentsOf: dst, encoding: .utf8), "bundled")
+            XCTAssertEqual(backups(in: dir), ["statusline-command.sh.backup-1000"])
+            let saved = dir.appendingPathComponent("statusline-command.sh.backup-1000")
+            XCTAssertEqual(try String(contentsOf: saved, encoding: .utf8),
+                           "hand-edited, must survive")
+        }
+    }
+
+    func testCopyExecutableDoesNotBackUpAnIdenticalDestination() throws {
+        try withTempDir { dir in
+            let src = dir.appendingPathComponent("src.sh")
+            let dst = dir.appendingPathComponent("statusline-command.sh")
+            try "same bytes".write(to: src, atomically: true, encoding: .utf8)
+            try "same bytes".write(to: dst, atomically: true, encoding: .utf8)
+
+            // install() is safe to re-run; a no-op re-run must not litter.
+            try SetupInstaller.copyExecutable(from: src, to: dst, now: Date(timeIntervalSince1970: 1000))
+            try SetupInstaller.copyExecutable(from: src, to: dst, now: Date(timeIntervalSince1970: 2000))
+
+            XCTAssertEqual(backups(in: dir), [])
+            XCTAssertEqual(try String(contentsOf: dst, encoding: .utf8), "same bytes")
+        }
+    }
+
+    func testCopyExecutableIsExecutableAndHandlesAFreshDestination() throws {
+        try withTempDir { dir in
+            let src = dir.appendingPathComponent("src.sh")
+            let dst = dir.appendingPathComponent("statusline-command.sh")
+            try "bundled".write(to: src, atomically: true, encoding: .utf8)
+
+            try SetupInstaller.copyExecutable(from: src, to: dst)
+
+            XCTAssertEqual(backups(in: dir), [])  // nothing to preserve
+            let perms = try FileManager.default
+                .attributesOfItem(atPath: dst.path)[.posixPermissions] as? NSNumber
+            XCTAssertEqual(perms?.int16Value, 0o755)
+        }
+    }
 }

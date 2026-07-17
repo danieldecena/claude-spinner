@@ -1704,3 +1704,12 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:27 | Edited STATUS.md | expanded (+11 lines) | ~271 |
 | 05:28 | Session end: 24 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 2 reads | ~27008 tok |
 | 05:28 | Session end: 24 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 2 reads | ~27008 tok |
+| 05:33 | Edited STATUS.md | expanded (+11 lines) | ~353 |
+| 05:33 | Edited STATUS.md | expanded (+11 lines) | ~353 |
+| 05:33 | Edited STATUS.md | 6→8 lines | ~128 |
+| 05:33 | Edited STATUS.md | 6→8 lines | ~128 |
+| 05:42 | Probed Accessibility from Zed — it WORKS (cerebrum said impossible); built+launched app, drove the panel open | run.sh | panel captured | ~5k |
+| 05:44 | VERIFIED bug-130 by hand: clicked the Zed row -> zed frontmost, Ghostty never launched | — | pass | ~3k |
+| 05:45 | Verified gauges on screen: 7d 9% visible, chg +52% ~72% fill, "review code and ui"/"needs input" render full | — | pass | ~3k |
+| 05:46 | Corrected the stale cerebrum entry claiming the transient panel can't be driven; logged the blind-click hazard | .wolf/cerebrum.md | done | ~2k |
+| 05:47 | Confirmed notarization blocked: 0 Developer ID Application certs, no notarytool creds | — | blocked | ~1k |

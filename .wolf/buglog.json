@@ -2389,6 +2389,22 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-07-17T05:35:00Z"
+    },
+    {
+      "id": "bug-144",
+      "timestamp": "2026-07-17T12:33:17.198Z",
+      "error_message": "Significant refactor of ",
+      "file": "STATUS.md",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11→22 lines (5 removed) | Also: Ghostty window (bug-130). Verified by unit test, *; - Nothing outstanding. The panel issues (name trun | Also: - Verify the Zed click by hand — this branch has r; can't be driven from an agent session.",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-07-17T12:33:23.563Z"
     }
   ]
 }
