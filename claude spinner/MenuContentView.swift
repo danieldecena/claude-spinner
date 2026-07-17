@@ -68,9 +68,14 @@ struct MenuContentView: View {
                     // sort + grouping, so evaluating it per-row (ForEach, last, and
                     // the animation value) would repeat that work every 100ms.
                     let rows = feed.displayItems
+                    // Sized once per panel, not per row, so the columns line up
+                    // down the list instead of jagging with each row's content.
+                    let columns = RowLayout.columns(
+                        statusLabels: rows.map(\.session.statusLabel),
+                        models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" })
                     VStack(spacing: 0) {
                         ForEach(rows) { item in
-                            SessionRow(feed: feed, item: item, now: context.date)
+                            SessionRow(feed: feed, item: item, now: context.date, columns: columns)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                             if item.id != rows.last?.id {
                                 Divider().opacity(0.5)
@@ -307,13 +312,29 @@ struct TrendGauge: View {
     }
 }
 
-/// How a row divides the space its name and status columns share.
+extension SessionFeed {
+    /// The status word the row draws. Lives here rather than in SessionRow because
+    /// the panel measures every row's label to size the shared columns, so the
+    /// string the layout budgets for and the string drawn must be the same one.
+    var statusLabel: String {
+        switch status {
+        case .tool:      return tool.isEmpty ? "running" : "running \(tool)"
+        case .thinking:  return "thinking"
+        case .attention: return "needs input"
+        case .idle:      return lastDuration != nil ? "done" : "idle"
+        }
+    }
+}
+
+/// How a row divides the space its name, model and status columns share.
 ///
-/// Both columns were fixed (name 105 / status 103), so the split was a guess made
-/// once for every row: `done` sat in a 103pt slot needing 26pt while the name
-/// truncated beside it, and `running TodoWrite` overran anyway. The status text is
-/// the measurable one — it's drawn from a known vocabulary, in a monospaced font,
-/// always ASCII — so it takes what it needs and the name gets the rest.
+/// All three were once fixed (name 105 / model 46 / status 103), so the split was
+/// a guess made once for every row: `done` sat in a 103pt slot needing 26pt while
+/// the name truncated beside it, and `running TodoWrite` overran anyway. Model and
+/// status are the measurable ones — known vocabularies, monospaced font, always
+/// ASCII — so each takes what it needs and the name, unbounded prose, gets the
+/// rest. That makes `Constants.panelWidth` a free knob: every point added lands
+/// on the name.
 enum RowLayout {
     /// Width of the animated working-dots slot, held even at rest so the column
     /// edge doesn't move as the dots grow (see the SessionRow comment).
@@ -334,17 +355,47 @@ enum RowLayout {
         return ("m" as NSString).size(withAttributes: [.font: font]).width
     }()
 
-    /// The name column's width for a given status label. Pure so the budget is
-    /// testable without standing up a view — the whole class of bug this fixes is
-    /// arithmetic, and arithmetic is checkable.
+    /// What a measurable column needs to draw `text` without truncating.
+    static func width(for text: String) -> CGFloat {
+        text.isEmpty ? 0 : CGFloat(text.count) * monoAdvance + statusSlack
+    }
+
+    /// The name and model column widths, shared by every row in the panel.
+    struct Columns: Equatable {
+        var name: CGFloat
+        var model: CGFloat
+    }
+
+    /// Size the columns once for the whole panel, from the widest label in each.
     ///
-    /// Only ASCII status labels are measured this way; session names may hold
-    /// emoji or wide glyphs, which is exactly why the name is the column that
-    /// flexes and truncates rather than the one being measured.
-    static func nameWidth(statusLabel: String) -> CGFloat {
-        let need = CGFloat(statusLabel.count) * monoAdvance + statusSlack
-        let maxStatus = Constants.rowNameStatusBudget - dotsSlot - minNameWidth
-        return Constants.rowNameStatusBudget - dotsSlot - min(need, maxStatus)
+    /// Sized per row instead, the columns jag: each row's model and status start
+    /// at a different x and the eye loses the vertical run. Sizing to the panel's
+    /// widest label keeps the columns aligned and still hands every spare point to
+    /// the names. The cost is honest and bounded — one row running a long tool
+    /// narrows every name — which beats either the old fixed guess or a ragged
+    /// grid.
+    ///
+    /// Pure so the budget is testable without standing up a view: every bug in
+    /// this family (111, 122, 138) was arithmetic, and arithmetic is checkable.
+    /// Only the ASCII model/status labels are measured; session names may hold
+    /// emoji or wide glyphs, which is why the name is the column that flexes and
+    /// truncates rather than the one being measured.
+    static func columns(statusLabels: [String], models: [String]) -> Columns {
+        var model = models.map(width(for:)).max() ?? 0
+        var status = statusLabels.map(width(for:)).max() ?? 0
+        let free = Constants.rowFlexBudget - dotsSlot
+
+        // The name's floor wins. The model gives way first: a model word is
+        // recoverable from the row's tooltip, and there are only ever a few of
+        // them, whereas a truncated session name is what makes two rows in one
+        // directory indistinguishable.
+        let over = model + status - (free - minNameWidth)
+        if over > 0 {
+            let fromModel = min(model, over)
+            model -= fromModel
+            status -= (over - fromModel)
+        }
+        return Columns(name: free - model - status, model: model)
     }
 }
 
@@ -352,6 +403,8 @@ struct SessionRow: View {
     @ObservedObject var feed: FeedWatcher
     let item: SessionRowItem
     let now: Date
+    /// Column widths shared by every row in the panel, so they stay aligned.
+    let columns: RowLayout.Columns
     @StateObject private var hover = HoverState()
 
     private var session: SessionFeed { item.session }
@@ -381,12 +434,12 @@ struct SessionRow: View {
                         .foregroundStyle(Color.secondary)
                 }
             }
-            // Sized against the status beside it, not fixed: the status is drawn
-            // from a bounded vocabulary and takes only what it needs, so the name
-            // — unbounded prose — gets everything left over.
-            .frame(width: RowLayout.nameWidth(statusLabel: statusLabel), alignment: .leading)
+            // Sized against the model and status beside it, not fixed: both are
+            // drawn from bounded vocabularies and take only what they need, so the
+            // name — unbounded prose — gets everything left over.
+            .frame(width: columns.name, alignment: .leading)
 
-            // Column 2: Model (fixed width). Keeps Status aligned.
+            // Column 2: Model, sized to the family word it actually holds.
             Group {
                 if let rawModel = feed.modelDisplay(for: session) {
                     Text(FeedWatcher.modelFamily(rawModel))
@@ -397,7 +450,7 @@ struct SessionRow: View {
                     Text("")
                 }
             }
-            .frame(width: 46, alignment: .leading)
+            .frame(width: columns.model, alignment: .leading)
 
             // Column 3: Status / Activity (flexible width, truncating if necessary),
             // with the working-dots attached to the word they belong to. The
@@ -589,18 +642,7 @@ struct SessionRow: View {
 
     /// The concrete activity word, without the time (which lives in its own
     /// right-aligned column): `running Bash`, `thinking`, `done`, or the message.
-    private var statusLabel: String {
-        switch session.status {
-        case .tool:
-            return session.tool.isEmpty ? "running" : "running \(session.tool)"
-        case .thinking:
-            return "thinking"
-        case .attention:
-            return "needs input"
-        case .idle:
-            return session.lastDuration != nil ? "done" : "idle"
-        }
-    }
+    private var statusLabel: String { session.statusLabel }
 
     /// True while the row is mid-turn — the dots animate and the time counts up.
     private var isWorking: Bool { session.status == .tool || session.status == .thinking }

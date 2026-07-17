@@ -210,46 +210,93 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
     }
 
-    /// The width the status column actually ends up with, given the name's.
-    private func statusWidth(_ label: String) -> CGFloat {
-        Constants.rowNameStatusBudget - RowLayout.dotsSlot
-            - RowLayout.nameWidth(statusLabel: label)
+    /// The width the status column ends up with, given the other two.
+    private func statusWidth(_ c: RowLayout.Columns) -> CGFloat {
+        Constants.rowFlexBudget - RowLayout.dotsSlot - c.name - c.model
     }
 
-    /// Every status label fits its column — the bug-111/122 class, checked as
-    /// arithmetic rather than by eye. "running TodoWrite" is the long tail that
-    /// truncated even under the old fixed 103pt slot.
+    /// Every status label fits — the bug-111/122 class, checked as arithmetic
+    /// rather than by eye. "running TodoWrite" is the long tail that truncated
+    /// even under the old fixed 103pt slot.
     func testEveryStatusLabelFitsItsColumn() {
         for label in ["done", "idle", "thinking", "needs input", "running",
                       "running bash", "running Edit", "running TodoWrite"] {
-            let need = CGFloat(label.count) * RowLayout.monoAdvance
-            XCTAssertGreaterThanOrEqual(statusWidth(label), need,
-                                        "\"\(label)\" truncates")
+            for model in ["opus", "sonnet", "haiku", ""] {
+                let c = RowLayout.columns(statusLabels: [label], models: [model])
+                XCTAssertGreaterThanOrEqual(
+                    statusWidth(c), CGFloat(label.count) * RowLayout.monoAdvance,
+                    "\"\(label)\" truncates beside \"\(model)\"")
+                XCTAssertGreaterThanOrEqual(
+                    c.model, CGFloat(model.count) * RowLayout.monoAdvance,
+                    "\"\(model)\" truncates")
+            }
         }
     }
 
-    func testShortStatusHandsItsSlackToTheName() {
-        // The reported bug: `done` sat in a 103pt slot needing 26pt while the
-        // name truncated beside it. The name should now get that back.
-        XCTAssertGreaterThan(RowLayout.nameWidth(statusLabel: "done"),
-                             RowLayout.nameWidth(statusLabel: "running bash"))
-        XCTAssertGreaterThan(RowLayout.nameWidth(statusLabel: "done"), 105)
+    /// The panel sizes each column to its widest row, so the columns align.
+    func testColumnsAreSizedToTheWidestRow() {
+        let mixed = RowLayout.columns(statusLabels: ["done", "running bash"],
+                                      models: ["opus", "sonnet"])
+        let widest = RowLayout.columns(statusLabels: ["running bash"], models: ["sonnet"])
+        XCTAssertEqual(mixed, widest)
     }
 
-    func testNameNeverShrinksBelowItsFloor() {
-        // A pathologically long tool name gives up rather than eating the name.
-        let name = RowLayout.nameWidth(statusLabel: "running " + String(repeating: "x", count: 200))
-        XCTAssertEqual(name, RowLayout.minNameWidth)
+    /// The whole point: spare width lands on the name, not a fixed slot.
+    func testSpareWidthGoesToTheName() {
+        let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"])
+        let long = RowLayout.columns(statusLabels: ["running bash"], models: ["opus"])
+        XCTAssertGreaterThan(short.name, long.name)
+        // Both beat the old fixed 105pt name column.
+        XCTAssertGreaterThan(long.name, 105)
+        // A narrower model word hands its slack over too.
+        XCTAssertGreaterThan(RowLayout.columns(statusLabels: ["done"], models: ["opus"]).name,
+                             RowLayout.columns(statusLabels: ["done"], models: ["sonnet"]).name)
     }
 
-    func testNameAndStatusNeverOverrunTheirBudget() {
+    /// The name's floor wins, and the model gives way before the status does.
+    func testNameFloorHoldsAndModelGivesWayFirst() {
+        let c = RowLayout.columns(
+            statusLabels: ["running " + String(repeating: "x", count: 200)],
+            models: ["sonnet"])
+        XCTAssertEqual(c.name, RowLayout.minNameWidth)
+        XCTAssertEqual(c.model, 0)
+        XCTAssertGreaterThan(statusWidth(c), 0)
+    }
+
+    func testColumnsNeverOverrunTheirBudget() {
         for label in ["done", "needs input", "running bash", "running TodoWrite",
                       "running " + String(repeating: "x", count: 200)] {
-            let total = RowLayout.nameWidth(statusLabel: label)
-                + RowLayout.dotsSlot + statusWidth(label)
-            XCTAssertEqual(total, Constants.rowNameStatusBudget, accuracy: 0.01,
-                           "\"\(label)\" overruns the row")
+            for model in ["opus", "sonnet", ""] {
+                let c = RowLayout.columns(statusLabels: [label], models: [model])
+                XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + statusWidth(c),
+                               Constants.rowFlexBudget, accuracy: 0.01,
+                               "\"\(label)\"/\"\(model)\" overruns the row")
+                XCTAssertGreaterThanOrEqual(c.name, RowLayout.minNameWidth, "name floor broken")
+            }
         }
+    }
+
+    func testEmptyPanelStillProducesASaneBudget() {
+        let c = RowLayout.columns(statusLabels: [], models: [])
+        XCTAssertEqual(c.model, 0)
+        XCTAssertEqual(c.name, Constants.rowFlexBudget - RowLayout.dotsSlot)
+    }
+
+    /// panelWidth is a free knob now: points added land on the name.
+    func testFlexBudgetTracksPanelWidth() {
+        XCTAssertEqual(Constants.rowFlexBudget,
+                       Constants.panelWidth - Constants.rowFixedColumns)
+    }
+
+    /// The label the layout measures must be the label the row draws.
+    func testStatusLabelMatchesWhatTheRowShows() {
+        var s = SessionFeed(id: "a")
+        s.status = .attention;  XCTAssertEqual(s.statusLabel, "needs input")
+        s.status = .thinking;   XCTAssertEqual(s.statusLabel, "thinking")
+        s.status = .tool; s.tool = "bash"; XCTAssertEqual(s.statusLabel, "running bash")
+        s.tool = "";            XCTAssertEqual(s.statusLabel, "running")
+        s.status = .idle;       XCTAssertEqual(s.statusLabel, "idle")
+        s.lastDuration = 5;     XCTAssertEqual(s.statusLabel, "done")
     }
 
     func testTrendGaugeDoesNotSaturateAboveTwentyPoints() {
