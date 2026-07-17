@@ -9,11 +9,15 @@ Remaining open items:
 - [ ] 7d gauge reads as empty below 10% — `UsageGauge` dims the fill to 35% opacity under 10%, so an 8% bar is indistinguishable from an unfilled track and the label does all the work.
 - [ ] `chg` gauge saturates at ≥20 points — `+52%` and `+20%` render identically. Also partly redundant with the 5h number beside it; decide whether it earns a third of the footer.
 - [ ] Settle the invisible ⌘Q button (`MenuContentView.swift:94`) — `.opacity(0)` stays hit-testable in SwiftUI, so a real quit button sits at the panel's centre behind the rows. Likely unreachable, but `.allowsHitTesting(false)` is free and removes the guess.
-- [ ] run.sh fallback — fixed 2026-07-17; the colorset decision’s stated premise was stale, cerebrum corrected.
 - [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed
 
+- [x] Fix run.sh's swiftc fallback — it listed three sources literally and never gained SetupInstaller.swift, so the non-Xcode path compiled nothing. Now globs `"claude spinner"/*.swift`, matching the synchronized root group (bug-132)
+- [x] Zed sessions launch Ghostty instead of focusing Zed — SessionLauncher.resolveBundleID resolves an untabled-but-running bundle ID to itself, fixing every unlisted editor at once; Zed table entries + HostTag chip (bug-130)
+- [x] "expired" shown for every poll failure — UsageFailure enum splits authExpired from transient; stopPolling clears it (bug-131)
+- [x] Dead code — removed clearSession/usageModel/usageModelId; wired displayPath into the row tooltip
+- [x] UsagePoller.start() leaked a timer on double-start — stop() first
 - [x] First-run one-click fix — Install button in the Setup-needed panel: SetupInstaller writes the scripts + back-up-then-merges the hooks/statusLine into ~/.claude/settings.json (tested merge, e2e verified)
 
 - [x] CI — shared scheme + GitHub Actions run the 27 unit tests (real xcodebuild build, UI tests skipped); caught missing import Combine (bug-093)

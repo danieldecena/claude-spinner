@@ -1608,3 +1608,7 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:06 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testUsageFailureDistinguishesAuthFromTransient() | ~152 |
 | 05:09 | Edited run.sh | 1→5 lines | ~105 |
 | 05:09 | Edited run.sh | 1→5 lines | ~105 |
+| 05:10 | Edited TASKS.md | removed 2 lines | ~5 |
+| 05:10 | Edited TASKS.md | removed 2 lines | ~5 |
+| 05:10 | Edited TASKS.md | 3→8 lines | ~217 |
+| 05:10 | Edited TASKS.md | 3→8 lines | ~217 |
