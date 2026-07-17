@@ -78,6 +78,33 @@ enum MenuBarMode: String {
     case activity, usage
 }
 
+/// Why live usage stopped refreshing. The two cases need different words: an
+/// expired token is the user's problem and stays broken until they act, while a
+/// dropped connection or a 5xx clears itself on the next poll. Collapsing both
+/// into "expired" told people their auth had died every time the wifi blinked.
+enum UsageFailure: Equatable {
+    case authExpired
+    case transient(String)
+
+    /// The short word shown in the header next to the warning triangle.
+    var notice: String {
+        switch self {
+        case .authExpired: return "expired"
+        case .transient:   return "error"
+        }
+    }
+
+    /// The full sentence behind the header's tooltip.
+    var detail: String {
+        switch self {
+        case .authExpired:
+            return "Usage auth expired — run any terminal Claude session to refresh."
+        case .transient(let message):
+            return "Usage isn't refreshing: \(message). Retrying on the next poll."
+        }
+    }
+}
+
 /// What the menu-bar label is conveying right now, so the label can color and
 /// animate accordingly.
 enum MenuBarState {
@@ -490,9 +517,10 @@ final class FeedWatcher: ObservableObject {
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
     @Published private(set) var pollUsage: UsagePoller.Result?
-    /// Set when the poller hits an auth failure (expired token), so the footer can
-    /// explain why live usage stopped updating; cleared on the next good poll.
-    @Published private(set) var usageError: String?
+    /// Set when the poller can't refresh usage, so the header can explain why the
+    /// numbers stopped moving; cleared on the next good poll and when polling is
+    /// turned off (a notice about polling failing is meaningless once it's off).
+    @Published private(set) var usageFailure: UsageFailure?
     private var poller: UsagePoller?
     /// Whether to poll the API for live usage; persisted, on by default.
     @Published var usagePollingEnabled: Bool {
@@ -522,12 +550,8 @@ final class FeedWatcher: ObservableObject {
         startWatching()
         poller = UsagePoller(
             onUpdate: { [weak self] result in self?.applyPollResult(result) },
-            onAuthExpired: { [weak self] in
-                self?.usageError = "Usage auth expired — run any terminal Claude session to refresh"
-            },
-            onError: { [weak self] errorMsg in
-                self?.usageError = "Usage error: \(errorMsg)"
-            })
+            onAuthExpired: { [weak self] in self?.usageFailure = .authExpired },
+            onError: { [weak self] message in self?.usageFailure = .transient(message) })
         if usagePollingEnabled { poller?.start() }
         // Safety re-scan: catches any directory event the vnode source misses
         // and prunes sessions that ended without firing SessionEnd.
@@ -551,7 +575,13 @@ final class FeedWatcher: ObservableObject {
         poller?.stop()
     }
 
-    private func stopPolling() { poller?.stop() }
+    private func stopPolling() {
+        poller?.stop()
+        // Nothing is polling now, so a "usage isn't refreshing" notice is both true
+        // and useless — and it would otherwise pin itself in the header forever,
+        // since only a successful poll clears it.
+        usageFailure = nil
+    }
 
     /// Force an immediate usage poll (right-click → Refresh).
     func refreshUsage() { poller?.refreshNow() }
@@ -560,7 +590,7 @@ final class FeedWatcher: ObservableObject {
     /// relaunch and Clear All. Runs on main.
     private func applyPollResult(_ result: UsagePoller.Result) {
         pollUsage = result
-        usageError = nil
+        usageFailure = nil
         let snap = UsageSnapshot(fiveHourPct: result.fiveHourPct,
                                  fiveHourResetsAt: result.fiveHourResetsAt,
                                  sevenDayPct: result.sevenDayPct,
@@ -1035,17 +1065,16 @@ final class FeedWatcher: ObservableObject {
         return (usageFiveHourPct ?? 0) >= 100 || (usageSevenDayPct ?? 0) >= 100
     }
 
-    /// A short, urgent footer note when polling can't refresh (auth expired) or the
-    /// account is blocked on overage — nil when usage is flowing normally. The full
-    /// sentence lives in `usageNoticeDetail` for the tooltip.
+    /// A short, urgent header note when the account is blocked on overage or polling
+    /// can't refresh — nil when usage is flowing normally. The full sentence lives in
+    /// `usageNoticeDetail` for the tooltip.
     var usageNotice: String? {
         if usageOverageBlocked { return "blocked" }
-        if usageError != nil { return "expired" }
-        return nil
+        return usageFailure?.notice
     }
     var usageNoticeDetail: String {
         if usageOverageBlocked { return "Account is out of credits — usage is blocked (overage rejected)." }
-        return usageError ?? ""
+        return usageFailure?.detail ?? ""
     }
 
     /// "45s" / "12m" / "1h20m" elapsed since `date`.

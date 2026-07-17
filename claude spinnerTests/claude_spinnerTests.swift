@@ -355,6 +355,16 @@ final class claude_spinnerTests: XCTestCase {
             "com.apple.Terminal")
     }
 
+    // MARK: - UsageFailure (why usage stopped refreshing)
+
+    /// The header word must tell an expired token apart from a dropped connection:
+    /// one needs the user to act, the other clears itself on the next poll.
+    func testUsageFailureDistinguishesAuthFromTransient() {
+        XCTAssertEqual(UsageFailure.authExpired.notice, "expired")
+        XCTAssertEqual(UsageFailure.transient("offline").notice, "error")
+        XCTAssertTrue(UsageFailure.transient("HTTP 529").detail.contains("HTTP 529"))
+    }
+
     // MARK: - FeedWatcher.trend (reset-aware 5h delta)
 
     private func sample(_ pct: Int, _ at: Double) -> UsageSample { UsageSample(pct: pct, at: at) }
