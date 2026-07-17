@@ -235,7 +235,6 @@ struct UsageGauge: View {
                     .frame(width: max(pct > 0 ? 3 : 0,
                                       trackWidth * CGFloat(min(100, max(0, pct))) / 100),
                            height: trackHeight)
-                    .opacity(pct < 10 ? 0.35 : 1.0)
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: pct)
             }
             Text("\(pct)%")
