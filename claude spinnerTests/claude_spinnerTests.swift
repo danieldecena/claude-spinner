@@ -210,6 +210,31 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
     }
 
+    func testTrendGaugeDoesNotSaturateAboveTwentyPoints() {
+        // The bug: a linear 20-point scale drew +20 and +52 identically.
+        let twenty = TrendGauge.fillFraction(delta: 20)
+        let fiftyTwo = TrendGauge.fillFraction(delta: 52)
+        XCTAssertGreaterThan(fiftyTwo, twenty)
+        // Separated by enough of the 45pt track to read as different bars.
+        XCTAssertGreaterThan((fiftyTwo - twenty) * Constants.usageTrackWidth, 8)
+    }
+
+    func testTrendGaugeFillIsSignAgnosticAndClamped() {
+        XCTAssertEqual(TrendGauge.fillFraction(delta: -30),
+                       TrendGauge.fillFraction(delta: 30))     // magnitude only
+        XCTAssertEqual(TrendGauge.fillFraction(delta: 0), 0)
+        XCTAssertEqual(TrendGauge.fillFraction(delta: 100), 1)
+        XCTAssertEqual(TrendGauge.fillFraction(delta: 250), 1) // clamped, not >1
+    }
+
+    func testTrendGaugeKeepsResolutionAtSmallDeltas() {
+        // Square root's payoff: single-digit moves stay apart rather than all
+        // collapsing onto the 3pt minimum sliver.
+        let three = TrendGauge.fillFraction(delta: 3)
+        let eight = TrendGauge.fillFraction(delta: 8)
+        XCTAssertGreaterThan((eight - three) * Constants.usageTrackWidth, 2)
+    }
+
     func testContextTokensIsNilUntilReported() {
         XCTAssertNil(mk("a", .tool).contextTokens)
         XCTAssertEqual(mk("a", .tool, tokens: 0).contextTokens, 0)

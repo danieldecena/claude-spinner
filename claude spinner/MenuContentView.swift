@@ -253,14 +253,21 @@ struct UsageGauge: View {
 /// A capsule gauge in the same language as `UsageGauge`, showing the recent
 /// *change* in 5h utilization rather than an absolute level: how far it moved
 /// across the sample window, signed. Rising usage tints warm (heading toward the
-/// limit); falling tints green; the fill length is the magnitude (a 20-point
-/// move fills the track).
+/// limit); falling tints green; the fill length is the magnitude.
 struct TrendGauge: View {
     let delta: Int
 
     private let trackWidth = Constants.usageTrackWidth
     private let trackHeight: CGFloat = 5
-    private let fullScale: CGFloat = 20  // points of change that fill the track
+
+    /// Fill fraction for a signed point change, square-rooted over the full
+    /// 0-100 range. The old linear 20-point scale saturated: every move past 20
+    /// points drew an identical full bar, so +20 and +52 were the same picture.
+    /// Square root keeps resolution where samples actually land — single-digit
+    /// moves stay distinguishable — while leaving headroom all the way to 100.
+    static func fillFraction(delta: Int) -> CGFloat {
+        sqrt(CGFloat(min(100, abs(delta))) / 100)
+    }
 
     private var tint: Color {
         if delta > 0 { return .usageAmber }  // rising
@@ -281,7 +288,7 @@ struct TrendGauge: View {
                 Capsule()
                     .fill(tint)
                     .frame(width: max(delta != 0 ? 3 : 0,
-                                      trackWidth * min(fullScale, CGFloat(abs(delta))) / fullScale),
+                                      trackWidth * Self.fillFraction(delta: delta)),
                            height: trackHeight)
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: delta)
             }
