@@ -1531,3 +1531,21 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
   renders when there are sessions but no usage line.
 - `contextTokens` moved from a private View computed onto `SessionFeed`, so the sort
   and the row share one definition.
+| 03:59 | Session end: 35 writes across 3 files (FeedWatcher.swift, MenuContentView.swift, claude_spinnerTests.swift) | 11 reads | ~29933 tok |
+| 03:59 | Session end: 35 writes across 3 files (FeedWatcher.swift, MenuContentView.swift, claude_spinnerTests.swift) | 11 reads | ~29933 tok |
+
+## Session: 2026-07-17 04:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 04:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 04:01 | Edited STATUS.md | 2→6 lines | ~117 |
+| 04:01 | Edited STATUS.md | 2→6 lines | ~117 |
+| 04:01 | Edited STATUS.md | expanded (+11 lines) | ~180 |
+| 04:01 | Edited STATUS.md | expanded (+11 lines) | ~180 |
+| 04:02 | Session end: 3 writes across 1 files (STATUS.md) | 1 reads | ~789 tok |
+| 04:02 | Session end: 3 writes across 1 files (STATUS.md) | 1 reads | ~789 tok |
