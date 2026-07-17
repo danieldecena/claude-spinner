@@ -1742,3 +1742,16 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:54 | Edited claude spinner/MenuContentView.swift | reduced (-6 lines) | ~22 |
 | 06:00 | panelWidth 424->470, model column folded into the shared budget, columns sized once per panel (fixes the jag 4a6ccb7 introduced) | MenuContentView.swift, FeedWatcher.swift, tests | 2710980, 56 tests green, verified on screen | ~12k |
 | 06:07 | Found 10 duplicate ids in buglog.json from concurrent sessions minting max+1; logged bug-200, did NOT renumber (other session live) | .wolf/buglog.json | logged | ~3k |
+| 05:57 | Session end: 50 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 9 reads | ~43383 tok |
+| 05:57 | Session end: 50 writes across 4 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md, FeedWatcher.swift) | 9 reads | ~43383 tok |
+
+## Session summary (2026-07-17, review code and UI)
+Fixed all 5 panel/code issues from the review + 4 self-review findings. 28 commits,
+56 tests green (was 37). Every fix verified on screen, not just by test.
+Landed: Zed launcher (bug-130, hand-verified), usage failure notices, dead code,
+poll-timer leak, run.sh glob, HostTag exact match (bug-133), modelId chain (bug-134),
+7d dimming (bug-135), chg saturation (bug-136), ⌘Q hit-testing (bug-137),
+name/status split (bug-138), column alignment + panelWidth 470 (bug-140).
+Open for the user: buglog.json concurrent-write collisions (bug-200), the
+`running askuserqu……` double ellipsis, notarization (needs a Developer ID cert).
+Mistake: git add -A swept a concurrent session's work into 306e2bf (bug-139).

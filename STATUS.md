@@ -53,6 +53,20 @@
   Development cert is installed, which cannot notarize, and notarytool has no
   stored credentials. Needs a paid Developer Program account and an Apple ID.
 
+### 2026-07-17 (row layout, cont.)
+- Decided: row columns are sized once per panel, from the widest label in each,
+  not per row. Per-row sizing (4a6ccb7) fixed truncation but jagged the grid —
+  every row's model/status began at a different x. Sizing to the set keeps the
+  columns aligned AND hands the names every spare point; the bounded cost is
+  that one long-tool row narrows every name (bug-140).
+- Decided: the model column joins the name/status budget. It was the same static
+  split, smaller — 46pt fixed holding "opus" (27pt). With it folded in, only
+  170pt of a row is fixed, which makes panelWidth a free knob; set to 470.
+- Noted: bug-140 passed all 56 unit tests. Each row's arithmetic was correct in
+  isolation; alignment is a property of the SET of rows and nothing checked it.
+  Three findings today came only from looking at the panel (the dimmed 7d bar,
+  this jag, the Zed click) — "unit-green" is not "verified" for anything visual.
+
 ### 2026-07-17 (row layout)
 - Decided: the status column takes its measured width and the name takes the
   remainder, rather than both being fixed. Two fixed columns meant one static
