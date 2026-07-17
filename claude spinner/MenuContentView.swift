@@ -91,10 +91,13 @@ struct MenuContentView: View {
         }
         .frame(width: Constants.panelWidth)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
+        // `.opacity(0)` hides it but leaves it hit-testable, so this invisible
+        // button sits behind the rows and could swallow a click as a quit.
         .background(
             Button("") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q", modifiers: .command)
                 .opacity(0)
+                .allowsHitTesting(false)
         )
     }
 }
