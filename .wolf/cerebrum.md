@@ -20,6 +20,9 @@
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
+- [2026-07-17] Don't judge the UI from a screenshot without checking the running binary is newer than the last commit. A capture showed the new `UsageHeader` "missing" and nearly sent me hunting a data bug in `fiveHourResetsAt` — the app was just built 6 min before the commit landed. `stat -f %Sm` the binary in DerivedData vs `git log -1 --format=%cd`, and `./run.sh` before capturing.
+- [2026-07-17] The AppleScript menu-bar click (`click menu bar item 1 of menu bar 2`) silently no-ops on the first call after a fresh app launch, and a second call within the same capture toggles the panel shut again. Click once, sleep ~2s, capture; if the panel isn't there, click once more — never twice in one step.
+
 - [2026-07-10] Never inject demo/test data into the user's live feed dir (`~/.claude/spinnerfeed/`). A static `status.json` written for a UI preview lingered and showed frozen fake usage, read as a bug. Clean up test data immediately, or use a throwaway deleted in the same step.
 - [2026-07-10] `emit.sh` (the hook emitter) lives INSIDE `~/.claude/spinnerfeed/`, alongside the session feed files. Any bulk delete of that directory (`clearAll()`) must filter to session files only (`*.state.json` / `*.status.json` / `*.status.txt`); deleting emit.sh silently kills the whole feed ("No active sessions" forever).
 

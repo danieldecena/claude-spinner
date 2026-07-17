@@ -1240,3 +1240,54 @@
 | 02:20 | Move reset countdown/notice chip from footer row 1 into a new UsageHeader above the session list | claude spinner/MenuContentView.swift | build succeeded | ~6k |
 | 02:16 | Session end: 5 writes across 1 files (MenuContentView.swift) | 1 reads | ~8890 tok |
 | 02:16 | Session end: 5 writes across 1 files (MenuContentView.swift) | 1 reads | ~8890 tok |
+| 02:21 | Session end: 5 writes across 1 files (MenuContentView.swift) | 1 reads | ~8890 tok |
+| 02:21 | Session end: 5 writes across 1 files (MenuContentView.swift) | 1 reads | ~8890 tok |
+
+## Session: 2026-07-17 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 02:50
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 02:50
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:56 | Edited claude spinner/MenuContentView.swift | reduced (-56 lines) | ~283 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | reduced (-56 lines) | ~283 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~166 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~166 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | expanded (+7 lines) | ~106 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | expanded (+7 lines) | ~106 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | 4→3 lines | ~57 |
+| 02:56 | Edited claude spinner/MenuContentView.swift | 4→3 lines | ~57 |
+| 02:56 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~53 |
+| 02:56 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~53 |
+| 02:56 | Edited claude spinner/FeedWatcher.swift | 3→3 lines | ~61 |
+| 02:56 | Edited claude spinner/FeedWatcher.swift | 3→3 lines | ~61 |
+| 02:57 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~38 |
+| 02:57 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~38 |
+
+## Session: 2026-07-17 02:57
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 02:57
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:52 | Reviewed UsageHeader commit; found running app was a stale binary (built 02:15, commit 02:21) | MenuContentView.swift | Rebuilt — header renders correctly | ~8k |
+| 03:00 | Removed footer cylinder grid + "context usage" label, kept token summary line | MenuContentView.swift | Footer expanded is now one line | ~3k |
+| 03:02 | Added per-session context% column to SessionRow, tinted by usageTint | MenuContentView.swift | Each row tracks its own context fill | ~3k |
+| 03:03 | Widened panel 320->352 to pay for the new column | FeedWatcher.swift | "running bash" no longer truncates | ~1k |
+| 03:04 | Unified left padding (header/rows/footer all 10) + fixed stale UsageFooter doc comment | MenuContentView.swift | 31 tests pass | ~2k |

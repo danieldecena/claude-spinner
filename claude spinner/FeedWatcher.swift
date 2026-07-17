@@ -29,15 +29,16 @@ enum Constants {
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
-    /// Dropdown panel width.
-    static let panelWidth: CGFloat = 320
+    /// Dropdown panel width. Widened from 320 to pay for the per-session context
+    /// column; at 320 the flexible status text ("running Bash") truncated.
+    static let panelWidth: CGFloat = 352
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
     static let rowTrailingSlot: CGFloat = 26
     /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
-    /// identical in size, kept short enough that the model name, all three gauges,
-    /// and the reset countdown fit within the compact 320px panel without clipping.
+    /// identical in size, kept short enough that all three gauges and the expand
+    /// chevron fit within the compact panel without clipping.
     static let usageTrackWidth: CGFloat = 45
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60

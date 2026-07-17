@@ -140,10 +140,9 @@ struct UsageHeader: View {
     }
 }
 
-/// Always-present footer: live account usage — model, 5-hour and 7-day rate
-/// limits (colored by urgency), and total spend — on the left,
-/// with the settings gear always reachable on the right. A 1s clock keeps the
-/// "resets in" countdown current.
+/// Always-present footer: the 5-hour and 7-day rate limits and the recent trend,
+/// colored by urgency, with a chevron on the right that reveals the token totals.
+/// A 1s clock keeps the stale-dimming current.
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
 
@@ -191,78 +190,22 @@ struct UsageFooter: View {
                             }
                     }
 
-                    // Row 2 & 3: Collapsible reset countdowns / notices / context data
-                    if feed.footerExpanded && feed.hasUsage {
-                        VStack(alignment: .leading, spacing: 5) {
-                            // Row 2 (previously 3): Collapsible Context Window cylinders grid
-                            if let pct = feed.usageContextPct,
-                               let size = feed.usageContextSize {
-                                
-                                let sizeStr = FeedWatcher.formatTokens(size)
-                                let modelName = feed.usageModel ?? "Claude"
-                                
-                                // Strip redundant " (1M context)" from modelName
-                                let displayName: String = {
-                                    var name = modelName
-                                    if let range = name.range(of: " (") {
-                                        name = String(name[..<range.lowerBound])
-                                    }
-                                    return name
-                                }()
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "cpu")
-                                            .font(.system(size: 9, weight: .bold))
-                                        Text("context usage").font(.claudeMono(9)).fontWeight(.bold)
-                                        Text("· \(displayName) (\(sizeStr) context)")
-                                            .font(.claudeMono(9))
-                                            .foregroundStyle(Color.secondary.opacity(0.8))
-                                    }
-                                    .foregroundStyle(Color.secondary.opacity(0.8))
-                                    .textCase(.lowercase)
-                                    
-                                    let inTok = feed.usageContextInputTokens ?? 0
-                                    let outTok = feed.usageContextOutputTokens ?? 0
-                                    let usedStr = FeedWatcher.formatTokens(inTok + outTok)
-                                    
-                                    let infoText = "\(usedStr)/\(sizeStr) tokens (\(pct)%)"
-
-                                    let rawPct = feed.usageContextPctRaw ?? Double(pct)
-                                    let filledCount = min(40, max(0, Int((rawPct / 2.5).rounded())))
-                                    
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        // The 2 rows of 20 cylinders
-                                        ForEach(0..<2, id: \.self) { r in
-                                            HStack(spacing: 5) {
-                                                ForEach(0..<20, id: \.self) { c in
-                                                    let idx = r * 20 + c
-                                                    let isFilled = idx < filledCount
-                                                    Text("⛁")
-                                                        .font(.claudeMono(14))
-                                                        .foregroundStyle(isFilled ? Color.modelTint(modelName) : Color.secondary.opacity(0.18))
-                                                    
-                                                }
-                                            }
-                                        }
-                                        
-                                        Text(infoText)
-                                            .font(.claudeMono(9.5))
-                                            .foregroundStyle(Color.secondary.opacity(0.8))
-                                            .lineLimit(1)
-                                            .fixedSize(horizontal: true, vertical: false)
-                                            .textCase(.lowercase)
-                                            .padding(.top, 2)
-                                    }
-                                    .padding(.top, 2)
-                                }
-                            }
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    // Row 2: the token totals behind the context percentage, revealed
+                    // by the chevron. Per-session context fill lives on each row now,
+                    // so this is only the headline number.
+                    if feed.footerExpanded && feed.hasUsage,
+                       let pct = feed.usageContextPct,
+                       let size = feed.usageContextSize {
+                        let used = (feed.usageContextInputTokens ?? 0) + (feed.usageContextOutputTokens ?? 0)
+                        Text("\(FeedWatcher.formatTokens(used))/\(FeedWatcher.formatTokens(size)) tokens (\(pct)%)")
+                            .font(.claudeMono(9.5))
+                            .foregroundStyle(Color.secondary.opacity(0.8))
+                            .lineLimit(1)
+                            .textCase(.lowercase)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                .padding(.leading, 14)
-                .padding(.trailing, 10)
+                .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .animation(.easeInOut(duration: 0.2), value: feed.footerExpanded)
             }
@@ -409,6 +352,15 @@ struct SessionRow: View {
             // Time + host chip travel together as one right-flush unit with a tight
             // gap, so the time stays near the right edge with the tag just after it.
             HStack(spacing: 4) {
+                // This session's own context-window fill, tinted by urgency like
+                // every other percentage in the panel. The slot is held even when a
+                // session has no number yet, so the times below it stay aligned.
+                Text(session.contextPct.map { "\($0)%" } ?? "")
+                    .font(.claudeMono(10))
+                    .monospacedDigit()
+                    .foregroundStyle(contextColor)
+                    .frame(width: 30, alignment: .trailing)
+
                 // Elapsed / waiting / done time in a fixed-width column so the
                 // times line up down the panel regardless of label. Right-aligned
                 // normally; the animated working-dots use leading alignment
@@ -477,7 +429,7 @@ struct SessionRow: View {
             Button("Clear") { feed.clear(item) }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(session.projectName), \(statusLabel) \(timeText)")
+        .accessibilityLabel("\(session.projectName), \(statusLabel) \(timeText)\(session.contextPct.map { ", context \($0)% full" } ?? "")")
         .accessibilityHint("Opens this session's app")
     }
 
@@ -549,6 +501,13 @@ struct SessionRow: View {
 
     private var nameColor: Color {
         session.status == .idle ? .secondary : .primary
+    }
+
+    /// An idle row's context number recedes with the rest of the row; a live one
+    /// is tinted by how full its window is.
+    private var contextColor: Color {
+        guard let pct = session.contextPct, session.status != .idle else { return .secondary }
+        return .usageTint(pct)
     }
 
     private var statusColor: Color {

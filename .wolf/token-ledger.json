@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 3181525,
-    "total_reads": 916,
-    "total_writes": 5425,
-    "total_sessions": 21,
-    "anatomy_hits": 447,
+    "total_tokens_estimated": 3190415,
+    "total_reads": 917,
+    "total_writes": 5430,
+    "total_sessions": 24,
+    "anatomy_hits": 448,
     "anatomy_misses": 469,
-    "repeated_reads_blocked": 2536,
-    "estimated_savings_vs_bare_cli": 17301866
+    "repeated_reads_blocked": 2537,
+    "estimated_savings_vs_bare_cli": 17309666
   },
   "sessions": [
     {
@@ -34674,6 +34674,54 @@
       "id": "session-2026-07-17-0214",
       "started": "2026-07-17T09:14:52.898Z",
       "ended": "2026-07-17T09:16:01.048Z",
+      "reads": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 7600,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 44,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 25,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 25,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 598,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 598,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 7600,
+        "output_tokens_estimated": 1290,
+        "reads_count": 1,
+        "writes_count": 5,
+        "repeated_reads_blocked": 1,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-17-0214",
+      "started": "2026-07-17T09:14:52.898Z",
+      "ended": "2026-07-17T09:21:05.523Z",
       "reads": [
         {
           "file": "/Users/home/Developer/claude-spinner/claude spinner/MenuContentView.swift",
