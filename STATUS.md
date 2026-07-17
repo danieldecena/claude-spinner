@@ -6,7 +6,7 @@
   feed files (hooks + statusLine in `~/.claude/settings.json`).
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 37 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 45 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
 - Panel rows carry the session's own name (`session_name` from status.json,
   falling back to the directory), its context token count banded on absolute
@@ -23,9 +23,6 @@
   sits half empty. Session names are unbounded prose; status text is bounded.
   The flexible column should be the name — needs the `Constants.panelWidth`
   budget rederived as a whole.
-- The 7d gauge reads as empty below 10%: `UsageGauge` dims the fill to 35%
-  opacity under 10%, so an 8% bar is indistinguishable from an empty track.
-- The `chg` gauge saturates at ≥20 points, so `+52%` and `+20%` look identical.
 
 ## Scope / by-design limitations
 
@@ -42,11 +39,18 @@
 
 - Verify the Zed click by hand (see Known broken's sibling note above) — this
   branch has regressed four times and can't be driven from an agent session.
-- The three panel issues under Known broken.
-- Settle the invisible ⌘Q button (`MenuContentView.swift:94`): `.opacity(0)`
-  stays hit-testable in SwiftUI, so a real quit button sits at the panel's
-  centre behind the rows. Likely unreachable; `.allowsHitTesting(false)` is free.
+- The name-column truncation under Known broken.
 - Notarization (needs an Apple Developer cert).
+
+### 2026-07-17 (panel gauges)
+- Decided: the `chg` gauge scales by square root over the full 0-100 range, not
+  linearly over 20 points. Linear saturated past 20, which is where comparing
+  magnitudes starts to matter; sqrt keeps single-digit moves apart (the common
+  case) and still separates a +52 from a +20. Kept the gauge rather than cutting
+  it — the redundancy question resolved once the bar actually carried the value.
+- Decided: a low gauge value is de-emphasised by tint alone, never by dimming
+  the fill. The track is already a low-opacity secondary, so dimming costs the
+  contrast the fill is read against — and for 7d, under 10% is the normal case.
 
 ### 2026-07-17 (review session)
 - Decided: an unknown host that names a *running* app resolves to itself rather

@@ -1649,3 +1649,36 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:14 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~138 |
 | 05:14 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testHostTagUnknownAndEmptyReturnNil() | ~138 |
 | 05:25 | /code-review low over own session diff: found+fixed contains("zed") substring collision (bug-133) and write-only modelId chain (bug-134); TERM_PROGRAM=zed verified from live env, disproving a third suspected finding | claude_spinnerApp.swift, FeedWatcher.swift, claude_spinnerTests.swift | 42 tests green, pushed | ~14k |
+| 05:15 | Session end: 8 writes across 2 files (FeedWatcher.swift, claude_spinnerTests.swift) | 0 reads | ~526 tok |
+| 05:15 | Session end: 8 writes across 2 files (FeedWatcher.swift, claude_spinnerTests.swift) | 0 reads | ~526 tok |
+
+## Session: 2026-07-17 05:18
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 05:18
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 05:20 | Edited claude spinner/MenuContentView.swift | 3→2 lines | ~37 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | 3→2 lines | ~37 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | modified fillFraction() | ~264 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | modified fillFraction() | ~264 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~51 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~51 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | modified background() | ~123 |
+| 05:20 | Edited claude spinner/MenuContentView.swift | modified background() | ~123 |
+| 05:20 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testTrendGaugeDoesNotSaturateAboveTwentyPoints() | ~356 |
+| 05:20 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testTrendGaugeDoesNotSaturateAboveTwentyPoints() | ~356 |
+
+## 2026-07-17 (panel gauge fixes)
+| 05:19 | Removed UsageGauge's <10% dimming — 7d was invisible most of the week | MenuContentView.swift | 9c675c5 | ~3k |
+| 05:20 | Replaced TrendGauge's linear 20-pt scale with sqrt over 0-100; extracted pure fillFraction(delta:) + 3 tests | MenuContentView.swift, claude_spinnerTests.swift | ad68451, 45 tests green | ~6k |
+| 05:21 | .allowsHitTesting(false) on the invisible ⌘Q button | MenuContentView.swift | a3fcb62 | ~2k |
+| 05:22 | Verified all 3 commits compile standalone via detached worktrees | — | all OK | ~2k |
+| 05:23 | Logged bug-135/136/137 + cerebrum do-not-repeats | .wolf/buglog.json, .wolf/cerebrum.md | done | ~3k |
+| 05:22 | Edited STATUS.md | 7→4 lines | ~70 |
+| 05:22 | Edited STATUS.md | 7→4 lines | ~70 |
+| 05:23 | Edited STATUS.md | expanded (+7 lines) | ~257 |
+| 05:23 | Edited STATUS.md | expanded (+7 lines) | ~257 |

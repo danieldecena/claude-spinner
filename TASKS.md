@@ -6,12 +6,13 @@ Remaining open items:
 
 - [ ] Verify the Zed fix by hand — click a Zed session's row; it must focus the running Zed window, not open a Ghostty one. Unit-green only; this branch has regressed 4x (bug-004/072/091/110) and can't be driven without Accessibility permission.
 - [ ] Name column truncates while the status column idles — rows show `continue from…` / `review code an…`. Status text is bounded (`thinking`, `needs input`, `done`, `running <tool>`); session names are unbounded prose. The flexible column should be the name, not the status. Requires rederiving the whole `Constants.panelWidth` budget.
-- [ ] 7d gauge reads as empty below 10% — `UsageGauge` dims the fill to 35% opacity under 10%, so an 8% bar is indistinguishable from an unfilled track and the label does all the work.
-- [ ] `chg` gauge saturates at ≥20 points — `+52%` and `+20%` render identically. Also partly redundant with the 5h number beside it; decide whether it earns a third of the footer.
-- [ ] Settle the invisible ⌘Q button (`MenuContentView.swift:94`) — `.opacity(0)` stays hit-testable in SwiftUI, so a real quit button sits at the panel's centre behind the rows. Likely unreachable, but `.allowsHitTesting(false)` is free and removes the guess.
 - [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed
+
+- [x] 7d gauge reads as empty below 10% — fixed 2026-07-17 (9c675c5, bug-135)
+- [x] `chg` gauge saturates at ≥20 points — fixed 2026-07-17 (ad68451, bug-136)
+- [x] Settle the invisible ⌘Q button — fixed 2026-07-17 (a3fcb62, bug-137)
 
 - [x] Fix run.sh's swiftc fallback — it listed three sources literally and never gained SetupInstaller.swift, so the non-Xcode path compiled nothing. Now globs `"claude spinner"/*.swift`, matching the synchronized root group (bug-132)
 - [x] Zed sessions launch Ghostty instead of focusing Zed — SessionLauncher.resolveBundleID resolves an untabled-but-running bundle ID to itself, fixing every unlisted editor at once; Zed table entries + HostTag chip (bug-130)
