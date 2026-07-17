@@ -9,6 +9,7 @@ Remaining open items:
 - [ ] 7d gauge reads as empty below 10% — `UsageGauge` dims the fill to 35% opacity under 10%, so an 8% bar is indistinguishable from an unfilled track and the label does all the work.
 - [ ] `chg` gauge saturates at ≥20 points — `+52%` and `+20%` render identically. Also partly redundant with the 5h number beside it; decide whether it earns a third of the footer.
 - [ ] Settle the invisible ⌘Q button (`MenuContentView.swift:94`) — `.opacity(0)` stays hit-testable in SwiftUI, so a real quit button sits at the panel's centre behind the rows. Likely unreachable, but `.allowsHitTesting(false)` is free and removes the guess.
+- [ ] run.sh fallback — fixed 2026-07-17; the colorset decision’s stated premise was stale, cerebrum corrected.
 - [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed

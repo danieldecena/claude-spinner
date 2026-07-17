@@ -16,7 +16,11 @@ if xcodebuild -version &>/dev/null; then
     open "$app"
 else
     echo "xcodebuild not available or CommandLineTools selected. Falling back to swiftc..."
-    xcrun --sdk macosx swiftc -O -o claude-spinner "claude spinner/FeedWatcher.swift" "claude spinner/MenuContentView.swift" "claude spinner/claude_spinnerApp.swift"
+    # Glob, not a hand-kept list: "claude spinner/" is a synchronized root group,
+    # so a new source file auto-joins the Xcode target with no pbxproj edit. A
+    # literal list silently rots behind that — SetupInstaller.swift was added and
+    # never listed here, which left this whole branch unable to compile.
+    xcrun --sdk macosx swiftc -O -o claude-spinner "claude spinner"/*.swift
     
     if [ -d "/Applications/claude spinner.app" ]; then
         echo "Copying built binary to /Applications/claude spinner.app..."

@@ -2169,6 +2169,28 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-07-17T11:40:00.000Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-07-17T11:52:00.000Z",
+      "error_message": "run.sh swiftc fallback: \"claude spinner/MenuContentView.swift:45:46: error: cannot find 'SetupInstaller' in scope\" \u2014 the non-Xcode build path could not compile at all.",
+      "file": "run.sh",
+      "root_cause": "The fallback listed three source paths literally (FeedWatcher/MenuContentView/claude_spinnerApp). SetupInstaller.swift was added during the first-run-installer work and auto-joined the Xcode target \u2014 'claude spinner/' is a SYNCHRONIZED ROOT GROUP, so new files need no pbxproj edit \u2014 but the hand-kept list in run.sh rotted silently behind that. Invisible in practice because a machine with full Xcode always takes the xcodebuild branch; only a CommandLineTools-only machine hits the fallback. Found accidentally while verifying split commits with the same three-file command.",
+      "fix": "Glob instead of a literal list: swiftc -O -o claude-spinner \"claude spinner\"/*.swift \u2014 matches the synchronized-root-group behavior so the next new source can't break it the same way. Verified the fallback now produces an 844K binary.",
+      "tags": [
+        "shell",
+        "run.sh",
+        "swiftc",
+        "fallback",
+        "stale-list",
+        "synchronized-root-group",
+        "silent-breakage"
+      ],
+      "related_bugs": [
+        "bug-095"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T11:52:00.000Z"
     }
   ]
 }
