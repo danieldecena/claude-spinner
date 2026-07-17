@@ -1682,3 +1682,23 @@ Menlo advance figure is an estimate to leave headroom against, not a budget to s
 | 05:22 | Edited STATUS.md | 7→4 lines | ~70 |
 | 05:23 | Edited STATUS.md | expanded (+7 lines) | ~257 |
 | 05:23 | Edited STATUS.md | expanded (+7 lines) | ~257 |
+| 05:23 | Session end: 11 writes across 3 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md) | 1 reads | ~9363 tok |
+| 05:23 | Session end: 11 writes across 3 files (MenuContentView.swift, claude_spinnerTests.swift, STATUS.md) | 1 reads | ~9363 tok |
+| 05:25 | Edited claude spinner/FeedWatcher.swift | 11→12 lines | ~206 |
+| 05:25 | Edited claude spinner/FeedWatcher.swift | 11→12 lines | ~206 |
+| 05:25 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~663 |
+| 05:25 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~663 |
+| 05:26 | Edited claude spinner/MenuContentView.swift | 1→4 lines | ~86 |
+| 05:26 | Edited claude spinner/MenuContentView.swift | 1→4 lines | ~86 |
+| 05:26 | Edited claude spinner/MenuContentView.swift | modified Text() | ~39 |
+| 05:26 | Edited claude spinner/MenuContentView.swift | modified Text() | ~39 |
+| 05:26 | Edited claude spinnerTests/claude_spinnerTests.swift | modified statusWidth() | ~576 |
+| 05:26 | Edited claude spinnerTests/claude_spinnerTests.swift | modified statusWidth() | ~576 |
+| 05:35 | Name/status split made dynamic — RowLayout.nameWidth(statusLabel:), status takes measured width, name gets the rest + 4 tests | MenuContentView.swift, FeedWatcher.swift, claude_spinnerTests.swift | 4a6ccb7, 49 tests green | ~9k |
+| 05:36 | Logged bug-138 (bug-111/122 family) + cerebrum entry on both-columns-fixed | .wolf/buglog.json, .wolf/cerebrum.md | done | ~2k |
+| 05:27 | Edited STATUS.md | truncate() → issues() | ~76 |
+| 05:27 | Edited STATUS.md | truncate() → issues() | ~76 |
+| 05:27 | Edited STATUS.md | 2→4 lines | ~77 |
+| 05:27 | Edited STATUS.md | 2→4 lines | ~77 |
+| 05:27 | Edited STATUS.md | expanded (+11 lines) | ~271 |
+| 05:27 | Edited STATUS.md | expanded (+11 lines) | ~271 |

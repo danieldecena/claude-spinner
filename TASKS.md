@@ -5,11 +5,11 @@
 Remaining open items:
 
 - [ ] Verify the Zed fix by hand — click a Zed session's row; it must focus the running Zed window, not open a Ghostty one. Unit-green only; this branch has regressed 4x (bug-004/072/091/110) and can't be driven without Accessibility permission.
-- [ ] Name column truncates while the status column idles — rows show `continue from…` / `review code an…`. Status text is bounded (`thinking`, `needs input`, `done`, `running <tool>`); session names are unbounded prose. The flexible column should be the name, not the status. Requires rederiving the whole `Constants.panelWidth` budget.
 - [ ] Notarization — needs an Apple Developer cert; can't be done in the agent env.
 
 ## Completed
 
+- [x] Name column truncates while the status column idles — fixed 2026-07-17 (4a6ccb7, bug-138)
 - [x] 7d gauge reads as empty below 10% — fixed 2026-07-17 (9c675c5, bug-135)
 - [x] `chg` gauge saturates at ≥20 points — fixed 2026-07-17 (ad68451, bug-136)
 - [x] Settle the invisible ⌘Q button — fixed 2026-07-17 (a3fcb62, bug-137)

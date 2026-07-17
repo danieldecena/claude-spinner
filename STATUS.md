@@ -6,8 +6,10 @@
   feed files (hooks + statusLine in `~/.claude/settings.json`).
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 45 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 49 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
+- Row names get whatever the status column doesn't need: 24 characters on an
+  idle row, 16 on `running bash`. Every status label fits, TodoWrite included.
 - Panel rows carry the session's own name (`session_name` from status.json,
   falling back to the directory), its context token count banded on absolute
   usage (100k/150k/200k), and sort heaviest-first within each status band.
@@ -19,10 +21,10 @@
 
 ## Known broken
 
-- Row names truncate (`continue from…`) while the status column beside them
-  sits half empty. Session names are unbounded prose; status text is bounded.
-  The flexible column should be the name — needs the `Constants.panelWidth`
-  budget rederived as a whole.
+- Nothing outstanding. The panel issues (name truncation, 7d gauge, `chg`
+  gauge, ⌘Q hit-testing) are all fixed but verified by arithmetic and unit
+  test only — the panel is `.transient` and can't be captured from an agent
+  session, so they want one look by eye.
 
 ## Scope / by-design limitations
 
@@ -37,10 +39,21 @@
 
 ## Next Up
 
-- Verify the Zed click by hand (see Known broken's sibling note above) — this
-  branch has regressed four times and can't be driven from an agent session.
-- The name-column truncation under Known broken.
+- Verify the Zed click by hand — this branch has regressed four times and
+  can't be driven from an agent session.
+- Look at the panel once: four visual fixes landed unseen (see Known broken).
 - Notarization (needs an Apple Developer cert).
+
+### 2026-07-17 (row layout)
+- Decided: the status column takes its measured width and the name takes the
+  remainder, rather than both being fixed. Two fixed columns meant one static
+  guess failing in both directions — `done` hoarding 103pt while the name
+  truncated, and `running TodoWrite` overrunning the same 103pt. Third bug in
+  this family (bug-111/122/138); widening the panel would only move the guess.
+- Noted: the ~0.602×size Menlo estimate the old widths were derived from was
+  blamed for bug-122. Measuring proved it accurate to two decimals (6.6226 vs
+  6.622), so slack is still required for other reasons. `RowLayout.monoAdvance`
+  measures the font directly — that removes a hand-rederived constant, not a bug.
 
 ### 2026-07-17 (panel gauges)
 - Decided: the `chg` gauge scales by square root over the full 0-100 range, not

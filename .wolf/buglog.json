@@ -2343,15 +2343,52 @@
       "error_message": "Significant refactor of ",
       "file": "STATUS.md",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7→4 lines (3 removed) | Also: - The three panel issues under Known broken.; - Settle the invisible ⌘Q button (`MenuContentView",
+      "fix": "Rewrote 7→4 lines (3 removed) | Also: - The three panel issues under Known broken.; - Settle the invisible ⌘Q button (`MenuContentView | Also: - Verify the Zed click by hand (see Known broken's; branch has regressed four times and can't be drive",
       "tags": [
         "auto-detected",
         "refactor",
         "md"
       ],
       "related_bugs": [],
-      "occurrences": 2,
-      "last_seen": "2026-07-17T12:23:05.586Z"
+      "occurrences": 3,
+      "last_seen": "2026-07-17T12:27:58.049Z"
+    },
+    {
+      "id": "bug-142",
+      "timestamp": "2026-07-17T12:25:59.916Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T12:25:59.916Z"
+    },
+    {
+      "id": "bug-138",
+      "timestamp": "2026-07-17T05:35:00Z",
+      "error_message": "Name column truncates (`continue from…`) while the status column beside it sits half empty",
+      "file": "claude spinner/MenuContentView.swift, claude spinner/FeedWatcher.swift",
+      "root_cause": "The name (105pt) and status (103pt) columns were BOTH fixed, so the division between them was a guess applied to every row regardless of content. 'done' needs 26.5pt and got 103pt while the unbounded name truncated next to it; 'running TodoWrite' needs 112.6pt and overran its 103pt anyway. Same static split, two opposite failures. Third in the bug-111/122 family — all three are a hand-picked column constant that fits some content and not other.",
+      "fix": "Added RowLayout.nameWidth(statusLabel:), a pure function that gives the status its measured width (Menlo advance x count + 4pt slack, capped so the name keeps a 70pt floor) and hands the remainder to the name. Idle rows go 15 -> 24 chars of name; every label in the status vocabulary now fits, TodoWrite included. Advance is measured off NSFont rather than estimated at ~0.602 x size (the estimate was accurate to 2dp, so this removes a hand-rederived constant, not a bug). 4 unit tests cover fit, slack handoff, the name floor, and budget conservation.",
+      "tags": [
+        "ui",
+        "layout",
+        "truncation",
+        "panel-width",
+        "menlo"
+      ],
+      "related_bugs": [
+        "bug-111",
+        "bug-122"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T05:35:00Z"
     }
   ]
 }
