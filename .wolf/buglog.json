@@ -1859,6 +1859,155 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-17T03:20:00Z"
+    },
+    {
+      "id": "bug-114",
+      "timestamp": "2026-07-17T10:36:46.554Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:36:46.554Z"
+    },
+    {
+      "id": "bug-115",
+      "timestamp": "2026-07-17T10:37:20.167Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 16\u219211 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:37:20.167Z"
+    },
+    {
+      "id": "bug-116",
+      "timestamp": "2026-07-17T10:37:45.437Z",
+      "error_message": "Null/undefined access in ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:37:45.437Z"
+    },
+    {
+      "id": "bug-117",
+      "timestamp": "2026-07-17T10:38:24.749Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "24 lines replaced/restructured",
+      "fix": "Rewrote 59\u219230 lines (24 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:38:24.749Z"
+    },
+    {
+      "id": "bug-118",
+      "timestamp": "2026-07-17T10:38:59.594Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5\u219218 lines (2 removed) | Also: case 90...: return dynamic(light: (0.85, 0.32, 0.2; case 75...: return dynamic(light: (0.90, 0.58, 0.2 | Also: if n.contains(\"opus\")   { return dynamic(light: (0; if n.contains(\"sonnet\") { return dynamic(light: (0 | Also: case .vsc: return .dynamic(light: (0.35, 0.60, 0.9; case .trm: return .dynamic(light: (0.45, 0.72, 0.4",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-07-17T10:41:08.932Z"
+    },
+    {
+      "id": "bug-119",
+      "timestamp": "2026-07-17T10:39:15.891Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "Was returning: Color(red: 0.62, green: 0.47, blue: 0.86) }  // pu",
+      "fix": "Now returns: dynamic(light: (0.62, 0.47, 0.86), dark: (0.76, 0.",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:39:15.891Z"
+    },
+    {
+      "id": "bug-120",
+      "timestamp": "2026-07-17T10:39:27.277Z",
+      "error_message": "Wrong return value",
+      "file": "claude spinner/MenuContentView.swift",
+      "root_cause": "Was returning: Color(red: 0.90, green: 0.58, blue: 0.24) }  // am",
+      "fix": "Now returns: .dynamic(light: (0.90, 0.58, 0.24), dark: (1.0, 0.",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-17T10:41:14.138Z"
+    },
+    {
+      "id": "bug-121",
+      "timestamp": "2026-07-17T10:46:26.763Z",
+      "error_message": "Significant refactor of ",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6\u21924 lines (2 removed) | Also: var contextPct: Int?; var contextPctRaw: Double? | Also: if let p = ctx.used_percentage { contextPct = Int(; contextSize = ctx.context_window_size | Also: /// 414 leaves it 93pt: enough for \"running edit\" ; /// 11 (~6.62pt/char). Below this, \"needs input\" t",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "swift"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-07-17T10:50:55.581Z"
+    },
+    {
+      "id": "bug-122",
+      "timestamp": "2026-07-17T10:52:00.000Z",
+      "error_message": "'running bash' rendered as 'running bash\u2026' after the row font went 10pt -> 11pt",
+      "file": "claude spinner/FeedWatcher.swift",
+      "root_cause": "The row's fixed column widths are hand-derived from a Menlo advance estimate (~0.602 x size). Scaling them for the larger font left the flexible status column at 93pt against a computed need of 92.4pt \u2014 0.6pt of slack. The estimate is not exact, so the arithmetic minimum truncated in practice. Same class as bug-111: a column budgeted to its computed limit with no headroom.",
+      "fix": "panelWidth 414 -> 424, giving the status column 103pt (11pt of slack). Comment now states the per-character figure is an estimate to leave headroom against, not a budget to spend.",
+      "tags": [
+        "layout",
+        "truncation",
+        "font-size",
+        "menlo",
+        "swiftui",
+        "panel-width"
+      ],
+      "related_bugs": [
+        "bug-111"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-17T10:52:00.000Z"
     }
   ]
 }

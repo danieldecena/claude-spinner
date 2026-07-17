@@ -73,6 +73,19 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.formatDuration(-3), "0s")
     }
 
+    /// The row's context column is 30pt — ~4 characters of Menlo 10 — so no input
+    /// may render wider than that, which is why the k/M units carry no decimals.
+    func testFormatTokens() {
+        XCTAssertEqual(FeedWatcher.formatTokens(0), "0")
+        XCTAssertEqual(FeedWatcher.formatTokens(999), "999")
+        XCTAssertEqual(FeedWatcher.formatTokens(69_598), "70k")
+        XCTAssertEqual(FeedWatcher.formatTokens(212_400), "212k")
+        XCTAssertEqual(FeedWatcher.formatTokens(999_499), "999k")
+        XCTAssertEqual(FeedWatcher.formatTokens(999_500), "1.0M")
+        XCTAssertEqual(FeedWatcher.formatTokens(1_240_000), "1.2M")
+        XCTAssertEqual(FeedWatcher.formatTokens(12_000_000), "12M")
+    }
+
     func testCompactAge() {
         let t = Date(timeIntervalSince1970: 10_000)
         XCTAssertEqual(FeedWatcher.compactAge(since: t.addingTimeInterval(-45), now: t), "45s")
@@ -160,6 +173,17 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(75), Color.usageTint(89))      // amber band
         XCTAssertNotEqual(Color.usageTint(89), Color.usageTint(90))   // -> red
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
+    }
+
+    /// Banded on absolute tokens, not percentage — 200k is heavy on a 1m window too.
+    func testContextTintTiers() {
+        XCTAssertEqual(Color.contextTint(0), Color.contextTint(99_999))          // green band
+        XCTAssertNotEqual(Color.contextTint(99_999), Color.contextTint(100_000)) // -> yellow
+        XCTAssertEqual(Color.contextTint(100_000), Color.contextTint(149_999))   // yellow band
+        XCTAssertNotEqual(Color.contextTint(149_999), Color.contextTint(150_000))// -> amber
+        XCTAssertEqual(Color.contextTint(150_000), Color.contextTint(199_999))   // amber band
+        XCTAssertNotEqual(Color.contextTint(199_999), Color.contextTint(200_000))// -> red
+        XCTAssertEqual(Color.contextTint(200_000), Color.contextTint(999_999))   // red band
     }
 
     // MARK: - UsagePoller.parse (pure header -> Result mapping)

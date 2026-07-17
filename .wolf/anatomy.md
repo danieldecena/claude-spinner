@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-17T10:17:07.627Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-17T10:50:55.574Z
 > Files: 44 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
@@ -23,7 +23,7 @@
 
 - `can-you-review-this-zippy-frost.md` — Improve claude-spinner — full cleanup pass (~1655 tok)
 - `hello-sorted-token.md` — Plan: Continue not-started tasks (concurrent-safe) (~1430 tok)
-- `review-the-design-fancy-wadler.md` — Panel design fixes — status truncation and stranded dots (~1625 tok)
+- `review-the-design-fancy-wadler.md` — Panel improvements — session identity, token counts, dark mode, accessibility (~2597 tok)
 - `var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md` — Fix cylinder-grid fill count vs displayed percentage mismatch (~982 tok)
 
 ## ../../.claude/spinnerfeed/
@@ -86,9 +86,9 @@
 
 ## claude spinner/
 
-- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~6831 tok)
-- `FeedWatcher.swift` — FeedWatcher.swift (~14411 tok)
-- `MenuContentView.swift` — MenuContentView.swift (~7122 tok)
+- `claude_spinnerApp.swift` — claude_spinnerApp.swift (~7405 tok)
+- `FeedWatcher.swift` — FeedWatcher.swift (~14435 tok)
+- `MenuContentView.swift` — MenuContentView.swift (~7054 tok)
 - `SetupInstaller.swift` — / Writes the feed plumbing on first run: copies the bundled scripts into (~1290 tok)
 
 ## claude spinner/Assets.xcassets/
@@ -105,7 +105,7 @@
 
 ## claude spinnerTests/
 
-- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~4373 tok)
+- `claude_spinnerTests.swift` — claude_spinnerTests.swift (~4774 tok)
 
 ## claude spinnerUITests/
 

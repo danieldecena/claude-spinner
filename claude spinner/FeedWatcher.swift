@@ -29,19 +29,24 @@ enum Constants {
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
-    /// Dropdown panel width. A row spends 299pt on fixed columns — padding 20 +
-    /// glyph 14 + name 95 + model 42 + four 5pt gaps + trailing 108 (ctx 30, time
-    /// 44, chip 26, two 4pt gaps) — and the rest goes to the flexible status text.
-    /// 384 leaves it 85pt: enough for "running edit" plus its dots (~84pt) in Menlo
-    /// 10 (~6.02pt/char). Below this, "needs input" truncates to "needs…".
-    static let panelWidth: CGFloat = 384
+    /// Dropdown panel width. A row spends 321pt on fixed columns — padding 20 +
+    /// glyph 15 + name 105 + model 46 + four 5pt gaps + trailing 115 (ctx 30, time
+    /// 48, chip 29, two 4pt gaps) — and the rest goes to the flexible status text.
+    /// 424 leaves it 103pt for "running edit" plus its dots, which need ~92pt in
+    /// Menlo 11 (~6.62pt/char). The 11pt of slack is deliberate: at 93pt — the
+    /// arithmetic minimum — "running bash" still truncated, so the per-character
+    /// figure is an estimate to leave headroom against, not a budget to spend.
+    ///
+    /// Every width here and in SessionRow is derived from that figure, so changing
+    /// the row font size means rederiving all of them together.
+    static let panelWidth: CGFloat = 424
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
-    static let rowTrailingSlot: CGFloat = 26
+    static let rowTrailingSlot: CGFloat = 29
     /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
-    /// identical in size, kept short enough that all three gauges and the expand
-    /// chevron fit within the compact panel without clipping.
+    /// identical in size, kept short enough that all three fit within the panel
+    /// without clipping.
     static let usageTrackWidth: CGFloat = 45
     /// Idle rows stay full strength for this long after their last update…
     static let idleFadeStart: TimeInterval = 60
@@ -175,11 +180,10 @@ private struct StatusFile: Decodable {
     struct ContextWindow: Decodable {
         var total_input_tokens: Int?
         var total_output_tokens: Int?
-        var context_window_size: Int?
-        var used_percentage: Double?
     }
     var model: Model?
     var cwd: String?
+    var session_name: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
     var context_window: ContextWindow?
@@ -202,18 +206,18 @@ struct SessionFeed: Identifiable {
     var updated: Date?
     var model: String?
     var modelId: String?
+    /// Claude Code's generated name for the session. Two forms occur in the wild —
+    /// a kebab slug (`panel-status-truncation-fix`) and a prose sentence (`Set up
+    /// iTerm2 shell integration`) — and older sessions have neither.
+    var sessionName: String?
     var fiveHourPct: Int?
     var fiveHourResetsAt: Double?
     var sevenDayPct: Int?
     /// The just-finished turn, for Claude's grey "Sautéed for 5m 18s" done line.
     var lastSeed: Int?
     var lastDuration: Int?
-    var contextPct: Int?
-    var contextPctRaw: Double?
     var contextInputTokens: Int?
     var contextOutputTokens: Int?
-    var contextSize: Int?
-
 
     init(id: String) { self.id = id }
 
@@ -234,6 +238,7 @@ struct SessionFeed: Identifiable {
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }
         if let mid = s.model?.id { modelId = mid }
+        if let n = s.session_name, !n.isEmpty { sessionName = n }
         if cwd.isEmpty {
             if let c = s.cwd { cwd = c }
             else if let c = s.workspace?.current_dir { cwd = c }
@@ -244,10 +249,8 @@ struct SessionFeed: Identifiable {
         }
         if let p = s.rate_limits?.seven_day?.used_percentage { sevenDayPct = Int(p.rounded()) }
         if let ctx = s.context_window {
-            if let p = ctx.used_percentage { contextPct = Int(p.rounded()); contextPctRaw = p }
             contextInputTokens = ctx.total_input_tokens
             contextOutputTokens = ctx.total_output_tokens
-            contextSize = ctx.context_window_size
         }
     }
 
@@ -257,6 +260,11 @@ struct SessionFeed: Identifiable {
         let name = (cwd as NSString).lastPathComponent
         return name.isEmpty ? "session" : name
     }
+
+    /// What a row calls this session: its generated name when there is one — the only
+    /// thing telling two sessions in the same directory apart — falling back to the
+    /// directory. The cwd stays in the row's tooltip either way.
+    var displayName: String { sessionName ?? projectName }
 
     /// Home-relative path the way the terminal shows it, e.g. `~/apply`.
     var displayPath: String {
@@ -486,13 +494,6 @@ final class FeedWatcher: ObservableObject {
             usagePollingEnabled ? poller?.start() : stopPolling()
         }
     }
-    /// Whether the usage footer is expanded in the panel; persisted, on by default.
-    @Published var footerExpanded: Bool {
-        didSet {
-            UserDefaults.standard.set(footerExpanded, forKey: "footerExpanded")
-        }
-    }
-
     /// All disk reads/parses and file pruning happen here, off the main thread.
     private let ioQueue = DispatchQueue(label: "spinnerfeed.io", qos: .utility)
     private var pendingScan: DispatchWorkItem?
@@ -506,7 +507,6 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
-        footerExpanded = (UserDefaults.standard.object(forKey: "footerExpanded") as? Bool) ?? true
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -932,20 +932,16 @@ final class FeedWatcher: ObservableObject {
     var usageModelId: String? { usageSession?.modelId ?? cachedUsage?.modelId }
     var usageFiveHourPct: Int? { pollUsage?.fiveHourPct ?? usageSession?.fiveHourPct ?? cachedUsage?.fiveHourPct }
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
-    var usageContextPct: Int? { usageSession?.contextPct }
-    var usageContextPctRaw: Double? { usageSession?.contextPctRaw }
-    var usageContextInputTokens: Int? { usageSession?.contextInputTokens }
-    var usageContextOutputTokens: Int? { usageSession?.contextOutputTokens }
-    var usageContextSize: Int? { usageSession?.contextSize }
-
+    /// A row's context token count, e.g. `212k`. Rounded to whole units so it never
+    /// exceeds 4 characters — its column is 30pt and must not grow.
     static func formatTokens(_ count: Int) -> String {
-        if count >= 1_000_000 {
+        // Not 1_000_000: anything from 999_500 up rounds to "1000k", a 5th character.
+        if count >= 999_500 {
             let m = Double(count) / 1_000_000.0
-            return m.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(m))M" : String(format: "%.1fM", m)
+            return m >= 10 ? "\(Int(m.rounded()))M" : String(format: "%.1fM", m)
         }
         if count >= 1_000 {
-            let k = Double(count) / 1_000.0
-            return k.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(k))k" : String(format: "%.1fk", k)
+            return "\(Int((Double(count) / 1_000.0).rounded()))k"
         }
         return "\(count)"
     }

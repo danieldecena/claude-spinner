@@ -20,7 +20,7 @@ struct MenuContentView: View {
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
-                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(12)).foregroundStyle(Color.claudeDim)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
@@ -28,14 +28,14 @@ struct MenuContentView: View {
                     // one-click install instead of a silent empty panel.
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Setup needed")
-                            .font(.claudeMono(11)).fontWeight(.semibold)
+                            .font(.claudeMono(12)).fontWeight(.semibold)
                             .foregroundStyle(Color.usageTint(95))
                         Text("The feed hooks aren't installed, so no sessions can show.")
-                            .font(.claudeMono(10)).foregroundStyle(Color.secondary)
+                            .font(.claudeMono(11)).foregroundStyle(Color.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                         if let message = install.message {
                             Text(message)
-                                .font(.claudeMono(10)).foregroundStyle(Color.secondary)
+                                .font(.claudeMono(11)).foregroundStyle(Color.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Button(install.installing ? "Installing…" : "Install hooks") {
@@ -55,7 +55,7 @@ struct MenuContentView: View {
                                 }
                             }
                         }
-                        .font(.claudeMono(10))
+                        .font(.claudeMono(11))
                         .disabled(install.installing)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,21 +112,25 @@ struct UsageHeader: View {
                     HStack(spacing: 0) {
                         if let notice = feed.usageNotice {
                             Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
-                                .font(.claudeMono(9.5))
+                                .font(.claudeMono(10.5))
                                 .foregroundStyle(Color.usageTint(95))
                                 .help(feed.usageNoticeDetail)
                                 .lineLimit(1)
                                 .textCase(.lowercase)
+                                .accessibilityLabel("Usage warning: \(notice)")
                         } else {
                             let clock = feed.usageFiveHourReset ?? ""
                             let rel = feed.usageFiveHourResetRelative ?? ""
                             let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
                             Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
-                                .font(.claudeMono(9.5))
+                                .font(.claudeMono(10.5))
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .help(feed.usageResetTooltip)
                                 .lineLimit(1)
                                 .textCase(.lowercase)
+                                // The bare glyph + clock reads as nothing without this.
+                                .accessibilityLabel(
+                                    "5-hour limit resets at \(clock)\(rel.isEmpty ? "" : ", in \(rel)")")
                         }
                         Spacer(minLength: 4)
                     }
@@ -141,8 +145,7 @@ struct UsageHeader: View {
 }
 
 /// Always-present footer: the 5-hour and 7-day rate limits and the recent trend,
-/// colored by urgency, with a chevron on the right that reveals the token totals.
-/// A 1s clock keeps the stale-dimming current.
+/// colored by urgency. A 1s clock keeps the stale-dimming current.
 struct UsageFooter: View {
     @ObservedObject var feed: FeedWatcher
 
@@ -151,63 +154,34 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                VStack(alignment: .leading, spacing: 6) {
-                    // Row 1: Always visible gauges + toggle chevron
-                    HStack(spacing: 0) {
-                        if feed.hasUsage {
-                            HStack(spacing: 12) {
-                                if let h5 = feed.usageFiveHourPct {
-                                    UsageGauge(label: "5h", pct: h5)
-                                }
-                                if let d7 = feed.usageSevenDayPct {
-                                    UsageGauge(label: "7d", pct: d7)
-                                }
-                                // Recent 5h change, once there are ≥2 poll samples.
-                                if let trend = feed.usageFiveHourTrend {
-                                    TrendGauge(delta: trend)
-                                }
+                HStack(spacing: 0) {
+                    if feed.hasUsage {
+                        HStack(spacing: 12) {
+                            if let h5 = feed.usageFiveHourPct {
+                                UsageGauge(label: "5h", pct: h5)
                             }
-                            // Dim when stale so a frozen snapshot doesn't read as live;
-                            // the "as of" time and age live in the hover tooltip.
-                            .opacity(feed.usageIsStale ? 0.5 : 1)
-                            .help(feed.usageAsOfString)
-                        } else {
-                            Text("no usage data yet")
-                                .font(.claudeMono(10))
-                                .foregroundStyle(Color.secondary.opacity(0.6))
+                            if let d7 = feed.usageSevenDayPct {
+                                UsageGauge(label: "7d", pct: d7)
+                            }
+                            // Recent 5h change, once there are ≥2 poll samples.
+                            if let trend = feed.usageFiveHourTrend {
+                                TrendGauge(delta: trend)
+                            }
                         }
-                        
-                        Spacer(minLength: 4)
-
-                        // Toggle Button with chevron (Image + onTapGesture to prevent focus highlighting)
-                        Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.secondary.opacity(0.7))
-                            .frame(width: Constants.rowTrailingSlot, height: 20, alignment: .trailing)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                feed.footerExpanded.toggle()
-                            }
+                        // Dim when stale so a frozen snapshot doesn't read as live;
+                        // the "as of" time and age live in the hover tooltip.
+                        .opacity(feed.usageIsStale ? 0.5 : 1)
+                        .help(feed.usageAsOfString)
+                    } else {
+                        Text("no usage data yet")
+                            .font(.claudeMono(11))
+                            .foregroundStyle(Color.secondary.opacity(0.6))
                     }
 
-                    // Row 2: the token totals behind the context percentage, revealed
-                    // by the chevron. Per-session context fill lives on each row now,
-                    // so this is only the headline number.
-                    if feed.footerExpanded && feed.hasUsage,
-                       let pct = feed.usageContextPct,
-                       let size = feed.usageContextSize {
-                        let used = (feed.usageContextInputTokens ?? 0) + (feed.usageContextOutputTokens ?? 0)
-                        Text("\(FeedWatcher.formatTokens(used))/\(FeedWatcher.formatTokens(size)) tokens (\(pct)%)")
-                            .font(.claudeMono(9.5))
-                            .foregroundStyle(Color.secondary.opacity(0.8))
-                            .lineLimit(1)
-                            .textCase(.lowercase)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
+                    Spacer(minLength: 4)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .animation(.easeInOut(duration: 0.2), value: feed.footerExpanded)
             }
         }
     }
@@ -226,7 +200,7 @@ struct UsageGauge: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(label)
-                .font(.claudeMono(10))
+                .font(.claudeMono(11))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -243,11 +217,15 @@ struct UsageGauge: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: pct)
             }
             Text("\(pct)%")
-                .font(.claudeMono(10)).monospacedDigit()
+                .font(.claudeMono(11)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
                 .fixedSize()
         }
         .help("\(label == "5h" ? "5-hour" : "7-day") usage \(pct)%")
+        // The level is otherwise conveyed by fill length and tint alone.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label == "5h" ? "5-hour" : "7-day") usage")
+        .accessibilityValue("\(pct) percent")
     }
 }
 
@@ -264,15 +242,15 @@ struct TrendGauge: View {
     private let fullScale: CGFloat = 20  // points of change that fill the track
 
     private var tint: Color {
-        if delta > 0 { return Color(red: 0.90, green: 0.58, blue: 0.24) }  // amber: rising
-        if delta < 0 { return Color(red: 0.45, green: 0.70, blue: 0.45) }  // green: falling
+        if delta > 0 { return .usageAmber }  // rising
+        if delta < 0 { return .usageGreen }  // falling
         return Color.secondary
     }
 
     var body: some View {
         HStack(spacing: 3) {
             Text("chg")
-                .font(.claudeMono(10))
+                .font(.claudeMono(11))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -287,11 +265,14 @@ struct TrendGauge: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: delta)
             }
             Text("\(delta > 0 ? "+" : "")\(delta)%")
-                .font(.claudeMono(10)).monospacedDigit()
+                .font(.claudeMono(11)).monospacedDigit()
                 .foregroundStyle(tint)
                 .fixedSize()
         }
         .help("5h usage change over recent polls")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("5-hour usage change over recent polls")
+        .accessibilityValue("\(delta > 0 ? "up" : delta < 0 ? "down" : "unchanged") \(abs(delta)) percent")
     }
 }
 
@@ -307,38 +288,41 @@ struct SessionRow: View {
         // One line: [glyph] project-name ×N  model  status…  ctx%  time  [chip]
         HStack(spacing: 5) {
             Text(glyph)
-                .font(.claudeMono(12))
+                .font(.claudeMono(13))
                 .foregroundStyle(tint)
-                .frame(width: 14)
+                .frame(width: 15)
 
             // Column 1: Project Name + Count. Fixed width ensures alignment of subsequent columns.
             HStack(spacing: 3) {
-                Text(session.projectName)
-                    .font(.claudeMono(10))
+                // A grouped row stands for several idle sessions sharing a directory —
+                // displayItems groups on cwd, not name — so only a single-session row
+                // can honestly show a session name.
+                Text(item.count > 1 ? session.projectName : session.displayName)
+                    .font(.claudeMono(11))
                     .foregroundStyle(nameColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 if item.count > 1 {
                     Text("×\(item.count)")
-                        .font(.claudeMono(10))
+                        .font(.claudeMono(11))
                         .foregroundStyle(Color.secondary)
                 }
             }
-            .frame(width: 95, alignment: .leading)
+            .frame(width: 105, alignment: .leading)
 
             // Column 2: Model (fixed width). Keeps Status aligned.
             Group {
                 if let rawModel = feed.modelDisplay(for: session) {
                     Text(FeedWatcher.modelFamily(rawModel))
-                        .font(.claudeMono(10)).fontWeight(.semibold)
+                        .font(.claudeMono(11)).fontWeight(.semibold)
                         .foregroundStyle(Color.modelTint(rawModel))
                         .lineLimit(1)
                 } else {
                     Text("")
                 }
             }
-            .frame(width: 42, alignment: .leading)
+            .frame(width: 46, alignment: .leading)
 
             // Column 3: Status / Activity (flexible width, truncating if necessary),
             // with the working-dots attached to the word they belong to. The
@@ -351,20 +335,21 @@ struct SessionRow: View {
                 // reflow the status text would make its truncation flicker in time
                 // with them. Reserved even at rest so the column edge never moves.
                 Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
-                    .frame(width: 12, alignment: .leading)
+                    .frame(width: 13, alignment: .leading)
             }
-            .font(.claudeMono(10))
+            .font(.claudeMono(11))
             .foregroundStyle(statusColor)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Time + host chip travel together as one right-flush unit with a tight
             // gap, so the time stays near the right edge with the tag just after it.
             HStack(spacing: 4) {
-                // This session's own context-window fill, tinted by urgency like
-                // every other percentage in the panel. The slot is held even when a
-                // session has no number yet, so the times below it stay aligned.
-                Text(session.contextPct.map { "\($0)%" } ?? "")
-                    .font(.claudeMono(10))
+                // This session's own context tokens, tinted by how full its window
+                // is — the percentage still drives the color, it just isn't the
+                // number shown. The slot is held even when a session has no
+                // context_window yet, so the times below it stay aligned.
+                Text(contextTokens)
+                    .font(.claudeMono(11))
                     .monospacedDigit()
                     .foregroundStyle(contextColor)
                     .frame(width: 30, alignment: .trailing)
@@ -372,11 +357,11 @@ struct SessionRow: View {
                 // Elapsed / waiting / done time in a fixed-width column so the times
                 // line up down the panel regardless of label.
                 Text(timeText)
-                    .font(.claudeMono(10))
+                    .font(.claudeMono(11))
                     .monospacedDigit()
                     .lineLimit(1)
                     .foregroundStyle(Color.secondary)
-                    .frame(width: 44, alignment: .trailing)
+                    .frame(width: 48, alignment: .trailing)
 
                 // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
                 // an ✕ clear button on hover so a session can be dismissed in place.
@@ -395,7 +380,7 @@ struct SessionRow: View {
                         .help("Clear this session")
                     } else if let tag = session.hostTag {
                         Text(tag.label)
-                            .font(.claudeMono(9))
+                            .font(.claudeMono(10))
                             .foregroundStyle(tag.color)
                             .padding(.horizontal, 4).padding(.vertical, 1)
                             .background(
@@ -431,8 +416,11 @@ struct SessionRow: View {
             Button("Clear") { feed.clear(item) }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(session.projectName), \(statusLabel) \(timeText)\(session.contextPct.map { ", context \($0)% full" } ?? "")")
+        .accessibilityLabel("\(session.displayName), \(statusLabel) \(timeText)\(contextTokens.isEmpty ? "" : ", \(contextTokens) context tokens")")
         .accessibilityHint("Opens this session's app")
+        // children: .ignore hides the hover-revealed ✕ entirely, so clearing a
+        // session is otherwise unreachable without a mouse.
+        .accessibilityAction(named: "Clear session") { feed.clear(item) }
     }
 
     private func openWithApp(bundleID: String) {
@@ -506,10 +494,21 @@ struct SessionRow: View {
     }
 
     /// An idle row's context number recedes with the rest of the row; a live one
-    /// is tinted by how full its window is.
+    /// is tinted by how many tokens it's carrying.
     private var contextColor: Color {
-        guard let pct = session.contextPct, session.status != .idle else { return .secondary }
-        return .usageTint(pct)
+        guard let used = contextTokenCount, session.status != .idle else { return .secondary }
+        return .contextTint(used)
+    }
+
+    /// This session's context tokens, or nil when its statusLine hasn't reported a
+    /// context window yet — an empty column, not a zero.
+    private var contextTokenCount: Int? {
+        guard session.contextInputTokens != nil || session.contextOutputTokens != nil else { return nil }
+        return (session.contextInputTokens ?? 0) + (session.contextOutputTokens ?? 0)
+    }
+
+    private var contextTokens: String {
+        contextTokenCount.map(FeedWatcher.formatTokens) ?? ""
     }
 
     private var statusColor: Color {

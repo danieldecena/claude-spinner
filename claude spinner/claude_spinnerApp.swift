@@ -265,10 +265,23 @@ enum Spinner {
 }
 
 extension Color {
+    /// Resolves per appearance. Defined in code rather than an asset catalog because
+    /// run.sh's swiftc fallback compiles only the three sources — a colorset would
+    /// exist in Xcode builds and silently vanish from the dev loop.
+    ///
+    /// The panel's colors are tuned for the light material; on the dark one the same
+    /// mid-dark values sink into the background, so each has a lifted counterpart.
+    static func dynamic(light: (Double, Double, Double), dark: (Double, Double, Double)) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let c = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: c.0, green: c.1, blue: c.2, alpha: 1)
+        })
+    }
+
     /// Claude's burnt-orange accent, matching the terminal spinner.
-    static let claude = Color(red: 0.76, green: 0.42, blue: 0.24)
+    static let claude = dynamic(light: (0.76, 0.42, 0.24), dark: (0.93, 0.58, 0.36))
     /// Muted variant for the idle/done line — colored, but quieter than active.
-    static let claudeDim = Color(red: 0.76, green: 0.42, blue: 0.24).opacity(0.65)
+    static let claudeDim = claude.opacity(0.65)
     /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
     /// against the translucent menu bar over any wallpaper.
     static let claudeBright = Color(red: 0.98, green: 0.62, blue: 0.34)
@@ -276,30 +289,60 @@ extension Color {
     static let menuIdle = Color(white: 0.60)
     /// Blue "needs you" accent — deliberately unlike the busy orange, so an
     /// attention session reads as a different state, not just a louder one.
-    static let attention = Color(red: 0.30, green: 0.58, blue: 0.92)
+    static let attention = dynamic(light: (0.30, 0.58, 0.92), dark: (0.45, 0.70, 1.0))
     /// Brighter attention blue for menu-bar-label legibility over any wallpaper.
     static let attentionBright = Color(red: 0.40, green: 0.66, blue: 1.0)
+
+    // The urgency bands, built once rather than per call: every `dynamic` call mints a
+    // fresh NSColor, and SwiftUI compares Color by that underlying instance — so
+    // building them on the fly would make two same-band tints compare unequal.
+    static let usageRed = dynamic(light: (0.85, 0.32, 0.28), dark: (1.0, 0.48, 0.44))
+    static let usageAmber = dynamic(light: (0.90, 0.58, 0.24), dark: (1.0, 0.70, 0.36))
+    static let usageYellow = dynamic(light: (0.82, 0.72, 0.30), dark: (0.94, 0.85, 0.42))
+    static let usageGreen = dynamic(light: (0.45, 0.70, 0.45), dark: (0.55, 0.85, 0.55))
 
     /// Urgency gradient for a 0–100 usage percentage: green (headroom) → yellow →
     /// amber → red (near limit), so a rate limit reads at a glance.
     static func usageTint(_ pct: Int) -> Color {
         switch pct {
-        case 90...: return Color(red: 0.85, green: 0.32, blue: 0.28)  // red
-        case 75...: return Color(red: 0.90, green: 0.58, blue: 0.24)  // amber
-        case 50...: return Color(red: 0.82, green: 0.72, blue: 0.30)  // yellow
-        default:    return Color(red: 0.45, green: 0.70, blue: 0.45)  // green
+        case 90...: return usageRed
+        case 75...: return usageAmber
+        case 50...: return usageYellow
+        default:    return usageGreen
         }
     }
+
+    /// Urgency for a session's context, banded on the absolute token count rather
+    /// than its percentage: a 200k conversation is heavy whether the window is 200k
+    /// or 1m, and the percentage hides that on the big windows.
+    static func contextTint(_ tokens: Int) -> Color {
+        switch tokens {
+        case 200_000...: return usageRed
+        case 150_000...: return usageAmber
+        case 100_000...: return usageYellow
+        default:         return usageGreen
+        }
+    }
+
+    static let modelOpus = dynamic(light: (0.62, 0.47, 0.86), dark: (0.76, 0.63, 0.96))    // purple
+    static let modelSonnet = dynamic(light: (0.35, 0.68, 0.80), dark: (0.48, 0.82, 0.94))  // cyan
+    static let modelHaiku = dynamic(light: (0.45, 0.72, 0.45), dark: (0.55, 0.85, 0.55))   // green
+    static let modelFable = dynamic(light: (0.42, 0.56, 0.86), dark: (0.56, 0.70, 0.98))   // blue
 
     /// Model-family accent, matching the statusLine's color language.
     static func modelTint(_ name: String?) -> Color {
         guard let n = name?.lowercased() else { return .claudeDim }
-        if n.contains("opus")   { return Color(red: 0.62, green: 0.47, blue: 0.86) }  // purple
-        if n.contains("sonnet") { return Color(red: 0.35, green: 0.68, blue: 0.80) }  // cyan
-        if n.contains("haiku")  { return Color(red: 0.45, green: 0.72, blue: 0.45) }  // green
-        if n.contains("fable")  { return Color(red: 0.42, green: 0.56, blue: 0.86) }  // blue
+        if n.contains("opus")   { return modelOpus }
+        if n.contains("sonnet") { return modelSonnet }
+        if n.contains("haiku")  { return modelHaiku }
+        if n.contains("fable")  { return modelFable }
         return .claudeDim
     }
+
+    static let hostVsc = dynamic(light: (0.35, 0.60, 0.90), dark: (0.50, 0.74, 1.0))   // blue
+    static let hostTrm = dynamic(light: (0.45, 0.72, 0.45), dark: (0.55, 0.85, 0.55))  // green
+    static let hostWeb = dynamic(light: (0.35, 0.72, 0.78), dark: (0.48, 0.85, 0.92))  // cyan
+    static let hostApp = dynamic(light: (0.62, 0.47, 0.86), dark: (0.76, 0.63, 0.96))  // purple
 }
 
 /// Identifiers for the attention notification's category and "Focus session"
@@ -529,10 +572,10 @@ enum HostTag {
     /// Distinct hue per surface: editor blue, terminal green, web cyan, app purple.
     var color: Color {
         switch self {
-        case .vsc: return Color(red: 0.35, green: 0.60, blue: 0.90)  // blue
-        case .trm: return Color(red: 0.45, green: 0.72, blue: 0.45)  // green
-        case .web: return Color(red: 0.35, green: 0.72, blue: 0.78)  // cyan
-        case .app: return Color(red: 0.62, green: 0.47, blue: 0.86)  // purple
+        case .vsc: return .hostVsc
+        case .trm: return .hostTrm
+        case .web: return .hostWeb
+        case .app: return .hostApp
         }
     }
 

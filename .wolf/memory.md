@@ -1316,3 +1316,187 @@
 | 03:15 | Design review of panel: found attention row truncating "needs input" -> "needs…"; root-caused to 6-element HStack paying 25pt of gaps (miscounted as 3 gaps) | MenuContentView.swift | Status had only 44pt at rest vs 66pt needed | ~6k |
 | 03:18 | panelWidth 352->384; status+dots composite replaces Text+Spacer; time column always 44pt showing real elapsed | MenuContentView.swift, FeedWatcher.swift | Verified live: "needs input" full, dots attached, time ticking; 31 tests pass | ~7k |
 | 03:20 | Answered iTerm2 toolbelt question (research-analyst): which tools + width are configurable; font/colors/left-side are not | (none) | Toolbelt theming is a known upstream gap | ~3k |
+| 03:20 | Session end: 9 writes across 4 files (claude_spinnerApp.swift, review-the-design-fancy-wadler.md, FeedWatcher.swift, MenuContentView.swift) | 11 reads | ~35864 tok |
+| 03:20 | Session end: 9 writes across 4 files (claude_spinnerApp.swift, review-the-design-fancy-wadler.md, FeedWatcher.swift, MenuContentView.swift) | 11 reads | ~35864 tok |
+| 03:21 | Session end: 9 writes across 4 files (claude_spinnerApp.swift, review-the-design-fancy-wadler.md, FeedWatcher.swift, MenuContentView.swift) | 11 reads | ~35864 tok |
+| 03:21 | Session end: 9 writes across 4 files (claude_spinnerApp.swift, review-the-design-fancy-wadler.md, FeedWatcher.swift, MenuContentView.swift) | 11 reads | ~35864 tok |
+
+## Session: 2026-07-17 03:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:27
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 03:35 | Created ../../.claude/plans/review-the-design-fancy-wadler.md | — | ~2770 |
+| 03:35 | Created ../../.claude/plans/review-the-design-fancy-wadler.md | — | ~2770 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 4→5 lines | ~36 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 4→5 lines | ~36 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 3→7 lines | ~91 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 3→7 lines | ~91 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~46 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | 2→3 lines | ~46 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~116 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | added nullish coalescing | ~116 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | removed 8 lines | ~6 |
+| 03:36 | Edited claude spinner/FeedWatcher.swift | removed 8 lines | ~6 |
+| 03:37 | Edited claude spinner/FeedWatcher.swift | 2→1 lines | ~29 |
+| 03:37 | Edited claude spinner/FeedWatcher.swift | 2→1 lines | ~29 |
+| 03:37 | Edited claude spinner/FeedWatcher.swift | truncatingRemainder() → rounded() | ~141 |
+| 03:37 | Edited claude spinner/FeedWatcher.swift | truncatingRemainder() → rounded() | ~141 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~94 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | 4→5 lines | ~94 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~103 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~103 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~160 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | added nullish coalescing | ~160 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | modified accessibilityAction() | ~125 |
+| 03:37 | Edited claude spinner/MenuContentView.swift | modified accessibilityAction() | ~125 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→2 lines | ~40 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→2 lines | ~40 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~380 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | modified HStack() | ~380 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→7 lines | ~86 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→7 lines | ~86 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→6 lines | ~76 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→6 lines | ~76 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→4 lines | ~65 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→4 lines | ~65 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→6 lines | ~110 |
+| 03:38 | Edited claude spinner/MenuContentView.swift | 3→6 lines | ~110 |
+| 03:38 | Edited claude spinner/claude_spinnerApp.swift | modified dynamic() | ~284 |
+| 03:38 | Edited claude spinner/claude_spinnerApp.swift | modified dynamic() | ~284 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | inline fix | ~23 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | inline fix | ~23 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~113 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~113 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~122 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~122 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~113 |
+| 03:39 | Edited claude spinner/claude_spinnerApp.swift | Color() → dynamic() | ~113 |
+| 03:39 | Edited claude spinner/MenuContentView.swift | Color() → dynamic() | ~60 |
+| 03:39 | Edited claude spinner/MenuContentView.swift | Color() → dynamic() | ~60 |
+| 03:39 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testFormatTokens() | ~182 |
+| 03:39 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testFormatTokens() | ~182 |
+| 03:39 | Edited claude spinner/FeedWatcher.swift | 8→9 lines | ~103 |
+| 03:39 | Edited claude spinner/FeedWatcher.swift | 8→9 lines | ~103 |
+| 03:39 | Edited claude spinnerTests/claude_spinnerTests.swift | 1→2 lines | ~35 |
+| 03:39 | Edited claude spinnerTests/claude_spinnerTests.swift | 1→2 lines | ~35 |
+| 03:40 | Edited claude spinner/claude_spinnerApp.swift | modified usageTint() | ~398 |
+| 03:40 | Edited claude spinner/claude_spinnerApp.swift | modified usageTint() | ~398 |
+| 03:41 | Edited claude spinner/claude_spinnerApp.swift | modified modelTint() | ~327 |
+| 03:41 | Edited claude spinner/claude_spinnerApp.swift | modified modelTint() | ~327 |
+| 03:41 | Edited claude spinner/claude_spinnerApp.swift | 6→6 lines | ~46 |
+| 03:41 | Edited claude spinner/claude_spinnerApp.swift | 6→6 lines | ~46 |
+| 03:41 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~30 |
+| 03:41 | Edited claude spinner/MenuContentView.swift | 2→2 lines | ~30 |
+| 03:41 | Edited claude spinner/MenuContentView.swift | 14→17 lines | ~213 |
+| 03:41 | Edited claude spinner/MenuContentView.swift | 14→17 lines | ~213 |
+| 03:41 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testContextTintTiers() | ~227 |
+| 03:41 | Edited claude spinnerTests/claude_spinnerTests.swift | modified testContextTintTiers() | ~227 |
+
+## Session: 2026-07-17 03:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:43
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:43
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-17 03:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 6→4 lines | ~32 |
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 6→4 lines | ~32 |
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 7→3 lines | ~18 |
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 7→3 lines | ~18 |
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 6→4 lines | ~44 |
+| 03:46 | Edited claude spinner/FeedWatcher.swift | 6→4 lines | ~44 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 11 → 12 | ~22 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 11 → 12 | ~22 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 11 → 12 | ~20 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 11 → 12 | ~20 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~30 |
+| 03:48 | Edited claude spinner/MenuContentView.swift | 3→3 lines | ~30 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 10 → 11 | ~4 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 10 → 11 | ~4 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 9.5 → 10.5 | ~5 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 9.5 → 10.5 | ~5 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 9 → 10 | ~4 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 9 → 10 | ~4 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 95 → 105 | ~14 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 95 → 105 | ~14 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 42 → 46 | ~14 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 42 → 46 | ~14 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 12 → 13 | ~16 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 12 → 13 | ~16 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 44 → 48 | ~16 |
+| 03:49 | Edited claude spinner/MenuContentView.swift | 44 → 48 | ~16 |
+| 03:49 | Edited claude spinner/FeedWatcher.swift | 108() → 115() | ~297 |
+| 03:49 | Edited claude spinner/FeedWatcher.swift | 108() → 115() | ~297 |
+| 03:49 | Edited claude spinner/FeedWatcher.swift | 2→2 lines | ~41 |
+| 03:49 | Edited claude spinner/FeedWatcher.swift | 2→2 lines | ~41 |
+| 03:50 | Edited claude spinner/FeedWatcher.swift | 6→8 lines | ~139 |
+| 03:50 | Edited claude spinner/FeedWatcher.swift | 6→8 lines | ~139 |
+
+## Session 2026-07-17 (03:27–04:00) — panel improvements
+
+Design review of the 03:21 panel found four problems; all fixed, verified live in
+both appearances, 33 tests green.
+
+- **Rows were ambiguous.** Two sessions in `/Users/home` both rendered `home`.
+  `status.json` already carried `session_name` and nothing parsed it. Added
+  `SessionFeed.sessionName` + `displayName` (falls back to `projectName`, which is
+  mandatory: the field is absent on older sessions and comes as both a kebab slug
+  and a prose sentence). Grouped ×N rows keep `projectName` — `displayItems` groups
+  on cwd, so one name would misrepresent the group. cwd now lives only in the tooltip.
+- **Context column shows tokens, not percent** (user's call), banded on absolute
+  tokens via new `Color.contextTint`: 100k yellow / 150k amber / 200k red. A 1m
+  window made 200k read as a harmless 20%. `formatTokens` repurposed to integer-k
+  (`212k`) so it fits the existing 30pt column; deleting the footer line left it
+  with exactly one caller.
+- **Footer token line deleted** with its chevron and `footerExpanded`. It reported
+  one arbitrarily-picked session (`pickUsageSession` sorts on rate-limit fields, not
+  context) under rows that each show their own. That orphaned `contextPct`,
+  `contextPctRaw`, `contextSize` and the five `usageContext*` accessors — all removed.
+- **Dark mode**: `Color.dynamic(light:dark:)` over `NSColor(name:dynamicProvider:)`.
+  Code-defined, not an asset catalog — run.sh's swiftc fallback compiles only the
+  three sources and would silently lose a colorset. Menu-bar label colors left fixed.
+- **Accessibility**: gauges/header labelled (were color + tooltip only); row label
+  uses displayName + tokens; the hover-only ✕ exposed via `accessibilityAction`.
+- **Text enlarged** on request: row 10→11pt, and every hand-derived width rederived
+  with it (name 105, model 46, time 48, glyph 15, chip 29, panel 424).
+
+Two bugs of the same class this session: budgeting a flexible column to its computed
+minimum. bug-122 — "running bash" truncated at 93pt against a 92.4pt estimate. The
+Menlo advance figure is an estimate to leave headroom against, not a budget to spend.
