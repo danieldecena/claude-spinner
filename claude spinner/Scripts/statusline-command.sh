@@ -1,7 +1,7 @@
 #!/bin/sh
 # Claude Code status line — danieldecena
 # Reads JSON from stdin (CC statusLine schema), outputs a single status line.
-# Layout: [⚠] <project> [branch[*]] <model> [tier] [⚡] [tokens] |
+# Layout: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [tokens] [$cost] |
 #         <ctx-bar cache-hit [▲] [⧗]> │ <5h-bar reset [cap-eta]> [· 7d-bar day ~Nd [cap-eta] if binding]
 # Additions are conditional (shown only when they carry signal) to stay uncluttered.
 # Colors: per-model (Opus=magenta, Sonnet=cyan, Haiku=green, Fable=blue)
@@ -19,7 +19,7 @@ input=$(cat)
 # become empty strings (not "null"), so the downstream `[ -n ... ]` guards
 # behave exactly as before.
 US=$(printf '\037')
-IFS="$US" read -r sid cwd model cws over200k fast_mode sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
+IFS="$US" read -r sid cwd model cws over200k fast_mode effort cost_cents repo_owner repo_name sess_tok ctx t_read t_new t_in h5_pct h5_reset d7_pct d7_reset <<EOF
 $(echo "$input" | jq -r '[
     .session_id // "",
     (.cwd // .workspace.current_dir // ""),
@@ -27,6 +27,10 @@ $(echo "$input" | jq -r '[
     (.context_window.context_window_size // 0),
     (.exceeds_200k_tokens // false),
     (.fast_mode // false),
+    (.effort.level // ""),
+    (((.cost.total_cost_usd // 0) * 100) | round),
+    (.workspace.repo.owner // ""),
+    (.workspace.repo.name // ""),
     ((.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)),
     (.context_window.used_percentage // ""),
     (.context_window.current_usage.cache_read_input_tokens // 0),
@@ -237,6 +241,33 @@ tok_disp=""
 if [ "${sess_tok:-0}" -ge 1000 ]; then tok_disp="$(( sess_tok / 1000 ))k"
 elif [ "${sess_tok:-0}" -gt 0 ]; then tok_disp="$sess_tok"; fi
 
+# Reasoning effort. Shown only when it isn't medium: medium is the default, so
+# rendering it would put a word on every line that never changes. The other
+# levels are a deliberate departure worth seeing, and they move token spend, so
+# they warm as they climb.
+effort_disp=""
+case "$effort" in
+    ""|medium) ;;
+    low)       effort_disp="${dim}low${reset}" ;;
+    high)      effort_disp="${yellow}high${reset}" ;;
+    *)         effort_disp="${bright_yellow}${effort}${reset}" ;;  # xhigh, max
+esac
+
+# Session cost. Dim, and only once it rounds to a cent — a fresh session reading
+# "$0.00" is noise. Formatted from integer cents with shell arithmetic: printf
+# '%.2f' would need a command substitution, and $( ) forks a subshell even for a
+# builtin, which is the whole cost this script is trying to avoid.
+#
+# This is API-equivalent spend, not money billed — a Max subscription is flat —
+# so it reads as a burn-rate gauge, not an invoice.
+cost_disp=""
+case "$cost_cents" in *[!0-9]*|"") cost_cents=0 ;; esac
+if [ "$cost_cents" -ge 1 ]; then
+    cost_frac=$(( cost_cents % 100 ))
+    [ "$cost_frac" -lt 10 ] && cost_frac="0$cost_frac"
+    cost_disp="\$$(( cost_cents / 100 )).$cost_frac"
+fi
+
 # 200k long-context-pricing cliff: on 1M-tier models, requests over 200k input
 # tokens bill at a premium (2x in / 1.5x out). Regular models cap at 200k, so
 # the marker only carries signal on the 1M tier. tokc defaults to dim (no signal).
@@ -283,11 +314,25 @@ if [ -n "$sid" ]; then
 fi
 
 # ===== Row 1: identity (repo-aware project, git branch, model, tokens) =====
+# Project identity. The payload's workspace.repo carries the *remote's* owner and
+# name, which is what "which repo is this" means once forks and same-named repos
+# are in play — a bare directory name can't tell danieldecena/home from someone
+# else's. git is still consulted for branch and dirty, which the payload lacks.
+#
 # ${x##*/} is basename's whole job here and costs no fork. It differs only for
 # trailing slashes and the bare "/" — neither of which git or Claude Code emit
 # as a path.
+#
+# The owner is dimmed: it's identical across every repo one person owns, so at
+# full weight it's width without signal. Dim keeps it available for the case it
+# does matter (a fork, someone else's repo) while the eye lands on the name.
+owner_seg=""
 if [ -n "$git_root" ]; then
     reponame="${git_root##*/}"
+    if [ -n "$repo_owner" ] && [ -n "$repo_name" ]; then
+        reponame="$repo_name"
+        owner_seg="${dim}${repo_owner}/${reset}"
+    fi
     if [ "$cwd" != "$git_root" ]; then
         dir_name="$reponame/${cwd##*/}"   # repo root + leaf when nested
     else
@@ -308,8 +353,8 @@ else
     model_name=""
 fi
 
-# Assemble identity: project [branch[*]] model [tier] [⚡] [tokens] |
-ident="${mc}${dir_name}${reset}"
+# Assemble identity: [owner/]project [branch[*]] model [tier] [⚡] [effort] [tokens] [$] |
+ident="${owner_seg}${mc}${dir_name}${reset}"
 if [ -n "$git_branch" ]; then
     if [ -n "$git_dirty" ]; then
         ident="${ident} ${dim}${git_branch}${reset}${yellow}${git_dirty}${reset}"
@@ -318,7 +363,9 @@ if [ -n "$git_branch" ]; then
     fi
 fi
 [ -n "$model_name" ] && ident="${ident} ${model_name}"
+[ -n "$effort_disp" ] && ident="${ident} ${effort_disp}"
 [ -n "$tok_disp" ] && ident="${ident} ${tokc}${tok_disp}${reset}"
+[ -n "$cost_disp" ] && ident="${ident} ${dim}${cost_disp}${reset}"
 ident="${ident} ${mc}|${reset}"
 
 # ===== Meters: ctx and rate-limit with progress bars =====
