@@ -136,7 +136,29 @@ struct UsageFooter: View {
                         }
                         
                         Spacer(minLength: 4)
-                        
+
+                        // Reset countdown / limit notice, inline with the gauges.
+                        if feed.hasUsage {
+                            if let notice = feed.usageNotice {
+                                Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
+                                    .font(.claudeMono(9.5))
+                                    .foregroundStyle(Color.usageTint(95))
+                                    .help(feed.usageNoticeDetail)
+                                    .lineLimit(1)
+                                    .textCase(.lowercase)
+                            } else if feed.usageFiveHourReset != nil {
+                                let clock = feed.usageFiveHourReset ?? ""
+                                let rel = feed.usageFiveHourResetRelative ?? ""
+                                let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
+                                Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
+                                    .font(.claudeMono(9.5))
+                                    .foregroundStyle(Color.secondary.opacity(0.75))
+                                    .help(feed.usageResetTooltip)
+                                    .lineLimit(1)
+                                    .textCase(.lowercase)
+                            }
+                        }
+
                         // Toggle Button with chevron (Image + onTapGesture to prevent focus highlighting)
                         Image(systemName: feed.footerExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 9, weight: .semibold))
@@ -203,36 +225,13 @@ struct UsageFooter: View {
                                             }
                                         }
                                         
-                                        HStack(spacing: 0) {
-                                            Text(infoText)
-                                                .font(.claudeMono(9.5))
-                                                .foregroundStyle(Color.secondary.opacity(0.8))
-                                                .lineLimit(1)
-                                                .fixedSize(horizontal: true, vertical: false)
-                                            
-                                            Spacer(minLength: 12)
-                                            
-                                            if let notice = feed.usageNotice {
-                                                Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
-                                                    .font(.claudeMono(9.5))
-                                                    .foregroundStyle(Color.usageTint(95))
-                                                    .help(feed.usageNoticeDetail)
-                                                    .lineLimit(1)
-                                                    .fixedSize(horizontal: true, vertical: false)
-                                            } else {
-                                                let clock = feed.usageFiveHourReset ?? ""
-                                                let rel = feed.usageFiveHourResetRelative ?? ""
-                                                let resetsStr = rel.isEmpty ? " \(clock)" : " \(clock) · in \(rel)"
-                                                Text("\(Image(systemName: "arrow.clockwise"))\(resetsStr)")
-                                                    .font(.claudeMono(9.5))
-                                                    .foregroundStyle(Color.secondary.opacity(0.75))
-                                                    .help(feed.usageResetTooltip)
-                                                    .lineLimit(1)
-                                                    .fixedSize(horizontal: true, vertical: false)
-                                            }
-                                        }
-                                        .textCase(.lowercase)
-                                        .padding(.top, 2)
+                                        Text(infoText)
+                                            .font(.claudeMono(9.5))
+                                            .foregroundStyle(Color.secondary.opacity(0.8))
+                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                            .textCase(.lowercase)
+                                            .padding(.top, 2)
                                     }
                                     .padding(.top, 2)
                                 }
