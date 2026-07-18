@@ -53,3 +53,15 @@
 ## Decision Log
 
 <!-- Significant technical decisions with rationale. Why X was chosen over Y. -->
+
+### 2026-07-18 — menu-bar labels need their own tick
+`glyphPulse`/`glyphPhase` only advance while `menuBarActive || usageAlarm`, so any
+menu-bar text derived from `Date()` at read time freezes when nothing is running.
+A countdown is most useful in exactly that idle state — give it its own published
+tick (`minuteTick`, 60s) rather than assuming the spinner animation re-renders you.
+
+### 2026-07-18 — the test runner is not broken for the unit target
+`xcodebuild test -scheme "claude spinner" -destination 'platform=macOS'` bootstrapped
+and passed 61/61 twice, with `killall "claude spinner"` first. The recorded "Early
+unexpected exit ... before establishing connection" failure did not reproduce. Only
+the unit target ran; the UI target remains unverified.

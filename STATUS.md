@@ -60,6 +60,22 @@
   Development cert is installed, which cannot notarize, and notarytool has no
   stored credentials. Needs a paid Developer Program account and an Apple ID.
 
+### 2026-07-18 (usage reset countdown)
+- Decided: the menu-bar usage title carries the countdown (`5h 4% · 4h50m`), not
+  just the clock time the panel footer already shows. The footer answers "when",
+  which needs the panel open; the menu bar answers "how long", which is the
+  question a bare percentage provokes and the one worth paying title width for.
+- Decided: the countdown gets its own 60s `minuteTick` rather than riding the
+  spinner's animation timer. That timer only advances while working or alarming,
+  which is precisely when the countdown does NOT need to move — an idle session
+  watching its limit recover would have seen a frozen number.
+- Decided: an unknown reset instant drops the countdown rather than showing `0m`.
+  The statusLine feed carries a percentage with no `resets_at`, so zero would be
+  a confident wrong answer where absence is honest.
+- Noted: `xcodebuild test` passed 61/61 on the unit target today, twice, with the
+  app killed first — the recorded runner-bootstrap failure did not reproduce. The
+  UI target was not exercised, so that half stays open.
+
 ### 2026-07-17 (buglog concurrency, bug-200)
 - Decided: serialize the buglog write behind a lockfile rather than move to
   one-file-per-bug. The append is a millisecond critical section and the file is

@@ -226,10 +226,10 @@ struct MenuBarLabel: View {
                 // Usage mode always shows the 5h % (that's what the toggle promises);
                 // attention is still carried by the blue glyph, not the title text.
                 // Fall back to the activity word only when there's no usage data yet.
-                if let h5 = feed.usageFiveHourPct {
+                if let h5 = feed.usageFiveHourPct, let title = feed.usageMenuBarTitle {
                     // Pulse the % when it crosses the red threshold so an imminent
                     // rate limit catches the eye even with nothing running.
-                    Text("5h \(h5)%")
+                    Text(title)
                         .font(.claudeMono(13))
                         .monospacedDigit()
                         .foregroundColor(Color.usageTint(h5).opacity(feed.usageAlarm ? feed.glyphPulse : 1))
@@ -246,8 +246,16 @@ struct MenuBarLabel: View {
         }
         .fixedSize()
         .padding(.horizontal, 4)
-        .accessibilityLabel(feed.menuBarBody.isEmpty ? "Claude spinner, idle"
-                                                     : "Claude spinner, \(feed.menuBarBody)")
+        .accessibilityLabel({
+            // In usage mode the visible title is the usage readout, not the
+            // activity word — VoiceOver should read what's on screen.
+            if feed.menuBarMode == .usage, let pct = feed.usageFiveHourPct {
+                let left = feed.usageFiveHourResetRelative.map { ", resets in \($0)" } ?? ""
+                return "Claude spinner, 5 hour limit \(pct) percent\(left)"
+            }
+            return feed.menuBarBody.isEmpty ? "Claude spinner, idle"
+                                            : "Claude spinner, \(feed.menuBarBody)"
+        }())
     }
 }
 

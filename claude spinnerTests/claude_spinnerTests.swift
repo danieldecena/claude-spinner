@@ -680,4 +680,27 @@ final class claude_spinnerTests: XCTestCase {
             XCTAssertEqual(perms?.int16Value, 0o755)
         }
     }
+
+    // MARK: - Menu-bar usage title (reset countdown)
+
+    func testResetCountdownFormatsHoursAndMinutes() {
+        XCTAssertEqual(FeedWatcher.resetCountdown(secondsRemaining: 3 * 3600 + 29 * 60), "3h29m")
+        XCTAssertEqual(FeedWatcher.resetCountdown(secondsRemaining: 43 * 60), "43m")
+        XCTAssertEqual(FeedWatcher.resetCountdown(secondsRemaining: 2 * 3600), "2h0m")
+    }
+
+    func testResetCountdownClampsAPastReset() {
+        // A stale snapshot can hold a reset instant that has already passed; it
+        // must read as "0m", never as a negative countdown.
+        XCTAssertEqual(FeedWatcher.resetCountdown(secondsRemaining: -500), "0m")
+    }
+
+    func testUsageTitleAppendsTheCountdown() {
+        XCTAssertEqual(FeedWatcher.usageTitle(pct: 70, countdown: "2h14m"), "5h 70% \u{00B7} 2h14m")
+    }
+
+    func testUsageTitleOmitsAnUnknownCountdown() {
+        // The statusLine feed carries a percentage but no resets_at.
+        XCTAssertEqual(FeedWatcher.usageTitle(pct: 70, countdown: nil), "5h 70%")
+    }
 }

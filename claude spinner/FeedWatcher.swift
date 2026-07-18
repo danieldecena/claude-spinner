@@ -71,6 +71,10 @@ enum Constants {
     /// Usage older than this is flagged stale in the footer — no statusLine session
     /// has refreshed it recently (the only source of the 5h/7d percentages).
     static let usageStaleAfter: TimeInterval = 15 * 60
+    /// How often the menu-bar reset countdown re-renders. The countdown's finest
+    /// unit is the minute, so a faster tick would redraw the status item without
+    /// ever changing its text.
+    static let countdownTickInterval: TimeInterval = 60
 }
 
 /// What the menu-bar title displays: live activity, or the 5h usage limit.
@@ -494,6 +498,12 @@ final class FeedWatcher: ObservableObject {
     /// collapse the status item to zero size and render it invisible).
     @Published private(set) var glyphPhase = 0
 
+    /// Advances once a minute purely to re-render the menu-bar reset countdown.
+    /// The countdown is derived from `Date()` at read time, so without a periodic
+    /// nudge it would freeze whenever nothing else published — which is exactly
+    /// the idle case the countdown is most useful in.
+    @Published private(set) var minuteTick = 0
+
     /// What the menu-bar title shows; persisted across launches.
     @Published var menuBarMode: MenuBarMode {
         didSet { UserDefaults.standard.set(menuBarMode.rawValue, forKey: "menuBarMode") }
@@ -504,6 +514,7 @@ final class FeedWatcher: ObservableObject {
     private var dirFD: Int32 = -1
     private var timer: Timer?
     private var animTimer: Timer?
+    private var countdownTimer: Timer?
     /// Session ids already alerted for attention, so each pause notifies once.
     private var notifiedAttention: Set<String> = []
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
@@ -565,12 +576,17 @@ final class FeedWatcher: ObservableObject {
                 self.glyphPhase &+= 1
             }
         }
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: Constants.countdownTickInterval,
+                                              repeats: true) { [weak self] _ in
+            self?.minuteTick &+= 1
+        }
     }
 
     deinit {
         source?.cancel()
         timer?.invalidate()
         animTimer?.invalidate()
+        countdownTimer?.invalidate()
         poller?.stop()
     }
 
@@ -1111,12 +1127,35 @@ final class FeedWatcher: ObservableObject {
 
     /// "3h29m" / "43m" left until the given instant. Recomputed each render (the
     /// footer's 1s TimelineView keeps it ticking down).
-    private static func formatResetRelative(_ resetsAt: Double?) -> String? {
+    private static func formatResetRelative(_ resetsAt: Double?, now: Date = Date()) -> String? {
         guard let resetsAt else { return nil }
-        let remaining = max(0, resetsAt - Date().timeIntervalSince1970)
-        let hours = Int(remaining) / 3600
-        let minutes = (Int(remaining) % 3600) / 60
+        return resetCountdown(secondsRemaining: resetsAt - now.timeIntervalSince1970)
+    }
+
+    /// Pure countdown formatting, extracted so the menu-bar title can be tested
+    /// without a live clock or a poller.
+    static func resetCountdown(secondsRemaining: Double) -> String {
+        let remaining = Int(max(0, secondsRemaining))
+        let hours = remaining / 3600
+        let minutes = (remaining % 3600) / 60
         return hours > 0 ? "\(hours)h\(minutes)m" : "\(minutes)m"
+    }
+
+    /// The menu-bar title in usage mode: the 5h utilization plus how long until
+    /// that window resets, e.g. "5h 70% · 2h14m". Without the countdown the
+    /// percentage reads as a fixed level rather than one that recovers on a clock.
+    /// The countdown is dropped (not zero-filled) when no reset instant is known,
+    /// since the statusLine feed carries a percentage but no `resets_at`.
+    static func usageTitle(pct: Int, countdown: String?) -> String {
+        guard let countdown else { return "5h \(pct)%" }
+        return "5h \(pct)% · \(countdown)"
+    }
+
+    /// Menu-bar usage title for the current state; nil when there's no usage data
+    /// yet and the title should fall back to the activity word.
+    var usageMenuBarTitle: String? {
+        guard let pct = usageFiveHourPct else { return nil }
+        return Self.usageTitle(pct: pct, countdown: usageFiveHourResetRelative)
     }
 
     /// Trims a raw model name like "Opus 4.8 (1M context)" down to just the

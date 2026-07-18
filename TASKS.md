@@ -5,9 +5,11 @@
 Remaining open items:
 
 - [ ] Notarization — needs a **Developer ID Application** cert (only an Apple Development cert is installed, which can't notarize) plus notarytool credentials. Needs a paid Developer Program account and the user's Apple ID.
-- [ ] Usage view: show remaining time until rate-limit reset alongside the "5h 70%" menu bar readout (requested 2026-07-18). `fiveHourResetsAt` already exists per cerebrum; 7d window may need the same. Verify visually via ./run.sh + capture; test runner currently broken (see home TASKS.md).
+- [ ] `xcodebuild test` UI-test target — the unit target bootstraps and passes cleanly (61/61, 2026-07-18) once `killall "claude spinner"` runs first. The UI target was not exercised, so the earlier "runner exited before establishing connection" failure is unconfirmed on that half.
 
 ## Completed
+
+- [x] Usage view: menu-bar title now reads `5h 4% · 4h50m` — the 5h percentage plus a countdown to that window's reset. A once-a-minute tick keeps it moving while idle; verified on screen, 61/61 unit tests green; done 2026-07-18
 
 - [x] buglog.json race between concurrent sessions (bug-200) — post-write.js now serializes its read-modify-write behind a lockfile and mints `max+1` ids; proven by a barrier-synced 20-way race (old pattern lost 15/20, new kept 20/20); fixed 2026-07-17
 - [x] Long tool name drew a double ellipsis (`running askuserqu……`) — RowLayout.fit pre-truncates the status label so SwiftUI never adds its tail `…` beside the working-dots; verified on screen with a throwaway MCP row; fixed 2026-07-17 (f3638a3, bug-201)
