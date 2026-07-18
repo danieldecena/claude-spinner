@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-23T16:44:03.018Z",
   "lifetime": {
-    "total_tokens_estimated": 3505191,
-    "total_reads": 985,
-    "total_writes": 5663,
+    "total_tokens_estimated": 3569101,
+    "total_reads": 995,
+    "total_writes": 5689,
     "total_sessions": 35,
-    "anatomy_hits": 481,
-    "anatomy_misses": 504,
-    "repeated_reads_blocked": 2575,
-    "estimated_savings_vs_bare_cli": 17584923
+    "anatomy_hits": 487,
+    "anatomy_misses": 508,
+    "repeated_reads_blocked": 2579,
+    "estimated_savings_vs_bare_cli": 17645823
   },
   "sessions": [
     {
@@ -36533,6 +36533,230 @@
       "id": "session-2026-07-18-0246",
       "started": "2026-07-18T02:46:24.002Z",
       "ended": "2026-07-18T02:56:05.225Z",
+      "reads": [
+        {
+          "file": "/home/user/claude-spinner/claude spinner/Scripts/emit.sh",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/Scripts/statusline-command.sh",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 14925,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 8718,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/SetupInstaller.swift",
+          "tokens_estimated": 1290,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 1923,
+          "action": "create"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 138,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 255,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 113,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 112,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 106,
+          "action": "edit"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/check-reset.sh",
+          "tokens_estimated": 1632,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/com.danieldecena.claude-reset-notifier.plist",
+          "tokens_estimated": 202,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/install.sh",
+          "tokens_estimated": 532,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/test.sh",
+          "tokens_estimated": 1171,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/README.md",
+          "tokens_estimated": 691,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/check-reset.sh",
+          "tokens_estimated": 67,
+          "action": "edit"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/test.sh",
+          "tokens_estimated": 80,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 24933,
+        "output_tokens_estimated": 7022,
+        "reads_count": 5,
+        "writes_count": 13,
+        "repeated_reads_blocked": 2,
+        "anatomy_lookups": 3
+      }
+    },
+    {
+      "id": "session-2026-07-18-0246",
+      "started": "2026-07-18T02:46:24.002Z",
+      "ended": "2026-07-18T02:56:27.831Z",
+      "reads": [
+        {
+          "file": "/home/user/claude-spinner/claude spinner/Scripts/emit.sh",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/Scripts/statusline-command.sh",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/FeedWatcher.swift",
+          "tokens_estimated": 14925,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/MenuContentView.swift",
+          "tokens_estimated": 8718,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/home/user/claude-spinner/claude spinner/SetupInstaller.swift",
+          "tokens_estimated": 1290,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 1923,
+          "action": "create"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 138,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 255,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 113,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 112,
+          "action": "edit"
+        },
+        {
+          "file": "/root/.claude/plans/can-we-take-the-lucky-flame.md",
+          "tokens_estimated": 106,
+          "action": "edit"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/check-reset.sh",
+          "tokens_estimated": 1632,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/com.danieldecena.claude-reset-notifier.plist",
+          "tokens_estimated": 202,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/install.sh",
+          "tokens_estimated": 532,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/test.sh",
+          "tokens_estimated": 1171,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/README.md",
+          "tokens_estimated": 691,
+          "action": "create"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/check-reset.sh",
+          "tokens_estimated": 67,
+          "action": "edit"
+        },
+        {
+          "file": "/home/user/claude-spinner/reset-notifier/test.sh",
+          "tokens_estimated": 80,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 24933,
+        "output_tokens_estimated": 7022,
+        "reads_count": 5,
+        "writes_count": 13,
+        "repeated_reads_blocked": 2,
+        "anatomy_lookups": 3
+      }
+    },
+    {
+      "id": "session-2026-07-18-0246",
+      "started": "2026-07-18T02:46:24.002Z",
+      "ended": "2026-07-18T02:56:50.309Z",
       "reads": [
         {
           "file": "/home/user/claude-spinner/claude spinner/Scripts/emit.sh",
