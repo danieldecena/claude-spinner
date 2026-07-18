@@ -5,6 +5,7 @@
 Remaining open items:
 
 - [ ] Notarization — needs a **Developer ID Application** cert (only an Apple Development cert is installed, which can't notarize) plus notarytool credentials. Needs a paid Developer Program account and the user's Apple ID.
+- [ ] Usage view: show remaining time until rate-limit reset alongside the "5h 70%" menu bar readout (requested 2026-07-18). `fiveHourResetsAt` already exists per cerebrum; 7d window may need the same. Verify visually via ./run.sh + capture; test runner currently broken (see home TASKS.md).
 
 ## Completed
 
