@@ -31,13 +31,17 @@
   (`running mcp__claude_ai_Google_Calendar__list_events`): the cut row's trailing
   marker is identical to the un-truncatable `running bash…` / `thinking…` rows
   (dots only). bug-201.
+- `.wolf/buglog.json` no longer races between concurrent sessions. The OpenWolf
+  auto-logger (`.wolf/hooks/post-write.js`) now serializes its read-modify-write
+  behind an exclusive lockfile and mints ids as `max+1` (strictly above every id
+  present). Proven with a barrier-synchronized 20-way race: the old
+  `length+1`/no-lock pattern lost 15 of 20 writes; the locked version kept 20/20
+  with unique ids. bug-200. (The 10 *historical* duplicate ids are left as-is —
+  they're referenced in commits/STATUS/cerebrum, so renumbering would break refs.)
 
 ## Known broken
 
-- `.wolf/buglog.json` has 10 duplicate bug IDs. Two Claude sessions run in this
-  repo at once and both mint `max+1` from their own read of the file. Duplicate
-  ids are the visible damage; a silently lost entry is the real risk. Needs a
-  decision: one file per bug, a lock, or don't run two sessions here (bug-200).
+- (none — the double-ellipsis and buglog-race items were both fixed 2026-07-17)
 
 ## Scope / by-design limitations
 
@@ -52,10 +56,28 @@
 
 ## Next Up
 
-- Decide how `.wolf/buglog.json` should survive concurrent sessions (bug-200).
 - Notarization — blocked on a **Developer ID Application** cert. Only an Apple
   Development cert is installed, which cannot notarize, and notarytool has no
   stored credentials. Needs a paid Developer Program account and an Apple ID.
+
+### 2026-07-17 (buglog concurrency, bug-200)
+- Decided: serialize the buglog write behind a lockfile rather than move to
+  one-file-per-bug. The append is a millisecond critical section and the file is
+  already written atomically (tmp+rename), so a lock closes the race with the
+  smallest change and keeps every reader (pre-write, session-start, the digest)
+  pointed at one file. Per-bug files were the more robust option but would have
+  rewritten the format across several third-party hooks.
+- Decided: the id is `max(numeric ids)+1`, not `bugs.length+1`. length trailed
+  the true max (the log already had gaps and dups) and could even land back on an
+  existing id; max+1 is strictly greater than every id present, so it can't reuse.
+- Noted: the fix lands in the *project-local* `.wolf/hooks/post-write.js` (the
+  copy `.claude/settings.json` actually invokes). The identical `length+1` lives
+  in the global openwolf npm package too, so every OpenWolf project shares this
+  bug — a separate upstream concern, not fixed here.
+- Noted: verified by a barrier-synchronized race (common future start instant to
+  defeat node-startup jitter) — the naive 25-way full-hook test did NOT reproduce
+  the race because startup stagger serialized the writers. Concurrency bugs need
+  a real barrier to surface; a plain fan-out can pass a broken implementation.
 
 ### 2026-07-17 (status truncation)
 - Decided: the status label is cut to its column *in code* (`RowLayout.fit`),

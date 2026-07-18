@@ -2539,13 +2539,15 @@
       "error_message": "buglog.json has 10 duplicate bug IDs (bug-133/134/137 from today's concurrent sessions; bug-032/072/073/092/093/095/111 older)",
       "file": ".wolf/buglog.json",
       "root_cause": "IDs are allocated as max+1 from whatever the writer last read. Two Claude sessions run in this repo at once (the spinner exists to show them), so both read the same tail and both mint the same next id. Read-modify-write on one JSON file with no locking: duplicate ids are the visible damage, and a lost entry is the invisible one — if both sessions read before either writes, the first write vanishes.",
-      "fix": "NOT renumbered: the other session is live and this is shared data, so rewriting the file mid-flight is exactly how an entry gets lost. Mitigation used here: re-read immediately before writing, and pick an id proven free against the ids actually present rather than max+1. A real fix needs either one-file-per-bug (no shared mutable file) or a lock; that's a decision for the user.",
+      "fix": "Fixed 2026-07-17 in .wolf/hooks/post-write.js — the OpenWolf PostToolUse auto-logger that mints ids (the same racy scheme, bugs.length+1, also lives in the global openwolf npm package; this is the project-local copy Claude Code actually runs). The read-modify-write is now serialized behind an exclusive lockfile (buglog.json.lock, O_EXCL create with a 10s stale-steal and Atomics.wait backoff); the fresh read happens INSIDE the lock; and the id is max(numeric ids)+1 — strictly above every id present, so it can never reuse one. Proven with a barrier-synchronized 20-way race test: the old length+1/no-lock pattern lost 15 of 20 concurrent writes, the locked max+1 pattern kept 20/20 with unique ids. The existing duplicate ids were left as-is (they are referenced in commits/STATUS/cerebrum; renumbering would break those references). Residual: the agent's rare manual hand-appends still bypass the lock, but the per-edit hook was the frequent collision source.",
       "tags": [
-        "concurrency",
         "buglog",
-        "race",
+        "concurrency",
+        "data-integrity",
+        "fixed",
+        "lockfile",
         "multi-session",
-        "data-integrity"
+        "race"
       ],
       "related_bugs": [
         "bug-139"

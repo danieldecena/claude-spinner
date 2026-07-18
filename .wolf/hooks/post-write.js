@@ -241,51 +241,120 @@ function extractCalls(code) {
             .filter(n => n.length > 2 && !["if", "for", "while", "switch", "catch", "function", "return", "new", "typeof", "instanceof", "const", "let", "var"].includes(n)))];
 }
 // ─── Auto Bug Detection ──────────────────────────────────────────
+// Several Claude sessions run in one repo at once (the whole point of this
+// project), so two PostToolUse hooks race on buglog.json: each reads it, both
+// mint the same id, and the atomic rename in writeJSON lets whichever writes
+// last silently drop the other's entry. Serialize the read-modify-write behind
+// an exclusive lockfile so only one hook mutates the log at a time.
+function withBugLogLock(wolfDir, fn) {
+    const lockPath = path.join(wolfDir, "buglog.json.lock");
+    const deadline = Date.now() + 2000;
+    let held = false;
+    while (Date.now() < deadline) {
+        try {
+            const fd = fs.openSync(lockPath, "wx"); // O_EXCL: fails if it exists
+            fs.writeSync(fd, `${process.pid} ${new Date().toISOString()}`);
+            fs.closeSync(fd);
+            held = true;
+            break;
+        }
+        catch (e) {
+            if (e.code !== "EEXIST")
+                throw e;
+            // Steal a lock a crashed writer left behind; otherwise wait a beat.
+            try {
+                if (Date.now() - fs.statSync(lockPath).mtimeMs > 10000) {
+                    fs.unlinkSync(lockPath);
+                    continue;
+                }
+            }
+            catch {
+                continue; // lock vanished between calls — retry immediately
+            }
+            // Sleep without a busy-spin (hooks run synchronously, so no await).
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+        }
+    }
+    try {
+        // Best-effort even if the lock couldn't be taken within the deadline —
+        // a critical section is milliseconds, so this branch is effectively
+        // unreachable, and skipping the log would lose a bug either way.
+        fn();
+    }
+    finally {
+        if (held) {
+            try {
+                fs.unlinkSync(lockPath);
+            }
+            catch { }
+        }
+    }
+}
+// One past the highest bug-NNN actually present — not bugs.length + 1, which
+// the earlier races already made wrong: the log has duplicate ids and gaps, so
+// length both trails the true maximum and can land back on an existing id. max+1
+// is strictly greater than every numeric id present, so it can never collide.
+function nextBugNumber(bugs) {
+    let max = 0;
+    for (const b of bugs) {
+        const m = /^bug-(\d+)$/.exec(b.id || "");
+        if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > max)
+                max = n;
+        }
+    }
+    return max + 1;
+}
 function autoDetectBugFix(wolfDir, absolutePath, projectRoot, oldStr, newStr) {
-    const bugLogPath = path.join(wolfDir, "buglog.json");
-    const bugLog = readJSON(bugLogPath, { version: 1, bugs: [] });
     const relFile = normalizePath(path.relative(projectRoot, absolutePath));
     const basename = path.basename(absolutePath);
     const ext = path.extname(basename).toLowerCase();
-    // Detect what kind of fix this is
+    // Detect what kind of fix this is — pure, so decide before taking the lock.
     const detection = detectFixPattern(oldStr, newStr, ext);
     if (!detection)
         return;
-    // Check for recent duplicate (same file + same category within 5 min)
-    const recentDupe = bugLog.bugs.find(b => {
-        if (path.basename(b.file) !== basename)
-            return false;
-        if (!b.tags.includes("auto-detected"))
-            return false;
-        if (!b.tags.includes(detection.category))
-            return false;
-        const bugTime = new Date(b.last_seen).getTime();
-        return (Date.now() - bugTime) < 5 * 60 * 1000;
-    });
-    if (recentDupe) {
-        recentDupe.occurrences++;
-        recentDupe.last_seen = new Date().toISOString();
-        // Append additional context
-        if (detection.context && !recentDupe.fix.includes(detection.context)) {
-            recentDupe.fix += ` | Also: ${detection.context}`;
+    const bugLogPath = path.join(wolfDir, "buglog.json");
+    withBugLogLock(wolfDir, () => {
+        // Read fresh INSIDE the lock so the id and the dupe check both see any
+        // entry another session committed while we were waiting.
+        const bugLog = readJSON(bugLogPath, { version: 1, bugs: [] });
+        // Check for recent duplicate (same file + same category within 5 min)
+        const recentDupe = bugLog.bugs.find(b => {
+            if (path.basename(b.file) !== basename)
+                return false;
+            if (!b.tags.includes("auto-detected"))
+                return false;
+            if (!b.tags.includes(detection.category))
+                return false;
+            const bugTime = new Date(b.last_seen).getTime();
+            return (Date.now() - bugTime) < 5 * 60 * 1000;
+        });
+        if (recentDupe) {
+            recentDupe.occurrences++;
+            recentDupe.last_seen = new Date().toISOString();
+            // Append additional context
+            if (detection.context && !recentDupe.fix.includes(detection.context)) {
+                recentDupe.fix += ` | Also: ${detection.context}`;
+            }
+            writeJSON(bugLogPath, bugLog);
+            return;
         }
+        const nextId = `bug-${String(nextBugNumber(bugLog.bugs)).padStart(3, "0")}`;
+        bugLog.bugs.push({
+            id: nextId,
+            timestamp: new Date().toISOString(),
+            error_message: detection.summary,
+            file: relFile,
+            root_cause: detection.rootCause,
+            fix: detection.fix,
+            tags: ["auto-detected", detection.category, ext.replace(".", "") || "unknown"],
+            related_bugs: [],
+            occurrences: 1,
+            last_seen: new Date().toISOString(),
+        });
         writeJSON(bugLogPath, bugLog);
-        return;
-    }
-    const nextId = `bug-${String(bugLog.bugs.length + 1).padStart(3, "0")}`;
-    bugLog.bugs.push({
-        id: nextId,
-        timestamp: new Date().toISOString(),
-        error_message: detection.summary,
-        file: relFile,
-        root_cause: detection.rootCause,
-        fix: detection.fix,
-        tags: ["auto-detected", detection.category, ext.replace(".", "") || "unknown"],
-        related_bugs: [],
-        occurrences: 1,
-        last_seen: new Date().toISOString(),
     });
-    writeJSON(bugLogPath, bugLog);
 }
 function detectFixPattern(oldStr, newStr, ext) {
     const oldLines = oldStr.split("\n");
