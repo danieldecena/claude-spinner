@@ -65,3 +65,13 @@ tick (`minuteTick`, 60s) rather than assuming the spinner animation re-renders y
 and passed 61/61 twice, with `killall "claude spinner"` first. The recorded "Early
 unexpected exit ... before establishing connection" failure did not reproduce. Only
 the unit target ran; the UI target remains unverified.
+
+### 2026-07-18 — read the buglog before declaring a bug imaginary
+A reported `xcodebuild test` bootstrap failure was closed as "not a real failure"
+after the suite went green. It went green because every run started with
+`killall "claude spinner"` — the documented workaround for **bug-094**, whose entry
+was already on file. The single-instance guard `exit(0)`s the app-hosted test host
+when another copy is running; that is still true. Green-after-workaround is not
+evidence a bug does not exist. The OpenWolf rule ("BEFORE fixing any bug: read
+buglog.json") exists for exactly this; skipping it cost a wrong STATUS.md entry
+that had to be corrected twice.

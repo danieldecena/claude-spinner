@@ -1577,7 +1577,7 @@
       "error_message": "xcodebuild test: 'Early unexpected exit, operation never finished bootstrapping ... test runner exited with code 0 before establishing connection' for the claude_spinnerTests unit target",
       "file": "claude spinner/claude_spinnerApp.swift (AppDelegate.applicationDidFinishLaunching)",
       "root_cause": "Unit tests are hosted in the app (TEST_HOST). The app's single-instance guard calls exit(0) when another copy with the same bundle id is already running. When a normal copy of the app was already running (e.g. left open by /run), launching the test-host copy tripped the guard and exit(0)'d before XCTest could attach, so the whole unit suite failed to bootstrap.",
-      "fix": "Quit any running copy before `xcodebuild test` (killall \"claude spinner\"). Not a code change \u2014 CI runners are a clean env so the guard never fires there. Documented as a local gotcha; the shared scheme + CI run the unit target cleanly.",
+      "fix": "Quit any running copy before `xcodebuild test` (killall \"claude spinner\"). Not a code change \u2014 CI runners are a clean env so the guard never fires there. Documented as a local gotcha; the shared scheme + CI run the unit target cleanly. [2026-07-18] Recurred and was briefly misfiled as \"not a real bug\": a session ran killall first (the workaround), saw 61/61 green, and closed the report without reading this entry. The guard behaviour is unchanged \u2014 always quit the app before xcodebuild test.",
       "tags": [
         "xcode",
         "xctest",
@@ -1587,8 +1587,8 @@
         "gotcha"
       ],
       "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-07-10T10:10:00.000Z"
+      "occurrences": 2,
+      "last_seen": "2026-07-18T11:57:30.340588-07:00"
     },
     {
       "id": "bug-098",
