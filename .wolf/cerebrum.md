@@ -21,6 +21,9 @@
 - [2026-07-17] The user runs Claude Code inside **Zed** (`host` = `dev.zed.Zed`), not only terminals — so "the host is a terminal unless it's VS Code" is a wrong assumption. A GUI editor reports its **own bundle ID** as the host string, which is why `SessionLauncher.resolveBundleID` treats an untabled-but-running bundle ID as itself: it fixes Zed, Cursor, VSCodium and Windsurf at once without hardcoding bundle IDs that are easy to get wrong. Only a `TERM_PROGRAM` value (never a bundle ID) should reach the terminal fallback.
 - [2026-07-17] The wrong-window bug family (bug-004/072/091/110) has TWO entry points, and the regression test only guards one. `guiFocusAction` covers the *branch* logic; `hostBundleIDs` is a **table**, and a host missing from it fails silently by falling back to a terminal. When this class recurs, check the table before re-reading the branch.
 
+- [2026-07-18] The two 5h-usage sources disagree on scale: statusLine payload `rate_limits.five_hour.used_percentage` is 0-100, while the API header `anthropic-ratelimit-unified-5h-utilization` is a 0-1 fraction (×100 needed). Both `resets_at`/`-5h-reset` are epoch seconds. `reset-notifier/check-reset.sh` normalises both; anything else consuming both paths must too.
+- [2026-07-18] Portable stat mtime must be GNU-first: `stat -c %Y || stat -f %m`. The BSD-first order breaks on Linux because GNU stat treats `-f %m FILE` as a *successful* filesystem-status call (multi-line output), so the fallback never fires (bug-153). Same class as the `date -r`/`date -d @` dual, but there the failing branch actually fails.
+
 ## Do-Not-Repeat
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->

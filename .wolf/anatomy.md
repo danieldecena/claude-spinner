@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-17T12:54:44.826Z
-> Files: 44 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-18T02:53:58.178Z
+> Files: 50 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -13,6 +13,10 @@
 - `logbug.py` (~345 tok)
 - `main.swift` — Stubs — the real ones live in claude_spinnerApp.swift (not compiled here). (~1923 tok)
 - `testmain.swift` — Spinner stub — the real one lives in claude_spinnerApp.swift (not compiled here). (~926 tok)
+
+## ../../../root/.claude/plans/
+
+- `can-we-take-the-lucky-flame.md` — Claude 5h-reset notifier — standalone routine (30-min warning) (~1976 tok)
 
 ## ../../.claude/
 
@@ -63,6 +67,14 @@
 - `task-2-report.md` — Task 2 Report: SetupInstaller with a pure, tested settings.json merge (~1429 tok)
 - `task-3-report.md` — Task 3 Report: Wire the Install button into the UI (~759 tok)
 - `task-4-report.md` — Task 4 — End-to-end installer verification (controller-run) (~375 tok)
+
+## reset-notifier/
+
+- `check-reset.sh` — 5h-reset notifier routine: feed-file + API-fallback reset lookup, 30-min-lead window check, dedupe stamp, osascript banner + optional ntfy push. (~1500 tok)
+- `com.danieldecena.claude-reset-notifier.plist` — launchd user agent template (__HOME__ placeholder), 300s StartInterval. (~200 tok)
+- `install.sh` — installs script+plist, optional ntfy topic prompt, launchctl bootstrap/bootout, --uninstall. (~500 tok)
+- `test.sh` — fixture-driven tests (13 cases), stubs channels via NOTIFY_CMD/PUSH_CMD, NO_API=1. (~1000 tok)
+- `README.md` — install, phone setup (ntfy), data-source chain, debugging. (~500 tok)
 
 ## claude spinner.xcodeproj/
 
@@ -118,3 +130,11 @@
 ## docs/superpowers/specs/
 
 - `2026-07-10-first-run-installer-design.md` — First-run one-click installer — design (~1505 tok)
+
+## reset-notifier/
+
+- `check-reset.sh` — check-reset.sh — notify 30 minutes before the Claude 5-hour rate-limit reset. (~1564 tok)
+- `com.danieldecena.claude-reset-notifier.plist` (~188 tok)
+- `install.sh` — install.sh — install the Claude 5h-reset notifier as a launchd user agent. (~496 tok)
+- `README.md` — Project documentation (~605 tok)
+- `test.sh` — test.sh — fixture-driven tests for check-reset.sh. Runs on macOS or Linux; (~1092 tok)

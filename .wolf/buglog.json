@@ -2552,6 +2552,42 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-07-17T06:07:00Z"
+    },
+    {
+      "id": "bug-153",
+      "timestamp": "2026-07-18T02:53:43.560Z",
+      "error_message": "check-reset.sh: \"File: unbound variable\" at the mtime arithmetic on Linux",
+      "file": "reset-notifier/check-reset.sh",
+      "root_cause": "stat portability fallback ordered BSD-first: GNU stat accepts `stat -f %m FILE` \"successfully\" (filesystem status, multi-line output starting \"File:\"), so the || fallback never ran and the garbage string reached $((NOW - mtime))",
+      "fix": "Swapped the order to `stat -c %Y || stat -f %m` \u2014 BSD stat rejects -c outright (clean failure), GNU -c succeeds, so each platform takes exactly one branch",
+      "tags": [
+        "stat",
+        "portability",
+        "macos-vs-linux",
+        "sh",
+        "reset-notifier"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-18T02:53:43.560Z"
+    },
+    {
+      "id": "bug-154",
+      "timestamp": "2026-07-18T03:05:00Z",
+      "error_message": "test.sh case 5 failed: new window notified once, not twice \u2014 second run silently hit the staleness guard",
+      "file": "reset-notifier/test.sh",
+      "root_cause": "Fixture advanced NOW by 5h but the status.json mtime is real wall-clock time, so the file looked 18000s old (> STALE_AFTER 1800) and the script correctly went silent \u2014 a test-data bug masquerading as a dedupe bug",
+      "fix": "Model the new window within the freshness horizon (resets_at shifted 300s, same NOW) \u2014 that still exceeds the 60s dedupe drift tolerance, which is the behavior under test",
+      "tags": [
+        "test-fixture",
+        "mtime",
+        "staleness",
+        "reset-notifier",
+        "sh"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-18T03:05:00Z"
     }
   ]
 }
