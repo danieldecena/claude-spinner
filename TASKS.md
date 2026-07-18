@@ -8,7 +8,7 @@ Remaining open items:
 
 ## Completed
 
-- [x] `xcodebuild test` runner bootstrap — not broken. The unit target passes 61/61 (twice, 2026-07-18) with `killall "claude spinner"` first; `claude spinnerUITests` isn't a member of the scheme by design, matching CI, so it never had a runner to bootstrap; closed 2026-07-18
+- [x] `xcodebuild test` runner bootstrap — this is **bug-094**, not a new failure. Unit tests are app-hosted and the single-instance guard `exit(0)`s the test host when a copy of the app is already running. `killall "claude spinner"` first and the suite is 61/61 green (verified twice, 2026-07-18). The "fails on BOTH targets" report was wrong on the second half: `claude spinnerUITests` isn't in the scheme, matching CI. Not a code bug — a launch-order constraint; closed 2026-07-18
 - [x] Usage view: menu-bar title now reads `5h 4% · 4h50m` — the 5h percentage plus a countdown to that window's reset. A once-a-minute tick keeps it moving while idle; verified on screen, 61/61 unit tests green; done 2026-07-18
 
 - [x] buglog.json race between concurrent sessions (bug-200) — post-write.js now serializes its read-modify-write behind a lockfile and mints `max+1` ids; proven by a barrier-synced 20-way race (old pattern lost 15/20, new kept 20/20); fixed 2026-07-17
