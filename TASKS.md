@@ -8,6 +8,7 @@ Remaining open items:
 
 ## Completed
 
+- [x] Long tool name drew a double ellipsis (`running askuserqu……`) — RowLayout.fit pre-truncates the status label so SwiftUI never adds its tail `…` beside the working-dots; verified on screen with a throwaway MCP row; fixed 2026-07-17 (f3638a3, bug-201)
 - [x] Verify the Zed fix by hand — verified 2026-07-17: clicking the row focused zed, Ghostty never launched
 - [x] Name column truncates while the status column idles — fixed 2026-07-17 (4a6ccb7, bug-138)
 - [x] 7d gauge reads as empty below 10% — fixed 2026-07-17 (9c675c5, bug-135)
