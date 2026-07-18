@@ -5,10 +5,10 @@
 Remaining open items:
 
 - [ ] Notarization — needs a **Developer ID Application** cert (only an Apple Development cert is installed, which can't notarize) plus notarytool credentials. Needs a paid Developer Program account and the user's Apple ID.
-- [ ] `xcodebuild test` UI-test target — the unit target bootstraps and passes cleanly (61/61, 2026-07-18) once `killall "claude spinner"` runs first. The UI target was not exercised, so the earlier "runner exited before establishing connection" failure is unconfirmed on that half.
 
 ## Completed
 
+- [x] `xcodebuild test` runner bootstrap — not broken. The unit target passes 61/61 (twice, 2026-07-18) with `killall "claude spinner"` first; `claude spinnerUITests` isn't a member of the scheme by design, matching CI, so it never had a runner to bootstrap; closed 2026-07-18
 - [x] Usage view: menu-bar title now reads `5h 4% · 4h50m` — the 5h percentage plus a countdown to that window's reset. A once-a-minute tick keeps it moving while idle; verified on screen, 61/61 unit tests green; done 2026-07-18
 
 - [x] buglog.json race between concurrent sessions (bug-200) — post-write.js now serializes its read-modify-write behind a lockfile and mints `max+1` ids; proven by a barrier-synced 20-way race (old pattern lost 15/20, new kept 20/20); fixed 2026-07-17
