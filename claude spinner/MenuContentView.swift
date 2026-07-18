@@ -360,6 +360,18 @@ enum RowLayout {
         text.isEmpty ? 0 : CGFloat(text.count) * monoAdvance + statusSlack
     }
 
+    /// `label` cut to what `width` can draw, leaving `statusSlack` of headroom so
+    /// SwiftUI never reaches for its own tail `…`. Without this, a long tool name
+    /// (`running mcp__…`) truncates to `…` and the animated working-dots render
+    /// right after it — two ellipses in a row (`running askuserqu……`). The dots
+    /// are the only trailing signal; the word is cut to fit and they follow it.
+    /// Monospaced, so the fit is exact and testable without standing up a view.
+    static func fit(_ label: String, toWidth width: CGFloat) -> String {
+        let maxChars = Int((width - statusSlack) / monoAdvance)
+        guard maxChars > 0, label.count > maxChars else { return label }
+        return String(label.prefix(maxChars))
+    }
+
     /// The name and model column widths, shared by every row in the panel.
     struct Columns: Equatable {
         var name: CGFloat
@@ -456,7 +468,7 @@ struct SessionRow: View {
             // with the working-dots attached to the word they belong to. The
             // maxWidth frame — not a Spacer — pushes the trailing columns right.
             HStack(spacing: 0) {
-                Text(statusLabel)
+                Text(displayStatus)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 // A fixed slot: the dots grow and shrink every 0.5s, and letting that
@@ -643,6 +655,18 @@ struct SessionRow: View {
     /// The concrete activity word, without the time (which lives in its own
     /// right-aligned column): `running Bash`, `thinking`, `done`, or the message.
     private var statusLabel: String { session.statusLabel }
+
+    /// `statusLabel` cut to the width the status column actually has — the flex
+    /// budget minus the shared name/model columns and the fixed dots slot, the
+    /// same span `RowLayout.columns` sized the panel to. Pre-truncating here means
+    /// SwiftUI's own tail `…` never lands beside the working-dots (bug: a long tool
+    /// name drew `running askuserqu……`). Only the working `running <tool>` labels
+    /// ever grow long enough to cut; the idle words always fit and pass through.
+    private var displayStatus: String {
+        RowLayout.fit(statusLabel,
+                      toWidth: Constants.rowFlexBudget - RowLayout.dotsSlot
+                          - columns.name - columns.model)
+    }
 
     /// True while the row is mid-turn — the dots animate and the time counts up.
     private var isWorking: Bool { session.status == .tool || session.status == .thinking }

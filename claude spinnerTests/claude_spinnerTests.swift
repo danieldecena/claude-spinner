@@ -288,6 +288,26 @@ final class claude_spinnerTests: XCTestCase {
                        Constants.panelWidth - Constants.rowFixedColumns)
     }
 
+    /// A tool name too long for its column is cut to fit here, so SwiftUI's own
+    /// tail `…` never renders beside the animated working-dots (the `running
+    /// askuserqu……` double-ellipsis bug). The cut leaves `statusSlack` of
+    /// headroom, and a label that already fits passes through untouched.
+    func testLongStatusLabelIsPreTruncatedToItsColumn() {
+        let long = "running mcp__claude_ai_Google_Calendar__list_events"
+        let c = RowLayout.columns(statusLabels: [long], models: ["opus"])
+        let w = statusWidth(c)
+
+        let fitted = RowLayout.fit(long, toWidth: w)
+        XCTAssertLessThan(fitted.count, long.count, "long label should be cut")
+        // Fits with headroom — SwiftUI won't reach for its `…` and collide with the dots.
+        XCTAssertLessThanOrEqual(CGFloat(fitted.count) * RowLayout.monoAdvance,
+                                 w - RowLayout.statusSlack)
+
+        // A label that already fits is returned verbatim.
+        XCTAssertEqual(RowLayout.fit("running bash", toWidth: w), "running bash")
+        XCTAssertEqual(RowLayout.fit("done", toWidth: w), "done")
+    }
+
     /// The label the layout measures must be the label the row draws.
     func testStatusLabelMatchesWhatTheRowShows() {
         var s = SessionFeed(id: "a")

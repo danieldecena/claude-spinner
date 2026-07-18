@@ -6,7 +6,7 @@
   feed files (hooks + statusLine in `~/.claude/settings.json`).
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 56 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 57 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
 - Row names get every point the model and status columns don't need, and the
   columns are sized once per panel so they still align. Verified on screen:
@@ -25,11 +25,15 @@
 - The panel's gauges and row layout are verified on screen, not just in tests:
   7d at 9% draws a visible sliver, `chg +52%` fills ~72% of its track rather
   than saturating, and `review code and ui` / `needs input` render in full.
+- A long tool name no longer draws two ellipses. `RowLayout.fit` pre-truncates
+  the status label to its column so SwiftUI never adds its own tail `…` beside
+  the animated dots. Verified on screen with a throwaway 51-char MCP tool
+  (`running mcp__claude_ai_Google_Calendar__list_events`): the cut row's trailing
+  marker is identical to the un-truncatable `running bash…` / `thinking…` rows
+  (dots only). bug-201.
 
 ## Known broken
 
-- A long tool name draws two ellipses in a row: `running askuserqu……` — the
-  status truncates and the animated dots sit right after it.
 - `.wolf/buglog.json` has 10 duplicate bug IDs. Two Claude sessions run in this
   repo at once and both mint `max+1` from their own read of the file. Duplicate
   ids are the visible damage; a silently lost entry is the real risk. Needs a
@@ -52,6 +56,20 @@
 - Notarization — blocked on a **Developer ID Application** cert. Only an Apple
   Development cert is installed, which cannot notarize, and notarytool has no
   stored credentials. Needs a paid Developer Program account and an Apple ID.
+
+### 2026-07-17 (status truncation)
+- Decided: the status label is cut to its column *in code* (`RowLayout.fit`),
+  not left to SwiftUI's `.truncationMode(.tail)`. SwiftUI Text has no
+  clip-without-ellipsis mode, so a clamped long tool name got its own `…` — which
+  landed right against the fixed working-dots slot and read as `running askuserqu……`.
+  Pre-truncating to the column width minus `statusSlack` (Menlo is monospaced, so
+  the fit is exact) guarantees SwiftUI never reaches for the glyph; the dots are
+  the only trailing signal. `truncationMode(.tail)` stays as a dead backstop (bug-201).
+- Noted: this was invisible to the 56-tests-green build — the arithmetic column
+  math was right; the collision only exists on screen. Confirmed by staging a
+  throwaway 51-char MCP row and comparing its trailing marker to `running bash…`
+  (which cannot truncate): identical, so no doubled ellipsis. Same "go and look"
+  lesson as bug-140, now applied.
 
 ### 2026-07-17 (row layout, cont.)
 - Decided: row columns are sized once per panel, from the widest label in each,
