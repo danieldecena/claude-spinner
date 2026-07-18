@@ -8,6 +8,8 @@ Remaining open items:
 
 ## Completed
 
+- [x] reset-notifier merged from `claude/usage-count-reset-notification-8qtypf` (`c2a9fff`) — launchd agent warns 30 min before each 5h reset, banner-only (no ntfy topic configured). Cherry-picked the feature commit alone; the branch's two bookkeeping commits carried gitignored `.wolf` runtime state that `f20aa61` had removed. Installed and verified: 13/13 notifier tests, 61/61 Swift tests, agent loaded, live dry-run correct. Remote branch deleted (tip `18bd9d0` if it's ever needed back); done 2026-07-18
+
 - [x] `xcodebuild test` runner bootstrap — this is **bug-094**, not a new failure. Unit tests are app-hosted and the single-instance guard `exit(0)`s the test host when a copy of the app is already running. `killall "claude spinner"` first and the suite is 61/61 green (verified twice, 2026-07-18). The "fails on BOTH targets" report was wrong on the second half: `claude spinnerUITests` isn't in the scheme, matching CI. Not a code bug — a launch-order constraint; closed 2026-07-18
 - [x] Usage view: menu-bar title now reads `5h 4% · 4h50m` — the 5h percentage plus a countdown to that window's reset. A once-a-minute tick keeps it moving while idle; verified on screen, 61/61 unit tests green; done 2026-07-18
 
