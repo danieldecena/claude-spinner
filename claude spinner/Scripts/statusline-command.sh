@@ -1,8 +1,10 @@
 #!/bin/sh
 # Claude Code status line — danieldecena
-# Reads JSON from stdin (CC statusLine schema), outputs a single status line.
-# Layout: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [tokens] [$cost] |
-#         <ctx-bar cache-hit [▲] [⧗]> │ <5h-bar reset [cap-eta]> [· 7d-bar day ~Nd [cap-eta] if binding]
+# Reads JSON from stdin (CC statusLine schema), outputs a two-row status line.
+# Row 1: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [tokens] [$cost]
+# Row 2: <ctx-bar cache-hit [▲] [⧗]> │ <5h-bar reset [cap-eta]> [· 7d-bar day ~Nd [cap-eta] if binding]
+# The meters get their own row so the widest of them — the 7d segment, which only
+# renders when it's the binding constraint — never clips off the right edge.
 # Additions are conditional (shown only when they carry signal) to stay uncluttered.
 # Colors: per-model (Opus=magenta, Sonnet=cyan, Haiku=green, Fable=blue)
 # Meters: unified 24-bit truecolor smooth gradient, each with its own red-onset
@@ -242,16 +244,17 @@ tok_disp=""
 if [ "${sess_tok:-0}" -ge 1000 ]; then tok_disp="$(( sess_tok / 1000 ))k"
 elif [ "${sess_tok:-0}" -gt 0 ]; then tok_disp="$sess_tok"; fi
 
-# Reasoning effort. Shown only when it isn't medium: medium is the default, so
-# rendering it would put a word on every line that never changes. The other
-# levels are a deliberate departure worth seeing, and they move token spend, so
-# they warm as they climb.
+# Reasoning effort. Always shown when the payload reports one, so the row never
+# goes silent about a setting that moves token spend — a blank used to be
+# ambiguous between "medium" and "no data". Medium is the default and carries no
+# urgency, so it renders dim alongside low; the levels above it warm as they
+# climb, since those are a deliberate departure worth seeing.
 effort_disp=""
 case "$effort" in
-    ""|medium) ;;
-    low)       effort_disp="${dim}low${reset}" ;;
-    high)      effort_disp="${yellow}high${reset}" ;;
-    *)         effort_disp="${bright_yellow}${effort}${reset}" ;;  # xhigh, max
+    "")         ;;
+    low|medium) effort_disp="${dim}${effort}${reset}" ;;
+    high)       effort_disp="${yellow}high${reset}" ;;
+    *)          effort_disp="${bright_yellow}${effort}${reset}" ;;  # xhigh, max
 esac
 
 # Session cost. Dim, and only once it rounds to a cent — a fresh session reading
@@ -362,7 +365,7 @@ else
     model_name=""
 fi
 
-# Assemble identity: [owner/]project [branch[*]] model [tier] [⚡] [effort] [tokens] [$] |
+# Assemble identity: [owner/]project [branch[*]] model [tier] [⚡] [effort] [tokens] [$]
 ident="${owner_seg}${mc}${dir_name}${reset}"
 if [ -n "$git_branch" ]; then
     if [ -n "$git_dirty" ]; then
@@ -375,9 +378,8 @@ fi
 [ -n "$effort_disp" ] && ident="${ident} ${effort_disp}"
 [ -n "$tok_disp" ] && ident="${ident} ${tokc}${tok_disp}${reset}"
 [ -n "$cost_disp" ] && ident="${ident} ${dim}${cost_disp}${reset}"
-ident="${ident} ${mc}|${reset}"
 
-# ===== Meters: ctx and rate-limit with progress bars =====
+# ===== Row 2: meters — ctx and rate-limit with progress bars =====
 ctx_seg=""
 lim_seg=""
 
@@ -501,9 +503,10 @@ if [ "$critical" -ge 2 ]; then
     warn_seg="${bright}${bright_red}${WARN}${reset} "
 fi
 
-# Build the meter line: [⚠] project model | ctx-bar % │ session-bar % reset
-out="${warn_seg}${ident} ${ctx_seg} ${mc}│${reset} ${lim_seg}"
+# Two rows. ⚠ leads row 1 rather than the meters it summarizes: it's an alert,
+# and the far left of the first row is where the eye lands. It carries its own
+# trailing space.
+row1="${warn_seg}${ident}"
+row2="${ctx_seg} ${mc}│${reset} ${lim_seg}"
 
-# Trailing blank line adds vertical spacing between the status line and Claude
-# Code's mode indicator (e.g. "auto mode on") rendered directly below it.
-printf '%b\n' "$out"
+printf '%b\n%b\n' "$row1" "$row2"
