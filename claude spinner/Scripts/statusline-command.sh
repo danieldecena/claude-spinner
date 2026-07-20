@@ -1,7 +1,7 @@
 #!/bin/sh
 # Claude Code status line — danieldecena
 # Reads JSON from stdin (CC statusLine schema), outputs a two-row status line.
-# Row 1: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [$cost] [sid] [tokens]
+# Row 1: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [$cost] [SID:xxxxxxxx] [tokens]
 # Row 2: <ctx-bar cache-hit [▲] [⧗]> │ <5h-bar reset [cap-eta]> [· 7d-bar day ~Nd [cap-eta] if binding]
 # The meters get their own row so the widest of them — the 7d segment, which only
 # renders when it's the binding constraint — never clips off the right edge.
@@ -382,7 +382,7 @@ fi
 # without spending 36 columns on a row that already carries seven segments.
 # ${sid%%-*} is the split and costs no fork; sid is a UUID whenever the payload
 # has one, and a non-UUID would simply render whole.
-[ -n "$sid" ] && ident="${ident} ${dim}${sid%%-*}${reset}"
+[ -n "$sid" ] && ident="${ident} ${dim}SID:${sid%%-*}${reset}"
 # Token count last: it's the segment that changes on every render, and the only
 # one that turns red. Parking it at the row's end gives the eye a fixed place to
 # check spend instead of a position that shifts as branch and effort come and go.
