@@ -1,7 +1,7 @@
 #!/bin/sh
 # Claude Code status line — danieldecena
 # Reads JSON from stdin (CC statusLine schema), outputs a two-row status line.
-# Row 1: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [tokens] [$cost]
+# Row 1: [⚠] [owner/]<project> [branch[*]] <model> [tier] [⚡] [effort] [$cost] [sid] [tokens]
 # Row 2: <ctx-bar cache-hit [▲] [⧗]> │ <5h-bar reset [cap-eta]> [· 7d-bar day ~Nd [cap-eta] if binding]
 # The meters get their own row so the widest of them — the 7d segment, which only
 # renders when it's the binding constraint — never clips off the right edge.
@@ -365,7 +365,7 @@ else
     model_name=""
 fi
 
-# Assemble identity: [owner/]project [branch[*]] model [tier] [⚡] [effort] [tokens] [$]
+# Assemble identity: [owner/]project [branch[*]] model [tier] [⚡] [effort] [$] [sid] [tokens]
 ident="${owner_seg}${mc}${dir_name}${reset}"
 if [ -n "$git_branch" ]; then
     if [ -n "$git_dirty" ]; then
@@ -376,7 +376,6 @@ if [ -n "$git_branch" ]; then
 fi
 [ -n "$model_name" ] && ident="${ident} ${model_name}"
 [ -n "$effort_disp" ] && ident="${ident} ${effort_disp}"
-[ -n "$tok_disp" ] && ident="${ident} ${tokc}${tok_disp}${reset}"
 [ -n "$cost_disp" ] && ident="${ident} ${dim}${cost_disp}${reset}"
 # Session ID, first UUID group only. `claude --resume <value>` treats a partial
 # id as a search term for the picker, so 8 chars is enough to get back here
@@ -384,6 +383,10 @@ fi
 # ${sid%%-*} is the split and costs no fork; sid is a UUID whenever the payload
 # has one, and a non-UUID would simply render whole.
 [ -n "$sid" ] && ident="${ident} ${dim}${sid%%-*}${reset}"
+# Token count last: it's the segment that changes on every render, and the only
+# one that turns red. Parking it at the row's end gives the eye a fixed place to
+# check spend instead of a position that shifts as branch and effort come and go.
+[ -n "$tok_disp" ] && ident="${ident} ${tokc}${tok_disp}${reset}"
 
 # ===== Row 2: meters — ctx and rate-limit with progress bars =====
 ctx_seg=""
