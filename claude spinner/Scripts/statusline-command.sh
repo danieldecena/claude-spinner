@@ -378,6 +378,12 @@ fi
 [ -n "$effort_disp" ] && ident="${ident} ${effort_disp}"
 [ -n "$tok_disp" ] && ident="${ident} ${tokc}${tok_disp}${reset}"
 [ -n "$cost_disp" ] && ident="${ident} ${dim}${cost_disp}${reset}"
+# Session ID, first UUID group only. `claude --resume <value>` treats a partial
+# id as a search term for the picker, so 8 chars is enough to get back here
+# without spending 36 columns on a row that already carries seven segments.
+# ${sid%%-*} is the split and costs no fork; sid is a UUID whenever the payload
+# has one, and a non-UUID would simply render whole.
+[ -n "$sid" ] && ident="${ident} ${dim}${sid%%-*}${reset}"
 
 # ===== Row 2: meters — ctx and rate-limit with progress bars =====
 ctx_seg=""
