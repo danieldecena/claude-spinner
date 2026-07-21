@@ -56,9 +56,20 @@
 
 ## Next Up
 
-- Notarization — blocked on a **Developer ID Application** cert. Only an Apple
-  Development cert is installed, which cannot notarize, and notarytool has no
-  stored credentials. Needs a paid Developer Program account and an Apple ID.
+- (none) — the app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-07-21 (OpenWolf decommission + notarization dropped)
+- Decided: don't notarize. It needs a paid Developer Program account, which
+  isn't being pursued; the ad-hoc-signed `run.sh` build is the intended
+  distribution. Removed the task from TASKS.md and Next Up.
+- Decided: decommission OpenWolf in this repo — it was uninstalled globally
+  (CLI/daemon 2026-07-19, global advisory hooks 2026-07-21), but this repo's
+  project-local copy was missed. Removed the 6-hook block from
+  `.claude/settings.json` (SessionStart/Read/Write/Stop) and deleted
+  `.wolf/hooks/`. The hooks fired `node` on every Read/Write/Stop (5-10s
+  timeouts) and rewrote tracked `.wolf/anatomy.md` / `buglog.json` as a side
+  effect of ordinary edits. The `.wolf/*.md`/`.json` data files are kept as
+  frozen reference, per the global openwolf deprecation rule.
 
 ### 2026-07-18 (usage reset countdown)
 - Decided: the menu-bar usage title carries the countdown (`5h 4% · 4h50m`), not

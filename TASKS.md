@@ -2,9 +2,9 @@
 
 ## Tasks
 
-Remaining open items:
-
-- [ ] Notarization — needs a **Developer ID Application** cert (only an Apple Development cert is installed, which can't notarize) plus notarytool credentials. Needs a paid Developer Program account and the user's Apple ID.
+No open items — the app runs as a locally-built, ad-hoc-signed `.app` via
+`run.sh`, which is the intended distribution. Notarization was dropped
+2026-07-21 (needs a paid Developer Program account; not being pursued).
 
 ## Completed
 
