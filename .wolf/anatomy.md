@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-18T02:53:58.178Z
-> Files: 50 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-21T08:34:03.000Z
+> Files: 56 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/dbb3e004-82b7-4f9e-a8eb-5800c550d741/scratchpad/
 
@@ -29,6 +29,7 @@
 - `hello-sorted-token.md` — Plan: Continue not-started tasks (concurrent-safe) (~1430 tok)
 - `review-the-design-fancy-wadler.md` — Panel improvements — session identity, token counts, dark mode, accessibility (~2597 tok)
 - `var-folders-qp-0lz3rkbx3m979qt7z-k15qgc-crispy-candy.md` — Fix cylinder-grid fill count vs displayed percentage mismatch (~982 tok)
+- `wise-spinning-cat.md` — /doctor cleanup — apply two disables (~445 tok)
 
 ## ../../.claude/spinnerfeed/
 
@@ -67,14 +68,6 @@
 - `task-2-report.md` — Task 2 Report: SetupInstaller with a pure, tested settings.json merge (~1429 tok)
 - `task-3-report.md` — Task 3 Report: Wire the Install button into the UI (~759 tok)
 - `task-4-report.md` — Task 4 — End-to-end installer verification (controller-run) (~375 tok)
-
-## reset-notifier/
-
-- `check-reset.sh` — 5h-reset notifier routine: feed-file + API-fallback reset lookup, 30-min-lead window check, dedupe stamp, osascript banner + optional ntfy push. (~1500 tok)
-- `com.danieldecena.claude-reset-notifier.plist` — launchd user agent template (__HOME__ placeholder), 300s StartInterval. (~200 tok)
-- `install.sh` — installs script+plist, optional ntfy topic prompt, launchctl bootstrap/bootout, --uninstall. (~500 tok)
-- `test.sh` — fixture-driven tests (13 cases), stubs channels via NOTIFY_CMD/PUSH_CMD, NO_API=1. (~1000 tok)
-- `README.md` — install, phone setup (ntfy), data-source chain, debugging. (~500 tok)
 
 ## claude spinner.xcodeproj/
 
@@ -133,8 +126,13 @@
 
 ## reset-notifier/
 
+- `check-reset.sh` — 5h-reset notifier routine: feed-file + API-fallback reset lookup, 30-min-lead window check, dedupe stamp, osascript banner + optional ntfy push. (~1500 tok)
 - `check-reset.sh` — check-reset.sh — notify 30 minutes before the Claude 5-hour rate-limit reset. (~1564 tok)
+- `com.danieldecena.claude-reset-notifier.plist` — launchd user agent template (__HOME__ placeholder), 300s StartInterval. (~200 tok)
 - `com.danieldecena.claude-reset-notifier.plist` (~188 tok)
+- `install.sh` — installs script+plist, optional ntfy topic prompt, launchctl bootstrap/bootout, --uninstall. (~500 tok)
 - `install.sh` — install.sh — install the Claude 5h-reset notifier as a launchd user agent. (~496 tok)
+- `README.md` — install, phone setup (ntfy), data-source chain, debugging. (~500 tok)
 - `README.md` — Project documentation (~605 tok)
+- `test.sh` — fixture-driven tests (13 cases), stubs channels via NOTIFY_CMD/PUSH_CMD, NO_API=1. (~1000 tok)
 - `test.sh` — test.sh — fixture-driven tests for check-reset.sh. Runs on macOS or Linux; (~1092 tok)

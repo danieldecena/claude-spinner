@@ -70,3 +70,19 @@ Remaining open items:
 - [x] One-line dropdown rows; reuse Ghostty window on click (no duplicate processes)
 - [x] Stop feed-file leak; atomic status.json writes; background rescan off main thread
 - [x] Typed JSON decoding; remove dead LoginItem.swift; extract Constants
+
+<!-- resume-footer -->
+---
+Plan approved 2026-07-21 01:34.
+
+Sessions start in "plan" (permissions.defaultMode in
+~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
+when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
+(--dangerously-skip-permissions) starts in bypass outright.
+
+Only if Claude Code actually closed:
+
+    claude --resume 34d92b04-9083-4f4d-b81b-4dcc6dedf8ef
+
+(`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
+<!-- /resume-footer -->
