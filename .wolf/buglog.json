@@ -23,7 +23,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 11\u219215 lines (8 removed) | Also: let script = \"\"\"; tell application \"Ghostty\"",
+      "fix": "Rewrote 11→15 lines (8 removed) | Also: let script = \"\"\"; tell application \"Ghostty\"",
       "tags": [
         "auto-detected",
         "refactor",
@@ -39,7 +39,7 @@
       "error_message": "Wrong reference: 320 should be Constants",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Used \"320\" instead of \"Constants\"",
-      "fix": "Changed 320 \u2192 Constants",
+      "fix": "Changed 320 → Constants",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -123,8 +123,8 @@
       "timestamp": "2026-07-10T00:25:49.840Z",
       "error_message": "Incorrect value in code",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Had \" (\\(timer) \u00b7 \\(session.tool))\"",
-      "fix": "Changed to \" (\\(timer) \u00b7 running \\(session.tool))\"",
+      "root_cause": "Had \" (\\(timer) · \\(session.tool))\"",
+      "fix": "Changed to \" (\\(timer) · running \\(session.tool))\"",
       "tags": [
         "auto-detected",
         "wrong-value",
@@ -139,7 +139,7 @@
       "timestamp": "2026-07-10T00:31:44.689Z",
       "error_message": "Incorrect value in code",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Had \" (\\(timer) \u00b7 still thinking)\"",
+      "root_cause": "Had \" (\\(timer) · still thinking)\"",
       "fix": "Changed to \" (\\(timer))\"",
       "tags": [
         "auto-detected",
@@ -188,7 +188,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 18\u219225 lines (8 removed)",
+      "fix": "Rewrote 18→25 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -204,7 +204,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 30\u219222 lines (12 removed)",
+      "fix": "Rewrote 30→22 lines (12 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -220,7 +220,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 22\u21928 lines (15 removed)",
+      "fix": "Rewrote 22→8 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -252,7 +252,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 46\u219262 lines (7 removed) | Also: /// Always-present footer: live usage (model \u00b7 5h ; /// left, the settings gear on the right so it's r | Also: Spacer(minLength: 6); Menu { | Also: } else {; if let ctx = session.contextPct {",
+      "fix": "Rewrote 46→62 lines (7 removed) | Also: /// Always-present footer: live usage (model · 5h ; /// left, the settings gear on the right so it's r | Also: Spacer(minLength: 6); Menu { | Also: } else {; if let ctx = session.contextPct {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -268,7 +268,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 16\u219257 lines (3 removed)",
+      "fix": "Rewrote 16→57 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -382,7 +382,7 @@
       "error_message": "Null/undefined access in ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Property access on potentially null/undefined value",
-      "fix": "Added null safety (optional chaining or null check) | Also: self?.updateUsageCache(result); /// Force a re-read of the feed (right-click \u2192 Refresh). | Also: /// Rows to render: attention/working/done sessions individu; /// idle sessions collapsed by directory into one row with a",
+      "fix": "Added null safety (optional chaining or null check) | Also: self?.updateUsageCache(result); /// Force a re-read of the feed (right-click → Refresh). | Also: /// Rows to render: attention/working/done sessions individu; /// idle sessions collapsed by directory into one row with a",
       "tags": [
         "auto-detected",
         "null-safety",
@@ -398,7 +398,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 11\u219222 lines (8 removed)",
+      "fix": "Rewrote 11→22 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -414,7 +414,7 @@
       "error_message": "Wrong reference: 320 should be 360",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"320\" instead of \"360\"",
-      "fix": "Changed 320 \u2192 360",
+      "fix": "Changed 320 → 360",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -430,7 +430,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 13\u219231 lines (7 removed)",
+      "fix": "Rewrote 13→31 lines (7 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -462,7 +462,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7\u219213 lines (4 removed)",
+      "fix": "Rewrote 7→13 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -478,7 +478,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 15\u219221 lines (2 removed)",
+      "fix": "Rewrote 15→21 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -545,7 +545,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 39\u219253 lines (2 removed)",
+      "fix": "Rewrote 39→53 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -561,7 +561,7 @@
       "error_message": "Significant refactor of ",
       "file": "HANDOFF.md",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 15\u21923 lines (12 removed) | Also: - [ ] **Two oranges** \u2014 attention rows use `.orang; that attention rows have an orange background wash",
+      "fix": "Rewrote 15→3 lines (12 removed) | Also: - [ ] **Two oranges** — attention rows use `.orang; that attention rows have an orange background wash",
       "tags": [
         "auto-detected",
         "refactor",
@@ -577,7 +577,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 12\u219216 lines (2 removed) | Also: // Usage view: show the 5h limit % (urgency-colore; if let h5 = feed.usageFiveHourPct {",
+      "fix": "Rewrote 12→16 lines (2 removed) | Also: // Usage view: show the 5h limit % (urgency-colore; if let h5 = feed.usageFiveHourPct {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -593,7 +593,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 17\u219223 lines (2 removed) | Also: return session.message.isEmpty ? \"waiting for you\"; return \"idle\"",
+      "fix": "Rewrote 17→23 lines (2 removed) | Also: return session.message.isEmpty ? \"waiting for you\"; return \"idle\"",
       "tags": [
         "auto-detected",
         "refactor",
@@ -609,7 +609,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7\u21929 lines (4 removed) | Also: /// Animated by cycling characters to match the fo; if menuBarActive { | Also: /// Bright title color for working/attention; grey; /// Only a working session animates (pulsing glyph",
+      "fix": "Rewrote 7→9 lines (4 removed) | Also: /// Animated by cycling characters to match the fo; if menuBarActive { | Also: /// Bright title color for working/attention; grey; /// Only a working session animates (pulsing glyph",
       "tags": [
         "auto-detected",
         "refactor",
@@ -625,7 +625,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 8\u21925 lines (3 removed) | Also: let color: Color = feed.menuBarActive ? .claudeBri; // Bright for working+attention, but only working ",
+      "fix": "Rewrote 8→5 lines (3 removed) | Also: let color: Color = feed.menuBarActive ? .claudeBri; // Bright for working+attention, but only working ",
       "tags": [
         "auto-detected",
         "refactor",
@@ -657,7 +657,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "6 lines replaced/restructured",
-      "fix": "Rewrote 9\u219217 lines (6 removed) | Also: /// The reset line is secondary; it stays tucked a; /// the footer is hovered, so the resting footer i",
+      "fix": "Rewrote 9→17 lines (6 removed) | Also: /// The reset line is secondary; it stays tucked a; /// the footer is hovered, so the resting footer i",
       "tags": [
         "auto-detected",
         "refactor",
@@ -673,7 +673,7 @@
       "error_message": "Wrong reference: claudeDim should be secondary",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Used \"claudeDim\" instead of \"secondary\"",
-      "fix": "Changed claudeDim \u2192 secondary",
+      "fix": "Changed claudeDim → secondary",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -705,7 +705,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7\u21924 lines (3 removed)",
+      "fix": "Rewrote 7→4 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -721,7 +721,7 @@
       "error_message": "Wrong reference: claudeDim should be secondary",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Used \"claudeDim\" instead of \"secondary\"",
-      "fix": "Changed claudeDim \u2192 secondary",
+      "fix": "Changed claudeDim → secondary",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -737,7 +737,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 15\u219218 lines (4 removed) | Also: var displayItems: [SessionRowItem] {; for s in sortedSessions {",
+      "fix": "Rewrote 15→18 lines (4 removed) | Also: var displayItems: [SessionRowItem] {; for s in sortedSessions {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -785,7 +785,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 20\u219215 lines (8 removed)",
+      "fix": "Rewrote 20→15 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -801,7 +801,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinnerTests/claude_spinnerTests.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 20\u219211 lines (7 removed)",
+      "fix": "Rewrote 20→11 lines (7 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -817,7 +817,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "6 lines replaced/restructured",
-      "fix": "Rewrote 12\u21926 lines (6 removed)",
+      "fix": "Rewrote 12→6 lines (6 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -833,7 +833,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 9\u21925 lines (5 removed)",
+      "fix": "Rewrote 9→5 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -849,7 +849,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 19\u219224 lines (9 removed)",
+      "fix": "Rewrote 19→24 lines (9 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -865,7 +865,7 @@
       "error_message": "Wrong reference: contextPct should be fiveHourPct",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"contextPct\" instead of \"fiveHourPct\"",
-      "fix": "Changed contextPct \u2192 fiveHourPct",
+      "fix": "Changed contextPct → fiveHourPct",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -881,7 +881,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 14\u219218 lines (3 removed) | Also: ForEach(feed.displayItems) { item in; if item.id != feed.displayItems.last?.id {",
+      "fix": "Rewrote 14→18 lines (3 removed) | Also: ForEach(feed.displayItems) { item in; if item.id != feed.displayItems.last?.id {",
       "tags": [
         "auto-detected",
         "refactor",
@@ -897,7 +897,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinnerTests/claude_spinnerTests.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 22\u219240 lines (8 removed) | Also: func testDisplayItemsCollapsesIdleByDirectory() {; mk(\"a\", .idle, cwd: \"/home\", updated: now, lastDur",
+      "fix": "Rewrote 22→40 lines (8 removed) | Also: func testDisplayItemsCollapsesIdleByDirectory() {; mk(\"a\", .idle, cwd: \"/home\", updated: now, lastDur",
       "tags": [
         "auto-detected",
         "refactor",
@@ -913,7 +913,7 @@
       "error_message": "Significant refactor of ",
       "file": "../../../../private/tmp/claude-501/-Users-home-Developer-claude-spinner/ed9f65bb-bdf4-477b-829f-539e8f432f16/scratchpad/main.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9\u219218 lines (3 removed)",
+      "fix": "Rewrote 9→18 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -945,7 +945,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "13 lines replaced/restructured",
-      "fix": "Rewrote 82\u2192117 lines (13 removed)",
+      "fix": "Rewrote 82→117 lines (13 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -960,8 +960,8 @@
       "timestamp": "2026-07-10T07:25:43.313Z",
       "error_message": "Wrong return value",
       "file": "claude spinner/FeedWatcher.swift",
-      "root_cause": "Was returning: \"Waiting for you\u2026\\(extra)\"",
-      "fix": "Now returns: \"waiting\u2026\\(extra)\"",
+      "root_cause": "Was returning: \"Waiting for you…\\(extra)\"",
+      "fix": "Now returns: \"waiting…\\(extra)\"",
       "tags": [
         "auto-detected",
         "return-value",
@@ -1009,7 +1009,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7\u21928 lines (3 removed)",
+      "fix": "Rewrote 7→8 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1025,7 +1025,7 @@
       "error_message": "Null/undefined access in ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Property access on potentially null/undefined value",
-      "fix": "Added null safety (optional chaining or null check) | Also: /// Host string (bundle ID or `TERM_PROGRAM` value) \u2192 the ap; private static let hostBundleIDs: [String: String] = [",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// Host string (bundle ID or `TERM_PROGRAM` value) → the ap; private static let hostBundleIDs: [String: String] = [",
       "tags": [
         "auto-detected",
         "null-safety",
@@ -1040,7 +1040,7 @@
       "timestamp": "2026-07-10T07:40:23.553Z",
       "error_message": "Missing error handling in unknown",
       "file": "claude spinner/claude_spinnerApp.swift",
-      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
       "fix": "Added try/catch block | Also: // Pulse the % when it crosses the red threshold so an immin; // rate limit catches the eye even with nothing running.",
       "tags": [
         "auto-detected",
@@ -1073,7 +1073,7 @@
       "error_message": "Wrong reference: formatReset should be formatResetDay",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"formatReset\" instead of \"formatResetDay\"",
-      "fix": "Changed formatReset \u2192 formatResetDay",
+      "fix": "Changed formatReset → formatResetDay",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1189,7 +1189,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "24 lines replaced/restructured",
-      "fix": "Rewrote 29\u21923 lines (24 removed) | Also: /// Bring the session's host app to the front. Ter; /// iTerm) are only focused \u2014 macOS `open` can't t",
+      "fix": "Rewrote 29→3 lines (24 removed) | Also: /// Bring the session's host app to the front. Ter; /// iTerm) are only focused — macOS `open` can't t",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1223,7 +1223,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 13\u219223 lines (4 removed)",
+      "fix": "Rewrote 13→23 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1239,7 +1239,7 @@
       "error_message": "Null/undefined access in ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Property access on potentially null/undefined value",
-      "fix": "Added null safety (optional chaining or null check) | Also: /// language as the gauges (capsule bars, each tinted by its; /// heights are normalized to the window's own min\u2026max so a ",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// language as the gauges (capsule bars, each tinted by its; /// heights are normalized to the window's own min…max so a ",
       "tags": [
         "auto-detected",
         "null-safety",
@@ -1255,7 +1255,7 @@
       "error_message": "Significant refactor of ",
       "file": "TASKS.md",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7\u21923 lines (4 removed) | Also: - [ ] Usage sparkline \u2014 the poll ring buffer (`usa; need to draw the tiny trend line. Deferred: the 36",
+      "fix": "Rewrote 7→3 lines (4 removed) | Also: - [ ] Usage sparkline — the poll ring buffer (`usa; need to draw the tiny trend line. Deferred: the 36",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1271,7 +1271,7 @@
       "error_message": "Wrong operator: ?? should be !=",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Used \"??\" instead of \"!=\"",
-      "fix": "Changed operator ?? \u2192 !=",
+      "fix": "Changed operator ?? → !=",
       "tags": [
         "auto-detected",
         "operator-fix",
@@ -1287,7 +1287,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 3\u21924 lines (2 removed)",
+      "fix": "Rewrote 3→4 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1303,7 +1303,7 @@
       "error_message": "Wrong reference: 360 should be 400",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"360\" instead of \"400\"",
-      "fix": "Changed 360 \u2192 400",
+      "fix": "Changed 360 → 400",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1319,7 +1319,7 @@
       "error_message": "Wrong reference: 360 should be 320",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"360\" instead of \"320\"",
-      "fix": "Changed 360 \u2192 320",
+      "fix": "Changed 360 → 320",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1335,7 +1335,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 12\u219215 lines (5 removed) | Also: /// Most recent 5h samples kept for the footer spa; static let usageHistoryMax = 30 | Also: /// Recent 5h utilization samples (oldest\u2192newest) ; /// persisted so the trend survives relaunch. Capp | Also: recordUsageSample(result.fiveHourPct); /// Append a 5h sample to the sparkline ring buffe | Also: /// Signed change in 5h utilization across the ret; /// a 5m poll): how many points it has climbed (+) | Also: /// sessions\". Cheap file reads, only consulted wh; var isSetupInstalled: Bool { | Also: var usageFiveHourTrend: Int? {; guard let lastResetIndex = usageHistory.indices.dr",
+      "fix": "Rewrote 12→15 lines (5 removed) | Also: /// Most recent 5h samples kept for the footer spa; static let usageHistoryMax = 30 | Also: /// Recent 5h utilization samples (oldest→newest) ; /// persisted so the trend survives relaunch. Capp | Also: recordUsageSample(result.fiveHourPct); /// Append a 5h sample to the sparkline ring buffe | Also: /// Signed change in 5h utilization across the ret; /// a 5m poll): how many points it has climbed (+) | Also: /// sessions\". Cheap file reads, only consulted wh; var isSetupInstalled: Bool { | Also: var usageFiveHourTrend: Int? {; guard let lastResetIndex = usageHistory.indices.dr",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1367,7 +1367,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "11 lines replaced/restructured",
-      "fix": "Rewrote 16\u21926 lines (11 removed)",
+      "fix": "Rewrote 16→6 lines (11 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1399,7 +1399,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9\u219213 lines (3 removed)",
+      "fix": "Rewrote 9→13 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1452,7 +1452,7 @@
       "error_message": "Wrong reference: true should be false",
       "file": "../../.claude/settings.json",
       "root_cause": "Used \"true\" instead of \"false\"",
-      "fix": "Changed true \u2192 false",
+      "fix": "Changed true → false",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1561,7 +1561,7 @@
       "error_message": "xcodebuild test: 'Early unexpected exit, operation never finished bootstrapping ... test runner exited with code 0 before establishing connection' for the claude_spinnerTests unit target",
       "file": "claude spinner/claude_spinnerApp.swift (AppDelegate.applicationDidFinishLaunching)",
       "root_cause": "Unit tests are hosted in the app (TEST_HOST). The app's single-instance guard calls exit(0) when another copy with the same bundle id is already running. When a normal copy of the app was already running (e.g. left open by /run), launching the test-host copy tripped the guard and exit(0)'d before XCTest could attach, so the whole unit suite failed to bootstrap.",
-      "fix": "Quit any running copy before `xcodebuild test` (killall \"claude spinner\"). Not a code change \u2014 CI runners are a clean env so the guard never fires there. Documented as a local gotcha; the shared scheme + CI run the unit target cleanly. [2026-07-18] Recurred and was briefly misfiled as \"not a real bug\": a session ran killall first (the workaround), saw 61/61 green, and closed the report without reading this entry. The guard behaviour is unchanged \u2014 always quit the app before xcodebuild test.",
+      "fix": "Quit any running copy before `xcodebuild test` (killall \"claude spinner\"). Not a code change — CI runners are a clean env so the guard never fires there. Documented as a local gotcha; the shared scheme + CI run the unit target cleanly. [2026-07-18] Recurred and was briefly misfiled as \"not a real bug\": a session ran killall first (the workaround), saw 61/61 green, and closed the report without reading this entry. The guard behaviour is unchanged — always quit the app before xcodebuild test.",
       "tags": [
         "xcode",
         "xctest",
@@ -1580,7 +1580,7 @@
       "error_message": "Wrong reference: Observation should be Combine",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"Observation\" instead of \"Combine\"",
-      "fix": "Changed Observation \u2192 Combine",
+      "fix": "Changed Observation → Combine",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1613,7 +1613,7 @@
       "timestamp": "2026-07-10T10:40:00.000Z",
       "error_message": "Review-caught: SetupInstaller.install() returned a generic Cocoa error instead of SetupError.malformedSettings for genuinely malformed settings.json",
       "file": "claude spinner/SetupInstaller.swift",
-      "root_cause": "`guard let x = try JSONSerialization.jsonObject(with:) as? [String:Any] else { .malformedSettings }` \u2014 a THROW from invalid JSON syntax propagates to the outer catch (generic error); the else branch only fires for valid-but-non-dict JSON. So the friendly .malformedSettings message never surfaced for the common syntax-error case.",
+      "root_cause": "`guard let x = try JSONSerialization.jsonObject(with:) as? [String:Any] else { .malformedSettings }` — a THROW from invalid JSON syntax propagates to the outer catch (generic error); the else branch only fires for valid-but-non-dict JSON. So the friendly .malformedSettings message never surfaced for the common syntax-error case.",
       "fix": "Wrap the parse in try? so any failure (throw or wrong-shape) maps to the else -> .malformedSettings: `guard let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return .failure(SetupError.malformedSettings) }`.",
       "tags": [
         "swift",
@@ -1632,7 +1632,7 @@
       "error_message": "Significant refactor of ",
       "file": "run.sh",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 5\u21929 lines (2 removed) | Also: echo \"Launching app...\"; open \"/Users/home/Library/Developer/Xcode/DerivedD",
+      "fix": "Rewrote 5→9 lines (2 removed) | Also: echo \"Launching app...\"; open \"/Users/home/Library/Developer/Xcode/DerivedD",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1680,7 +1680,7 @@
       "error_message": "Wrong reference: pending should be complete",
       "file": ".superpowers/sdd/progress.md",
       "root_cause": "Used \"pending\" instead of \"complete\"",
-      "fix": "Changed pending \u2192 complete",
+      "fix": "Changed pending → complete",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -1712,7 +1712,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 30\u21927 lines (15 removed)",
+      "fix": "Rewrote 30→7 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1728,7 +1728,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "21 lines replaced/restructured",
-      "fix": "Rewrote 25\u21923 lines (21 removed)",
+      "fix": "Rewrote 25→3 lines (21 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1760,7 +1760,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "43 lines replaced/restructured",
-      "fix": "Rewrote 73\u219217 lines (43 removed)",
+      "fix": "Rewrote 73→17 lines (43 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1815,7 +1815,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 3\u21926 lines (3 removed)",
+      "fix": "Rewrote 3→6 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1828,7 +1828,7 @@
     {
       "id": "bug-111",
       "timestamp": "2026-07-17T03:20:00Z",
-      "error_message": "User (design review): attention row renders 'needs\u2026' instead of 'needs input' \u2014 the panel truncates the label on the row that most needs reading",
+      "error_message": "User (design review): attention row renders 'needs…' instead of 'needs input' — the panel truncates the label on the row that most needs reading",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Shipped in 2534e98 (the per-session context column): it added 34pt of columns but widened panelWidth by only 32pt, a net 2pt loss on a column already at its limit. SessionRow's outer HStack(spacing:5) holds SIX elements, so it pays 5 gaps x 5 = 25pt -- easy to miscount as 3 gaps. Real fixed budget at rest: padding 20 + glyph 14 + name 95 + model 42 + gaps 25 + spacer 4 + trailing 108 = 308pt, leaving the flexible status just 44pt against 'needs input' at ~66pt (Menlo 10 is ~6.02pt/char). Working rows escaped only because they swapped the 44pt time column for a 14pt dots slot, lifting status to 74pt -- which is why 'running edit' fit while 'needs input' did not.",
       "fix": "panelWidth 352 -> 384; replaced the status Text + Spacer with an HStack(spacing:0) composite (status + a fixed 12pt dots slot) using .frame(maxWidth:.infinity) instead of a Spacer, which reclaims 9pt and removes an element. New fixed budget 299pt, leaving 85pt for the status composite -- enough for the worst common case 'running bash' + dots (~84.2pt). Verified live across 4 capture frames: 'needs input' renders in full and the status does not reflow as the dots animate.",
@@ -1850,7 +1850,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 8\u219216 lines (2 removed) | Also: // Elapsed / waiting / done time in a fixed-width ; // times line up down the panel regardless of labe",
+      "fix": "Rewrote 8→16 lines (2 removed) | Also: // Elapsed / waiting / done time in a fixed-width ; // times line up down the panel regardless of labe",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1882,7 +1882,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "8 lines replaced/restructured",
-      "fix": "Rewrote 16\u219211 lines (8 removed)",
+      "fix": "Rewrote 16→11 lines (8 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1914,7 +1914,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "24 lines replaced/restructured",
-      "fix": "Rewrote 59\u219230 lines (24 removed)",
+      "fix": "Rewrote 59→30 lines (24 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1930,7 +1930,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 5\u219218 lines (2 removed) | Also: case 90...: return dynamic(light: (0.85, 0.32, 0.2; case 75...: return dynamic(light: (0.90, 0.58, 0.2 | Also: if n.contains(\"opus\")   { return dynamic(light: (0; if n.contains(\"sonnet\") { return dynamic(light: (0 | Also: case .vsc: return .dynamic(light: (0.35, 0.60, 0.9; case .trm: return .dynamic(light: (0.45, 0.72, 0.4",
+      "fix": "Rewrote 5→18 lines (2 removed) | Also: case 90...: return dynamic(light: (0.85, 0.32, 0.2; case 75...: return dynamic(light: (0.90, 0.58, 0.2 | Also: if n.contains(\"opus\")   { return dynamic(light: (0; if n.contains(\"sonnet\") { return dynamic(light: (0 | Also: case .vsc: return .dynamic(light: (0.35, 0.60, 0.9; case .trm: return .dynamic(light: (0.45, 0.72, 0.4",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1978,7 +1978,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 6\u21924 lines (2 removed) | Also: var contextPct: Int?; var contextPctRaw: Double? | Also: if let p = ctx.used_percentage { contextPct = Int(; contextSize = ctx.context_window_size | Also: /// 414 leaves it 93pt: enough for \"running edit\" ; /// 11 (~6.62pt/char). Below this, \"needs input\" t",
+      "fix": "Rewrote 6→4 lines (2 removed) | Also: var contextPct: Int?; var contextPctRaw: Double? | Also: if let p = ctx.used_percentage { contextPct = Int(; contextSize = ctx.context_window_size | Also: /// 414 leaves it 93pt: enough for \"running edit\" ; /// 11 (~6.62pt/char). Below this, \"needs input\" t",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1991,9 +1991,9 @@
     {
       "id": "bug-122",
       "timestamp": "2026-07-17T10:52:00.000Z",
-      "error_message": "'running bash' rendered as 'running bash\u2026' after the row font went 10pt -> 11pt",
+      "error_message": "'running bash' rendered as 'running bash…' after the row font went 10pt -> 11pt",
       "file": "claude spinner/FeedWatcher.swift",
-      "root_cause": "The row's fixed column widths are hand-derived from a Menlo advance estimate (~0.602 x size). Scaling them for the larger font left the flexible status column at 93pt against a computed need of 92.4pt \u2014 0.6pt of slack. The estimate is not exact, so the arithmetic minimum truncated in practice. Same class as bug-111: a column budgeted to its computed limit with no headroom.",
+      "root_cause": "The row's fixed column widths are hand-derived from a Menlo advance estimate (~0.602 x size). Scaling them for the larger font left the flexible status column at 93pt against a computed need of 92.4pt — 0.6pt of slack. The estimate is not exact, so the arithmetic minimum truncated in practice. Same class as bug-111: a column budgeted to its computed limit with no headroom.",
       "fix": "panelWidth 414 -> 424, giving the status column 103pt (11pt of slack). Comment now states the per-character figure is an estimate to leave headroom against, not a budget to spend.",
       "tags": [
         "layout",
@@ -2031,7 +2031,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 15\u21928 lines (7 removed) | Also: if feed.hasUsage && (feed.usageNotice != nil || fe; Spacer(minLength: 4)",
+      "fix": "Rewrote 15→8 lines (7 removed) | Also: if feed.hasUsage && (feed.usageNotice != nil || fe; Spacer(minLength: 4)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2047,7 +2047,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 4\u21926 lines (2 removed) | Also: // Unknown host \u2014 focus the user's terminal, never; let bundleID = hostBundleIDs[host] ?? fallback | Also: // VS Code and its forks (Cursor, VSCodium, Windsu; || h.contains(\"vscodium\") || h.contains(\"windsurf\"",
+      "fix": "Rewrote 4→6 lines (2 removed) | Also: // Unknown host — focus the user's terminal, never; let bundleID = hostBundleIDs[host] ?? fallback | Also: // VS Code and its forks (Cursor, VSCodium, Windsu; || h.contains(\"vscodium\") || h.contains(\"windsurf\"",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2063,7 +2063,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 3\u21924 lines (3 removed)",
+      "fix": "Rewrote 3→4 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2079,7 +2079,7 @@
       "error_message": "Wrong reference: usageError should be usageFailure",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "Used \"usageError\" instead of \"usageFailure\"",
-      "fix": "Changed usageError \u2192 usageFailure",
+      "fix": "Changed usageError → usageFailure",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -2126,8 +2126,8 @@
       "timestamp": "2026-07-17T11:40:00.000Z",
       "error_message": "Clicking the row for a Claude Code session running in Zed opened a new Ghostty window instead of focusing Zed; the row also showed no host chip.",
       "file": "claude spinner/claude_spinnerApp.swift",
-      "root_cause": "SessionLauncher.hostBundleIDs had no Zed entry, so `hostBundleIDs[host] ?? fallback` sent host 'dev.zed.Zed' to the terminal fallback (Ghostty). Same wrong-window symptom as bug-072/091/110 but arriving through the host TABLE, not the branch logic guiFocusAction covers \u2014 so the existing regression test could not catch it. Generic gap: every GUI editor reports its own bundle ID as the host, and Cursor/VSCodium/Windsurf were missing too (tagged .vsc by HostTag but absent from hostBundleIDs). HostTag.from also lacked a 'zed' match, hence the missing chip.",
-      "fix": "Added SessionLauncher.resolveBundleID(host:fallback:isRunning:) \u2014 pure, with the running-app check injected so it is testable. Known host maps via hostBundleIDs; an unknown NON-EMPTY host that is itself the bundle ID of a RUNNING app resolves to itself (fixes every untabled editor at once, no bundle-ID guessing); only a genuinely unplaceable host (a TERM_PROGRAM value, never a bundle ID) falls back. Added explicit dev.zed.Zed/zed table entries and contains(\"zed\") -> .vsc in HostTag.from. 4 tests.",
+      "root_cause": "SessionLauncher.hostBundleIDs had no Zed entry, so `hostBundleIDs[host] ?? fallback` sent host 'dev.zed.Zed' to the terminal fallback (Ghostty). Same wrong-window symptom as bug-072/091/110 but arriving through the host TABLE, not the branch logic guiFocusAction covers — so the existing regression test could not catch it. Generic gap: every GUI editor reports its own bundle ID as the host, and Cursor/VSCodium/Windsurf were missing too (tagged .vsc by HostTag but absent from hostBundleIDs). HostTag.from also lacked a 'zed' match, hence the missing chip.",
+      "fix": "Added SessionLauncher.resolveBundleID(host:fallback:isRunning:) — pure, with the running-app check injected so it is testable. Known host maps via hostBundleIDs; an unknown NON-EMPTY host that is itself the bundle ID of a RUNNING app resolves to itself (fixes every untabled editor at once, no bundle-ID guessing); only a genuinely unplaceable host (a TERM_PROGRAM value, never a bundle ID) falls back. Added explicit dev.zed.Zed/zed table entries and contains(\"zed\") -> .vsc in HostTag.from. 4 tests.",
       "tags": [
         "swift",
         "menubar",
@@ -2151,7 +2151,7 @@
     {
       "id": "bug-131",
       "timestamp": "2026-07-17T11:40:00.000Z",
-      "error_message": "Panel header showed '! expired' (claiming the usage auth token had died) for ANY poll failure \u2014 a dropped connection, an HTTP 5xx, or a parse failure \u2014 while the hover tooltip contradicted it with the real cause.",
+      "error_message": "Panel header showed '! expired' (claiming the usage auth token had died) for ANY poll failure — a dropped connection, an HTTP 5xx, or a parse failure — while the hover tooltip contradicted it with the real cause.",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "UsagePoller has separate onAuthExpired and onError callbacks, but both wrote into one stringly-typed `usageError: String?`, and usageNotice mapped `usageError != nil` -> \"expired\". The distinction the poller made was discarded at the boundary. Compounding it, usageError was only cleared by a SUCCESSFUL poll, so turning polling off while an error showed pinned the notice in the header forever.",
       "fix": "Replaced usageError with a `UsageFailure` enum (.authExpired -> \"expired\", .transient(msg) -> \"error\"), each owning its own notice word and tooltip detail. stopPolling() now clears usageFailure, since a 'usage isn't refreshing' notice is meaningless once nothing is polling. Test locks the two words apart.",
@@ -2173,10 +2173,10 @@
     {
       "id": "bug-132",
       "timestamp": "2026-07-17T11:52:00.000Z",
-      "error_message": "run.sh swiftc fallback: \"claude spinner/MenuContentView.swift:45:46: error: cannot find 'SetupInstaller' in scope\" \u2014 the non-Xcode build path could not compile at all.",
+      "error_message": "run.sh swiftc fallback: \"claude spinner/MenuContentView.swift:45:46: error: cannot find 'SetupInstaller' in scope\" — the non-Xcode build path could not compile at all.",
       "file": "run.sh",
-      "root_cause": "The fallback listed three source paths literally (FeedWatcher/MenuContentView/claude_spinnerApp). SetupInstaller.swift was added during the first-run-installer work and auto-joined the Xcode target \u2014 'claude spinner/' is a SYNCHRONIZED ROOT GROUP, so new files need no pbxproj edit \u2014 but the hand-kept list in run.sh rotted silently behind that. Invisible in practice because a machine with full Xcode always takes the xcodebuild branch; only a CommandLineTools-only machine hits the fallback. Found accidentally while verifying split commits with the same three-file command.",
-      "fix": "Glob instead of a literal list: swiftc -O -o claude-spinner \"claude spinner\"/*.swift \u2014 matches the synchronized-root-group behavior so the next new source can't break it the same way. Verified the fallback now produces an 844K binary.",
+      "root_cause": "The fallback listed three source paths literally (FeedWatcher/MenuContentView/claude_spinnerApp). SetupInstaller.swift was added during the first-run-installer work and auto-joined the Xcode target — 'claude spinner/' is a SYNCHRONIZED ROOT GROUP, so new files need no pbxproj edit — but the hand-kept list in run.sh rotted silently behind that. Invisible in practice because a machine with full Xcode always takes the xcodebuild branch; only a CommandLineTools-only machine hits the fallback. Found accidentally while verifying split commits with the same three-file command.",
+      "fix": "Glob instead of a literal list: swiftc -O -o claude-spinner \"claude spinner\"/*.swift — matches the synchronized-root-group behavior so the next new source can't break it the same way. Verified the fallback now produces an 844K binary.",
       "tags": [
         "shell",
         "run.sh",
@@ -2198,7 +2198,7 @@
       "error_message": "Wrong reference: run should be Notarization",
       "file": "TASKS.md",
       "root_cause": "Used \"run\" instead of \"Notarization\"",
-      "fix": "Changed run \u2192 Notarization",
+      "fix": "Changed run → Notarization",
       "tags": [
         "auto-detected",
         "wrong-reference",
@@ -2211,7 +2211,7 @@
     {
       "id": "bug-133",
       "timestamp": "2026-07-17T12:25:00.000Z",
-      "error_message": "Self-review finding: HostTag.from used `h.contains(\"zed\")`, which claims any host containing those three letters \u2014 \"customized\" contains \"zed\". The editor branch runs BEFORE the terminal branch, so a false match also short-circuited the ghostty/iterm/terminal checks (com.zedterm.ghostty -> .vsc).",
+      "error_message": "Self-review finding: HostTag.from used `h.contains(\"zed\")`, which claims any host containing those three letters — \"customized\" contains \"zed\". The editor branch runs BEFORE the terminal branch, so a false match also short-circuited the ghostty/iterm/terminal checks (com.zedterm.ghostty -> .vsc).",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "Introduced in the same session while fixing bug-130: added `|| h.contains(\"zed\")` alongside the existing contains() tokens without noticing that 'vscode'/'windsurf'/'cursor' are long enough to self-disambiguate and a 3-letter token is not. Caught by /code-review of my own diff, not by the tests I wrote for it.",
       "fix": "Match the two forms Zed actually emits, verified from the live env rather than guessed: `h.hasPrefix(\"dev.zed.\")` (covers dev.zed.Zed and dev.zed.Zed-Preview) or `h == \"zed\"`. __CFBundleIdentifier=dev.zed.Zed, TERM_PROGRAM=zed, and emit.sh prefers __CFBundleIdentifier. Regression test asserts com.example.customized -> nil and com.zedterm.ghostty -> .trm.",
@@ -2236,7 +2236,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 5\u21929 lines (4 removed)",
+      "fix": "Rewrote 5→9 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2249,7 +2249,7 @@
     {
       "id": "bug-134",
       "timestamp": "2026-07-17T12:25:00.000Z",
-      "error_message": "Self-review finding: removing usageModelId left UsageSnapshot.modelId write-only \u2014 still parsed, still carried into the snapshot, still serialised to UserDefaults on every poll, never read.",
+      "error_message": "Self-review finding: removing usageModelId left UsageSnapshot.modelId write-only — still parsed, still carried into the snapshot, still serialised to UserDefaults on every poll, never read.",
       "file": "claude spinner/FeedWatcher.swift",
       "root_cause": "A dead-code removal that deleted the last READER of a field without checking what fed it. The chain StatusFile.Model.id -> SessionFeed.modelId -> UsageSnapshot.modelId existed solely to serve usageModelId, so removing the tail turned the whole chain into dead weight rather than removing it.",
       "fix": "Removed the chain end to end. Old persisted snapshots still carry a modelId key; JSONDecoder ignores unknown keys, so no migration needed. LESSON: when deleting a dead accessor, grep what WROTE the thing it read, not just what read it.",
@@ -2270,9 +2270,9 @@
     {
       "id": "bug-135",
       "timestamp": "2026-07-17T05:22:00Z",
-      "error_message": "7d gauge reads as empty below 10% \u2014 an 8% bar is indistinguishable from an empty track",
+      "error_message": "7d gauge reads as empty below 10% — an 8% bar is indistinguishable from an empty track",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "UsageGauge dimmed the fill to 35% opacity under 10%, meant to keep a low level from shouting. The track behind it is already secondary at 22% opacity, so the dimmed fill had almost no contrast against it \u2014 and 7d sits under 10% most of the week, so the common case was the invisible one.",
+      "root_cause": "UsageGauge dimmed the fill to 35% opacity under 10%, meant to keep a low level from shouting. The track behind it is already secondary at 22% opacity, so the dimmed fill had almost no contrast against it — and 7d sits under 10% most of the week, so the common case was the invisible one.",
       "fix": "Removed the .opacity(pct < 10 ? 0.35 : 1.0) modifier. The tint plus the existing 3pt minimum sliver already keep a low level quiet without erasing it.",
       "tags": [
         "ui",
@@ -2288,7 +2288,7 @@
     {
       "id": "bug-136",
       "timestamp": "2026-07-17T05:22:00Z",
-      "error_message": "chg gauge saturates at \u226520 points \u2014 +52% and +20% render identical bars",
+      "error_message": "chg gauge saturates at ≥20 points — +52% and +20% render identical bars",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "TrendGauge filled linearly over a fullScale of 20 points, so min(fullScale, |delta|)/fullScale pinned at 1.0 for every move past 20. The gauge's whole job is comparing magnitudes and it stopped doing so exactly where the moves get interesting.",
       "fix": "Replaced the linear 20-point scale with sqrt(min(100,|delta|)/100) over the full range, extracted as the pure TrendGauge.fillFraction(delta:). Keeps resolution at single-digit deltas (where samples usually land) and leaves headroom to 100. Three regression tests cover saturation, clamping/sign, and small-delta resolution.",
@@ -2309,7 +2309,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 13\u219220 lines (3 removed)",
+      "fix": "Rewrote 13→20 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2322,10 +2322,10 @@
     {
       "id": "bug-137",
       "timestamp": "2026-07-17T05:22:00Z",
-      "error_message": "Invisible \u2318Q button is still hit-testable behind the panel rows",
+      "error_message": "Invisible ⌘Q button is still hit-testable behind the panel rows",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "SwiftUI's .opacity(0) only stops a view drawing; it stays in the hit-test tree. The quit button lives in the panel's .background, so a live quit target sat behind every row.",
-      "fix": "Added .allowsHitTesting(false). The keyboardShortcut still fires \u2014 shortcuts don't route through hit testing.",
+      "fix": "Added .allowsHitTesting(false). The keyboardShortcut still fires — shortcuts don't route through hit testing.",
       "tags": [
         "ui",
         "swiftui",
@@ -2340,9 +2340,9 @@
     {
       "id": "bug-138",
       "timestamp": "2026-07-17T05:35:00Z",
-      "error_message": "Name column truncates (`continue from\u2026`) while the status column beside it sits half empty",
+      "error_message": "Name column truncates (`continue from…`) while the status column beside it sits half empty",
       "file": "claude spinner/MenuContentView.swift, claude spinner/FeedWatcher.swift",
-      "root_cause": "The name (105pt) and status (103pt) columns were BOTH fixed, so the division between them was a guess applied to every row regardless of content. 'done' needs 26.5pt and got 103pt while the unbounded name truncated next to it; 'running TodoWrite' needs 112.6pt and overran its 103pt anyway. Same static split, two opposite failures. Third in the bug-111/122 family \u2014 all three are a hand-picked column constant that fits some content and not other.",
+      "root_cause": "The name (105pt) and status (103pt) columns were BOTH fixed, so the division between them was a guess applied to every row regardless of content. 'done' needs 26.5pt and got 103pt while the unbounded name truncated next to it; 'running TodoWrite' needs 112.6pt and overran its 103pt anyway. Same static split, two opposite failures. Third in the bug-111/122 family — all three are a hand-picked column constant that fits some content and not other.",
       "fix": "Added RowLayout.nameWidth(statusLabel:), a pure function that gives the status its measured width (Menlo advance x count + 4pt slack, capped so the name keeps a 70pt floor) and hands the remainder to the name. Idle rows go 15 -> 24 chars of name; every label in the status vocabulary now fits, TodoWrite included. Advance is measured off NSFont rather than estimated at ~0.602 x size (the estimate was accurate to 2dp, so this removes a hand-rederived constant, not a bug). 4 unit tests cover fit, slack handoff, the name floor, and budget conservation.",
       "tags": [
         "ui",
@@ -2362,8 +2362,8 @@
       "id": "bug-139",
       "timestamp": "2026-07-17T05:50:00Z",
       "error_message": "git add -A swept a concurrent session's in-progress work into an unrelated commit (306e2bf)",
-      "file": "\u2014",
-      "root_cause": "Another Claude session (statusline-drift) was working in the same repo. `git add -A` stages the whole worktree, not this session's edits, so SetupInstaller.swift (+34) and 67 lines of their tests landed in a commit whose message was about panel verification. Second time in this session lineage that `git add -A` mis-scoped a commit \u2014 the earlier lesson was recorded as 'bundles unrelated fixes', which didn't generalise to 'another agent shares this worktree'.",
+      "file": "—",
+      "root_cause": "Another Claude session (statusline-drift) was working in the same repo. `git add -A` stages the whole worktree, not this session's edits, so SetupInstaller.swift (+34) and 67 lines of their tests landed in a commit whose message was about panel verification. Second time in this session lineage that `git add -A` mis-scoped a commit — the earlier lesson was recorded as 'bundles unrelated fixes', which didn't generalise to 'another agent shares this worktree'.",
       "fix": "Not rewritten: the commit was already pushed and the other session is live, so a rebase to tidy the message risks their work. Tree verified green (52 tests). Rule going forward: stage explicit paths, never `git add -A`, in any repo that may have a concurrent session; check `git status` for files this session never touched before staging.",
       "tags": [
         "git",
@@ -2381,7 +2381,7 @@
       "timestamp": "2026-07-17T06:05:00Z",
       "error_message": "Row columns jag: model and status start at a different x on every row",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Self-inflicted by 4a6ccb7. Sizing the name column per row (from that row's own status) fixed truncation but made the name width vary down the panel, so the model and status columns after it no longer lined up. Only visible on screen \u2014 the unit tests all passed, because each row's arithmetic was individually correct. Alignment is a property of the SET of rows, and nothing was checking the set.",
+      "root_cause": "Self-inflicted by 4a6ccb7. Sizing the name column per row (from that row's own status) fixed truncation but made the name width vary down the panel, so the model and status columns after it no longer lined up. Only visible on screen — the unit tests all passed, because each row's arithmetic was individually correct. Alignment is a property of the SET of rows, and nothing was checking the set.",
       "fix": "RowLayout.columns(statusLabels:models:) sizes the columns once per panel from the widest label in each, and MenuContentView passes the result to every SessionRow. Columns align and names still take every spare point; the bounded cost is that one long-tool row narrows every name. Also folded the model column (fixed 46pt holding a 27pt 'opus') into the same budget and widened panelWidth 424 -> 470.",
       "tags": [
         "ui",
@@ -2405,7 +2405,7 @@
       "error_message": "Significant refactor of ",
       "file": "STATUS.md",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7\u21924 lines (3 removed) | Also: - The three panel issues under Known broken.; - Settle the invisible \u2318Q button (`MenuContentView | Also: - Verify the Zed click by hand (see Known broken's; branch has regressed four times and can't be drive",
+      "fix": "Rewrote 7→4 lines (3 removed) | Also: - The three panel issues under Known broken.; - Settle the invisible ⌘Q button (`MenuContentView | Also: - Verify the Zed click by hand (see Known broken's; branch has regressed four times and can't be drive",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2437,7 +2437,7 @@
       "error_message": "Significant refactor of ",
       "file": "STATUS.md",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 11\u219222 lines (5 removed) | Also: Ghostty window (bug-130). Verified by unit test, *; - Nothing outstanding. The panel issues (name trun | Also: - Verify the Zed click by hand \u2014 this branch has r; can't be driven from an agent session.",
+      "fix": "Rewrote 11→22 lines (5 removed) | Also: Ghostty window (bug-130). Verified by unit test, *; - Nothing outstanding. The panel issues (name trun | Also: - Verify the Zed click by hand — this branch has r; can't be driven from an agent session.",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2468,10 +2468,10 @@
     {
       "id": "bug-146",
       "timestamp": "2026-07-17T05:55:00.000Z",
-      "error_message": "Status line rendered 'danieldecena/home main*' while the cwd was ~/Developer/claude-spinner \u2014 the repo NAME came from one repo and the branch/dirty flag from another.",
+      "error_message": "Status line rendered 'danieldecena/home main*' while the cwd was ~/Developer/claude-spinner — the repo NAME came from one repo and the branch/dirty flag from another.",
       "file": "claude spinner/Scripts/statusline-command.sh",
       "root_cause": "workspace.repo describes workspace.project_dir (the directory the session started in), NOT .cwd. The two diverge as soon as a session cds into a different repo. The new owner/repo segment took .workspace.repo.name unconditionally while branch/dirty still came from `git -C $cwd`, so one segment named two different repos. Caught only because the rendered dirty marker contradicted `git status` in /Users/home, which was clean.",
-      "fix": "Gate the remote on `[ \"$project_dir\" = \"$git_root\" ]` \u2014 trust workspace.repo only when project_dir IS the cwd's repo root; otherwise fall back to ${git_root##*/}, which always describes the repo git is actually being asked about.",
+      "fix": "Gate the remote on `[ \"$project_dir\" = \"$git_root\" ]` — trust workspace.repo only when project_dir IS the cwd's repo root; otherwise fall back to ${git_root##*/}, which always describes the repo git is actually being asked about.",
       "tags": [
         "statusline",
         "git",
@@ -2491,7 +2491,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 13\u219227 lines (9 removed) | Also: /// The model word as drawn \u2014 the same string the ; /// against, so the two can't drift apart.",
+      "fix": "Rewrote 13→27 lines (9 removed) | Also: /// The model word as drawn — the same string the ; /// against, so the two can't drift apart.",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2507,7 +2507,7 @@
       "error_message": "Null/undefined access in ",
       "file": "claude spinner/MenuContentView.swift",
       "root_cause": "Property access on potentially null/undefined value",
-      "fix": "Added null safety (optional chaining or null check) | Also: /// The model word as drawn \u2014 the same string the layout bud; /// against, so the two can't drift apart. | Also: /// The name and model column widths, shared by every row in; struct Columns: Equatable { | Also: // Sized once per panel, not per row, so the columns line up; // down the list instead of jagging with each row's content.",
+      "fix": "Added null safety (optional chaining or null check) | Also: /// The model word as drawn — the same string the layout bud; /// against, so the two can't drift apart. | Also: /// The name and model column widths, shared by every row in; struct Columns: Equatable { | Also: // Sized once per panel, not per row, so the columns line up; // down the list instead of jagging with each row's content.",
       "tags": [
         "auto-detected",
         "null-safety",
@@ -2523,7 +2523,7 @@
       "error_message": "Significant refactor of ",
       "file": "claude spinnerTests/claude_spinnerTests.swift",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 41\u219276 lines (15 removed) | Also: /// The width the status column actually ends up w; private func statusWidth(_ label: String) -> CGFlo",
+      "fix": "Rewrote 41→76 lines (15 removed) | Also: /// The width the status column actually ends up w; private func statusWidth(_ label: String) -> CGFlo",
       "tags": [
         "auto-detected",
         "refactor",
@@ -2539,7 +2539,7 @@
       "error_message": "check-reset.sh: \"File: unbound variable\" at the mtime arithmetic on Linux",
       "file": "reset-notifier/check-reset.sh",
       "root_cause": "stat portability fallback ordered BSD-first: GNU stat accepts `stat -f %m FILE` \"successfully\" (filesystem status, multi-line output starting \"File:\"), so the || fallback never ran and the garbage string reached $((NOW - mtime))",
-      "fix": "Swapped the order to `stat -c %Y || stat -f %m` \u2014 BSD stat rejects -c outright (clean failure), GNU -c succeeds, so each platform takes exactly one branch",
+      "fix": "Swapped the order to `stat -c %Y || stat -f %m` — BSD stat rejects -c outright (clean failure), GNU -c succeeds, so each platform takes exactly one branch",
       "tags": [
         "stat",
         "portability",
@@ -2554,10 +2554,10 @@
     {
       "id": "bug-154",
       "timestamp": "2026-07-18T03:05:00Z",
-      "error_message": "test.sh case 5 failed: new window notified once, not twice \u2014 second run silently hit the staleness guard",
+      "error_message": "test.sh case 5 failed: new window notified once, not twice — second run silently hit the staleness guard",
       "file": "reset-notifier/test.sh",
-      "root_cause": "Fixture advanced NOW by 5h but the status.json mtime is real wall-clock time, so the file looked 18000s old (> STALE_AFTER 1800) and the script correctly went silent \u2014 a test-data bug masquerading as a dedupe bug",
-      "fix": "Model the new window within the freshness horizon (resets_at shifted 300s, same NOW) \u2014 that still exceeds the 60s dedupe drift tolerance, which is the behavior under test",
+      "root_cause": "Fixture advanced NOW by 5h but the status.json mtime is real wall-clock time, so the file looked 18000s old (> STALE_AFTER 1800) and the script correctly went silent — a test-data bug masquerading as a dedupe bug",
+      "fix": "Model the new window within the freshness horizon (resets_at shifted 300s, same NOW) — that still exceeds the 60s dedupe drift tolerance, which is the behavior under test",
       "tags": [
         "test-fixture",
         "mtime",
@@ -2574,8 +2574,8 @@
       "timestamp": "2026-07-17T06:07:00Z",
       "error_message": "buglog.json has 10 duplicate bug IDs (bug-133/134/137 from today's concurrent sessions; bug-032/072/073/092/093/095/111 older)",
       "file": ".wolf/buglog.json",
-      "root_cause": "IDs are allocated as max+1 from whatever the writer last read. Two Claude sessions run in this repo at once (the spinner exists to show them), so both read the same tail and both mint the same next id. Read-modify-write on one JSON file with no locking: duplicate ids are the visible damage, and a lost entry is the invisible one \u2014 if both sessions read before either writes, the first write vanishes.",
-      "fix": "Fixed 2026-07-17 in .wolf/hooks/post-write.js \u2014 the OpenWolf PostToolUse auto-logger that mints ids (the same racy scheme, bugs.length+1, also lives in the global openwolf npm package; this is the project-local copy Claude Code actually runs). The read-modify-write is now serialized behind an exclusive lockfile (buglog.json.lock, O_EXCL create with a 10s stale-steal and Atomics.wait backoff); the fresh read happens INSIDE the lock; and the id is max(numeric ids)+1 \u2014 strictly above every id present, so it can never reuse one. Proven with a barrier-synchronized 20-way race test: the old length+1/no-lock pattern lost 15 of 20 concurrent writes, the locked max+1 pattern kept 20/20 with unique ids. The existing duplicate ids were left as-is (they are referenced in commits/STATUS/cerebrum; renumbering would break those references). Residual: the agent's rare manual hand-appends still bypass the lock, but the per-edit hook was the frequent collision source.",
+      "root_cause": "IDs are allocated as max+1 from whatever the writer last read. Two Claude sessions run in this repo at once (the spinner exists to show them), so both read the same tail and both mint the same next id. Read-modify-write on one JSON file with no locking: duplicate ids are the visible damage, and a lost entry is the invisible one — if both sessions read before either writes, the first write vanishes.",
+      "fix": "Fixed 2026-07-17 in .wolf/hooks/post-write.js — the OpenWolf PostToolUse auto-logger that mints ids (the same racy scheme, bugs.length+1, also lives in the global openwolf npm package; this is the project-local copy Claude Code actually runs). The read-modify-write is now serialized behind an exclusive lockfile (buglog.json.lock, O_EXCL create with a 10s stale-steal and Atomics.wait backoff); the fresh read happens INSIDE the lock; and the id is max(numeric ids)+1 — strictly above every id present, so it can never reuse one. Proven with a barrier-synchronized 20-way race test: the old length+1/no-lock pattern lost 15 of 20 concurrent writes, the locked max+1 pattern kept 20/20 with unique ids. The existing duplicate ids were left as-is (they are referenced in commits/STATUS/cerebrum; renumbering would break those references). Residual: the agent's rare manual hand-appends still bypass the lock, but the per-edit hook was the frequent collision source.",
       "tags": [
         "buglog",
         "concurrency",
@@ -2594,10 +2594,10 @@
     {
       "id": "bug-201",
       "timestamp": "2026-07-18T05:59:37Z",
-      "error_message": "A long tool name drew two ellipses: `running askuserqu\u2026\u2026` \u2014 the status truncated with SwiftUI's tail \u2026 and the animated working-dots rendered right after it.",
+      "error_message": "A long tool name drew two ellipses: `running askuserqu……` — the status truncated with SwiftUI's tail … and the animated working-dots rendered right after it.",
       "file": "claude spinner/MenuContentView.swift",
-      "root_cause": "Column 3 is HStack { Text(statusLabel).truncationMode(.tail); Text(workingDots).frame(width: dotsSlot) }. When a long MCP tool name (40-50 chars) forces the shared status column to clamp below the label's width, SwiftUI truncated the label with its own \u2026, which sat immediately before the fixed dots slot \u2014 reading as a doubled ellipsis. SwiftUI Text has no clip-without-ellipsis truncation mode, so truncationMode alone cannot avoid the glyph.",
-      "fix": "Added RowLayout.fit(_:toWidth:), which pre-truncates the label in code to the column width minus statusSlack headroom (Menlo is monospaced, so the fit is exact) so SwiftUI never reaches for its tail \u2026; the animated dots become the sole trailing signal. SessionRow.displayStatus computes the status width from the shared columns (rowFlexBudget - dotsSlot - name - model) and feeds statusLabel through fit(). Added testLongStatusLabelIsPreTruncatedToItsColumn. Verified on-screen with a throwaway long-MCP session: the long row's trailing marker is identical to the un-truncatable running-bash/thinking rows (dots only, no doubled ellipsis).",
+      "root_cause": "Column 3 is HStack { Text(statusLabel).truncationMode(.tail); Text(workingDots).frame(width: dotsSlot) }. When a long MCP tool name (40-50 chars) forces the shared status column to clamp below the label's width, SwiftUI truncated the label with its own …, which sat immediately before the fixed dots slot — reading as a doubled ellipsis. SwiftUI Text has no clip-without-ellipsis truncation mode, so truncationMode alone cannot avoid the glyph.",
+      "fix": "Added RowLayout.fit(_:toWidth:), which pre-truncates the label in code to the column width minus statusSlack headroom (Menlo is monospaced, so the fit is exact) so SwiftUI never reaches for its tail …; the animated dots become the sole trailing signal. SessionRow.displayStatus computes the status width from the shared columns (rowFlexBudget - dotsSlot - name - model) and feeds statusLabel through fit(). Added testLongStatusLabelIsPreTruncatedToItsColumn. Verified on-screen with a throwaway long-MCP session: the long row's trailing marker is identical to the un-truncatable running-bash/thinking rows (dots only, no doubled ellipsis).",
       "tags": [
         "ui",
         "truncation",
@@ -2622,7 +2622,7 @@
       "error_message": "Usage view shows \"5h 70%\" with no indication of when the window resets",
       "file": "claude spinner/claude_spinnerApp.swift",
       "root_cause": "The menu-bar usage title rendered only the percentage. fiveHourResetsAt was already parsed and shown in the panel footer, but never surfaced in the menu bar, so the number read as a static level rather than one that recovers on a clock.",
-      "fix": "FeedWatcher.usageTitle(pct:countdown:) composes \"5h N% \u00b7 Xh Ym\" from the existing reset instant; a 60s countdownTimer publishes minuteTick so the label keeps ticking while idle (glyphPulse only publishes when working/alarming).",
+      "fix": "FeedWatcher.usageTitle(pct:countdown:) composes \"5h N% · Xh Ym\" from the existing reset instant; a 60s countdownTimer publishes minuteTick so the label keeps ticking while idle (glyphPulse only publishes when working/alarming).",
       "tags": [
         "usage",
         "menubar",
@@ -2632,6 +2632,28 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-18T11:40:10.080187-07:00"
+    },
+    {
+      "id": "bug-203",
+      "timestamp": "2026-07-21T07:09:24-07:00",
+      "last_seen": "2026-07-21T07:09:24-07:00",
+      "occurrences": 1,
+      "error_message": "Session popover clips off the right screen edge when the status item sits near the end of the menu bar",
+      "file": "claude spinner/claude_spinnerApp.swift",
+      "root_cause": "The popover opened at a hard-coded Constants.panelWidth (470pt) and togglePopover never measured the display, so a far-right status item pushed the fixed-width panel past the screen's visibleFrame. SwiftUI content used .fixedSize()/a rigid .frame(width:), so it could not shrink to fit either.",
+      "fix": "Made the width runtime: Constants.fittedPanelWidth(visibleWidth:) clamps 470 to visibleFrame.width - 16, floored at panelMinWidth 360; togglePopover reads button.window?.screen and calls FeedWatcher.setPanelWidth before show + layoutSubtreeIfNeeded. MenuContentView frames on feed.panelWidth and RowLayout.columns takes panelWidth so rows reflow. Columns gained an explicit .status width, retiring the rowFlexBudget computed var.",
+      "tags": [
+        "ui",
+        "layout",
+        "nspopover",
+        "menubar",
+        "swiftui",
+        "multi-display"
+      ],
+      "related_bugs": [
+        "bug-138",
+        "bug-135"
+      ]
     }
   ]
 }
