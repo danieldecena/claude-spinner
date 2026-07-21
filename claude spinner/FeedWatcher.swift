@@ -29,17 +29,33 @@ enum Constants {
     static let minuteRollover = 60
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
-    /// Dropdown panel width. Only `rowFixedColumns` of a row is actually fixed;
-    /// the name, model and status divide the rest per row (see `RowLayout`), so
-    /// this is a free knob — widening it goes straight to the session name, which
-    /// is the one column holding unbounded prose.
+    /// Dropdown panel's preferred/max width. Only `rowFixedColumns` of a row is
+    /// actually fixed; the name, model and status divide the rest per row (see
+    /// `RowLayout`), so this is a free knob — widening it goes straight to the
+    /// session name, which is the one column holding unbounded prose. Clamped down
+    /// to the status item's screen `visibleFrame` at show time by `fittedPanelWidth`.
     static let panelWidth: CGFloat = 470
+    /// Floor the clamp never drops below. The row budget goes negative under ~253
+    /// (`rowFixedColumns` 170 + `RowLayout.dotsSlot` 13 + `RowLayout.minNameWidth`
+    /// 70) and the footer's fixed-size gauges want ~340; 360 keeps `columns()`
+    /// arithmetic positive without a defensive clamp, and no real display's
+    /// `visibleFrame` is this narrow, so the floor is never actually reached.
+    static let panelMinWidth: CGFloat = 360
+    /// Clearance kept between the panel's edge and the screen edge when clamping.
+    static let panelScreenMargin: CGFloat = 16
+
+    /// The panel width to use given the status item's screen width, clamped so the
+    /// panel never overruns the screen edge (the far-right-of-menu-bar clip) nor
+    /// shrinks below the layout floor. Pure so the clamp is testable without a view;
+    /// `nil` (screen unknown at first show) degrades to the unclamped preferred width.
+    static func fittedPanelWidth(visibleWidth: CGFloat?) -> CGFloat {
+        guard let visibleWidth else { return panelWidth }
+        return min(panelWidth, max(panelMinWidth, visibleWidth - panelScreenMargin))
+    }
     /// The genuinely fixed part of a row: padding 20 + glyph 15 + four 5pt gaps
     /// + trailing 115 (ctx 30, time 48, chip 29, two 4pt gaps). Every figure here
     /// is derived from the 11pt row font, so changing that means rederiving them.
     static let rowFixedColumns: CGFloat = 170
-    /// What's left of `panelWidth` for the name, model and status to share.
-    static var rowFlexBudget: CGFloat { panelWidth - rowFixedColumns }
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
@@ -492,6 +508,17 @@ final class FeedWatcher: ObservableObject {
     }
     /// Cached snapshot of `usageSession`, refreshed by `sessions`' didSet.
     private var usageSession: SessionFeed?
+
+    /// The panel width in effect for the current open, clamped to the status item's
+    /// screen by `AppDelegate` at show time. Drives the SwiftUI panel frame and the
+    /// per-row column budget so rows reflow instead of clipping off the screen edge.
+    @Published private(set) var panelWidth: CGFloat = Constants.panelWidth
+    /// Set the clamped panel width for the next/current open. Guarded so a repeat
+    /// open at the same width (the common case — the display rarely moves) doesn't
+    /// trigger a needless SwiftUI relayout.
+    func setPanelWidth(_ width: CGFloat) {
+        if panelWidth != width { panelWidth = width }
+    }
 
     /// Advances ~10x/sec to animate the menu-bar spinner glyph. Kept as plain
     /// observable state (not a TimelineView in the MenuBarExtra label, which can

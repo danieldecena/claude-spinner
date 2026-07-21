@@ -83,6 +83,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            // Clamp the panel to the display actually holding this status item so a
+            // far-right icon can't push the fixed-width panel off the screen edge.
+            // The status bar has a per-display window, so `button.window?.screen` is
+            // that display; `visibleFrame` excludes the menu bar and Dock.
+            let screen = button.window?.screen ?? NSScreen.main
+            feed.setPanelWidth(Constants.fittedPanelWidth(visibleWidth: screen?.visibleFrame.width))
+            // Force the hosting controller to adopt the new width before AppKit sizes
+            // the popover, so a display change doesn't open one frame at a stale width.
+            popover.contentViewController?.view.layoutSubtreeIfNeeded()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             // Make the popover key so its ⌘Q shortcut responds.
             popover.contentViewController?.view.window?.makeKey()

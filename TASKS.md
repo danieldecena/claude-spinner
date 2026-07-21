@@ -8,6 +8,8 @@ Remaining open items:
 
 ## Completed
 
+- [x] Popover clipped off-screen near the right menu-bar edge — panel width is now a runtime `@Published` clamped to the status item's screen `visibleFrame` (`fittedPanelWidth`, floor 360, margin 16) at show time in `togglePopover`; `RowLayout.columns` takes the width so rows reflow/truncate instead of overflowing; `Columns` carries `.status` so `displayStatus` drops the duplicated span math. 62/62 tests (added fittedPanelWidth + min-width column tests). Near-edge visual confirm still needs a hand (drag icon far right, click); done 2026-07-21
+
 - [x] reset-notifier merged from `claude/usage-count-reset-notification-8qtypf` (`c2a9fff`) — launchd agent warns 30 min before each 5h reset, banner-only (no ntfy topic configured). Cherry-picked the feature commit alone; the branch's two bookkeeping commits carried gitignored `.wolf` runtime state that `f20aa61` had removed. Installed and verified: 13/13 notifier tests, 61/61 Swift tests, agent loaded, live dry-run correct. Remote branch deleted (tip `18bd9d0` if it's ever needed back); done 2026-07-18
 
 - [x] `xcodebuild test` runner bootstrap — this is **bug-094**, not a new failure. Unit tests are app-hosted and the single-instance guard `exit(0)`s the test host when a copy of the app is already running. `killall "claude spinner"` first and the suite is 61/61 green (verified twice, 2026-07-18). The "fails on BOTH targets" report was wrong on the second half: `claude spinnerUITests` isn't in the scheme, matching CI. Not a code bug — a launch-order constraint; closed 2026-07-18

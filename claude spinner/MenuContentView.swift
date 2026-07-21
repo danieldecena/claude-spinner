@@ -72,7 +72,8 @@ struct MenuContentView: View {
                     // down the list instead of jagging with each row's content.
                     let columns = RowLayout.columns(
                         statusLabels: rows.map(\.session.statusLabel),
-                        models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" })
+                        models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" },
+                        panelWidth: feed.panelWidth)
                     VStack(spacing: 0) {
                         ForEach(rows) { item in
                             SessionRow(feed: feed, item: item, now: context.date, columns: columns)
@@ -94,10 +95,10 @@ struct MenuContentView: View {
 
             UsageFooter(feed: feed)
         }
-        .frame(width: Constants.panelWidth)
+        .frame(width: feed.panelWidth)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
-        // `.opacity(0)` hides it but leaves it hit-testable, so this invisible
-        // button sits behind the rows and could swallow a click as a quit.
+        // `.allowsHitTesting(false)` keeps this invisible button from swallowing a
+        // row click as a quit while its ⌘Q keyboard shortcut still fires.
         .background(
             Button("") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q", modifiers: .command)
@@ -372,10 +373,11 @@ enum RowLayout {
         return String(label.prefix(maxChars))
     }
 
-    /// The name and model column widths, shared by every row in the panel.
+    /// The name, model and status column widths, shared by every row in the panel.
     struct Columns: Equatable {
         var name: CGFloat
         var model: CGFloat
+        var status: CGFloat
     }
 
     /// Size the columns once for the whole panel, from the widest label in each.
@@ -392,10 +394,13 @@ enum RowLayout {
     /// Only the ASCII model/status labels are measured; session names may hold
     /// emoji or wide glyphs, which is why the name is the column that flexes and
     /// truncates rather than the one being measured.
-    static func columns(statusLabels: [String], models: [String]) -> Columns {
+    /// `panelWidth` is the clamped, per-display width (see `Constants.fittedPanelWidth`);
+    /// the caller guarantees it is at least `Constants.panelMinWidth`, which is why the
+    /// subtractions below never need a `max(0)` guard.
+    static func columns(statusLabels: [String], models: [String], panelWidth: CGFloat) -> Columns {
         var model = models.map(width(for:)).max() ?? 0
         var status = statusLabels.map(width(for:)).max() ?? 0
-        let free = Constants.rowFlexBudget - dotsSlot
+        let free = panelWidth - Constants.rowFixedColumns - dotsSlot
 
         // The name's floor wins. The model gives way first: a model word is
         // recoverable from the row's tooltip, and there are only ever a few of
@@ -407,7 +412,7 @@ enum RowLayout {
             model -= fromModel
             status -= (over - fromModel)
         }
-        return Columns(name: free - model - status, model: model)
+        return Columns(name: free - model - status, model: model, status: status)
     }
 }
 
@@ -656,16 +661,13 @@ struct SessionRow: View {
     /// right-aligned column): `running Bash`, `thinking`, `done`, or the message.
     private var statusLabel: String { session.statusLabel }
 
-    /// `statusLabel` cut to the width the status column actually has — the flex
-    /// budget minus the shared name/model columns and the fixed dots slot, the
-    /// same span `RowLayout.columns` sized the panel to. Pre-truncating here means
-    /// SwiftUI's own tail `…` never lands beside the working-dots (bug: a long tool
-    /// name drew `running askuserqu……`). Only the working `running <tool>` labels
-    /// ever grow long enough to cut; the idle words always fit and pass through.
+    /// `statusLabel` cut to the width the status column actually has — the span
+    /// `RowLayout.columns` sized for it. Pre-truncating here means SwiftUI's own
+    /// tail `…` never lands beside the working-dots (bug: a long tool name drew
+    /// `running askuserqu……`). Only the working `running <tool>` labels ever grow
+    /// long enough to cut; the idle words always fit and pass through.
     private var displayStatus: String {
-        RowLayout.fit(statusLabel,
-                      toWidth: Constants.rowFlexBudget - RowLayout.dotsSlot
-                          - columns.name - columns.model)
+        RowLayout.fit(statusLabel, toWidth: columns.status)
     }
 
     /// True while the row is mid-turn — the dots animate and the time counts up.

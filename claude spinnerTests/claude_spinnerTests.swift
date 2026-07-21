@@ -210,11 +210,6 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Color.usageTint(90), Color.usageTint(100))     // red band
     }
 
-    /// The width the status column ends up with, given the other two.
-    private func statusWidth(_ c: RowLayout.Columns) -> CGFloat {
-        Constants.rowFlexBudget - RowLayout.dotsSlot - c.name - c.model
-    }
-
     /// Every status label fits — the bug-111/122 class, checked as arithmetic
     /// rather than by eye. "running TodoWrite" is the long tail that truncated
     /// even under the old fixed 103pt slot.
@@ -222,9 +217,10 @@ final class claude_spinnerTests: XCTestCase {
         for label in ["done", "idle", "thinking", "needs input", "running",
                       "running bash", "running Edit", "running TodoWrite"] {
             for model in ["opus", "sonnet", "haiku", ""] {
-                let c = RowLayout.columns(statusLabels: [label], models: [model])
+                let c = RowLayout.columns(statusLabels: [label], models: [model],
+                                          panelWidth: Constants.panelWidth)
                 XCTAssertGreaterThanOrEqual(
-                    statusWidth(c), CGFloat(label.count) * RowLayout.monoAdvance,
+                    c.status, CGFloat(label.count) * RowLayout.monoAdvance,
                     "\"\(label)\" truncates beside \"\(model)\"")
                 XCTAssertGreaterThanOrEqual(
                     c.model, CGFloat(model.count) * RowLayout.monoAdvance,
@@ -236,40 +232,48 @@ final class claude_spinnerTests: XCTestCase {
     /// The panel sizes each column to its widest row, so the columns align.
     func testColumnsAreSizedToTheWidestRow() {
         let mixed = RowLayout.columns(statusLabels: ["done", "running bash"],
-                                      models: ["opus", "sonnet"])
-        let widest = RowLayout.columns(statusLabels: ["running bash"], models: ["sonnet"])
+                                      models: ["opus", "sonnet"],
+                                      panelWidth: Constants.panelWidth)
+        let widest = RowLayout.columns(statusLabels: ["running bash"], models: ["sonnet"],
+                                       panelWidth: Constants.panelWidth)
         XCTAssertEqual(mixed, widest)
     }
 
     /// The whole point: spare width lands on the name, not a fixed slot.
     func testSpareWidthGoesToTheName() {
-        let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"])
-        let long = RowLayout.columns(statusLabels: ["running bash"], models: ["opus"])
+        let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"],
+                                      panelWidth: Constants.panelWidth)
+        let long = RowLayout.columns(statusLabels: ["running bash"], models: ["opus"],
+                                     panelWidth: Constants.panelWidth)
         XCTAssertGreaterThan(short.name, long.name)
         // Both beat the old fixed 105pt name column.
         XCTAssertGreaterThan(long.name, 105)
         // A narrower model word hands its slack over too.
-        XCTAssertGreaterThan(RowLayout.columns(statusLabels: ["done"], models: ["opus"]).name,
-                             RowLayout.columns(statusLabels: ["done"], models: ["sonnet"]).name)
+        XCTAssertGreaterThan(
+            RowLayout.columns(statusLabels: ["done"], models: ["opus"],
+                              panelWidth: Constants.panelWidth).name,
+            RowLayout.columns(statusLabels: ["done"], models: ["sonnet"],
+                              panelWidth: Constants.panelWidth).name)
     }
 
     /// The name's floor wins, and the model gives way before the status does.
     func testNameFloorHoldsAndModelGivesWayFirst() {
         let c = RowLayout.columns(
             statusLabels: ["running " + String(repeating: "x", count: 200)],
-            models: ["sonnet"])
+            models: ["sonnet"], panelWidth: Constants.panelWidth)
         XCTAssertEqual(c.name, RowLayout.minNameWidth)
         XCTAssertEqual(c.model, 0)
-        XCTAssertGreaterThan(statusWidth(c), 0)
+        XCTAssertGreaterThan(c.status, 0)
     }
 
     func testColumnsNeverOverrunTheirBudget() {
         for label in ["done", "needs input", "running bash", "running TodoWrite",
                       "running " + String(repeating: "x", count: 200)] {
             for model in ["opus", "sonnet", ""] {
-                let c = RowLayout.columns(statusLabels: [label], models: [model])
-                XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + statusWidth(c),
-                               Constants.rowFlexBudget, accuracy: 0.01,
+                let c = RowLayout.columns(statusLabels: [label], models: [model],
+                                          panelWidth: Constants.panelWidth)
+                XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
+                               Constants.panelWidth - Constants.rowFixedColumns, accuracy: 0.01,
                                "\"\(label)\"/\"\(model)\" overruns the row")
                 XCTAssertGreaterThanOrEqual(c.name, RowLayout.minNameWidth, "name floor broken")
             }
@@ -277,15 +281,34 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     func testEmptyPanelStillProducesASaneBudget() {
-        let c = RowLayout.columns(statusLabels: [], models: [])
+        let c = RowLayout.columns(statusLabels: [], models: [],
+                                  panelWidth: Constants.panelWidth)
         XCTAssertEqual(c.model, 0)
-        XCTAssertEqual(c.name, Constants.rowFlexBudget - RowLayout.dotsSlot)
+        XCTAssertEqual(c.name,
+                       Constants.panelWidth - Constants.rowFixedColumns - RowLayout.dotsSlot)
     }
 
-    /// panelWidth is a free knob now: points added land on the name.
-    func testFlexBudgetTracksPanelWidth() {
-        XCTAssertEqual(Constants.rowFlexBudget,
-                       Constants.panelWidth - Constants.rowFixedColumns)
+    /// The clamp keeps the panel on screen: capped at the preferred width, floored
+    /// at `panelMinWidth`, and reduced by the margin in between.
+    func testFittedPanelWidthClampsToScreen() {
+        XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: nil), Constants.panelWidth)
+        XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 1440), Constants.panelWidth)
+        XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 400),
+                       400 - Constants.panelScreenMargin)
+        XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 200), Constants.panelMinWidth)
+    }
+
+    /// At the narrowest clamped width the row budget still holds: the name keeps its
+    /// floor, the model sheds before the status, and the columns sum to the budget.
+    func testColumnsHoldAtMinWidth() {
+        let c = RowLayout.columns(
+            statusLabels: ["running " + String(repeating: "x", count: 200)],
+            models: ["sonnet"], panelWidth: Constants.panelMinWidth)
+        XCTAssertEqual(c.name, RowLayout.minNameWidth)
+        XCTAssertGreaterThanOrEqual(c.model, 0)
+        XCTAssertGreaterThanOrEqual(c.status, 0)
+        XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
+                       Constants.panelMinWidth - Constants.rowFixedColumns, accuracy: 0.01)
     }
 
     /// A tool name too long for its column is cut to fit here, so SwiftUI's own
@@ -294,8 +317,9 @@ final class claude_spinnerTests: XCTestCase {
     /// headroom, and a label that already fits passes through untouched.
     func testLongStatusLabelIsPreTruncatedToItsColumn() {
         let long = "running mcp__claude_ai_Google_Calendar__list_events"
-        let c = RowLayout.columns(statusLabels: [long], models: ["opus"])
-        let w = statusWidth(c)
+        let c = RowLayout.columns(statusLabels: [long], models: ["opus"],
+                                  panelWidth: Constants.panelWidth)
+        let w = c.status
 
         let fitted = RowLayout.fit(long, toWidth: w)
         XCTAssertLessThan(fitted.count, long.count, "long label should be cut")
