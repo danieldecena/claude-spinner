@@ -27,6 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private let feed = FeedWatcher()
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
+    /// Standalone window showing the same panel. The status item is the primary
+    /// surface, but macOS silently refuses to place a status item when the menu
+    /// bar is full -- on a notched display that happens well before the bar looks
+    /// full, and the item is parked at a bogus off-bar position (observed
+    /// 2026-07-27: x=-1, y=972 on a 1512x982 screen, menu bar at y=0..33). The app
+    /// was .accessory with no window and no Dock icon, so that state left no way
+    /// in at all. This window is the fallback.
+    private var mainWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Single instance: a second copy exits immediately.
@@ -66,6 +74,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
+        // AppKit does not report placement failure, and the item's frame is not
+        // final at launch -- so check on the next runloop passes rather than here.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.showWindowIfStatusItemUnplaced()
+        }
+    }
+
+    /// True when the status item exists but AppKit never gave it a slot in the
+    /// menu bar. A placed item sits inside its screen's menu bar strip; an
+    /// unplaced one is parked outside it, which is the only observable signal.
+    private var statusItemIsUnplaced: Bool {
+        guard let window = statusItem.button?.window else { return true }
+        guard let screen = window.screen ?? NSScreen.main else { return true }
+        // Menu bar strip in Cocoa's bottom-left origin space: the top slice of the
+        // frame, as thick as the status bar.
+        let barBottom = screen.frame.maxY - NSStatusBar.system.thickness - 1
+        return window.frame.minY < barBottom || window.frame.maxX < screen.frame.minX
+    }
+
+    private func showWindowIfStatusItemUnplaced() {
+        guard statusItemIsUnplaced else { return }
+        NSLog("claude spinner: status item unplaced (menu bar full) -- opening window instead")
+        showMainWindow()
+    }
+
+    /// Show the panel as an ordinary window. Switches to .regular so the app gets
+    /// a Dock icon -- without one, an .accessory app whose status item is unplaced
+    /// cannot be reached again after the window is closed.
+    @objc func showMainWindow() {
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
+        if mainWindow == nil {
+            feed.setPanelWidth(Constants.fittedPanelWidth(
+                visibleWidth: NSScreen.main?.visibleFrame.width))
+            let host = NSHostingController(rootView: MenuContentView(feed: feed))
+            let w = NSWindow(contentViewController: host)
+            w.title = "Claude Spinner"
+            w.styleMask = [.titled, .closable, .miniaturizable]
+            w.isReleasedWhenClosed = false
+            w.center()
+            mainWindow = w
+        }
+        mainWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Clicking the Dock icon (or a second `open -a`) reopens the window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showMainWindow()
+        return true
     }
 
     /// Left-click toggles the panel; right-click shows the settings menu.
@@ -115,6 +175,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         modeMenu.addItem(usage)
         modeItem.submenu = modeMenu
         menu.addItem(modeItem)
+
+        menu.addItem(.separator())
+
+        let window = NSMenuItem(title: "Open Window", action: #selector(showMainWindow),
+                                keyEquivalent: "")
+        window.target = self
+        menu.addItem(window)
 
         menu.addItem(.separator())
 
