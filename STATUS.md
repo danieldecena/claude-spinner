@@ -12,8 +12,11 @@
   2026-08-12; 66 unit tests green.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 57 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 67 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
+- Which surface the app presents is a choice, not luck. `Show in` (Menu bar /
+  Window, persisted, default Menu bar) sits in the settings menu; Window creates
+  no status item at all, Menu bar keeps the automatic window fallback.
 - Row names get every point the model and status columns don't need, and the
   columns are sized once per panel so they still align. Verified on screen:
   `compact-vscode-density`, `statusline-drift-perf` and `scan-jobs-task-runner`
@@ -63,6 +66,31 @@
 ## Next Up
 
 - (none) — the app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-08-12 (chosen surface)
+- Decided: two states, not three. An explicit "Menu bar" preference must still
+  fall back to the window when placement fails — otherwise the preference can
+  lock the user out of their own app — which makes it behaviourally identical to
+  an "Auto" state. Shipping both would have been a label, not a behaviour.
+- Decided: the Window surface creates **no** status item, rather than creating one
+  and ignoring it. It is then deterministic by construction instead of by
+  fallback, and it returns a slot to a menu bar that was full enough to drop us.
+- Decided: `statusItem` becomes a real `Optional`. The nil case then falls out
+  correctly with no new guards — `statusItemFrames` returns nil, so
+  `statusItemIsUnplaced` reads true, so `windowWillClose` declines to drop back to
+  `.accessory`, so the window surface cannot lose the Dock icon that is its only
+  way back.
+- Decided: the switch applies on next launch, said out loud in the submenu.
+  Tearing down and rebuilding a live status item is machinery this doesn't need.
+- Noted: verified by relaunching into each surface. Window — `menu bar 2` does not
+  exist for the process at all, which is stronger evidence than a hidden item;
+  window up, Foreground, Spinner menu installed. Menu bar — one status item, the
+  usual `(-1, 1090)`, fallback window, "Show in > Menu bar" checked.
+- Noted: a verification pass was run against the **wrong binary** first. There are
+  two `DerivedData/claude_spinner-*` directories and a glob with `head -1` picked
+  a Jul 17 build, which produced a coherent-looking but meaningless result (no
+  window, no policy change, status item present). `run.sh` resolves
+  `BUILT_PRODUCTS_DIR` properly — launch through it rather than globbing.
 
 ### 2026-08-12 (status-item fallback hardened)
 - Decided: placement is detected by comparing the status item window's **top edge**

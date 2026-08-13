@@ -16,7 +16,12 @@ in `~/.claude/settings.json` emit.
 ```
 
 `run.sh` derives the built `.app` from `BUILT_PRODUCTS_DIR` (DerivedData hash is
-not fixed) and `killall`s the running copy before relaunching.
+not fixed) and `killall`s the running copy before relaunching. Launch through it
+rather than globbing `DerivedData/claude_spinner-*` — more than one such directory
+exists, so a glob can hand you a months-old build that runs without complaint.
+
+`MACOSX_DEPLOYMENT_TARGET = 27.0`. That is a hard floor, not a default: there is
+no backward-compatibility story, and an older machine fails at compile time.
 
 ## Test
 

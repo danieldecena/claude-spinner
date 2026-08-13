@@ -9,19 +9,19 @@ Read-only pass over the repo. Every claim below was checked against `git ls-file
 
 ## Risks
 
-- [ ] `STATUS.md:15` claims "CI: 57 unit tests green". The suite is **66**. It sits under
-  `## Confirmed working`, which is present-tense state, so it reads as current and is
-  wrong. Fix the number.
-  *Not* to be touched: the `61/61` at `STATUS.md:140` is inside the dated 2026-07-18
+- [x] `STATUS.md:15` claimed "CI: 57 unit tests green" under `## Confirmed working`,
+  which is present-tense state, so it read as current and was wrong. Now 67.
+  *Not* touched: the `61/61` at `STATUS.md:140` is inside the dated 2026-07-18
   decision-log entry and was true when written — a log records what happened, not what
   is true now.
 - [ ] `graphify-out/` has 24 tracked files (164K) of generated output. Every regeneration
   is a diff, and nothing asserts it still matches the source it describes, so it can go
   stale silently while looking authoritative. Either untrack it (`graphify update .`
   rebuilds it on demand) or accept the churn deliberately.
-- [ ] The app requires **macOS 27** (`MACOSX_DEPLOYMENT_TARGET = 27.0`). That is a hard
-  floor stated only in passing in `HANDOFF.md` and nowhere in `CLAUDE.md`. Anyone
-  building this on an older machine gets a compile-time failure with no doc to explain it.
+- [x] The app requires **macOS 27** (`MACOSX_DEPLOYMENT_TARGET = 27.0`) — a hard floor
+  stated only in passing in `HANDOFF.md`. Now in `CLAUDE.md` under Build & run,
+  alongside a warning not to glob `DerivedData/claude_spinner-*`: two such directories
+  exist, and a stale one was launched during verification on 2026-08-12.
 
 ## Notes
 

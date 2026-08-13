@@ -11,6 +11,9 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Add a Show in preference so the surface is chosen, not luck — done 2026-08-12
+- [x] Fix the stale CI test count in STATUS — done 2026-08-12
+- [x] Document the macOS 27 floor and the DerivedData glob trap — done 2026-08-12
 - [x] Extract a pure, tested status-item placement predicate — done 2026-08-12
 - [x] Log measured frames when placement detection fires — done 2026-08-12
 - [x] Re-check status-item placement on display change — done 2026-08-12
