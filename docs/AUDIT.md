@@ -14,10 +14,11 @@ Read-only pass over the repo. Every claim below was checked against `git ls-file
   *Not* touched: the `61/61` at `STATUS.md:140` is inside the dated 2026-07-18
   decision-log entry and was true when written — a log records what happened, not what
   is true now.
-- [ ] `graphify-out/` has 24 tracked files (164K) of generated output. Every regeneration
-  is a diff, and nothing asserts it still matches the source it describes, so it can go
-  stale silently while looking authoritative. Either untrack it (`graphify update .`
-  rebuilds it on demand) or accept the churn deliberately.
+- [x] `graphify-out/` had 24 tracked files (164K) of generated output. Every regeneration
+  was a diff, and nothing asserted it still matched the source it described, so it could
+  go stale silently while looking authoritative. Untracked (`git rm --cached`) and the
+  whole directory added to `.gitignore`; it stays on disk, and `graphify update .`
+  rebuilds it. The memory-booster rule reads it from `$PWD`, which is unaffected.
 - [x] The app requires **macOS 27** (`MACOSX_DEPLOYMENT_TARGET = 27.0`) — a hard floor
   stated only in passing in `HANDOFF.md`. Now in `CLAUDE.md` under Build & run,
   alongside a warning not to glob `DerivedData/claude_spinner-*`: two such directories
