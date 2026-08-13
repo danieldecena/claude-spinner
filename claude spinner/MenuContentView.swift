@@ -343,6 +343,11 @@ enum RowLayout {
     /// The name never shrinks past this, even if a long tool name wants more —
     /// past this point the status is the one that truncates.
     static let minNameWidth: CGFloat = 70
+    /// And it never grows past this. Reverses the 2026-07-17 split deliberately:
+    /// the name used to absorb every spare point, which let one long session name
+    /// dominate a row that also has to say what the session is doing. Names past
+    /// this are cut with `..` rather than being given the width.
+    static let maxNameWidth: CGFloat = 132
     /// Headroom on the measured status width. Menlo's advance measures exact, but
     /// bug-111/122 both truncated a column budgeted to its arithmetic minimum.
     static let statusSlack: CGFloat = 4
@@ -371,6 +376,27 @@ enum RowLayout {
         let maxChars = Int((width - statusSlack) / monoAdvance)
         guard maxChars > 0, label.count > maxChars else { return label }
         return String(label.prefix(maxChars))
+    }
+
+    /// A session name cut to `width`, ending in `..` so the cut is visible. Unlike
+    /// `fit`, which cuts silently because the animated dots already signal "there
+    /// is more", a name has no such marker — without the dots a truncated name and
+    /// a genuinely short one look identical.
+    ///
+    /// Character-count based, so exact only for monospaced ASCII. Session names can
+    /// carry emoji or wide glyphs, which is why the `Text` keeps its
+    /// `.truncationMode(.tail)` backstop: those rare names still cannot overflow,
+    /// they just show SwiftUI's `…` instead of this `..`.
+    /// What a row's `×N` badge takes out of the name column, including the 3pt gap
+    /// before it. Zero for an ungrouped row, which has no badge.
+    static func countBadgeWidth(_ count: Int) -> CGFloat {
+        count > 1 ? CGFloat(String(count).count + 1) * monoAdvance + 3 : 0
+    }
+
+    static func fitName(_ name: String, toWidth width: CGFloat) -> String {
+        let maxChars = Int((width - statusSlack) / monoAdvance)
+        guard maxChars > 2, name.count > maxChars else { return name }
+        return String(name.prefix(maxChars - 2)) + ".."
     }
 
     /// The name, model and status column widths, shared by every row in the panel.
@@ -412,7 +438,11 @@ enum RowLayout {
             model -= fromModel
             status -= (over - fromModel)
         }
-        return Columns(name: free - model - status, model: model, status: status)
+        // The name takes what's left, capped. Points above the cap are simply not
+        // claimed here — `SessionRow` gives its status column `maxWidth: .infinity`,
+        // so they land there and the trailing ctx/time/chip columns stay put.
+        return Columns(name: min(free - model - status, maxNameWidth),
+                       model: model, status: status)
     }
 }
 
@@ -439,7 +469,11 @@ struct SessionRow: View {
                 // A grouped row stands for several idle sessions sharing a directory —
                 // displayItems groups on cwd, not name — so only a single-session row
                 // can honestly show a session name.
-                Text(item.count > 1 ? session.projectName : session.displayName)
+                // A grouped row spends part of the column on its `×N` badge, so the
+                // name is fitted to what's left rather than to the whole column —
+                // otherwise the name fills the frame and squeezes the count out.
+                Text(RowLayout.fitName(item.count > 1 ? session.projectName : session.displayName,
+                                       toWidth: columns.name - RowLayout.countBadgeWidth(item.count)))
                     .font(.claudeMono(11))
                     .foregroundStyle(nameColor)
                     .lineLimit(1)

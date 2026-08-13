@@ -239,21 +239,29 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(mixed, widest)
     }
 
-    /// The whole point: spare width lands on the name, not a fixed slot.
-    func testSpareWidthGoesToTheName() {
+    /// Spare width lands on the name *up to the cap*. This test asserted the
+    /// uncapped rule until 2026-08-12 — at `panelWidth` 470 every one of these cases
+    /// now sits at `maxNameWidth`, so the old strict inequalities were the first
+    /// thing the cap broke. What still has to hold is that the name flexes with the
+    /// space available, which shows below the cap.
+    func testSpareWidthGoesToTheNameUpToTheCap() {
         let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"],
                                       panelWidth: Constants.panelWidth)
         let long = RowLayout.columns(statusLabels: ["running bash"], models: ["opus"],
                                      panelWidth: Constants.panelWidth)
-        XCTAssertGreaterThan(short.name, long.name)
-        // Both beat the old fixed 105pt name column.
-        XCTAssertGreaterThan(long.name, 105)
-        // A narrower model word hands its slack over too.
+        XCTAssertEqual(short.name, RowLayout.maxNameWidth)
+        XCTAssertEqual(long.name, RowLayout.maxNameWidth)
+        XCTAssertGreaterThan(long.name, 105, "still beats the old fixed 105pt column")
+
+        // Below the cap the original rule is intact: a longer status and a wider
+        // model word each take from the name.
+        let narrow = Constants.panelMinWidth
         XCTAssertGreaterThan(
-            RowLayout.columns(statusLabels: ["done"], models: ["opus"],
-                              panelWidth: Constants.panelWidth).name,
-            RowLayout.columns(statusLabels: ["done"], models: ["sonnet"],
-                              panelWidth: Constants.panelWidth).name)
+            RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name,
+            RowLayout.columns(statusLabels: ["running bash"], models: ["opus"], panelWidth: narrow).name)
+        XCTAssertGreaterThan(
+            RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name,
+            RowLayout.columns(statusLabels: ["done"], models: ["sonnet"], panelWidth: narrow).name)
     }
 
     /// The name's floor wins, and the model gives way before the status does.
@@ -266,26 +274,47 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertGreaterThan(c.status, 0)
     }
 
+    /// The columns must never exceed the row's budget. They no longer have to *fill*
+    /// it: since the name is capped at `maxNameWidth`, a row with short labels leaves
+    /// slack, which `SessionRow`'s `maxWidth: .infinity` status column absorbs. The
+    /// assertion is therefore `<=`, not `==` — the equality held only while the name
+    /// swallowed every spare point.
     func testColumnsNeverOverrunTheirBudget() {
+        let budget = Constants.panelWidth - Constants.rowFixedColumns
         for label in ["done", "needs input", "running bash", "running TodoWrite",
                       "running " + String(repeating: "x", count: 200)] {
             for model in ["opus", "sonnet", ""] {
                 let c = RowLayout.columns(statusLabels: [label], models: [model],
                                           panelWidth: Constants.panelWidth)
-                XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
-                               Constants.panelWidth - Constants.rowFixedColumns, accuracy: 0.01,
-                               "\"\(label)\"/\"\(model)\" overruns the row")
+                XCTAssertLessThanOrEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
+                                         budget + 0.01,
+                                         "\"\(label)\"/\"\(model)\" overruns the row")
                 XCTAssertGreaterThanOrEqual(c.name, RowLayout.minNameWidth, "name floor broken")
+                XCTAssertLessThanOrEqual(c.name, RowLayout.maxNameWidth, "name cap broken")
             }
         }
     }
 
+    /// A long tool name still claims the slack the cap frees, rather than it being
+    /// lost: the widest status label this panel can hold grows past what it would
+    /// have had when the name took everything.
+    func testFreedWidthIsAvailableToTheStatusColumn() {
+        let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"],
+                                      panelWidth: Constants.panelWidth)
+        let long = RowLayout.columns(statusLabels: ["running TodoWrite"], models: ["opus"],
+                                     panelWidth: Constants.panelWidth)
+        XCTAssertGreaterThan(long.status, short.status)
+        XCTAssertLessThanOrEqual(long.name, RowLayout.maxNameWidth)
+    }
+
+    /// An empty panel has nothing to measure, so the name takes the whole remaining
+    /// budget — capped, like every other case.
     func testEmptyPanelStillProducesASaneBudget() {
         let c = RowLayout.columns(statusLabels: [], models: [],
                                   panelWidth: Constants.panelWidth)
         XCTAssertEqual(c.model, 0)
-        XCTAssertEqual(c.name,
-                       Constants.panelWidth - Constants.rowFixedColumns - RowLayout.dotsSlot)
+        XCTAssertEqual(c.name, min(RowLayout.maxNameWidth,
+                                   Constants.panelWidth - Constants.rowFixedColumns - RowLayout.dotsSlot))
     }
 
     /// The clamp keeps the panel on screen: capped at the preferred width, floored
@@ -296,6 +325,44 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 400),
                        400 - Constants.panelScreenMargin)
         XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 200), Constants.panelMinWidth)
+    }
+
+    /// A name that fits is untouched; one that doesn't ends in `..` and still fits
+    /// the column. The pair matters: a truncator that always cuts is as wrong as one
+    /// that never does.
+    func testFitNameCutsOnlyWhenItMustAndMarksTheCut() {
+        let wide: CGFloat = 400
+        XCTAssertEqual(RowLayout.fitName("bin", toWidth: wide), "bin")
+
+        let narrow = RowLayout.maxNameWidth
+        let long = "claude-spinner-dashboard"
+        let cut = RowLayout.fitName(long, toWidth: narrow)
+        XCTAssertNotEqual(cut, long)
+        XCTAssertTrue(cut.hasSuffix(".."))
+        XCTAssertLessThanOrEqual(RowLayout.width(for: cut), narrow)
+        // The cut keeps as much of the name as the column can hold.
+        XCTAssertTrue(long.hasPrefix(cut.dropLast(2)))
+    }
+
+    /// A column too narrow to hold even the marker returns the name unchanged rather
+    /// than a string that is nothing but dots.
+    func testFitNameLeavesUnusablyNarrowColumnsAlone() {
+        XCTAssertEqual(RowLayout.fitName("bin", toWidth: 4), "bin")
+        XCTAssertEqual(RowLayout.fitName("bin", toWidth: 0), "bin")
+    }
+
+    /// The name column is capped now, and the cap is what the row honours.
+    func testColumnsCapTheNameWidth() {
+        let c = RowLayout.columns(statusLabels: ["idle"], models: ["opus"],
+                                  panelWidth: Constants.panelWidth)
+        XCTAssertLessThanOrEqual(c.name, RowLayout.maxNameWidth)
+    }
+
+    /// Only a grouped row pays for the `×N` badge.
+    func testCountBadgeWidthIsChargedOnlyWhenGrouped() {
+        XCTAssertEqual(RowLayout.countBadgeWidth(1), 0)
+        XCTAssertGreaterThan(RowLayout.countBadgeWidth(2), 0)
+        XCTAssertGreaterThan(RowLayout.countBadgeWidth(10), RowLayout.countBadgeWidth(2))
     }
 
     /// The stored surface preference round-trips, and anything else -- an absent key
