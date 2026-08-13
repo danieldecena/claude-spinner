@@ -65,7 +65,11 @@
 
 ## Next Up
 
-- (none) — the app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+- One hand-check is outstanding: closing the window with a **placed** status item
+  should return the app to `.accessory`. Not scriptable — see the 2026-08-12
+  decision log. It is the only open item; full list in `TASKS.md`.
+
+The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ### 2026-08-12 (chosen surface)
 - Decided: two states, not three. An explicit "Menu bar" preference must still
