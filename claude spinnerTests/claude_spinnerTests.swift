@@ -298,6 +298,49 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 200), Constants.panelMinWidth)
     }
 
+    /// The unplaced case, at the geometry actually measured on 2026-08-12: the item
+    /// parked 1090pt below the bar at x=-1 on a 1512x982 screen.
+    func testStatusItemUnplacedDetectsAParkedItem() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let parked = CGRect(x: -1, y: 982 - 1090 - 20, width: 131, height: 20)
+        XCTAssertTrue(Constants.statusItemIsUnplaced(itemFrame: parked, screenFrame: screen))
+    }
+
+    /// The other half of the pair: a placed item must read as placed, or the fallback
+    /// window opens over a perfectly good menu bar icon. The notched case is the one
+    /// the previous `NSStatusBar.system.thickness` cutoff got wrong -- there the bar
+    /// is ~37pt tall while thickness still reports 24.
+    func testStatusItemUnplacedAcceptsAPlacedItem() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let placed = CGRect(x: 1200, y: 982 - 24, width: 131, height: 24)
+        XCTAssertFalse(Constants.statusItemIsUnplaced(itemFrame: placed, screenFrame: screen))
+
+        let notched = CGRect(x: 1200, y: 982 - 37, width: 131, height: 37)
+        XCTAssertFalse(Constants.statusItemIsUnplaced(itemFrame: notched, screenFrame: screen))
+    }
+
+    /// The slack absorbs rounding on a scaled display and nothing wider.
+    func testStatusItemUnplacedHonoursTheSlack() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        func item(droppedBy drop: CGFloat) -> CGRect {
+            CGRect(x: 1200, y: 982 - 24 - drop, width: 131, height: 24)
+        }
+        XCTAssertFalse(Constants.statusItemIsUnplaced(
+            itemFrame: item(droppedBy: Constants.statusItemPlacementSlack),
+            screenFrame: screen))
+        XCTAssertTrue(Constants.statusItemIsUnplaced(
+            itemFrame: item(droppedBy: Constants.statusItemPlacementSlack + 1),
+            screenFrame: screen))
+    }
+
+    /// A second display sits above or beside the main one, so the top edge that
+    /// matters is that screen's -- not the origin's.
+    func testStatusItemUnplacedUsesTheItemsOwnScreen() {
+        let secondary = CGRect(x: 1512, y: 200, width: 1920, height: 1080)
+        let placed = CGRect(x: 3000, y: 200 + 1080 - 24, width: 131, height: 24)
+        XCTAssertFalse(Constants.statusItemIsUnplaced(itemFrame: placed, screenFrame: secondary))
+    }
+
     /// At the narrowest clamped width the row budget still holds: the name keeps its
     /// floor, the model sheds before the status, and the columns sum to the budget.
     func testColumnsHoldAtMinWidth() {

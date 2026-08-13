@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 import UserNotifications
 
 @main
@@ -23,7 +24,8 @@ struct claude_spinnerApp: App {
 /// Owns the status-bar item and the popover anchored beneath it. Using
 /// NSStatusItem + NSPopover (instead of SwiftUI's MenuBarExtra) lets the panel
 /// sit flush under the icon with a pointer arrow, rather than floating detached.
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate,
+                         NSWindowDelegate, NSMenuDelegate {
     private let feed = FeedWatcher()
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
@@ -35,6 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// was .accessory with no window and no Dock icon, so that state left no way
     /// in at all. This window is the fallback.
     private var mainWindow: NSWindow?
+    /// The settings menu's second host. With the status item unplaced there is
+    /// nothing to right-click, so every control below `showSettingsMenu` is
+    /// otherwise unreachable; .regular gives the app a real menu bar to hang it on.
+    private var spinnerMenuItem: NSMenuItem?
+    private var titleObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Single instance: a second copy exits immediately.
@@ -80,23 +87,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.showWindowIfStatusItemUnplaced()
         }
+        // Placement is decided against the menu bar of a particular display, so a
+        // display change is the one moment it genuinely changes. Cheaper and more
+        // honest than polling for an event that fires a handful of times a day.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screenParametersChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
+
+        // Installed at launch, not when the window opens: appending to `mainMenu`
+        // immediately after the .regular flip did not stick (verified 2026-08-12 --
+        // the Spinner menu was absent from a running .regular instance). An
+        // .accessory app's menu bar is never drawn, so an early install is free.
+        installSettingsMenu()
     }
 
-    /// True when the status item exists but AppKit never gave it a slot in the
-    /// menu bar. A placed item sits inside its screen's menu bar strip; an
-    /// unplaced one is parked outside it, which is the only observable signal.
+    @objc private func screenParametersChanged() { showWindowIfStatusItemUnplaced() }
+
+    /// The status item's window frame and the frame of the screen holding it.
+    /// `nil` when either is missing, which the caller reads as unplaced.
+    private var statusItemFrames: (item: CGRect, screen: CGRect)? {
+        guard let window = statusItem.button?.window,
+              let screen = window.screen ?? NSScreen.main else { return nil }
+        return (window.frame, screen.frame)
+    }
+
     private var statusItemIsUnplaced: Bool {
-        guard let window = statusItem.button?.window else { return true }
-        guard let screen = window.screen ?? NSScreen.main else { return true }
-        // Menu bar strip in Cocoa's bottom-left origin space: the top slice of the
-        // frame, as thick as the status bar.
-        let barBottom = screen.frame.maxY - NSStatusBar.system.thickness - 1
-        return window.frame.minY < barBottom || window.frame.maxX < screen.frame.minX
+        guard let frames = statusItemFrames else { return true }
+        return Constants.statusItemIsUnplaced(itemFrame: frames.item, screenFrame: frames.screen)
     }
 
     private func showWindowIfStatusItemUnplaced() {
-        guard statusItemIsUnplaced else { return }
-        NSLog("claude spinner: status item unplaced (menu bar full) -- opening window instead")
+        // Opens the fallback once and never re-fronts it: this also runs on every
+        // display change, and an unplaced item is a permanent state, so re-showing
+        // would steal focus each time a monitor is plugged in.
+        guard mainWindow == nil, statusItemIsUnplaced else { return }
+        let measured = statusItemFrames.map {
+            "item \(NSStringFromRect($0.item)) on screen \(NSStringFromRect($0.screen))"
+        } ?? "status item has no window"
+        // Log what was measured, not just the verdict -- the frames are the whole
+        // evidence for this call, and without them the next investigation restarts.
+        NSLog("claude spinner: status item unplaced (menu bar full) -- \(measured); opening window instead")
         showMainWindow()
     }
 
@@ -112,14 +142,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 visibleWidth: NSScreen.main?.visibleFrame.width))
             let host = NSHostingController(rootView: MenuContentView(feed: feed))
             let w = NSWindow(contentViewController: host)
-            w.title = "Claude Spinner"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.isReleasedWhenClosed = false
+            w.delegate = self
             w.center()
             mainWindow = w
+            startWindowTitleUpdates()
         }
         mainWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Closing the window hands the Dock icon back -- but only when there is a
+    /// placed status item to return to. With an unplaced one, .accessory would
+    /// leave the app with no surface at all, which is the state this window fixes.
+    func windowWillClose(_ notification: Notification) {
+        guard !statusItemIsUnplaced else { return }
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    /// Mirror the menu-bar readout into the window title. When the status item is
+    /// unplaced, `MenuBarLabel` renders into a button nobody can see, so the title
+    /// is the only place the spinner word or the usage figure appears at all.
+    private func startWindowTitleUpdates() {
+        updateWindowTitle()
+        // `menuBarBody`/`usageMenuBarTitle` are computed, so there is no per-property
+        // publisher to observe. `objectWillChange` fires *before* the change, hence
+        // the hop to the next runloop pass; it also fires at spinner FPS, so
+        // assigning only a changed string is what keeps this cheap.
+        titleObserver = feed.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateWindowTitle() }
+    }
+
+    private func updateWindowTitle() {
+        guard let window = mainWindow else { return }
+        // The glyph is left out on purpose: it animates, and a title bar redrawing
+        // ten times a second is noise rather than information.
+        let body = feed.menuBarMode == .usage
+            ? (feed.usageMenuBarTitle ?? feed.menuBarBody)
+            : feed.menuBarBody
+        let title = body.isEmpty ? "Claude Spinner" : "Claude Spinner · \(body)"
+        if window.title != title { window.title = title }
     }
 
     /// Clicking the Dock icon (or a second `open -a`) reopens the window.
@@ -160,7 +224,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     private func showSettingsMenu() {
         guard let button = statusItem.button else { return }
+        settingsMenu().popUp(positioning: nil,
+                             at: NSPoint(x: 0, y: button.bounds.maxY + 4), in: button)
+    }
+
+    /// The settings menu's other host. Right-clicking the status item is the only
+    /// way in, so when the item is unplaced every control below is unreachable --
+    /// .regular gives the app a real menu bar, so the same menu goes there too.
+    private func installSettingsMenu() {
+        guard spinnerMenuItem == nil else { return }
+        guard let mainMenu = NSApp.mainMenu else {
+            NSLog("claude spinner: no main menu to install the Spinner menu into")
+            return
+        }
+        let menu = settingsMenu()
+        menu.title = "Spinner"
+        menu.delegate = self
+        let item = NSMenuItem(title: "Spinner", action: nil, keyEquivalent: "")
+        item.submenu = menu
+        mainMenu.addItem(item)
+        spinnerMenuItem = item
+    }
+
+    /// Checkmarks are resolved as the items are built, which is fine for a popup
+    /// rebuilt on every right-click but not for the main-menu copy, which outlives
+    /// the state it shows. Rebuilding it here keeps one builder for both hosts.
+    func menuNeedsUpdate(_ menu: NSMenu) { populateSettingsMenu(menu) }
+
+    private func settingsMenu() -> NSMenu {
         let menu = NSMenu()
+        populateSettingsMenu(menu)
+        return menu
+    }
+
+    private func populateSettingsMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
 
         // Menu-bar title mode: activity (spinner word) vs usage (5h %).
         let modeItem = NSMenuItem(title: "Menu bar shows", action: nil, keyEquivalent: "")
@@ -218,9 +316,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                               action: #selector(quitApp), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-
-        menu.popUp(positioning: nil,
-                   at: NSPoint(x: 0, y: button.bounds.maxY + 4), in: button)
     }
 
     @objc private func toggleLaunchAtLogin() { feed.launchAtLogin.toggle() }

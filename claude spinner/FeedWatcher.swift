@@ -52,6 +52,27 @@ enum Constants {
         guard let visibleWidth else { return panelWidth }
         return min(panelWidth, max(panelMinWidth, visibleWidth - panelScreenMargin))
     }
+
+    /// Tolerance on the top-edge match below. Small because the two edges are
+    /// meant to be equal — this absorbs rounding on a scaled display, nothing more.
+    static let statusItemPlacementSlack: CGFloat = 2
+
+    /// True when AppKit never gave the status item a slot in the menu bar. macOS
+    /// reports no error for this: a full menu bar silently drops the item and parks
+    /// it somewhere off the bar, so the frame is the only observable signal
+    /// (observed 2026-08-12: 1090pt below the bar, at x=-1).
+    ///
+    /// Compares top edges rather than measuring the bar's thickness. A placed item's
+    /// window is flush to the top of its screen whatever the bar's height, which
+    /// matters on a notched display — there the visual menu bar is ~37pt while
+    /// `NSStatusBar.system.thickness` still reports 24, so a thickness-derived
+    /// cutoff reads a correctly placed item as unplaced.
+    ///
+    /// Pure so both the placed and unplaced cases are testable without a live menu
+    /// bar — this machine's bar is full, so the placed case cannot be staged on it.
+    static func statusItemIsUnplaced(itemFrame: CGRect, screenFrame: CGRect) -> Bool {
+        abs(itemFrame.maxY - screenFrame.maxY) > statusItemPlacementSlack
+    }
     /// The genuinely fixed part of a row: padding 20 + glyph 15 + four 5pt gaps
     /// + trailing 115 (ctx 30, time 48, chip 29, two 4pt gaps). Every figure here
     /// is derived from the 11pt row font, so changing that means rederiving them.

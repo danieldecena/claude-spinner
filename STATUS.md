@@ -4,6 +4,12 @@
 
 - Menu-bar panel tracks live Claude Code sessions via `~/.claude/spinnerfeed/`
   feed files (hooks + statusLine in `~/.claude/settings.json`).
+- The app survives macOS refusing to place the status item (a full menu bar,
+  which a notched display reaches early). It detects the unplaced item by frame,
+  opens the panel as a real window titled with the live readout, and hangs the
+  full settings menu off a "Spinner" main-menu submenu so nothing is stranded
+  behind an icon that isn't there. Both placed and unplaced observed live
+  2026-08-12; 66 unit tests green.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
 - CI: 57 unit tests green; runs on a self-hosted runner (project is Xcode 27
@@ -57,6 +63,54 @@
 ## Next Up
 
 - (none) — the app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-08-12 (status-item fallback hardened)
+- Decided: placement is detected by comparing the status item window's **top edge**
+  to its screen's, not by measuring down from `NSStatusBar.system.thickness`. On a
+  notched display the visual menu bar is ~37pt while thickness still reports 24, so
+  the old `maxY - thickness - 1` cutoff had a 1pt margin and would have read a
+  correctly placed item as unplaced. A placed item is flush to the screen top
+  whatever the bar's height. Now `Constants.statusItemIsUnplaced(itemFrame:
+  screenFrame:)` — pure, so both halves are testable on a machine whose bar is full.
+- Decided: drop the `maxX < screen.minX` clause. It could not fire — `window.screen`
+  is by definition the screen the window most overlaps, so a window entirely left of
+  that screen's left edge is a contradiction. The observed case (x=-1, width 131)
+  never tripped it either; the minY clause did all the work.
+- Decided: the settings menu gets a second host. Every control (mode, Launch at
+  Login, Live usage, Refresh, Relaunch, Clear All Sessions) hung off
+  `menu.popUp(in: button)` — anchored to a button parked off-screen — so an
+  unplaced item made all of them unreachable. One builder (`populateSettingsMenu`)
+  now fills both the status-item popup and a "Spinner" submenu in `.regular`'s main
+  menu, repopulating via `NSMenuDelegate.menuNeedsUpdate` so its checkmarks don't
+  go stale.
+- Decided: install that menu at **launch**, not at the `.regular` flip. Appending to
+  `NSApp.mainMenu` immediately after `setActivationPolicy(.regular)` did not stick —
+  verified on a running instance whose main menu had no Spinner item. An .accessory
+  app's menu bar is never drawn, so an early install costs nothing.
+- Decided: `.regular` is reversible now, but only when there is a placed status item
+  to fall back to. `windowWillClose` restores `.accessory` in that case and
+  deliberately does not when the item is unplaced — dropping the Dock icon there is
+  what left the app unreachable in the first place.
+- Decided: re-check placement on `didChangeScreenParametersNotification` instead of
+  polling, and open the fallback window **once**. The check also runs on every
+  display change, and an unplaced item is a persistent state, so re-fronting would
+  steal focus each time a monitor is plugged in.
+- Decided: the window title carries the menu-bar readout (`Claude Spinner · 5h 44%
+  · 4h4m`). With the item unplaced, `MenuBarLabel` renders into a button nobody can
+  see, so the title is the only place that figure appears. The animated glyph is
+  left out on purpose — a title bar redrawing at spinner FPS is noise.
+- Noted: both halves observed live, which the original fix never had. Unplaced —
+  item at AX `(-1, 1090)`, fallback window opened, app `Foreground`. Placed — item
+  at `(1390, 8)`, no window, app stayed `UIElement`. The `osascript` probe over
+  `menu bar 2` reports the item's real position independently of the app's own
+  detector; use it rather than trusting the verdict.
+- Noted: one branch is **unverified** — `windowWillClose` restoring `.accessory`
+  with a *placed* item. Reaching it needs the window open while the item is placed,
+  and neither route works from a script: `applicationShouldHandleReopen` never fires
+  for an .accessory app (no Dock icon to click), and the status item's popped-up
+  NSMenu is not exposed to Accessibility, so the "Open Window" entry can't be
+  driven. Confirm by hand: right-click the icon, Open Window, close it, and check
+  `lsappinfo info <pid>` reads `type="UIElement"`.
 
 ### 2026-07-21 (OpenWolf decommission + notarization dropped)
 - Decided: don't notarize. It needs a paid Developer Program account, which

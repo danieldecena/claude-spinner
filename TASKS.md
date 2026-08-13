@@ -2,11 +2,22 @@
 
 ## Tasks
 
-No open items — the app runs as a locally-built, ad-hoc-signed `.app` via
-`run.sh`, which is the intended distribution. Notarization was dropped
-2026-07-21 (needs a paid Developer Program account; not being pursued).
+- [ ] Confirm the policy round-trip by hand — right-click the icon while it is
+  placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
+
+Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
+not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
+via `run.sh`.
 
 ## Completed
+
+- [x] Extract a pure, tested status-item placement predicate — done 2026-08-12
+- [x] Log measured frames when placement detection fires — done 2026-08-12
+- [x] Re-check status-item placement on display change — done 2026-08-12
+- [x] Restore accessory policy when the window closes — done 2026-08-12
+- [x] Reach the settings menu from the window — done 2026-08-12
+- [x] Show live session status in the window title — done 2026-08-12
+- [x] Record the window-fallback decision in STATUS — done 2026-08-12
 
 - [x] Popover clipped off-screen near the right menu-bar edge — panel width is now a runtime `@Published` clamped to the status item's screen `visibleFrame` (`fittedPanelWidth`, floor 360, margin 16) at show time in `togglePopover`; `RowLayout.columns` takes the width so rows reflow/truncate instead of overflowing; `Columns` carries `.status` so `displayStatus` drops the duplicated span math. 62/62 tests (added fittedPanelWidth + min-width column tests). Near-edge visual confirm still needs a hand (drag icon far right, click); done 2026-07-21
 
@@ -75,7 +86,7 @@ No open items — the app runs as a locally-built, ad-hoc-signed `.app` via
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-07-21 01:34.
+Plan approved 2026-08-12 21:10.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -84,7 +95,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 34d92b04-9083-4f4d-b81b-4dcc6dedf8ef
+    claude --resume f8daf528-bf4c-46c0-b864-f0725780c45f
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
