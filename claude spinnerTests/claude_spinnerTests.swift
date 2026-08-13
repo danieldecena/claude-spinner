@@ -298,6 +298,19 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Constants.fittedPanelWidth(visibleWidth: 200), Constants.panelMinWidth)
     }
 
+    /// The stored surface preference round-trips, and anything else -- an absent key
+    /// on first launch, a value from a future version -- lands on the menu bar rather
+    /// than on a surface the user never chose. Mirrors the `?? .menuBar` in `init`.
+    func testSurfacePreferenceDefaultsToMenuBar() {
+        XCTAssertEqual(Surface(rawValue: "menuBar"), .menuBar)
+        XCTAssertEqual(Surface(rawValue: "window"), .window)
+
+        let absent: String? = nil
+        XCTAssertEqual(absent.flatMap(Surface.init(rawValue:)) ?? .menuBar, .menuBar)
+        let unknown: String? = "sidebar"
+        XCTAssertEqual(unknown.flatMap(Surface.init(rawValue:)) ?? .menuBar, .menuBar)
+    }
+
     /// The unplaced case, at the geometry actually measured on 2026-08-12: the item
     /// parked 1090pt below the bar at x=-1 on a 1512x982 screen.
     func testStatusItemUnplacedDetectsAParkedItem() {

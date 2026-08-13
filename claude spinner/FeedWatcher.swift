@@ -119,6 +119,15 @@ enum MenuBarMode: String {
     case activity, usage
 }
 
+/// Which surface the app presents. `menuBar` is the status item, falling back to
+/// the window when macOS refuses to place it -- so this preference can never lock
+/// the user out. `window` skips the status item entirely, which is not only
+/// deterministic but hands a slot back to a menu bar that was full enough to drop
+/// it in the first place.
+enum Surface: String {
+    case menuBar, window
+}
+
 /// Why live usage stopped refreshing. The two cases need different words: an
 /// expired token is the user's problem and stays broken until they act, while a
 /// dropped connection or a 5xx clears itself on the next poll. Collapsing both
@@ -557,6 +566,13 @@ final class FeedWatcher: ObservableObject {
         didSet { UserDefaults.standard.set(menuBarMode.rawValue, forKey: "menuBarMode") }
     }
 
+    /// Which surface to present; persisted, read once at launch. Changing it takes
+    /// effect on the next launch -- tearing down and rebuilding a status item
+    /// mid-run is machinery this doesn't need.
+    @Published var surface: Surface {
+        didSet { UserDefaults.standard.set(surface.rawValue, forKey: "surface") }
+    }
+
     private let dir: URL
     private var source: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
@@ -594,6 +610,8 @@ final class FeedWatcher: ObservableObject {
     init() {
         menuBarMode = UserDefaults.standard.string(forKey: "menuBarMode")
             .flatMap(MenuBarMode.init(rawValue:)) ?? .activity
+        surface = UserDefaults.standard.string(forKey: "surface")
+            .flatMap(Surface.init(rawValue:)) ?? .menuBar
         cachedUsage = UserDefaults.standard.data(forKey: "usageSnapshot")
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
         usageHistory = UserDefaults.standard.data(forKey: "usageHistory")

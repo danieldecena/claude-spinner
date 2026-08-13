@@ -27,7 +27,8 @@ struct claude_spinnerApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate,
                          NSWindowDelegate, NSMenuDelegate {
     private let feed = FeedWatcher()
-    private var statusItem: NSStatusItem!
+    /// Nil in the `window` surface, where no status item is ever created.
+    private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     /// Standalone window showing the same panel. The status item is the primary
     /// surface, but macOS silently refuses to place a status item when the menu
@@ -66,8 +67,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         popover.animates = true
         popover.contentViewController = NSHostingController(rootView: MenuContentView(feed: feed))
 
+        // Window surface creates no status item at all: it is the deterministic
+        // choice precisely because nothing about it depends on the menu bar having
+        // room, and not asking for a slot hands one back to a bar that was full
+        // enough to drop us. Everything below reaches the item through optional
+        // chaining, so its absence needs no further guards.
+        guard feed.surface == .menuBar else {
+            installSettingsMenu()
+            showMainWindow()
+            return
+        }
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
+        if let button = statusItem?.button {
             let host = NSHostingView(rootView: MenuBarLabel(feed: feed))
             host.translatesAutoresizingMaskIntoConstraints = false
             button.addSubview(host)
@@ -106,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// The status item's window frame and the frame of the screen holding it.
     /// `nil` when either is missing, which the caller reads as unplaced.
     private var statusItemFrames: (item: CGRect, screen: CGRect)? {
-        guard let window = statusItem.button?.window,
+        guard let window = statusItem?.button?.window,
               let screen = window.screen ?? NSScreen.main else { return nil }
         return (window.frame, screen.frame)
     }
@@ -203,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     private func togglePopover() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem?.button else { return }
         if popover.isShown {
             popover.performClose(nil)
         } else {
@@ -223,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     private func showSettingsMenu() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem?.button else { return }
         settingsMenu().popUp(positioning: nil,
                              at: NSPoint(x: 0, y: button.bounds.maxY + 4), in: button)
     }
@@ -273,6 +285,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         modeMenu.addItem(usage)
         modeItem.submenu = modeMenu
         menu.addItem(modeItem)
+
+        // Which surface to present. Applies on next launch, so both entries say so
+        // rather than leaving the user waiting for something to happen.
+        let surfaceItem = NSMenuItem(title: "Show in", action: nil, keyEquivalent: "")
+        let surfaceMenu = NSMenu()
+        let bar = NSMenuItem(title: "Menu bar", action: #selector(setSurfaceMenuBar), keyEquivalent: "")
+        bar.target = self
+        bar.state = feed.surface == .menuBar ? .on : .off
+        let win = NSMenuItem(title: "Window", action: #selector(setSurfaceWindow), keyEquivalent: "")
+        win.target = self
+        win.state = feed.surface == .window ? .on : .off
+        surfaceMenu.addItem(bar)
+        surfaceMenu.addItem(win)
+        surfaceMenu.addItem(.separator())
+        surfaceMenu.addItem(NSMenuItem(title: "Applies on next launch", action: nil, keyEquivalent: ""))
+        surfaceItem.submenu = surfaceMenu
+        menu.addItem(surfaceItem)
 
         menu.addItem(.separator())
 
@@ -325,6 +354,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
+    @objc private func setSurfaceMenuBar() { feed.surface = .menuBar }
+    @objc private func setSurfaceWindow() { feed.surface = .window }
 
     /// Quit and reopen. A short-lived helper reopens after this instance exits, so
     /// the single-instance guard doesn't reject the new copy.
