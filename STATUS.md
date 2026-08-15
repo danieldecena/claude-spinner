@@ -25,6 +25,16 @@
   falling back to the directory), its context token count banded on absolute
   usage (100k/150k/200k), and sort heaviest-first within each status band.
   The header totals context across all sessions. Legible in both appearances.
+- Each row carries a 10-box `□□□□□□□□□□ --%` task-completion bar (TodoWrite
+  counts via `emit.sh`), with the session's status/activity text beside it on
+  a second line. Verified on screen across several rebuilds; 82 unit tests
+  green.
+- The standalone window (right-click icon → Open Window) pins its content to
+  the top and shrinks an oversized/stale remembered frame back to
+  panelWidth × panelDefaultHeight on open, on whichever axis overran.
+  Verified on screen: a window carrying a leftover 573×1900ish remembered
+  frame from earlier automated testing now opens flush, no dead space above,
+  below, or past the row content.
 
 - Clicking a row focuses the editor the session actually runs in — including
   Zed and any editor not in `hostBundleIDs`, which previously opened a stray
@@ -65,11 +75,6 @@
 
 ## Next Up
 
-- Confirm on screen whether the second-row jitter is actually gone now that
-  `5ddb652` is built and running — the user reported "second row still has an
-  issue" against a build whose process wasn't confirmed to be `236491e` or
-  later. See the 2026-08-15 decision log entry for what the re-review could
-  and couldn't verify.
 - One hand-check is outstanding: closing the window with a **placed** status item
   should return the app to `.accessory`. Not scriptable — see the 2026-08-12
   decision log. Tagged `[you]` in `TASKS.md`.
@@ -121,6 +126,39 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   (screen recording, since vanished) was against a build containing this fix
   at all. Plan closed via `finishing-a-development-branch`; SDD workspace
   deleted.
+- Noted: no further jitter complaint surfaced across several screenshots
+  taken since (`f60c862`) — the user moved on to a separate, unrelated
+  window-sizing bug (below) without re-flagging it. Treating the jitter fix
+  as holding unless it recurs; the toggling-todo-count live scenario the
+  re-review couldn't cleanly capture is still technically unobserved.
+
+### 2026-08-15 (standalone window dead space)
+- Decided: `MenuContentView`'s `fillsWidth` frame needs `maxHeight: .infinity,
+  alignment: .top`, not just `maxWidth: .infinity`. Without it, NSHostingView
+  centers content shorter than the window instead of pinning it to the top —
+  a window dragged (or remembered) taller than its content showed equal dead
+  space above and below the rows, not just below. Found from a screenshot of
+  the standalone window; confirmed fixed on screen after the change (content
+  flush to the top edge).
+- Decided: `showMainWindow` shrinks an oversized remembered frame back to
+  `panelWidth` × the new `panelDefaultHeight` constant (320, matching the
+  existing hardcoded default) on whichever axis overran, keeping the
+  remembered position. A remembered width beyond `panelWidth` is pure waste
+  (`RowLayout.maxNameWidth` caps how much a row can use anyway); a remembered
+  height beyond content is the same on the other axis. Root cause of both
+  screenshots: a stale ~573×1900 remembered frame left over from the
+  re-review's earlier `resize_window` synthetic testing.
+- Noted: caught mid-diagnosis that `defaults delete com.danieldecena.
+  claude-spinner ...` targeted the wrong bundle id — the app's actual id is
+  `decenad.claude-spinner` (confirmed via `osascript -e 'id of app...'`).
+  The first "fix" attempt looked like it did nothing because of this, not
+  because the code fix was wrong.
+- Noted: attempted a full-screen `screencapture` to verify the fix and it
+  caught the user's live video call in frame. Deleted that screenshot and
+  other stale capture artifacts immediately, stopped taking full-screen
+  captures, and asked the user to screenshot the app themselves for the rest
+  of this verification. `System Events` reports 0 AX windows for the popover
+  surface, so there was no safe way to target just that window either.
 
 ### 2026-08-12 (chosen surface)
 - Decided: two states, not three. An explicit "Menu bar" preference must still
