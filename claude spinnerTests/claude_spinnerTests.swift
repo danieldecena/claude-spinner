@@ -106,6 +106,17 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.formatTokens(12_000_000), "12M")
     }
 
+    func testTodoProgressBarMath() {
+        XCTAssertEqual(TodoProgressBar.percent(total: 0, done: 0), 0)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 0, done: 0), 0)
+
+        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 1), 33)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 1), 3)  // round(10/3) = 3
+
+        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 3), 100)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 3), 10)
+    }
+
     func testCompactAge() {
         let t = Date(timeIntervalSince1970: 10_000)
         XCTAssertEqual(FeedWatcher.compactAge(since: t.addingTimeInterval(-45), now: t), "45s")

@@ -322,6 +322,56 @@ struct TrendGauge: View {
     }
 }
 
+/// Ten-box task-completion bar shown on a second line under a session row:
+/// filled boxes track a session's current TodoWrite list, held at an empty
+/// 0% before any TodoWrite call rather than being hidden — so the row's
+/// height never changes once a session starts writing todos.
+///
+/// Deliberately not `Color.usageTint` — that gradient reads high-percentage
+/// as *dangerous* (rate-limit/context consumption), which is backwards for
+/// task completion, where 100% is the good outcome. One flat "in progress"
+/// tint instead, matching the row's own working color.
+struct TodoProgressBar: View {
+    let total: Int
+    let done: Int
+
+    private static let boxCount = 10
+
+    static func percent(total: Int, done: Int) -> Int {
+        guard total > 0 else { return 0 }
+        return Int((Double(done) / Double(total) * 100).rounded())
+    }
+
+    static func filledBoxes(total: Int, done: Int) -> Int {
+        guard total > 0 else { return 0 }
+        return Int((Double(done) / Double(total) * Double(boxCount)).rounded())
+    }
+
+    private var pct: Int { Self.percent(total: total, done: done) }
+    private var filled: Int { Self.filledBoxes(total: total, done: done) }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 0) {
+                Text(String(repeating: "■", count: filled))
+                    .foregroundStyle(Color.claude)
+                Text(String(repeating: "□", count: Self.boxCount - filled))
+                    .foregroundStyle(Color.secondary.opacity(0.4))
+            }
+            .font(.claudeMono(11))
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: filled)
+
+            Text("\(pct)%")
+                .font(.claudeMono(11)).monospacedDigit()
+                .foregroundStyle(total > 0 ? Color.claude : Color.secondary)
+        }
+        .help(total > 0 ? "Task progress: \(done) of \(total) done" : "No task list yet")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Task progress")
+        .accessibilityValue(total > 0 ? "\(done) of \(total) done, \(pct) percent" : "no task list")
+    }
+}
+
 extension SessionFeed {
     /// The status word the row draws. Lives here rather than in SessionRow because
     /// the panel measures every row's label to size the shared columns, so the
