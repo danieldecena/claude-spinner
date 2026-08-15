@@ -234,6 +234,8 @@ private struct StateFile: Decodable {
     var updated: Double?
     var last_seed: Double?
     var last_duration: Double?
+    var todo_total: Double?
+    var todo_done: Double?
 }
 
 /// `<id>.status.json`, the raw statusLine stdin JSON. Only the fields the app
@@ -293,6 +295,8 @@ struct SessionFeed: Identifiable {
     var lastDuration: Int?
     var contextInputTokens: Int?
     var contextOutputTokens: Int?
+    var todoTotal: Int?
+    var todoDone: Int?
 
     init(id: String) { self.id = id }
 
@@ -308,7 +312,19 @@ struct SessionFeed: Identifiable {
         if let up = s.updated { updated = Date(timeIntervalSince1970: up) }
         lastSeed = s.last_seed.map(Int.init)
         lastDuration = s.last_duration.map(Int.init)
+        todoTotal = s.todo_total.map(Int.init)
+        todoDone = s.todo_done.map(Int.init)
     }
+
+    #if DEBUG
+    /// Test-only mirror of `applyState`'s todo-count assignment — `StateFile`
+    /// is private to this file, so XCTest exercises the same two lines through
+    /// this seam instead of constructing a `StateFile` itself.
+    mutating func applyTodoCountsForTest(total: Int?, done: Int?) {
+        todoTotal = total
+        todoDone = done
+    }
+    #endif
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
         if let m = s.model?.display_name { model = m }

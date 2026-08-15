@@ -53,6 +53,22 @@ final class claude_spinnerTests: XCTestCase {
         s.status = .attention; XCTAssertFalse(s.isWorking)
     }
 
+    func testApplyStateDecodesTodoCounts() {
+        var s = SessionFeed(id: "x")
+        XCTAssertNil(s.todoTotal)
+        XCTAssertNil(s.todoDone)
+        s.applyTodoCountsForTest(total: 3, done: 1)
+        XCTAssertEqual(s.todoTotal, 3)
+        XCTAssertEqual(s.todoDone, 1)
+    }
+
+    func testApplyStateLeavesTodoCountsNilWhenAbsent() {
+        var s = SessionFeed(id: "x")
+        s.applyTodoCountsForTest(total: nil, done: nil)
+        XCTAssertNil(s.todoTotal)
+        XCTAssertNil(s.todoDone)
+    }
+
     // MARK: - Spinner words (seeded, stable, present/past paired)
 
     func testSpinnerWordSeedingIsStableAndPaired() {
