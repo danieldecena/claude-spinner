@@ -2,8 +2,14 @@
 
 ## Tasks
 
-- [ ] Confirm the policy round-trip by hand — right-click the icon while it is
+- [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
+  (not scriptable — status-item context menus aren't reliably reachable via
+  AppleScript/System Events; needs a real click)
+- [ ] Nest subagent sessions under their parent row in the panel — hook
+  payloads already carry agent_id/agent_type for subagent tool calls;
+  emit.sh would need to write per-subagent feed files tagged with the
+  parent session, and the panel would render them as indented child rows
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
