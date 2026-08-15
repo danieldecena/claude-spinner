@@ -53,18 +53,20 @@ final class claude_spinnerTests: XCTestCase {
         s.status = .attention; XCTAssertFalse(s.isWorking)
     }
 
-    func testApplyStateDecodesTodoCounts() {
+    func testApplyStateDecodesTodoCounts() throws {
         var s = SessionFeed(id: "x")
         XCTAssertNil(s.todoTotal)
         XCTAssertNil(s.todoDone)
-        s.applyTodoCountsForTest(total: 3, done: 1)
+        try s.applyStateJSONForTest("""
+        {"todo_total":3,"todo_done":1}
+        """)
         XCTAssertEqual(s.todoTotal, 3)
         XCTAssertEqual(s.todoDone, 1)
     }
 
-    func testApplyStateLeavesTodoCountsNilWhenAbsent() {
+    func testApplyStateLeavesTodoCountsNilWhenAbsent() throws {
         var s = SessionFeed(id: "x")
-        s.applyTodoCountsForTest(total: nil, done: nil)
+        try s.applyStateJSONForTest("{}")
         XCTAssertNil(s.todoTotal)
         XCTAssertNil(s.todoDone)
     }

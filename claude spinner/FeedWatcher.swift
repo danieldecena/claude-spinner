@@ -317,12 +317,13 @@ struct SessionFeed: Identifiable {
     }
 
     #if DEBUG
-    /// Test-only mirror of `applyState`'s todo-count assignment — `StateFile`
-    /// is private to this file, so XCTest exercises the same two lines through
-    /// this seam instead of constructing a `StateFile` itself.
-    mutating func applyTodoCountsForTest(total: Int?, done: Int?) {
-        todoTotal = total
-        todoDone = done
+    /// Test-only seam — decodes real JSON into the (private) `StateFile` and
+    /// runs it through the actual `applyState`, so tests exercise production
+    /// code rather than a hand-written mirror of it. `StateFile`/`applyState`
+    /// are private/fileprivate to this file, so this has to live here too.
+    mutating func applyStateJSONForTest(_ json: String) throws {
+        let s = try JSONDecoder().decode(StateFile.self, from: Data(json.utf8))
+        applyState(s)
     }
     #endif
 
