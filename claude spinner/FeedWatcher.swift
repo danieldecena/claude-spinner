@@ -36,11 +36,11 @@ enum Constants {
     /// holding unbounded prose. Clamped down to the status item's screen
     /// `visibleFrame` at show time by `fittedPanelWidth`.
     static let panelWidth: CGFloat = 470
-    /// Floor the clamp never drops below. The row budget goes negative under ~253
-    /// (`rowFixedColumns` 170 + `RowLayout.dotsSlot` 13 + `RowLayout.minNameWidth`
-    /// 70) and the footer's fixed-size gauges want ~340; 360 keeps `columns()`
-    /// arithmetic positive without a defensive clamp, and no real display's
-    /// `visibleFrame` is this narrow, so the floor is never actually reached.
+    /// Floor the clamp never drops below. Line 1's row budget goes negative under
+    /// ~240 (`rowFixedColumns` 170 + `RowLayout.minNameWidth` 70) and the footer's
+    /// fixed-size gauges want ~340; 360 keeps `columns()` arithmetic positive
+    /// without a defensive clamp, and no real display's `visibleFrame` is this
+    /// narrow, so the floor is never actually reached.
     static let panelMinWidth: CGFloat = 360
     /// Clearance kept between the panel's edge and the screen edge when clamping.
     static let panelScreenMargin: CGFloat = 16
