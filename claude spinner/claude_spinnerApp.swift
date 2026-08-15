@@ -176,12 +176,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // A bare NSView has no intrinsic size and no constraints, so the window
             // is free and the hosting view just follows it via the autoresize mask.
             let container = NSView(frame: NSRect(x: 0, y: 0,
-                                                 width: Constants.panelWidth, height: 320))
+                                                 width: Constants.panelWidth, height: Constants.panelDefaultHeight))
             hosting.frame = container.bounds
             container.addSubview(hosting)
 
             let w = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: Constants.panelWidth, height: 320),
+                contentRect: NSRect(x: 0, y: 0, width: Constants.panelWidth, height: Constants.panelDefaultHeight),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered, defer: false)
             w.contentView = container
@@ -198,8 +198,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerPanel") != nil
             w.setFrameAutosaveName("SpinnerPanel")
             if !remembered {
-                w.setContentSize(NSSize(width: Constants.panelWidth, height: 320))
+                w.setContentSize(NSSize(width: Constants.panelWidth, height: Constants.panelDefaultHeight))
                 w.center()
+            } else if let contentSize = w.contentView?.bounds.size,
+                      contentSize.width > Constants.panelWidth || contentSize.height > Constants.panelDefaultHeight {
+                // A remembered size wider/taller than the content's own fit just
+                // opens dead space (rows cap their name column at
+                // RowLayout.maxNameWidth; there's nothing below the footer at
+                // all) -- shrink back to fit on whichever axis overran, keeping
+                // the remembered position.
+                var frame = w.frame
+                if contentSize.width > Constants.panelWidth {
+                    frame.size.width -= contentSize.width - Constants.panelWidth
+                }
+                if contentSize.height > Constants.panelDefaultHeight {
+                    frame.size.height -= contentSize.height - Constants.panelDefaultHeight
+                }
+                w.setFrame(frame, display: false)
             }
             w.isReleasedWhenClosed = false
             w.delegate = self

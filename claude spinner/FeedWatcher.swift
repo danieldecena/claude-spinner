@@ -36,6 +36,10 @@ enum Constants {
     /// holding unbounded prose. Clamped down to the status item's screen
     /// `visibleFrame` at show time by `fittedPanelWidth`.
     static let panelWidth: CGFloat = 470
+    /// Default open height for the standalone window, and the ceiling a stale
+    /// remembered frame gets clamped back to — same "shrink to fit" treatment
+    /// `showMainWindow` gives an oversized remembered width.
+    static let panelDefaultHeight: CGFloat = 320
     /// Floor the clamp never drops below. Line 1's row budget goes negative under
     /// ~240 (`rowFixedColumns` 170 + `RowLayout.minNameWidth` 70) and the footer's
     /// fixed-size gauges want ~340; 360 keeps `columns()` arithmetic positive

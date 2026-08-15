@@ -104,7 +104,13 @@ struct MenuContentView: View {
         // writing it as one silently failed to compile while a stale binary kept
         // answering the resize probes.
         .frame(width: fillsWidth ? nil : feed.panelWidth)
-        .frame(maxWidth: fillsWidth ? .infinity : nil)
+        // `alignment: .top` pins content to the window's top edge when the window
+        // is taller than the content wants (dragged tall, or a stale remembered
+        // frame). Without it NSHostingView centers the shorter content vertically,
+        // leaving equal dead space above and below instead of just below.
+        .frame(maxWidth: fillsWidth ? .infinity : nil,
+               maxHeight: fillsWidth ? .infinity : nil,
+               alignment: .top)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
         // `.allowsHitTesting(false)` keeps this invisible button from swallowing a
         // row click as a quit while its ⌘Q keyboard shortcut still fires.
