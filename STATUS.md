@@ -65,11 +65,11 @@
 
 ## Next Up
 
-- The todo-progress-bar feature (2026-08-14/15) is code-complete and pushed
-  (`b2f480f`) but its SDD plan is not closed: the final-review fix wave
-  (`236491e`) still needs one scoped re-review before
-  `finishing-a-development-branch`. Ledger + exact resume point:
-  `.superpowers/sdd/2026-08-14-todo-progress-bar/progress.md`.
+- Confirm on screen whether the second-row jitter is actually gone now that
+  `5ddb652` is built and running — the user reported "second row still has an
+  issue" against a build whose process wasn't confirmed to be `236491e` or
+  later. See the 2026-08-15 decision log entry for what the re-review could
+  and couldn't verify.
 - One hand-check is outstanding: closing the window with a **placed** status item
   should return the app to `.accessory`. Not scriptable — see the 2026-08-12
   decision log. Tagged `[you]` in `TASKS.md`.
@@ -103,8 +103,24 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 - Noted: every task's `xcodebuild test` run was independently re-verified by
   the controller (not just SourceKit editor diagnostics, which were noisy/
   stale throughout and safely ignored) — except the final fix wave's, cut
-  short by the `/goal` landing reserve. That re-verification is part of the
-  outstanding re-review above.
+  short by the `/goal` landing reserve. Closed by the scoped re-review below.
+- Scoped re-review of the fix wave (opus, `70700d1..236491e`): all 7 findings
+  ADDRESSED, no new Critical/Important breakage. Independently re-ran
+  `xcodebuild test` (82/82) and rebuilt+ran the app with synthetic
+  multi-session data — a 12-frame pixel-diff of the row-list column showed
+  zero drift, corroborating the jitter fix (finding #7) beyond the diff.
+  Found and fixed one residual: `FeedWatcher.swift`'s `panelMinWidth` comment
+  still cited the pre-fix budget formula (`5ddb652`).
+  Two caveats the re-review flagged and did not close:
+  (a) it could not get a clean capture with `todo_done` actively toggling
+  (desktop contamination mid-test), so the jitter fix for that specific
+  live-changing-count case is reasoned from SwiftUI's HStack-max-sizing
+  semantics, not directly observed;
+  (b) no `claude spinner` process was running when the re-review started, so
+  it could not confirm the user's "second row still has an issue" report
+  (screen recording, since vanished) was against a build containing this fix
+  at all. Plan closed via `finishing-a-development-branch`; SDD workspace
+  deleted.
 
 ### 2026-08-12 (chosen surface)
 - Decided: two states, not three. An explicit "Menu bar" preference must still
