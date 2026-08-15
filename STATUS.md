@@ -65,11 +65,46 @@
 
 ## Next Up
 
+- The todo-progress-bar feature (2026-08-14/15) is code-complete and pushed
+  (`b2f480f`) but its SDD plan is not closed: the final-review fix wave
+  (`236491e`) still needs one scoped re-review before
+  `finishing-a-development-branch`. Ledger + exact resume point:
+  `.superpowers/sdd/2026-08-14-todo-progress-bar/progress.md`.
 - One hand-check is outstanding: closing the window with a **placed** status item
   should return the app to `.accessory`. Not scriptable — see the 2026-08-12
-  decision log. It is the only open item; full list in `TASKS.md`.
+  decision log. Tagged `[you]` in `TASKS.md`.
+- Full list in `TASKS.md`, including a queued (unbuilt) idea to nest subagent
+  sessions under their parent row.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-08-15 (todo-progress-bar)
+- Decided: a 10-box `□□□□□□□□□□ --%` completion bar per session, sourced from
+  TodoWrite counts captured by `emit.sh` on `PostToolUse` (no prior progress
+  signal existed anywhere in the feed). Lives on a second row under every
+  session row, reserved at 0% before any TodoWrite call rather than hidden.
+- Decided: flat tint (`Color.claude`), not `Color.usageTint` — that gradient
+  reads high-percentage as dangerous (rate-limit urgency), backwards for task
+  completion where 100% is the good outcome.
+- Live scope change mid-build (user's direct request): the existing status/
+  activity text moved from row line 1 to line 2, next to the bar.
+- Final whole-branch review (opus) caught what no per-task review could: the
+  app bundles its own copy of `emit.sh` (`claude spinner/Scripts/emit.sh`),
+  installed fresh by `SetupInstaller` — it never got the todo-capture change,
+  so the feature was dead on any fresh install and a re-install on this
+  machine would have silently downgraded the working live script. Fixed by
+  syncing the bundled copy plus a content-parity test. Also fixed: a stale
+  RowLayout column budget that clamped names/erased the model column after
+  status moved lines; unclamped box-fill math that could crash the app on an
+  out-of-range state-file value; dead accessibility on the bar (collapsed by
+  the row's own `.ignore`); no fixed frame on the percent text (caused a
+  frame-to-frame divider jitter synced to the working-dots animation,
+  confirmed by measuring divider position across frames pre/post fix).
+- Noted: every task's `xcodebuild test` run was independently re-verified by
+  the controller (not just SourceKit editor diagnostics, which were noisy/
+  stale throughout and safely ignored) — except the final fix wave's, cut
+  short by the `/goal` landing reserve. That re-verification is part of the
+  outstanding re-review above.
 
 ### 2026-08-12 (chosen surface)
 - Decided: two states, not three. An explicit "Menu bar" preference must still
