@@ -516,118 +516,128 @@ struct SessionRow: View {
     private var session: SessionFeed { item.session }
 
     var body: some View {
-        // One line: [glyph] project-name ×N  model  status…  ctx%  time  [chip]
-        HStack(spacing: 5) {
-            Text(glyph)
-                .font(.claudeMono(13))
-                .foregroundStyle(tint)
-                .frame(width: 15)
+        VStack(alignment: .leading, spacing: 2) {
+            // One line: [glyph] project-name ×N  model  status…  ctx%  time  [chip]
+            HStack(spacing: 5) {
+                Text(glyph)
+                    .font(.claudeMono(13))
+                    .foregroundStyle(tint)
+                    .frame(width: 15)
 
-            // Column 1: Project Name + Count. Fixed width ensures alignment of subsequent columns.
-            HStack(spacing: 3) {
-                // A grouped row stands for several idle sessions sharing a directory —
-                // displayItems groups on cwd, not name — so only a single-session row
-                // can honestly show a session name.
-                // A grouped row spends part of the column on its `×N` badge, so the
-                // name is fitted to what's left rather than to the whole column —
-                // otherwise the name fills the frame and squeezes the count out.
-                Text(RowLayout.fitName(item.count > 1 ? session.projectName : session.displayName,
-                                       toWidth: columns.name - RowLayout.countBadgeWidth(item.count)))
-                    .font(.claudeMono(11))
-                    .foregroundStyle(nameColor)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                if item.count > 1 {
-                    Text("×\(item.count)")
+                // Column 1: Project Name + Count. Fixed width ensures alignment of subsequent columns.
+                HStack(spacing: 3) {
+                    // A grouped row stands for several idle sessions sharing a directory —
+                    // displayItems groups on cwd, not name — so only a single-session row
+                    // can honestly show a session name.
+                    // A grouped row spends part of the column on its `×N` badge, so the
+                    // name is fitted to what's left rather than to the whole column —
+                    // otherwise the name fills the frame and squeezes the count out.
+                    Text(RowLayout.fitName(item.count > 1 ? session.projectName : session.displayName,
+                                           toWidth: columns.name - RowLayout.countBadgeWidth(item.count)))
                         .font(.claudeMono(11))
-                        .foregroundStyle(Color.secondary)
-                }
-            }
-            // Sized against the model and status beside it, not fixed: both are
-            // drawn from bounded vocabularies and take only what they need, so the
-            // name — unbounded prose — gets everything left over.
-            .frame(width: columns.name, alignment: .leading)
-
-            // Column 2: Model, sized to the family word it actually holds.
-            Group {
-                if let rawModel = feed.modelDisplay(for: session) {
-                    Text(FeedWatcher.modelFamily(rawModel))
-                        .font(.claudeMono(11)).fontWeight(.semibold)
-                        .foregroundStyle(Color.modelTint(rawModel))
+                        .foregroundStyle(nameColor)
                         .lineLimit(1)
-                } else {
-                    Text("")
+                        .truncationMode(.tail)
+
+                    if item.count > 1 {
+                        Text("×\(item.count)")
+                            .font(.claudeMono(11))
+                            .foregroundStyle(Color.secondary)
+                    }
                 }
-            }
-            .frame(width: columns.model, alignment: .leading)
+                // Sized against the model and status beside it, not fixed: both are
+                // drawn from bounded vocabularies and take only what they need, so the
+                // name — unbounded prose — gets everything left over.
+                .frame(width: columns.name, alignment: .leading)
 
-            // Column 3: Status / Activity (flexible width, truncating if necessary),
-            // with the working-dots attached to the word they belong to. The
-            // maxWidth frame — not a Spacer — pushes the trailing columns right.
-            HStack(spacing: 0) {
-                Text(displayStatus)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                // A fixed slot: the dots grow and shrink every 0.5s, and letting that
-                // reflow the status text would make its truncation flicker in time
-                // with them. Reserved even at rest so the column edge never moves.
-                Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
-                    .frame(width: RowLayout.dotsSlot, alignment: .leading)
-            }
-            .font(.claudeMono(11))
-            .foregroundStyle(statusColor)
-            .frame(maxWidth: .infinity, alignment: .leading)
+                // Column 2: Model, sized to the family word it actually holds.
+                Group {
+                    if let rawModel = feed.modelDisplay(for: session) {
+                        Text(FeedWatcher.modelFamily(rawModel))
+                            .font(.claudeMono(11)).fontWeight(.semibold)
+                            .foregroundStyle(Color.modelTint(rawModel))
+                            .lineLimit(1)
+                    } else {
+                        Text("")
+                    }
+                }
+                .frame(width: columns.model, alignment: .leading)
 
-            // Time + host chip travel together as one right-flush unit with a tight
-            // gap, so the time stays near the right edge with the tag just after it.
-            HStack(spacing: 4) {
-                // This session's own context tokens, tinted by how full its window
-                // is — the percentage still drives the color, it just isn't the
-                // number shown. The slot is held even when a session has no
-                // context_window yet, so the times below it stay aligned.
-                Text(contextTokens)
-                    .font(.claudeMono(11))
-                    .monospacedDigit()
-                    .foregroundStyle(contextColor)
-                    .frame(width: 30, alignment: .trailing)
+                // Status / Activity moved to the second row (see below); this Spacer
+                // takes over pushing the trailing columns right in its place.
+                Spacer(minLength: 0)
 
-                // Elapsed / waiting / done time in a fixed-width column so the times
-                // line up down the panel regardless of label.
-                Text(timeText)
-                    .font(.claudeMono(11))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .foregroundStyle(Color.secondary)
-                    .frame(width: 48, alignment: .trailing)
+                // Time + host chip travel together as one right-flush unit with a tight
+                // gap, so the time stays near the right edge with the tag just after it.
+                HStack(spacing: 4) {
+                    // This session's own context tokens, tinted by how full its window
+                    // is — the percentage still drives the color, it just isn't the
+                    // number shown. The slot is held even when a session has no
+                    // context_window yet, so the times below it stay aligned.
+                    Text(contextTokens)
+                        .font(.claudeMono(11))
+                        .monospacedDigit()
+                        .foregroundStyle(contextColor)
+                        .frame(width: 30, alignment: .trailing)
 
-                // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
-                // an ✕ clear button on hover so a session can be dismissed in place.
-                // A fixed width holds the slot constant so the time never shifts.
-                ZStack(alignment: .trailing) {
-                    Color.clear.frame(width: Constants.rowTrailingSlot, height: 1)
-                    if hover.isHovering {
-                        Button {
-                            feed.clear(item)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 12))
+                    // Elapsed / waiting / done time in a fixed-width column so the times
+                    // line up down the panel regardless of label.
+                    Text(timeText)
+                        .font(.claudeMono(11))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .foregroundStyle(Color.secondary)
+                        .frame(width: 48, alignment: .trailing)
+
+                    // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
+                    // an ✕ clear button on hover so a session can be dismissed in place.
+                    // A fixed width holds the slot constant so the time never shifts.
+                    ZStack(alignment: .trailing) {
+                        Color.clear.frame(width: Constants.rowTrailingSlot, height: 1)
+                        if hover.isHovering {
+                            Button {
+                                feed.clear(item)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(Color.secondary)
+                            .help("Clear this session")
+                        } else if let tag = session.hostTag {
+                            Text(tag.label)
+                                .font(.claudeMono(10))
+                                .foregroundStyle(tag.color)
+                                .padding(.horizontal, 4).padding(.vertical, 1)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(tag.color.opacity(0.16))
+                                )
                         }
-                        .buttonStyle(.plain)
-                        .foregroundColor(Color.secondary)
-                        .help("Clear this session")
-                    } else if let tag = session.hostTag {
-                        Text(tag.label)
-                            .font(.claudeMono(10))
-                            .foregroundStyle(tag.color)
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                    .fill(tag.color.opacity(0.16))
-                            )
                     }
                 }
             }
+
+            HStack(spacing: 8) {
+                TodoProgressBar(total: session.todoTotal ?? 0, done: session.todoDone ?? 0)
+
+                // Status / Activity, moved down from the first row so the bar's line
+                // carries both task progress and the session's current activity, with
+                // the working-dots attached to the word they belong to.
+                HStack(spacing: 0) {
+                    Text(displayStatus)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    // A fixed slot: the dots grow and shrink every 0.5s, and letting that
+                    // reflow the status text would make its truncation flicker in time
+                    // with them. Reserved even at rest so the column edge never moves.
+                    Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
+                        .frame(width: RowLayout.dotsSlot, alignment: .leading)
+                }
+                .font(.claudeMono(11))
+                .foregroundStyle(statusColor)
+            }
+            .padding(.leading, 20)  // aligns under the name column, past the glyph
         }
         // Everything in a row renders lowercase — including hook-supplied text like
         // the attention message and tool names — for one consistent visual voice.
