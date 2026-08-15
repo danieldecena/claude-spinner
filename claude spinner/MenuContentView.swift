@@ -11,6 +11,11 @@ import Combine
 
 struct MenuContentView: View {
     @ObservedObject var feed: FeedWatcher
+    /// In a popover the panel states its own width, because the popover sizes
+    /// itself to its content. In a resizable window that is backwards — the window
+    /// owns the width and the panel must fill it, or the two fight: the pinned
+    /// content forces the window back to `panelWidth` every time it is dragged.
+    var fillsWidth = false
     @StateObject private var install = InstallState()
 
     var body: some View {
@@ -95,7 +100,11 @@ struct MenuContentView: View {
 
             UsageFooter(feed: feed)
         }
-        .frame(width: feed.panelWidth)
+        // Two modifiers, not one: there is no `frame(width:maxWidth:)` overload, and
+        // writing it as one silently failed to compile while a stale binary kept
+        // answering the resize probes.
+        .frame(width: fillsWidth ? nil : feed.panelWidth)
+        .frame(maxWidth: fillsWidth ? .infinity : nil)
         // No visible Quit button; ⌘Q still terminates while the panel is open.
         // `.allowsHitTesting(false)` keeps this invisible button from swallowing a
         // row click as a quit while its ⌘Q keyboard shortcut still fires.

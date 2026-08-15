@@ -152,17 +152,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         if mainWindow == nil {
             feed.setPanelWidth(Constants.fittedPanelWidth(
                 visibleWidth: NSScreen.main?.visibleFrame.width))
-            let host = NSHostingController(rootView: MenuContentView(feed: feed))
-            let w = NSWindow(contentViewController: host)
-            w.styleMask = [.titled, .closable, .miniaturizable]
+            // Built from a bare NSHostingView rather than a contentViewController.
+            // The controller path could not do both halves of "resizable": its
+            // default sizingOptions publish the content's size as the window's min
+            // AND max (asked for 760x400, got 470x215 back), clearing them let the
+            // drag work but made AppKit open the window at 1904x1050, and
+            // `.preferredContentSize` fixed the open size and re-pinned the drag.
+            // A hosting view with an autoresizing mask has no such opinion: the
+            // window's own contentRect sizes it, and the view follows.
+            // Only the VERTICAL fill goes here. `maxWidth: .infinity` inflates the
+            // hosting view, `windowDidResize` writes that width into `panelWidth`,
+            // the content then demands it back, and the window can no longer shrink
+            // (measured: stuck at 1904 whatever it was asked for). Width is owned by
+            // `panelWidth` alone; height fills whatever the window is dragged to.
+            // No outer `.frame(maxWidth/maxHeight: .infinity)`: `fillsWidth` already
+            // frees the width inside the panel, and asking for infinity here is what
+            // made AppKit open the window at the size of the screen.
+            let hosting = NSHostingView(rootView: MenuContentView(feed: feed, fillsWidth: true))
+            hosting.autoresizingMask = [.width, .height]
+            // The hosting view goes inside a plain container. NSHostingView drives
+            // the window's size through its own constraints whichever way its
+            // content is framed — that is what kept pinning one axis or the other.
+            // A bare NSView has no intrinsic size and no constraints, so the window
+            // is free and the hosting view just follows it via the autoresize mask.
+            let container = NSView(frame: NSRect(x: 0, y: 0,
+                                                 width: Constants.panelWidth, height: 320))
+            hosting.frame = container.bounds
+            container.addSubview(hosting)
+
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: Constants.panelWidth, height: 320),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered, defer: false)
+            w.contentView = container
+            // Width has a floor because `RowLayout.columns` subtracts fixed slots
+            // from it without a `max(0)` guard, relying on the caller never handing
+            // it less than `panelMinWidth`.
+            w.contentMinSize = NSSize(width: Constants.panelMinWidth, height: 160)
+            // `setFrameAutosaveName` restores a saved frame the instant it is called,
+            // so it goes before the default size and the default is applied only when
+            // there was nothing to restore. Checking UserDefaults directly is the only
+            // way to tell: the call reports whether the NAME was set, not whether a
+            // frame came back. Without the explicit size a first run opens at
+            // 1904x1050 — the content can fill, so AppKit gives it the screen.
+            let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerPanel") != nil
+            w.setFrameAutosaveName("SpinnerPanel")
+            if !remembered {
+                w.setContentSize(NSSize(width: Constants.panelWidth, height: 320))
+                w.center()
+            }
             w.isReleasedWhenClosed = false
             w.delegate = self
-            w.center()
             mainWindow = w
             startWindowTitleUpdates()
         }
         mainWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Reflow the rows to the dragged width. `.resizable` alone is half a feature:
+    /// `MenuContentView` pins itself to `feed.panelWidth`, so without this the drag
+    /// would only add dead space beside a fixed-width panel.
+    ///
+    /// Deliberately not routed through `Constants.fittedPanelWidth` — that clamp
+    /// exists to keep a popover from overrunning a screen edge, and its 470pt
+    /// ceiling would silently ignore a window the user dragged wider. The floor is
+    /// upheld by `contentMinSize` instead.
+    func windowDidResize(_ notification: Notification) {
+        guard (notification.object as AnyObject?) === mainWindow,
+              let width = mainWindow?.contentView?.bounds.width else { return }
+        feed.setPanelWidth(max(Constants.panelMinWidth, width))
     }
 
     /// Closing the window hands the Dock icon back -- but only when there is a
