@@ -335,16 +335,25 @@ struct TodoProgressBar: View {
     let total: Int
     let done: Int
 
-    private static let boxCount = 10
+    static let boxCount = 10
+    /// Width of the percent text's fixed frame, in characters — "100%" is the
+    /// widest value the column ever has to hold.
+    private static let pctChars: CGFloat = 4
+
+    /// Rendered width of the whole bar (boxes + gap + percent), used by
+    /// `RowLayout` to budget line 2's status column against it. Mirrors the
+    /// view's own layout below: `boxCount` monospaced box glyphs, the 6pt gap,
+    /// and the percent text's own fixed-width frame.
+    static let width: CGFloat = CGFloat(boxCount) * RowLayout.monoAdvance + 6 + pctChars * RowLayout.monoAdvance
 
     static func percent(total: Int, done: Int) -> Int {
         guard total > 0 else { return 0 }
-        return Int((Double(done) / Double(total) * 100).rounded())
+        return min(100, max(0, Int((Double(done) / Double(total) * 100).rounded())))
     }
 
     static func filledBoxes(total: Int, done: Int) -> Int {
         guard total > 0 else { return 0 }
-        return Int((Double(done) / Double(total) * Double(boxCount)).rounded())
+        return min(boxCount, max(0, Int((Double(done) / Double(total) * Double(boxCount)).rounded())))
     }
 
     private var pct: Int { Self.percent(total: total, done: done) }
@@ -361,14 +370,20 @@ struct TodoProgressBar: View {
             .font(.claudeMono(11))
             .animation(.spring(response: 0.4, dampingFraction: 0.7), value: filled)
 
+            // Fixed width, trailing-aligned: "0%" and "100%" are 2-4 characters,
+            // and without a pinned frame that swing shifts the status text that
+            // follows it on line 2 every time a session's todos progress.
             Text("\(pct)%")
                 .font(.claudeMono(11)).monospacedDigit()
                 .foregroundStyle(total > 0 ? Color.claude : Color.secondary)
+                .frame(width: Self.pctChars * RowLayout.monoAdvance, alignment: .trailing)
         }
         .help(total > 0 ? "Task progress: \(done) of \(total) done" : "No task list yet")
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Task progress")
-        .accessibilityValue(total > 0 ? "\(done) of \(total) done, \(pct) percent" : "no task list")
+        // No accessibility modifiers here: SessionRow wraps the whole row in
+        // `.accessibilityElement(children: .ignore)`, which collapses this
+        // subtree into the row's own single element and its own
+        // `.accessibilityLabel` — anything set here would never reach VoiceOver.
+        // Task progress is folded into that label instead (see SessionRow).
     }
 }
 
@@ -386,21 +401,22 @@ extension SessionFeed {
     }
 }
 
-/// How a row divides the space its name, model and status columns share.
+/// How a row divides its width across two lines: line 1's name/model columns,
+/// and line 2's status column (beside the fixed-width `TodoProgressBar`).
 ///
-/// All three were once fixed (name 105 / model 46 / status 103), so the split was
-/// a guess made once for every row: `done` sat in a 103pt slot needing 26pt while
-/// the name truncated beside it, and `running TodoWrite` overran anyway. Model and
-/// status are the measurable ones — known vocabularies, monospaced font, always
-/// ASCII — so each takes what it needs and the name, unbounded prose, gets the
-/// rest. That makes `Constants.panelWidth` a free knob: every point added lands
-/// on the name.
+/// Name and model were once fixed (105 / 46), so the split was a guess made once
+/// for every row. Model is the measurable one — a known vocabulary, monospaced
+/// font, always ASCII — so it takes what it needs and the name, unbounded prose,
+/// gets the rest of line 1. Status moved to line 2 alongside the todo bar and is
+/// budgeted separately, against what that line actually has available, rather
+/// than sharing line 1's space the way it used to — see `columns(...)` below.
 enum RowLayout {
     /// Width of the animated working-dots slot, held even at rest so the column
-    /// edge doesn't move as the dots grow (see the SessionRow comment).
+    /// edge doesn't move as the dots grow (see the SessionRow comment). Lives on
+    /// line 2, next to the status text.
     static let dotsSlot: CGFloat = 13
-    /// The name never shrinks past this, even if a long tool name wants more —
-    /// past this point the status is the one that truncates.
+    /// The name never shrinks past this, even if a long model word wants more —
+    /// past this point the model is the one that gives way (see `columns`).
     static let minNameWidth: CGFloat = 70
     /// And it never grows past this. Reverses the 2026-07-17 split deliberately:
     /// the name used to absorb every spare point, which let one long session name
@@ -410,6 +426,15 @@ enum RowLayout {
     /// Headroom on the measured status width. Menlo's advance measures exact, but
     /// bug-111/122 both truncated a column budgeted to its arithmetic minimum.
     static let statusSlack: CGFloat = 4
+    /// Mirrors `SessionRow`'s `.padding(.horizontal, 10)` — one side of the row's
+    /// own padding, charged twice when budgeting line 2's available width.
+    static let rowHorizontalPadding: CGFloat = 10
+    /// Mirrors `SessionRow`'s second line `.padding(.leading, 20)`, which aligns
+    /// the todo bar and status text under the name column, past the glyph.
+    static let secondRowLeadingInset: CGFloat = 20
+    /// The `HStack(spacing: 8)` gap between the todo bar and the status text on
+    /// line 2.
+    static let todoStatusGap: CGFloat = 8
 
     /// One character's advance in the row font. Menlo is monospaced, so a string's
     /// width is its count times this — no per-string measurement per render, and
@@ -418,6 +443,21 @@ enum RowLayout {
         let font = NSFont(name: Font.claudeFontName, size: 11)
             ?? .monospacedSystemFont(ofSize: 11, weight: .regular)
         return ("m" as NSString).size(withAttributes: [.font: font]).width
+    }()
+
+    /// One line's height in the row font, measured the same way as `monoAdvance`.
+    /// Pins the working-dots slot's height, not just its width: `FeedWatcher.
+    /// workingDots` cycles through an empty `""` phase, and SwiftUI can size an
+    /// empty `Text` shorter than a non-empty one at the same font. On line 1 that
+    /// never showed, because the glyph `Text` beside it (font 13, never empty) was
+    /// always the tallest sibling and pinned the line's height regardless. Line 2
+    /// has no such permanently non-empty sibling once the dots go blank, so
+    /// without this the whole row — and everything below it — pulsed a line's
+    /// worth of height every ~0.5s (2026-08-15 second-row jitter).
+    static let lineHeight: CGFloat = {
+        let font = NSFont(name: Font.claudeFontName, size: 11)
+            ?? .monospacedSystemFont(ofSize: 11, weight: .regular)
+        return font.ascender - font.descender + font.leading
     }()
 
     /// What a measurable column needs to draw `text` without truncating.
@@ -458,7 +498,8 @@ enum RowLayout {
         return String(name.prefix(maxChars - 2)) + ".."
     }
 
-    /// The name, model and status column widths, shared by every row in the panel.
+    /// The name/model column widths (line 1) and the status column width (line 2),
+    /// shared by every row in the panel.
     struct Columns: Equatable {
         var name: CGFloat
         var model: CGFloat
@@ -482,26 +523,32 @@ enum RowLayout {
     /// `panelWidth` is the clamped, per-display width (see `Constants.fittedPanelWidth`);
     /// the caller guarantees it is at least `Constants.panelMinWidth`, which is why the
     /// subtractions below never need a `max(0)` guard.
+    ///
+    /// Name/model (line 1) and status (line 2) are budgeted independently now that
+    /// status renders on its own line beside the todo bar, not beside the name —
+    /// a long status label no longer eats into the name column, and neither
+    /// `dotsSlot` nor the todo bar's width belong to line 1's budget at all.
     static func columns(statusLabels: [String], models: [String], panelWidth: CGFloat) -> Columns {
         var model = models.map(width(for:)).max() ?? 0
         var status = statusLabels.map(width(for:)).max() ?? 0
-        let free = panelWidth - Constants.rowFixedColumns - dotsSlot
 
-        // The name's floor wins. The model gives way first: a model word is
-        // recoverable from the row's tooltip, and there are only ever a few of
-        // them, whereas a truncated session name is what makes two rows in one
-        // directory indistinguishable.
-        let over = model + status - (free - minNameWidth)
-        if over > 0 {
-            let fromModel = min(model, over)
-            model -= fromModel
-            status -= (over - fromModel)
-        }
-        // The name takes what's left, capped. Points above the cap are simply not
-        // claimed here — `SessionRow` gives its status column `maxWidth: .infinity`,
-        // so they land there and the trailing ctx/time/chip columns stay put.
-        return Columns(name: min(free - model - status, maxNameWidth),
-                       model: model, status: status)
+        // Line 1: name and model only. The name's floor wins — the model gives
+        // way first, since a model word is recoverable from the row's tooltip and
+        // there are only ever a few of them, whereas a truncated session name is
+        // what makes two rows in one directory indistinguishable.
+        let modelCap = max(0, panelWidth - Constants.rowFixedColumns - minNameWidth)
+        model = min(model, modelCap)
+        let name = min(panelWidth - Constants.rowFixedColumns - model, maxNameWidth)
+
+        // Line 2: status shares its budget with the todo bar, sized against what
+        // that line actually has — the row's own horizontal padding (charged on
+        // both sides), the second row's leading inset, the bar's rendered width,
+        // the gap between the bar and the status text, and the working-dots slot.
+        let line2Width = panelWidth - 2 * rowHorizontalPadding - secondRowLeadingInset
+        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap - dotsSlot)
+        status = min(status, statusBudget)
+
+        return Columns(name: name, model: model, status: status)
     }
 }
 
@@ -619,7 +666,7 @@ struct SessionRow: View {
             }
 
             HStack(spacing: 8) {
-                TodoProgressBar(total: session.todoTotal ?? 0, done: session.todoDone ?? 0)
+                TodoProgressBar(total: session.todoProgress.total, done: session.todoProgress.done)
 
                 // Status / Activity, moved down from the first row so the bar's line
                 // carries both task progress and the session's current activity, with
@@ -630,9 +677,11 @@ struct SessionRow: View {
                         .truncationMode(.tail)
                     // A fixed slot: the dots grow and shrink every 0.5s, and letting that
                     // reflow the status text would make its truncation flicker in time
-                    // with them. Reserved even at rest so the column edge never moves.
+                    // with them. Reserved even at rest so the column edge never moves —
+                    // height included, so the empty phase of the cycle can't shrink the
+                    // row (see `RowLayout.lineHeight`).
                     Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
-                        .frame(width: RowLayout.dotsSlot, alignment: .leading)
+                        .frame(width: RowLayout.dotsSlot, height: RowLayout.lineHeight, alignment: .leading)
                 }
                 .font(.claudeMono(11))
                 .foregroundStyle(statusColor)
@@ -664,7 +713,7 @@ struct SessionRow: View {
             Button("Clear") { feed.clear(item) }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(session.displayName), \(statusLabel) \(timeText)\(contextTokens.isEmpty ? "" : ", \(contextTokens) context tokens")")
+        .accessibilityLabel(accessibilityLabelText)
         .accessibilityHint("Opens this session's app")
         // children: .ignore hides the hover-revealed ✕ entirely, so clearing a
         // session is otherwise unreachable without a mouse.
@@ -813,6 +862,19 @@ struct SessionRow: View {
             parts.append("updated: \(FeedWatcher.compactAge(since: updated, now: now)) ago")
         }
         return parts.joined(separator: "\n")
+    }
+
+    /// The row collapses to one VoiceOver element (`accessibilityElement(children:
+    /// .ignore)` above), so this is the only place task-progress info can reach an
+    /// assistive user — `TodoProgressBar`'s own accessibility modifiers are inert
+    /// inside this row and don't contribute here.
+    private var accessibilityLabelText: String {
+        var text = "\(session.displayName), \(statusLabel) \(timeText)"
+        if !contextTokens.isEmpty { text += ", \(contextTokens) context tokens" }
+        if session.todoTotal != nil {
+            text += ", task progress \(session.todoProgress.done) of \(session.todoProgress.total)"
+        }
+        return text
     }
 }
 

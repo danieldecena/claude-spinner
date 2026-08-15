@@ -30,10 +30,11 @@ enum Constants {
     /// Spinner frame rate used to index the glyph by wall-clock time.
     static let spinnerFPS = 10.0
     /// Dropdown panel's preferred/max width. Only `rowFixedColumns` of a row is
-    /// actually fixed; the name, model and status divide the rest per row (see
-    /// `RowLayout`), so this is a free knob — widening it goes straight to the
-    /// session name, which is the one column holding unbounded prose. Clamped down
-    /// to the status item's screen `visibleFrame` at show time by `fittedPanelWidth`.
+    /// actually fixed; name and model divide the rest of line 1, and status divides
+    /// line 2 against its own budget (see `RowLayout`), so this is a free knob —
+    /// widening it goes straight to the session name, which is the one column
+    /// holding unbounded prose. Clamped down to the status item's screen
+    /// `visibleFrame` at show time by `fittedPanelWidth`.
     static let panelWidth: CGFloat = 470
     /// Floor the clamp never drops below. The row budget goes negative under ~253
     /// (`rowFixedColumns` 170 + `RowLayout.dotsSlot` 13 + `RowLayout.minNameWidth`
@@ -362,6 +363,14 @@ struct SessionFeed: Identifiable {
     var contextTokens: Int? {
         guard contextInputTokens != nil || contextOutputTokens != nil else { return nil }
         return (contextInputTokens ?? 0) + (contextOutputTokens ?? 0)
+    }
+
+    /// The `(total, done)` pair `TodoProgressBar` actually draws, coalesced from
+    /// the optional decoded counts. The real call site (`SessionRow`) and its
+    /// tests should both go through this rather than each inlining `?? 0` —
+    /// the value the bar renders and the value tested must be the same one.
+    var todoProgress: (total: Int, done: Int) {
+        (todoTotal ?? 0, todoDone ?? 0)
     }
 
     /// Home-relative path the way the terminal shows it, e.g. `~/apply`.

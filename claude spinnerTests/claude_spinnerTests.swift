@@ -71,6 +71,55 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(s.todoDone)
     }
 
+    // MARK: - End-to-end join: real state JSON -> SessionFeed.todoProgress -> TodoProgressBar
+
+    /// The real call site is `TodoProgressBar(total: session.todoProgress.total,
+    /// done: session.todoProgress.done)` in `SessionRow`. Task 2's tests stop at
+    /// `SessionFeed.todoTotal`/`todoDone`; Task 3's tests start from bare `Int`s.
+    /// This is the one test that walks the whole path a real feed file takes.
+    func testTodoProgressEndToEndFromDecodedStateJSON() throws {
+        var s = SessionFeed(id: "x")
+        try s.applyStateJSONForTest("""
+        {"todo_total":3,"todo_done":1}
+        """)
+        let progress = s.todoProgress
+        XCTAssertEqual(progress.total, 3)
+        XCTAssertEqual(progress.done, 1)
+        XCTAssertEqual(TodoProgressBar.percent(total: progress.total, done: progress.done), 33)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: progress.total, done: progress.done), 3)
+    }
+
+    /// A session with no todos yet decodes to nil counts, which `todoProgress`
+    /// coalesces to `(0, 0)` — the bar draws empty, not a crash or a misleading 0%.
+    func testTodoProgressEndToEndWithNoTodosYet() throws {
+        var s = SessionFeed(id: "x")
+        try s.applyStateJSONForTest("{}")
+        let progress = s.todoProgress
+        XCTAssertEqual(progress.total, 0)
+        XCTAssertEqual(progress.done, 0)
+        XCTAssertEqual(TodoProgressBar.percent(total: progress.total, done: progress.done), 0)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: progress.total, done: progress.done), 0)
+    }
+
+    // MARK: - Bundled Scripts/emit.sh stays in sync with the live spinnerfeed copy
+
+    /// This repo bundles its own copy of `emit.sh` (installed to
+    /// `~/.claude/spinnerfeed/emit.sh` by `SetupInstaller`), separate from that
+    /// live copy in the `~/.claude` repo. The bundled copy predated todo capture
+    /// entirely and drifted out of sync once; this is a cheap content-parity smoke
+    /// check, not a full diff, so that drift can't happen silently again.
+    func testBundledEmitScriptCapturesTodoProgress() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let scriptURL = testFile
+            .deletingLastPathComponent()               // claude spinnerTests/
+            .deletingLastPathComponent()                // repo root
+            .appendingPathComponent("claude spinner/Scripts/emit.sh")
+        let contents = try String(contentsOf: scriptURL, encoding: .utf8)
+        XCTAssertTrue(contents.contains("todo_total"),
+                      "bundled Scripts/emit.sh is missing todo-capture logic — sync it from ~/.claude/spinnerfeed/emit.sh")
+        XCTAssertTrue(contents.contains("todo_done"))
+    }
+
     // MARK: - Spinner words (seeded, stable, present/past paired)
 
     func testSpinnerWordSeedingIsStableAndPaired() {
@@ -115,6 +164,19 @@ final class claude_spinnerTests: XCTestCase {
 
         XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 3), 100)
         XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 3), 10)
+    }
+
+    /// `done` can come from a state file written by a different process/repo, so
+    /// the Swift layer can't assume it's ever validated against `total`. Before the
+    /// clamp, `done > total` sent `filled` past `boxCount` and
+    /// `String(repeating:count:)` trapped on the resulting negative count — a
+    /// state-file value from another process could crash the whole app.
+    func testTodoProgressBarMathClampsOutOfRangeDone() {
+        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 5), 100)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 5), 10)
+
+        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: -2), 0)
+        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: -2), 0)
     }
 
     func testCompactAge() {
@@ -268,11 +330,10 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(mixed, widest)
     }
 
-    /// Spare width lands on the name *up to the cap*. This test asserted the
-    /// uncapped rule until 2026-08-12 — at `panelWidth` 470 every one of these cases
-    /// now sits at `maxNameWidth`, so the old strict inequalities were the first
-    /// thing the cap broke. What still has to hold is that the name flexes with the
-    /// space available, which shows below the cap.
+    /// Spare width lands on the name *up to the cap*. Status no longer competes
+    /// for it at all post-fix-2 — it moved to line 2 with the todo bar — so a
+    /// longer status label leaves line 1's name/model split completely untouched;
+    /// only the model word still takes from the name, and only below the cap.
     func testSpareWidthGoesToTheNameUpToTheCap() {
         let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"],
                                       panelWidth: Constants.panelWidth)
@@ -280,70 +341,79 @@ final class claude_spinnerTests: XCTestCase {
                                      panelWidth: Constants.panelWidth)
         XCTAssertEqual(short.name, RowLayout.maxNameWidth)
         XCTAssertEqual(long.name, RowLayout.maxNameWidth)
+        XCTAssertEqual(short.name, long.name, "line 1's name no longer depends on line 2's status")
         XCTAssertGreaterThan(long.name, 105, "still beats the old fixed 105pt column")
 
-        // Below the cap the original rule is intact: a longer status and a wider
-        // model word each take from the name.
-        let narrow = Constants.panelMinWidth
-        XCTAssertGreaterThan(
-            RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name,
-            RowLayout.columns(statusLabels: ["running bash"], models: ["opus"], panelWidth: narrow).name)
-        XCTAssertGreaterThan(
-            RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name,
-            RowLayout.columns(statusLabels: ["done"], models: ["sonnet"], panelWidth: narrow).name)
+        // Below the cap, a wider model word still takes from the name — this is
+        // narrow enough that neither model saturates the cap.
+        let narrow: CGFloat = 300
+        let opusName = RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name
+        let sonnetName = RowLayout.columns(statusLabels: ["done"], models: ["sonnet"], panelWidth: narrow).name
+        XCTAssertLessThan(opusName, RowLayout.maxNameWidth, "test width chosen to sit below the cap")
+        XCTAssertGreaterThan(opusName, sonnetName)
+
+        // A longer status at the same narrow width leaves the name exactly alone.
+        let opusNameLongStatus = RowLayout.columns(statusLabels: ["running bash"], models: ["opus"],
+                                                    panelWidth: narrow).name
+        XCTAssertEqual(opusName, opusNameLongStatus)
     }
 
-    /// The name's floor wins, and the model gives way before the status does.
-    func testNameFloorHoldsAndModelGivesWayFirst() {
-        let c = RowLayout.columns(
-            statusLabels: ["running " + String(repeating: "x", count: 200)],
-            models: ["sonnet"], panelWidth: Constants.panelWidth)
+    /// The name's floor wins on line 1, and the model is the one that gives way —
+    /// status can't touch this anymore since it's budgeted entirely on line 2.
+    func testNameFloorHoldsAndModelGivesWayOnLineOne() {
+        let hugeModel = "m" + String(repeating: "x", count: 200)
+        let c = RowLayout.columns(statusLabels: ["done"], models: [hugeModel], panelWidth: Constants.panelWidth)
         XCTAssertEqual(c.name, RowLayout.minNameWidth)
-        XCTAssertEqual(c.model, 0)
-        XCTAssertGreaterThan(c.status, 0)
+        XCTAssertEqual(c.model, Constants.panelWidth - Constants.rowFixedColumns - RowLayout.minNameWidth)
+        XCTAssertGreaterThan(c.status, 0, "line 2's status is untouched by line 1's squeeze")
     }
 
-    /// The columns must never exceed the row's budget. They no longer have to *fill*
-    /// it: since the name is capped at `maxNameWidth`, a row with short labels leaves
-    /// slack, which `SessionRow`'s `maxWidth: .infinity` status column absorbs. The
-    /// assertion is therefore `<=`, not `==` — the equality held only while the name
-    /// swallowed every spare point.
-    func testColumnsNeverOverrunTheirBudget() {
+    /// Line 1's columns must never exceed its own budget (`rowFixedColumns`
+    /// doesn't include status or the todo bar — those live on line 2 now).
+    func testLine1ColumnsNeverOverrunTheirBudget() {
         let budget = Constants.panelWidth - Constants.rowFixedColumns
-        for label in ["done", "needs input", "running bash", "running TodoWrite",
-                      "running " + String(repeating: "x", count: 200)] {
-            for model in ["opus", "sonnet", ""] {
-                let c = RowLayout.columns(statusLabels: [label], models: [model],
-                                          panelWidth: Constants.panelWidth)
-                XCTAssertLessThanOrEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
-                                         budget + 0.01,
-                                         "\"\(label)\"/\"\(model)\" overruns the row")
-                XCTAssertGreaterThanOrEqual(c.name, RowLayout.minNameWidth, "name floor broken")
-                XCTAssertLessThanOrEqual(c.name, RowLayout.maxNameWidth, "name cap broken")
-            }
+        for model in ["opus", "sonnet", "haiku", "", "m" + String(repeating: "x", count: 200)] {
+            let c = RowLayout.columns(statusLabels: ["done"], models: [model], panelWidth: Constants.panelWidth)
+            XCTAssertLessThanOrEqual(c.name + c.model, budget + 0.01, "\"\(model)\" overruns line 1")
+            XCTAssertGreaterThanOrEqual(c.name, RowLayout.minNameWidth, "name floor broken")
+            XCTAssertLessThanOrEqual(c.name, RowLayout.maxNameWidth, "name cap broken")
         }
     }
 
-    /// A long tool name still claims the slack the cap frees, rather than it being
-    /// lost: the widest status label this panel can hold grows past what it would
-    /// have had when the name took everything.
-    func testFreedWidthIsAvailableToTheStatusColumn() {
+    /// Line 2's status must never exceed what that line actually has, once the
+    /// todo bar, the gap, and the working-dots slot are accounted for.
+    func testLine2StatusNeverOverrunsItsBudget() {
+        let line2Budget = Constants.panelWidth - 2 * RowLayout.rowHorizontalPadding
+            - RowLayout.secondRowLeadingInset - TodoProgressBar.width
+            - RowLayout.todoStatusGap - RowLayout.dotsSlot
+        for label in ["done", "needs input", "running bash", "running TodoWrite",
+                      "running " + String(repeating: "x", count: 200)] {
+            let c = RowLayout.columns(statusLabels: [label], models: ["opus"], panelWidth: Constants.panelWidth)
+            XCTAssertLessThanOrEqual(c.status, max(0, line2Budget) + 0.01, "\"\(label)\" overruns line 2")
+        }
+    }
+
+    /// Status is sized purely from its own line-2 budget now — a longer label
+    /// simply claims more of that budget, not "freed" slack from a shorter name
+    /// (that coupling existed pre-fix-2 and no longer does).
+    func testStatusWidthReflectsItsOwnLabelNotTheNameColumn() {
         let short = RowLayout.columns(statusLabels: ["done"], models: ["opus"],
                                       panelWidth: Constants.panelWidth)
         let long = RowLayout.columns(statusLabels: ["running TodoWrite"], models: ["opus"],
                                      panelWidth: Constants.panelWidth)
         XCTAssertGreaterThan(long.status, short.status)
         XCTAssertLessThanOrEqual(long.name, RowLayout.maxNameWidth)
+        XCTAssertEqual(long.name, short.name, "line 1's name doesn't depend on line 2's status at all")
     }
 
-    /// An empty panel has nothing to measure, so the name takes the whole remaining
-    /// budget — capped, like every other case.
+    /// An empty panel has nothing to measure on either line — line 1's name takes
+    /// the whole remaining budget (capped), line 2's status is empty.
     func testEmptyPanelStillProducesASaneBudget() {
         let c = RowLayout.columns(statusLabels: [], models: [],
                                   panelWidth: Constants.panelWidth)
         XCTAssertEqual(c.model, 0)
-        XCTAssertEqual(c.name, min(RowLayout.maxNameWidth,
-                                   Constants.panelWidth - Constants.rowFixedColumns - RowLayout.dotsSlot))
+        XCTAssertEqual(c.name, min(RowLayout.maxNameWidth, Constants.panelWidth - Constants.rowFixedColumns))
+        XCTAssertEqual(c.status, 0)
     }
 
     /// The clamp keeps the panel on screen: capped at the preferred width, floored
@@ -392,6 +462,18 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(RowLayout.countBadgeWidth(1), 0)
         XCTAssertGreaterThan(RowLayout.countBadgeWidth(2), 0)
         XCTAssertGreaterThan(RowLayout.countBadgeWidth(10), RowLayout.countBadgeWidth(2))
+    }
+
+    /// Regression guard for the 2026-08-15 second-row jitter: the working-dots
+    /// `Text` needs a real, positive fixed height (not just width), or its empty
+    /// phase can size shorter than its non-empty phases and the whole row (and
+    /// everything below it) pulses in place every ~0.5s. A font's ascender sits
+    /// above the baseline and its descender below, so this is the one measured
+    /// constant in the file where a naive sum would double-count -- subtracting
+    /// (descender is already negative) is deliberate, not a typo.
+    func testLineHeightIsPositiveAndAtLeastTheFontSize() {
+        XCTAssertGreaterThan(RowLayout.lineHeight, 11,
+                             "line height should be at least the 11pt font size")
     }
 
     /// The stored surface preference round-trips, and anything else -- an absent key
@@ -450,17 +532,30 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertFalse(Constants.statusItemIsUnplaced(itemFrame: placed, screenFrame: secondary))
     }
 
-    /// At the narrowest clamped width the row budget still holds: the name keeps its
-    /// floor, the model sheds before the status, and the columns sum to the budget.
-    func testColumnsHoldAtMinWidth() {
+    /// At the narrowest clamped width, line 1's budget still holds when the squeeze
+    /// comes from a giant model word: the name keeps its floor and the model sheds
+    /// exactly enough to protect it.
+    func testLine1ColumnsHoldAtMinWidthWithAGiantModel() {
+        let c = RowLayout.columns(
+            statusLabels: ["done"],
+            models: ["m" + String(repeating: "x", count: 200)], panelWidth: Constants.panelMinWidth)
+        XCTAssertEqual(c.name, RowLayout.minNameWidth)
+        XCTAssertEqual(c.model, Constants.panelMinWidth - Constants.rowFixedColumns - RowLayout.minNameWidth)
+        XCTAssertEqual(c.name + c.model, Constants.panelMinWidth - Constants.rowFixedColumns, accuracy: 0.01)
+    }
+
+    /// And at that same narrow width, line 2's status still clamps to its own
+    /// budget independent of line 1 — a giant status label doesn't touch the
+    /// name/model split, only its own line.
+    func testLine2StatusHoldsAtMinWidthWithAGiantStatus() {
         let c = RowLayout.columns(
             statusLabels: ["running " + String(repeating: "x", count: 200)],
             models: ["sonnet"], panelWidth: Constants.panelMinWidth)
-        XCTAssertEqual(c.name, RowLayout.minNameWidth)
-        XCTAssertGreaterThanOrEqual(c.model, 0)
-        XCTAssertGreaterThanOrEqual(c.status, 0)
-        XCTAssertEqual(c.name + c.model + RowLayout.dotsSlot + c.status,
-                       Constants.panelMinWidth - Constants.rowFixedColumns, accuracy: 0.01)
+        XCTAssertEqual(c.name, RowLayout.maxNameWidth, "model is short, so name saturates the cap")
+        let line2Budget = Constants.panelMinWidth - 2 * RowLayout.rowHorizontalPadding
+            - RowLayout.secondRowLeadingInset - TodoProgressBar.width
+            - RowLayout.todoStatusGap - RowLayout.dotsSlot
+        XCTAssertEqual(c.status, max(0, line2Budget), accuracy: 0.01)
     }
 
     /// A tool name too long for its column is cut to fit here, so SwiftUI's own

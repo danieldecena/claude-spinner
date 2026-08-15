@@ -25,9 +25,13 @@ msg=$(printf '%s' "$input" | jq -r '.message // empty')
 prev_ts=$(jq -r '.turn_start // empty' "$f" 2>/dev/null)
 prev_seed=$(jq -r '.last_seed // empty' "$f" 2>/dev/null)
 prev_dur=$(jq -r '.last_duration // empty' "$f" 2>/dev/null)
+prev_todo_total=$(jq -r '.todo_total // empty' "$f" 2>/dev/null)
+prev_todo_done=$(jq -r '.todo_done // empty' "$f" 2>/dev/null)
 
 last_seed="$prev_seed"
 last_duration="$prev_dur"
+todo_total="$prev_todo_total"
+todo_done="$prev_todo_done"
 
 # Host app the session runs in, so the menubar can open the right one on click.
 # __CFBundleIdentifier is inherited from the launching GUI app (Claude desktop,
@@ -56,7 +60,7 @@ done
 [ -z "$pid" ] && pid=$(jq -r '.pid // empty' "$f" 2>/dev/null)
 
 case "$event" in
-    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration="" ;;
+    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
     UserPromptSubmit) status=thinking;  turn_start="$now"; last_seed=""; last_duration="" ;;
     PreToolUse)       status=tool;      turn_start="$prev_ts" ;;
     PostToolUse)      status=thinking;  turn_start="$prev_ts" ;;
@@ -72,12 +76,18 @@ case "$event" in
     *) exit 0 ;;
 esac
 
+if [ "$event" = "PostToolUse" ] && [ "$tool" = "TodoWrite" ]; then
+    todos_json=$(printf '%s' "$input" | jq -c '.tool_input.todos // []')
+    todo_total=$(printf '%s' "$todos_json" | jq 'length')
+    todo_done=$(printf '%s' "$todos_json" | jq '[.[] | select(.status == "completed")] | length')
+fi
+
 tmp="$f.tmp.$$"
 jq -n \
     --arg sid "$sid" --arg status "$status" --arg tool "$tool" \
     --arg cwd "$cwd" --arg msg "$msg" --arg ts "$turn_start" --arg now "$now" \
     --arg ls "$last_seed" --arg ld "$last_duration" --arg host "$host" \
-    --arg pid "$pid" \
+    --arg pid "$pid" --arg tt "$todo_total" --arg td "$todo_done" \
     '{
         session_id:    $sid,
         status:        $status,
@@ -87,6 +97,8 @@ jq -n \
         host:          $host,
         pid:           (if $pid == "" then null else ($pid | tonumber) end),
         turn_start:    (if $ts == "" then null else ($ts | tonumber) end),
+        todo_total:    (if $tt == "" then null else ($tt | tonumber) end),
+        todo_done:     (if $td == "" then null else ($td | tonumber) end),
         last_seed:     (if $ls == "" then null else ($ls | tonumber) end),
         last_duration: (if $ld == "" then null else ($ld | tonumber) end),
         updated:       ($now | tonumber)
