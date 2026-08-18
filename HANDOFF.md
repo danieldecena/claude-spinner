@@ -33,31 +33,34 @@ The app (`FeedWatcher`) watches the directory with a `DispatchSource` vnode sour
 
 ### Source files (`claude spinner/`)
 - `claude_spinnerApp.swift` — `@main` App (empty `Settings` scene), `AppDelegate`
-  owning the `NSStatusItem` + `NSPopover`, the right-click settings menu,
-  `MenuBarLabel`, `Spinner` frames, and Color/Font extensions (incl. `claude`,
-  `claudeBright`, `menuIdle`, `usageTint`, `contextTint`, `modelTint`).
+  owning the `NSStatusItem` + `NSPopover`, window fallback, the right-click
+  settings menu, `MenuBarLabel`, `Spinner` frames, and Color/Font extensions
+  (incl. `claude`, `claudeBright`, `menuIdle`, `usageTint`, `contextTint`,
+  `modelTint`).
 - `FeedWatcher.swift` — `Constants`, enums (`SessionStatus`, `MenuBarMode`,
   `MenuBarState`), Codable `StateFile`/`StatusFile`, `SessionFeed`, `UsageSnapshot`,
   `SessionRowItem`, and the `FeedWatcher` observable (watch/rescan/prune, state
   derivation, usage getters, actions).
 - `MenuContentView.swift` — the dropdown panel: `UsageFooter` and `SessionRow`.
+- `SetupInstaller.swift` — first-run **Install hooks**: copies bundled scripts
+  into `~/.claude` and back-up-then-merges hooks / statusLine into settings.json.
 - `claude spinnerTests/claude_spinnerTests.swift` — XCTest over the pure logic.
 
 ---
 
 ## Build / run
 
-- **Canonical build:** open `claude spinner.xcodeproj` in Xcode, Run (or Archive).
-  The app targets **macOS 27** (dev machine).
-- **Tests:** Cmd+U in Xcode (or an Xcode connector). CI can't run them (see below).
-- **Dev loop used this session (no Xcode available in the agent env):** compile the
-  three sources with `xcrun --sdk macosx swiftc -O -target arm64-apple-macos27.0 …`,
-  copy the binary into the installed bundle's `Contents/MacOS/`, `codesign --force
-  --deep --sign -`, and relaunch. There's also a **Relaunch** item in the app's
-  right-click menu.
-- **CI** (`.github/workflows/swift.yml`): a `swiftc -typecheck` at macOS 14 — a
-  compile check only. A full `xcodebuild archive` is infeasible on GitHub runners
-  because the app targets macOS 27; running XCTest needs Xcode. Green as of handoff.
+- **Canonical build:** `./run.sh` (xcodebuild when full Xcode is selected, else
+  a `swiftc` fallback that copies into `/Applications/claude spinner.app`).
+  The app targets **macOS 27** (hard floor). Cursor debug uses a preLaunchTask
+  that resolves `BUILT_PRODUCTS_DIR` the same way; do not hardcode a DerivedData
+  hash.
+- **Tests:** `killall "claude spinner"` then `xcodebuild -scheme "claude spinner" test`
+  (optional `xcbeautify` on the pipe). Unit target only; UITests are skipped in
+  the shared scheme. Cmd+U in Xcode still works.
+- **CI** (`.github/workflows/swift.yml`): self-hosted macOS runner, real
+  `xcodebuild test` (not `swiftc -typecheck`). GitHub-hosted runners cannot open
+  Xcode 27 format 110. Green as of handoff.
 
 ---
 
@@ -112,9 +115,9 @@ Board is clear. One known limitation remains, deferred by design:
 
 ## Working conventions
 
-- TDD for new behavior (red → green → refactor). No Xcode in the agent env, so the
-  test runner is a `swiftc` harness (compile `FeedWatcher.swift` + a `main.swift`
-  with a `Spinner` stub, assert, run) mirrored into the XCTest file.
+- TDD for new behavior (red → green → refactor). Tests run with
+  `xcodebuild -scheme "claude spinner" test` after `killall "claude spinner"`.
+  The old agent-env `swiftc` harness is gone.
 - OpenWolf: update `.wolf/anatomy.md`, `.wolf/memory.md`, `.wolf/cerebrum.md`,
   `.wolf/buglog.json`; check them before editing/creating.
 - Commits: imperative subject, `Co-Authored-By: Claude <noreply@anthropic.com>`.

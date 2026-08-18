@@ -8,6 +8,7 @@ DerivedData/
 # rebuild a diff while nothing asserted it still matched the source.
 graphify-out/
 buildServer.json
+.vscode/debug-binary
 
 # OpenWolf per-session runtime state
 .wolf/hooks/_session.json

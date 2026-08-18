@@ -3,8 +3,7 @@
 # Runs on a SELF-HOSTED macOS runner because the project is saved in Xcode 27
 # format (objectVersion 110), which GitHub's hosted runners (Xcode 26.x) cannot
 # open. The self-hosted runner is a Mac with Xcode 27 selected as the active
-# toolchain (xcode-select). See CONTRIBUTING / repo Settings > Actions > Runners
-# for registration.
+# toolchain (xcode-select). Register it in repo Settings > Actions > Runners.
 #
 # Why a real `xcodebuild test` and not just `swiftc -typecheck`:
 #   - A prior type-check-only CI passed while the app failed to BUILD (a missing

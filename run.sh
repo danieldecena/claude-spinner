@@ -1,16 +1,28 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "Building Claude Spinner..."
+
+beautify() {
+    if command -v xcbeautify >/dev/null; then
+        xcbeautify
+    else
+        cat
+    fi
+}
 
 # Check if xcodebuild is functional (requires full Xcode, not just CommandLineTools)
 if xcodebuild -version &>/dev/null; then
     echo "Using xcodebuild..."
-    xcodebuild -scheme "claude spinner" build | xcbeautify
+    xcodebuild -scheme "claude spinner" build | beautify
     # Derive the built .app path from build settings so it survives the
     # DerivedData hash changing (it's keyed on the project path, not fixed).
     app=$(xcodebuild -scheme "claude spinner" -configuration Debug -showBuildSettings 2>/dev/null \
         | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{d=$2} / FULL_PRODUCT_NAME /{n=$2} END{print d"/"n}')
+    if [ -z "$app" ] || [ "$app" = "/" ]; then
+        echo "error: could not resolve BUILT_PRODUCTS_DIR / FULL_PRODUCT_NAME" >&2
+        exit 1
+    fi
     killall "claude spinner" 2>/dev/null || true
     echo "Launching $app..."
     open "$app"
@@ -21,7 +33,7 @@ else
     # literal list silently rots behind that — SetupInstaller.swift was added and
     # never listed here, which left this whole branch unable to compile.
     xcrun --sdk macosx swiftc -O -o claude-spinner "claude spinner"/*.swift
-    
+
     if [ -d "/Applications/claude spinner.app" ]; then
         echo "Copying built binary to /Applications/claude spinner.app..."
         cp claude-spinner "/Applications/claude spinner.app/Contents/MacOS/claude spinner"

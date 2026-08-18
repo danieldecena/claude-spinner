@@ -5,7 +5,8 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug Claude Spinner",
-            "program": "/Users/home/Library/Developer/Xcode/DerivedData/claude_spinner-hbrhhtxpzvnhjnfsmxizfybdsven/Build/Products/Debug/claude spinner.app/Contents/MacOS/claude spinner",
+            "program": "${workspaceFolder}/.vscode/debug-binary",
+            "preLaunchTask": "Resolve Debug Binary",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

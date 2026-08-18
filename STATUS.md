@@ -9,10 +9,10 @@
   opens the panel as a real window titled with the live readout, and hangs the
   full settings menu off a "Spinner" main-menu submenu so nothing is stranded
   behind an icon that isn't there. Both placed and unplaced observed live
-  2026-08-12; 66 unit tests green.
+  2026-08-12; 82 unit tests green.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 67 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 82 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
 - Which surface the app presents is a choice, not luck. `Show in` (Menu bar /
   Window, persisted, default Menu bar) sits in the settings menu; Window creates
