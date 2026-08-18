@@ -48,6 +48,15 @@ enum Constants {
     static let panelMinWidth: CGFloat = 360
     /// Clearance kept between the panel's edge and the screen edge when clamping.
     static let panelScreenMargin: CGFloat = 16
+    /// Horizontal inset applied once per nesting depth (visual depth is 1).
+    /// Also charged on every row's line-2 status budget so a child status
+    /// cannot overflow; roots donate 16pt of unused status width.
+    static let childRowIndent: CGFloat = 16
+    /// Ceiling for the popover's session list. A 2-line row is ~40pt; this
+    /// is about six rows, after which the list scrolls instead of growing
+    /// the popover off the screen. The standalone window uses
+    /// `maxHeight: .infinity` instead (the window itself is the viewport).
+    static let panelListMaxHeight: CGFloat = 240
 
     /// The panel width to use given the status item's screen width, clamped so the
     /// panel never overruns the screen edge (the far-right-of-menu-bar clip) nor

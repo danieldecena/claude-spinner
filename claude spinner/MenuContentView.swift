@@ -79,15 +79,19 @@ struct MenuContentView: View {
                         statusLabels: rows.map(\.session.statusLabel),
                         models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" },
                         panelWidth: feed.panelWidth)
-                    VStack(spacing: 0) {
-                        ForEach(rows) { item in
+                    let list = VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                             SessionRow(feed: feed, item: item, now: context.date, columns: columns)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
-                            if item.id != rows.last?.id {
+                            if index < rows.count - 1 && rows[index + 1].depth == 0 {
                                 Divider().opacity(0.5)
                             }
                         }
                     }
+                    ScrollView(.vertical, showsIndicators: true) {
+                        list
+                    }
+                    .frame(maxHeight: fillsWidth ? .infinity : Constants.panelListMaxHeight)
                     // Animate only when the set/order of rows changes (keyed by ids),
                     // not on every 0.1s spinner tick.
                     .animation(.easeInOut(duration: 0.2), value: rows.map(\.id))
@@ -551,6 +555,7 @@ enum RowLayout {
         // both sides), the second row's leading inset, the bar's rendered width,
         // the gap between the bar and the status text, and the working-dots slot.
         let line2Width = panelWidth - 2 * rowHorizontalPadding - secondRowLeadingInset
+            - Constants.childRowIndent
         let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap - dotsSlot)
         status = min(status, statusBudget)
 
@@ -567,6 +572,14 @@ struct SessionRow: View {
     @StateObject private var hover = HoverState()
 
     private var session: SessionFeed { item.session }
+
+    private var indent: CGFloat { CGFloat(item.depth) * Constants.childRowIndent }
+
+    /// The `×N` idle-collapse badge: only for a row grouping several idle
+    /// sessions sharing a directory. A parent row with real subagent children
+    /// also has `item.count > 1` (subagent ids ride along on `ids` so `clear()`
+    /// cascades), but that is not the idle-collapse case, so it must not badge.
+    private var grouped: Bool { item.subagentCount == 0 && item.count > 1 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -585,14 +598,14 @@ struct SessionRow: View {
                     // A grouped row spends part of the column on its `×N` badge, so the
                     // name is fitted to what's left rather than to the whole column —
                     // otherwise the name fills the frame and squeezes the count out.
-                    Text(RowLayout.fitName(item.count > 1 ? session.projectName : session.displayName,
-                                           toWidth: columns.name - RowLayout.countBadgeWidth(item.count)))
+                    Text(RowLayout.fitName(grouped ? session.projectName : session.displayName,
+                                           toWidth: columns.name - indent - RowLayout.countBadgeWidth(grouped ? item.count : 1)))
                         .font(.claudeMono(11))
                         .foregroundStyle(nameColor)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    if item.count > 1 {
+                    if grouped {
                         Text("×\(item.count)")
                             .font(.claudeMono(11))
                             .foregroundStyle(Color.secondary)
@@ -600,8 +613,9 @@ struct SessionRow: View {
                 }
                 // Sized against the model and status beside it, not fixed: both are
                 // drawn from bounded vocabularies and take only what they need, so the
-                // name — unbounded prose — gets everything left over.
-                .frame(width: columns.name, alignment: .leading)
+                // name — unbounded prose — gets everything left over. The indent comes
+                // out of the name column only, not the model/time/chip columns.
+                .frame(width: max(0, columns.name - indent), alignment: .leading)
 
                 // Column 2: Model, sized to the family word it actually holds.
                 Group {
@@ -657,7 +671,7 @@ struct SessionRow: View {
                             .buttonStyle(.plain)
                             .foregroundColor(Color.secondary)
                             .help("Clear this session")
-                        } else if let tag = session.hostTag {
+                        } else if !session.isChild, let tag = session.hostTag {
                             Text(tag.label)
                                 .font(.claudeMono(10))
                                 .foregroundStyle(tag.color)
@@ -694,6 +708,7 @@ struct SessionRow: View {
             }
             .padding(.leading, 20)  // aligns under the name column, past the glyph
         }
+        .padding(.leading, indent)
         // Everything in a row renders lowercase — including hook-supplied text like
         // the attention message and tool names — for one consistent visual voice.
         .textCase(.lowercase)
@@ -875,10 +890,20 @@ struct SessionRow: View {
     /// assistive user — `TodoProgressBar`'s own accessibility modifiers are inert
     /// inside this row and don't contribute here.
     private var accessibilityLabelText: String {
+        if session.isChild {
+            var text = "subagent \(session.displayName), \(statusLabel) \(timeText)"
+            if session.todoTotal != nil {
+                text += ", task progress \(session.todoProgress.done) of \(session.todoProgress.total)"
+            }
+            return text
+        }
         var text = "\(session.displayName), \(statusLabel) \(timeText)"
         if !contextTokens.isEmpty { text += ", \(contextTokens) context tokens" }
         if session.todoTotal != nil {
             text += ", task progress \(session.todoProgress.done) of \(session.todoProgress.total)"
+        }
+        if item.subagentCount > 0 {
+            text += ", \(item.subagentCount) subagents"
         }
         return text
     }

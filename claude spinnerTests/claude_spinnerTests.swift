@@ -537,11 +537,17 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    func testChildRowIndentIsSixteen() {
+        XCTAssertEqual(Constants.childRowIndent, 16)
+    }
+
     /// Line 2's status must never exceed what that line actually has, once the
-    /// todo bar, the gap, and the working-dots slot are accounted for.
+    /// todo bar, the gap, the working-dots slot, and the child indent (charged
+    /// on every row so a depth-1 status cannot overflow) are accounted for.
     func testLine2StatusNeverOverrunsItsBudget() {
         let line2Budget = Constants.panelWidth - 2 * RowLayout.rowHorizontalPadding
-            - RowLayout.secondRowLeadingInset - TodoProgressBar.width
+            - RowLayout.secondRowLeadingInset - Constants.childRowIndent
+            - TodoProgressBar.width
             - RowLayout.todoStatusGap - RowLayout.dotsSlot
         for label in ["done", "needs input", "running bash", "running TodoWrite",
                       "running " + String(repeating: "x", count: 200)] {
@@ -710,7 +716,8 @@ final class claude_spinnerTests: XCTestCase {
             models: ["sonnet"], panelWidth: Constants.panelMinWidth)
         XCTAssertEqual(c.name, RowLayout.maxNameWidth, "model is short, so name saturates the cap")
         let line2Budget = Constants.panelMinWidth - 2 * RowLayout.rowHorizontalPadding
-            - RowLayout.secondRowLeadingInset - TodoProgressBar.width
+            - RowLayout.secondRowLeadingInset - Constants.childRowIndent
+            - TodoProgressBar.width
             - RowLayout.todoStatusGap - RowLayout.dotsSlot
         XCTAssertEqual(c.status, max(0, line2Budget), accuracy: 0.01)
     }
