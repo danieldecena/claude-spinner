@@ -241,6 +241,9 @@ private struct StateFile: Decodable {
     var last_duration: Double?
     var todo_total: Double?
     var todo_done: Double?
+    var parent_session_id: String?
+    var agent_id: String?
+    var agent_type: String?
 }
 
 /// `<id>.status.json`, the raw statusLine stdin JSON. Only the fields the app
@@ -302,6 +305,10 @@ struct SessionFeed: Identifiable {
     var contextOutputTokens: Int?
     var todoTotal: Int?
     var todoDone: Int?
+    var parentSessionId: String?
+    var agentId: String?
+    var agentType: String?
+    var isChild: Bool { parentSessionId != nil }
 
     init(id: String) { self.id = id }
 
@@ -319,6 +326,9 @@ struct SessionFeed: Identifiable {
         lastDuration = s.last_duration.map(Int.init)
         todoTotal = s.todo_total.map(Int.init)
         todoDone = s.todo_done.map(Int.init)
+        parentSessionId = s.parent_session_id
+        agentId = s.agent_id
+        agentType = s.agent_type
     }
 
     #if DEBUG
@@ -360,7 +370,10 @@ struct SessionFeed: Identifiable {
     /// What a row calls this session: its generated name when there is one — the only
     /// thing telling two sessions in the same directory apart — falling back to the
     /// directory. The cwd stays in the row's tooltip either way.
-    var displayName: String { sessionName ?? projectName }
+    var displayName: String {
+        if isChild { return sessionName ?? agentType ?? "subagent" }
+        return sessionName ?? projectName
+    }
 
     /// Context tokens in play, or nil when the statusLine hasn't reported a window
     /// yet — which the row draws as an empty column rather than a misleading `0`.
@@ -411,6 +424,11 @@ struct SessionRowItem: Identifiable {
     let session: SessionFeed
     let ids: [String]
     var count: Int { ids.count }
+    /// 0 = root row, 1 = nested subagent. Visual nesting is capped at 1.
+    var depth: Int = 0
+    /// How many subagent child ids are included in `ids` (0 for collapsed
+    /// idle groups, which also have `ids.count > 1`).
+    var subagentCount: Int = 0
 }
 
 /// Polls Anthropic's API for the account's live 5h/7d rate-limit utilization,
@@ -810,7 +828,8 @@ final class FeedWatcher: ObservableObject {
         let deadPidIds = Set(recent.filter {
             $0.status == .idle && ($0.pid.map { !Self.pidAlive($0) } ?? false)
         }.map(\.id))
-        let live = recent.filter { !deadPidIds.contains($0.id) }
+        let live = Self.excludingOrphanIdleChildren(
+            recent.filter { !deadPidIds.contains($0.id) })
         let liveIds = Set(live.map(\.id))
         // Prune files that belong to no live session only once the file itself is
         // older than the cutoff — including a dead-pid session's files. A pid check
@@ -916,8 +935,12 @@ final class FeedWatcher: ObservableObject {
         notifiedAttention = attentionNow
     }
 
-    var workingCount: Int { sessions.filter(\.isWorking).count }
-    var attentionCount: Int { sessions.filter { $0.status == .attention }.count }
+    var workingCount: Int { Self.rootWorkingCount(sessions) }
+    var attentionCount: Int { sessions.filter { $0.parentSessionId == nil && $0.status == .attention }.count }
+
+    static func rootWorkingCount(_ sessions: [SessionFeed]) -> Int {
+        sessions.filter { $0.parentSessionId == nil && $0.isWorking }.count
+    }
 
     /// The animated spinner while a session is working or waiting on you (the blue
     /// vs orange label color carries which); the resting star when done/idle.
@@ -938,7 +961,11 @@ final class FeedWatcher: ObservableObject {
     private var justFinished: SessionFeed? {
         let cutoff = Date().addingTimeInterval(-Constants.doneFlashDuration)
         return sessions
-            .filter { $0.status == .idle && $0.lastDuration != nil && ($0.updated ?? .distantPast) > cutoff }
+            .filter {
+                $0.parentSessionId == nil
+                    && $0.status == .idle && $0.lastDuration != nil
+                    && ($0.updated ?? .distantPast) > cutoff
+            }
             .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
     }
 
@@ -953,7 +980,9 @@ final class FeedWatcher: ObservableObject {
         if sessions.contains(where: { $0.isWorking }) { return .working }
         let cutoff = now.addingTimeInterval(-Constants.doneFlashDuration)
         if sessions.contains(where: {
-            $0.status == .idle && $0.lastDuration != nil && ($0.updated ?? .distantPast) > cutoff
+            $0.parentSessionId == nil
+                && $0.status == .idle && $0.lastDuration != nil
+                && ($0.updated ?? .distantPast) > cutoff
         }) { return .doneFlash }
         return .idle
     }
@@ -1039,10 +1068,44 @@ final class FeedWatcher: ObservableObject {
     /// as a single `claude-spinner done · 2m 56s ×3` on the freshest of the group.
     var displayItems: [SessionRowItem] { Self.displayItems(from: sessions) }
 
+    static func childDisplayName(for child: SessionFeed, siblings: [SessionFeed]) -> String {
+        let base = child.agentType ?? "subagent"
+        let dup = siblings.filter { ($0.agentType ?? "subagent") == base }.count > 1
+        guard dup, let aid = child.agentId, aid.count >= 4 else { return base }
+        return "\(base) \(String(aid.suffix(4)))"
+    }
+
+    /// Drop an idle child whose parent is not in the live set. Working /
+    /// attention orphans stay (the panel promotes them to depth 0). Roots
+    /// always stay. Pure so prune is testable without I/O; `performRescan`
+    /// uses this on the in-memory live set, after which the existing mtime
+    /// walker deletes files that dropped out.
+    static func excludingOrphanIdleChildren(_ sessions: [SessionFeed]) -> [SessionFeed] {
+        let rootIds = Set(sessions.filter { $0.parentSessionId == nil }.map(\.id))
+        return sessions.filter { s in
+            guard let parent = s.parentSessionId else { return true }
+            if rootIds.contains(parent) { return true }
+            return s.isWorking || s.status == .attention
+        }
+    }
+
     /// Pure row-grouping used by the panel — extracted so grouping is unit-testable
     /// without I/O. Attention/working sessions stay individual; idle ones (done and
-    /// never-worked) collapse by directory onto the freshest, with a count.
+    /// never-worked) collapse by directory onto the freshest, with a count. Children
+    /// (parent_session_id set) nest immediately under their parent row at depth 1
+    /// and are never folded into an idle collapse group; an orphaned working/attention
+    /// child (parent no longer live) is promoted to a depth-0 row of its own.
     static func displayItems(from sessions: [SessionFeed]) -> [SessionRowItem] {
+        var childrenByParent: [String: [SessionFeed]] = [:]
+        var roots: [SessionFeed] = []
+        for s in sessions {
+            if let parent = s.parentSessionId {
+                childrenByParent[parent, default: []].append(s)
+            } else {
+                roots.append(s)
+            }
+        }
+
         var items: [SessionRowItem] = []
         // Collapse idle sessions by directory — but keep finished "done" sessions in
         // a SEPARATE bucket from never-worked idles (key prefix), so a fresher
@@ -1050,9 +1113,31 @@ final class FeedWatcher: ObservableObject {
         // turn. Each bucket's representative is the freshest of its own kind.
         var groups: [String: [SessionFeed]] = [:]
         var order: [String] = []
-        for s in sorted(sessions) {
+
+        func appendChildren(of parent: SessionFeed) {
+            let kids = childrenByParent[parent.id] ?? []
+            let named = kids.map { child -> SessionFeed in
+                var c = child
+                c.sessionName = childDisplayName(for: child, siblings: kids)
+                return c
+            }
+            for child in sorted(named) {
+                items.append(SessionRowItem(id: child.id, session: child, ids: [child.id], depth: 1))
+            }
+        }
+
+        for s in sorted(roots) {
+            let kids = childrenByParent[s.id] ?? []
+            if !kids.isEmpty {
+                items.append(SessionRowItem(
+                    id: s.id, session: s,
+                    ids: [s.id] + kids.map(\.id),
+                    depth: 0, subagentCount: kids.count))
+                appendChildren(of: s)
+                continue
+            }
             guard s.status == .idle else {
-                items.append(SessionRowItem(id: s.id, session: s, ids: [s.id]))
+                items.append(SessionRowItem(id: s.id, session: s, ids: [s.id], depth: 0))
                 continue
             }
             let key = (s.lastDuration != nil ? "done:" : "idle:") + s.cwd
@@ -1062,7 +1147,19 @@ final class FeedWatcher: ObservableObject {
         for key in order {
             let group = groups[key]!
             let rep = group.max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }!
-            items.append(SessionRowItem(id: key, session: rep, ids: group.map(\.id)))
+            items.append(SessionRowItem(id: key, session: rep, ids: group.map(\.id), depth: 0))
+        }
+
+        let rootIds = Set(roots.map(\.id))
+        let orphans = sessions.filter { child in
+            guard let p = child.parentSessionId else { return false }
+            return !rootIds.contains(p) && (child.isWorking || child.status == .attention)
+        }
+        for child in sorted(orphans) {
+            var c = child
+            let siblings = orphans.filter { $0.parentSessionId == child.parentSessionId }
+            c.sessionName = childDisplayName(for: child, siblings: siblings)
+            items.append(SessionRowItem(id: c.id, session: c, ids: [c.id], depth: 0))
         }
         return items
     }
@@ -1265,11 +1362,16 @@ final class FeedWatcher: ObservableObject {
     /// when it's reported one, else the most recently seen model across any
     /// session, else the persisted cache — so every row shows a model tag even
     /// before its own statusLine has written (e.g. a never-worked idle session).
-    func modelDisplay(for session: SessionFeed) -> String? {
-        session.model
-            ?? sessions.filter { $0.model != nil }
+    static func modelDisplay(for session: SessionFeed, among sessions: [SessionFeed], cached: String?) -> String? {
+        if session.isChild { return session.model }
+        return session.model
+            ?? sessions.filter { $0.model != nil && !$0.isChild }
                 .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }?.model
-            ?? cachedUsage?.model
+            ?? cached
+    }
+
+    func modelDisplay(for session: SessionFeed) -> String? {
+        Self.modelDisplay(for: session, among: sessions, cached: cachedUsage?.model)
     }
 
     // MARK: - Actions

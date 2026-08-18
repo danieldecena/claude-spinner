@@ -15,10 +15,16 @@ final class claude_spinnerTests: XCTestCase {
     /// Build a bare session fixture for the pure-derivation tests.
     private func mk(_ id: String, _ status: SessionStatus, cwd: String = "/x",
                     updated: Date? = nil, lastDuration: Int? = nil,
-                    tokens: Int? = nil) -> SessionFeed {
+                    tokens: Int? = nil,
+                    parentSessionId: String? = nil,
+                    agentId: String? = nil,
+                    agentType: String? = nil) -> SessionFeed {
         var s = SessionFeed(id: id)
         s.status = status; s.cwd = cwd; s.updated = updated; s.lastDuration = lastDuration
         s.contextInputTokens = tokens
+        s.parentSessionId = parentSessionId
+        s.agentId = agentId
+        s.agentType = agentType
         return s
     }
 
@@ -228,6 +234,148 @@ final class claude_spinnerTests: XCTestCase {
             mk("b", .idle, cwd: "/two", updated: now),
         ])
         XCTAssertEqual(items.count, 2)
+    }
+
+    // MARK: - Nested subagent rows (parent_session_id / agent_id / agent_type)
+
+    func testApplyStateDecodesParentAndAgentFields() throws {
+        var s = SessionFeed(id: "p.a1")
+        XCTAssertNil(s.parentSessionId)
+        XCTAssertNil(s.agentId)
+        XCTAssertNil(s.agentType)
+        XCTAssertFalse(s.isChild)
+        try s.applyStateJSONForTest("""
+        {"parent_session_id":"p","agent_id":"a1","agent_type":"Explore"}
+        """)
+        XCTAssertEqual(s.parentSessionId, "p")
+        XCTAssertEqual(s.agentId, "a1")
+        XCTAssertEqual(s.agentType, "Explore")
+        XCTAssertTrue(s.isChild)
+    }
+
+    func testApplyStateLeavesParentAndAgentFieldsNilWhenAbsent() throws {
+        var s = SessionFeed(id: "p")
+        try s.applyStateJSONForTest("{}")
+        XCTAssertNil(s.parentSessionId)
+        XCTAssertNil(s.agentId)
+        XCTAssertNil(s.agentType)
+        XCTAssertFalse(s.isChild)
+    }
+
+    func testDisplayItemsNestsWorkingChildUnderIdleParent() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("p", .idle, cwd: "/home", updated: now, lastDuration: 10),
+            mk("p.a1", .tool, cwd: "/home", updated: now,
+               parentSessionId: "p", agentId: "a1", agentType: "Explore"),
+            mk("other", .idle, cwd: "/home", updated: now.addingTimeInterval(-5)),
+        ])
+        // Idle parent with a live child is NOT folded into the never-worked
+        // idle:/home bucket with `other`.
+        XCTAssertEqual(items.map(\.id), ["p", "p.a1", "idle:/home"])
+        XCTAssertEqual(items[0].depth, 0)
+        XCTAssertEqual(items[0].subagentCount, 1)
+        XCTAssertEqual(items[0].ids, ["p", "p.a1"])
+        XCTAssertEqual(items[1].depth, 1)
+        XCTAssertEqual(items[1].ids, ["p.a1"])
+        XCTAssertEqual(items[1].session.displayName, "Explore")
+    }
+
+    func testDisplayItemsDoesNotCollapseChildWithSameCwdIdle() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("p", .thinking, cwd: "/x", updated: now),
+            mk("p.a1", .idle, cwd: "/x", updated: now, lastDuration: 4,
+               parentSessionId: "p", agentId: "a1", agentType: "Explore"),
+            mk("idle-root", .idle, cwd: "/x", updated: now),
+        ])
+        XCTAssertEqual(items.map(\.id), ["p", "p.a1", "idle:/x"])
+        XCTAssertEqual(items[1].depth, 1)
+        XCTAssertEqual(items[2].count, 1)
+    }
+
+    func testDisplayItemsFlattensTwoExploresUnderOneParent() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("p", .thinking, cwd: "/p", updated: now),
+            mk("p.aaa1xxxx", .tool, cwd: "/p", updated: now,
+               parentSessionId: "p", agentId: "aaa1xxxx", agentType: "Explore"),
+            mk("p.bbb2yyyy", .attention, cwd: "/p", updated: now,
+               parentSessionId: "p", agentId: "bbb2yyyy", agentType: "Explore"),
+        ])
+        XCTAssertEqual(items.count, 3)
+        XCTAssertEqual(items[0].id, "p")
+        XCTAssertEqual(items[0].depth, 0)
+        XCTAssertEqual(items[0].subagentCount, 2)
+        XCTAssertEqual(items[1].depth, 1)
+        XCTAssertEqual(items[2].depth, 1)
+        // Duplicate agent_type: last 4 of agentId disambiguates.
+        let childNames = Set(items.dropFirst().map(\.session.displayName))
+        XCTAssertEqual(childNames, ["Explore xxxx", "Explore yyyy"])
+    }
+
+    func testDisplayItemsDropsIdleOrphanChild() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("orphan", .idle, cwd: "/x", updated: now, lastDuration: 3,
+               parentSessionId: "missing", agentId: "a1", agentType: "Explore"),
+        ])
+        XCTAssertTrue(items.isEmpty)
+    }
+
+    func testDisplayItemsPromotesWorkingOrphanChild() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("orphan", .tool, cwd: "/x", updated: now,
+               parentSessionId: "missing", agentId: "a1", agentType: "Explore"),
+        ])
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items[0].id, "orphan")
+        XCTAssertEqual(items[0].depth, 0)
+        XCTAssertEqual(items[0].session.displayName, "Explore")
+    }
+
+    func testExcludingOrphanIdleChildrenKeepsAttachedAndWorkingOrphans() {
+        let now = Date()
+        let parent = mk("p", .idle, updated: now)
+        let attached = mk("p.a1", .idle, updated: now, lastDuration: 2,
+                          parentSessionId: "p", agentId: "a1", agentType: "Explore")
+        let idleOrphan = mk("gone.a2", .idle, updated: now, lastDuration: 2,
+                            parentSessionId: "gone", agentId: "a2", agentType: "Explore")
+        let workingOrphan = mk("gone.a3", .tool, updated: now,
+                               parentSessionId: "gone", agentId: "a3", agentType: "Explore")
+        let kept = FeedWatcher.excludingOrphanIdleChildren([parent, attached, idleOrphan, workingOrphan])
+        XCTAssertEqual(Set(kept.map(\.id)), ["p", "p.a1", "gone.a3"])
+    }
+
+    func testMenuBarStaysWorkingWhenOnlyChildrenWork() {
+        let now = Date()
+        let parent = mk("p", .idle, updated: now, lastDuration: 10)
+        let child = mk("p.a1", .tool, updated: now,
+                       parentSessionId: "p", agentId: "a1", agentType: "Explore")
+        XCTAssertEqual(FeedWatcher.menuBarState(for: [parent, child], now: now), .working)
+        XCTAssertEqual(FeedWatcher.rootWorkingCount([parent, child]), 0)
+        XCTAssertEqual(FeedWatcher.rootWorkingCount([
+            mk("p", .tool, updated: now), child
+        ]), 1)
+    }
+
+    func testMenuBarDoneFlashIgnoresChild() {
+        let now = Date()
+        let parent = mk("p", .idle, updated: now.addingTimeInterval(-30))
+        let child = mk("p.a1", .idle, updated: now, lastDuration: 4,
+                       parentSessionId: "p", agentId: "a1", agentType: "Explore")
+        XCTAssertEqual(FeedWatcher.menuBarState(for: [parent, child], now: now), .idle)
+    }
+
+    func testModelDisplaySkipsFallbackForChild() {
+        var child = mk("p.a1", .tool, parentSessionId: "p", agentId: "a1", agentType: "Explore")
+        var sibling = mk("p", .thinking)
+        sibling.model = "Opus"
+        XCTAssertNil(FeedWatcher.modelDisplay(for: child, among: [sibling, child], cached: "Sonnet"))
+        child.model = "Haiku"
+        XCTAssertEqual(FeedWatcher.modelDisplay(for: child, among: [sibling, child], cached: "Sonnet"), "Haiku")
+        XCTAssertEqual(FeedWatcher.modelDisplay(for: sibling, among: [sibling, child], cached: "Sonnet"), "Opus")
     }
 
     // MARK: - menuBarState transitions
