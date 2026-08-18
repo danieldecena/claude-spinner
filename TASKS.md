@@ -6,10 +6,6 @@
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
-- [ ] Nest subagent sessions under their parent row in the panel — hook
-  payloads already carry agent_id/agent_type for subagent tool calls;
-  emit.sh would need to write per-subagent feed files tagged with the
-  parent session, and the panel would render them as indented child rows
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
@@ -17,6 +13,9 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Nest subagent sessions under their parent row — child hooks write
+  `<parent>.<agent_id>.state.json`; the panel indents them as 2-line children.
+  95 unit tests; done 2026-08-17
 - [x] Add a Show in preference so the surface is chosen, not luck — done 2026-08-12
 - [x] Fix the stale CI test count in STATUS — done 2026-08-12
 - [x] Document the macOS 27 floor and the DerivedData glob trap — done 2026-08-12

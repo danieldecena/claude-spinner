@@ -8,11 +8,11 @@
   which a notched display reaches early). It detects the unplaced item by frame,
   opens the panel as a real window titled with the live readout, and hangs the
   full settings menu off a "Spinner" main-menu submenu so nothing is stranded
-  behind an icon that isn't there. Both placed and unplaced observed live
-  2026-08-12; 82 unit tests green.
+  behind an icon that isn't there.   Both placed and unplaced observed live
+  2026-08-12.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 82 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 95 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
 - Which surface the app presents is a choice, not luck. `Show in` (Menu bar /
   Window, persisted, default Menu bar) sits in the settings menu; Window creates
@@ -27,8 +27,11 @@
   The header totals context across all sessions. Legible in both appearances.
 - Each row carries a 10-box `□□□□□□□□□□ --%` task-completion bar (TodoWrite
   counts via `emit.sh`), with the session's status/activity text beside it on
-  a second line. Verified on screen across several rebuilds; 82 unit tests
-  green.
+  a second line. Verified on screen across several rebuilds.
+- Subagent sessions nest under their parent as indented 2-line rows (todo
+  bar + that child's own tool/status). Child hook events write
+  `<parent>.<agent_id>.state.json` and no longer overwrite the parent file.
+  Verified on screen against a live parent+Explore; 95 unit tests green.
 - The standalone window (right-click icon → Open Window) pins its content to
   the top and shrinks an oversized/stale remembered frame back to
   panelWidth × panelDefaultHeight on open, on whichever axis overran.
@@ -78,10 +81,31 @@
 - One hand-check is outstanding: closing the window with a **placed** status item
   should return the app to `.accessory`. Not scriptable — see the 2026-08-12
   decision log. Tagged `[you]` in `TASKS.md`.
-- Full list in `TASKS.md`, including a queued (unbuilt) idea to nest subagent
-  sessions under their parent row.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-08-17 (nested subagent rows)
+- Decided: subagents share the parent's `session_id`; they are not sibling
+  sessions. `emit.sh` keys child files on hook `agent_id` as
+  `<parent>.<agent_id>.state.json` with `parent_session_id` inside the JSON.
+  An array of children inside the parent file was rejected — parallel
+  Explores would race on one write (that was already the live bug: child
+  `PreToolUse` overwrote the parent's current tool).
+- Decided: visual depth 1, full 2-line child (todo bar + status), 16pt
+  indent. Grandchildren flatten under the same parent (hook stdin has no
+  `parent_agent_id`). Omit model, context tokens, and host chip — those
+  would be the parent's numbers. Keep time, tool, todo bar, click-to-focus
+  on the parent editor.
+- Decided: a parent with children is never idle-collapsed, even after the
+  children finish. Finished-child dwell until parent `SessionEnd` / 12h
+  cutoff is a later display filter if the panel gets noisy.
+- Noted: `item.ids` includes children so clearing the parent cascades;
+  the `×N` badge therefore cannot key off `ids.count`. It keys off
+  `subagentCount == 0 && count > 1` (idle-collapse groups only).
+- Noted: bundled `Scripts/emit.sh` stayed byte-identical to the live copy
+  (content-parity test now also asserts `parent_session_id` / `SubagentStart`).
+  SetupInstaller gained those two hook events; Install hooks was run on
+  this machine so live `settings.json` actually fires them.
 
 ### 2026-08-15 (todo-progress-bar)
 - Decided: a 10-box `□□□□□□□□□□ --%` completion bar per session, sourced from
