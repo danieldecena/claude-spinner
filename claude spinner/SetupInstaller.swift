@@ -21,6 +21,7 @@ enum SetupInstaller {
     static let hookEvents = [
         "SessionStart", "PreToolUse", "PostToolUse",
         "UserPromptSubmit", "Notification", "SessionEnd", "Stop",
+        "SubagentStart", "SubagentStop",
     ]
 
     static let emitCommandPath = "~/.claude/spinnerfeed/emit.sh"

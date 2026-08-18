@@ -3,6 +3,9 @@
 # Usage: emit.sh <EVENT>      (hook JSON arrives on stdin)
 # Writes one state file per session: ~/.claude/spinnerfeed/<session_id>.state.json
 # Paired with <session_id>.status.json, written by the statusLine script.
+# Events whose stdin carries agent_id (a subagent) write
+# ~/.claude/spinnerfeed/<session_id>.<agent_id>.state.json instead, and never
+# touch the parent file.
 
 event="$1"
 dir="$HOME/.claude/spinnerfeed"
@@ -12,7 +15,21 @@ input=$(cat)
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
 [ -z "$sid" ] && exit 0
 
-f="$dir/$sid.state.json"
+agent_id=$(printf '%s' "$input" | jq -r '.agent_id // empty')
+agent_type=$(printf '%s' "$input" | jq -r '.agent_type // empty')
+# Filename-safe. Observed values are hex (`a639953774a9953ac`) and docs
+# examples like `agent-abc123`. Anything else is stripped; an empty result
+# is treated as a root event so we never write a junk path.
+agent_id=$(printf '%s' "$agent_id" | tr -cd 'A-Za-z0-9_-')
+
+if [ -n "$agent_id" ]; then
+    parent_sid="$sid"
+    f="$dir/$sid.$agent_id.state.json"
+else
+    parent_sid=""
+    f="$dir/$sid.state.json"
+fi
+
 now=$(date +%s)
 cwd=$(printf '%s' "$input" | jq -r '.cwd // .workspace.current_dir // empty')
 tool=$(printf '%s' "$input" | jq -r '.tool_name // empty')
@@ -27,11 +44,13 @@ prev_seed=$(jq -r '.last_seed // empty' "$f" 2>/dev/null)
 prev_dur=$(jq -r '.last_duration // empty' "$f" 2>/dev/null)
 prev_todo_total=$(jq -r '.todo_total // empty' "$f" 2>/dev/null)
 prev_todo_done=$(jq -r '.todo_done // empty' "$f" 2>/dev/null)
+prev_agent_type=$(jq -r '.agent_type // empty' "$f" 2>/dev/null)
 
 last_seed="$prev_seed"
 last_duration="$prev_dur"
 todo_total="$prev_todo_total"
 todo_done="$prev_todo_done"
+[ -z "$agent_type" ] && agent_type="$prev_agent_type"
 
 # Host app the session runs in, so the menubar can open the right one on click.
 # __CFBundleIdentifier is inherited from the launching GUI app (Claude desktop,
@@ -65,14 +84,24 @@ case "$event" in
     PreToolUse)       status=tool;      turn_start="$prev_ts" ;;
     PostToolUse)      status=thinking;  turn_start="$prev_ts" ;;
     Notification)     status=attention; turn_start="$prev_ts" ;;
-    Stop)
+    SubagentStart)
+        [ -z "$agent_id" ] && exit 0
+        status=thinking; turn_start="$now"; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
+    Stop|SubagentStop)
+        [ "$event" = "SubagentStop" ] && [ -z "$agent_id" ] && exit 0
         status=idle
         if [ -n "$prev_ts" ]; then
             last_seed="$prev_ts"
             last_duration=$(( now - prev_ts ))
         fi
         turn_start="" ;;
-    SessionEnd)       rm -f "$dir/$sid".*; exit 0 ;;
+    SessionEnd)
+        if [ -n "$agent_id" ]; then
+            rm -f "$dir/$sid.$agent_id.state.json"
+        else
+            rm -f "$dir/$sid".*
+        fi
+        exit 0 ;;
     *) exit 0 ;;
 esac
 
@@ -88,20 +117,24 @@ jq -n \
     --arg cwd "$cwd" --arg msg "$msg" --arg ts "$turn_start" --arg now "$now" \
     --arg ls "$last_seed" --arg ld "$last_duration" --arg host "$host" \
     --arg pid "$pid" --arg tt "$todo_total" --arg td "$todo_done" \
+    --arg psid "$parent_sid" --arg aid "$agent_id" --arg atype "$agent_type" \
     '{
-        session_id:    $sid,
-        status:        $status,
-        tool:          $tool,
-        cwd:           $cwd,
-        message:       $msg,
-        host:          $host,
-        pid:           (if $pid == "" then null else ($pid | tonumber) end),
-        turn_start:    (if $ts == "" then null else ($ts | tonumber) end),
-        todo_total:    (if $tt == "" then null else ($tt | tonumber) end),
-        todo_done:     (if $td == "" then null else ($td | tonumber) end),
-        last_seed:     (if $ls == "" then null else ($ls | tonumber) end),
-        last_duration: (if $ld == "" then null else ($ld | tonumber) end),
-        updated:       ($now | tonumber)
+        session_id:        $sid,
+        status:            $status,
+        tool:              $tool,
+        cwd:               $cwd,
+        message:           $msg,
+        host:              $host,
+        pid:               (if $pid == "" then null else ($pid | tonumber) end),
+        turn_start:        (if $ts == "" then null else ($ts | tonumber) end),
+        todo_total:        (if $tt == "" then null else ($tt | tonumber) end),
+        todo_done:         (if $td == "" then null else ($td | tonumber) end),
+        last_seed:         (if $ls == "" then null else ($ls | tonumber) end),
+        last_duration:     (if $ld == "" then null else ($ld | tonumber) end),
+        parent_session_id: (if $psid == "" then null else $psid end),
+        agent_id:          (if $aid == "" then null else $aid end),
+        agent_type:        (if $atype == "" then null else $atype end),
+        updated:           ($now | tonumber)
     }' > "$tmp" 2>/dev/null && mv "$tmp" "$f"
 
 exit 0

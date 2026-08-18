@@ -124,6 +124,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(contents.contains("todo_total"),
                       "bundled Scripts/emit.sh is missing todo-capture logic — sync it from ~/.claude/spinnerfeed/emit.sh")
         XCTAssertTrue(contents.contains("todo_done"))
+        XCTAssertTrue(contents.contains("parent_session_id"),
+                      "bundled Scripts/emit.sh is missing the subagent child-file branch — sync it from ~/.claude/spinnerfeed/emit.sh")
+        XCTAssertTrue(contents.contains("SubagentStart"))
+        XCTAssertTrue(contents.contains("agent_id"))
+    }
+
+    func testHookEventsIncludeSubagentLifecycle() {
+        XCTAssertTrue(SetupInstaller.hookEvents.contains("SubagentStart"))
+        XCTAssertTrue(SetupInstaller.hookEvents.contains("SubagentStop"))
     }
 
     // MARK: - Spinner words (seeded, stable, present/past paired)
