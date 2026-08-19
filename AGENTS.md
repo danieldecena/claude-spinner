@@ -17,6 +17,17 @@ platform limitation, not a setup gap:
   (`objectVersion = 110`); the build needs `xcodebuild` / `xcrun --sdk macosx`,
   which are macOS-only. Even GitHub-hosted macOS runners can't open it, so CI uses
   a **self-hosted macOS** runner (`.github/workflows/swift.yml`).
+
+### CI notes
+
+- `.github/workflows/swift.yml` is **path-filtered** to Swift/Xcode sources. Docs
+  and non-app changes (e.g. this file, `reset-notifier/`) must not trigger it —
+  otherwise the job queues on the self-hosted Mac and, if that runner is offline,
+  GitHub cancels it at the 24h await-runner limit, red-Xing unrelated PRs.
+- Do **not** add GitHub-hosted runner jobs (`ubuntu-latest`, hosted `macos-*`).
+  This account has **no GitHub Actions billing** for hosted runners: such jobs
+  fail to start ("recent account payments have failed / spending limit"). That is
+  the reason CI is self-hosted. Run the `reset-notifier` bash tests locally.
 - Do **not** try to install a Swift-for-Linux toolchain to build the app — it
   still can't compile the Apple frameworks above. Build/test the app on macOS
   (Xcode, or `./run.sh`).
