@@ -13,14 +13,35 @@
 #
 # The shared "claude spinner" scheme runs only claude_spinnerTests and skips
 # claude_spinnerUITests (XCUITest can't launch a menu-bar/agent app).
+#
+# Path-filtered to Swift/Xcode sources only. Changes that don't touch the app
+# (docs, the bash reset-notifier, other tooling) must not queue this job: the
+# self-hosted macOS runner is a scarce, sometimes-offline resource, and a job
+# with no available runner sits in the queue until GitHub cancels it at the 24h
+# await-runner limit — surfacing as a red check on unrelated PRs.
+#
+# Deliberately NOT triggered by edits to this workflow file: doing so would make
+# every CI-config change (like a docs/tooling PR that also touches CI) queue on
+# the offline-prone Mac runner and fail. Workflow changes ride along with the
+# next real Swift change instead.
 
 name: Swift
 
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "claude spinner/**"
+      - "claude spinner.xcodeproj/**"
+      - "claude spinnerTests/**"
+      - "claude spinnerUITests/**"
   pull_request:
     branches: [ "main" ]
+    paths:
+      - "claude spinner/**"
+      - "claude spinner.xcodeproj/**"
+      - "claude spinnerTests/**"
+      - "claude spinnerUITests/**"
 
 jobs:
   test:
