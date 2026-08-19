@@ -1,0 +1,23 @@
+# Runs the reset-notifier bash test suite on a GitHub-hosted Linux runner.
+#
+# Unlike the menu-bar app (macOS-only; see swift.yml + a self-hosted runner),
+# reset-notifier/ is pure bash and its fixture tests run anywhere with no
+# network/osascript/launchd (channels stubbed via NOTIFY_CMD/PUSH_CMD, API
+# disabled via NO_API=1). Hosting this on ubuntu-latest gives every push/PR a
+# fast, always-available green check without depending on the self-hosted Mac.
+
+name: reset-notifier
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run reset-notifier test suite
+        run: bash reset-notifier/test.sh
