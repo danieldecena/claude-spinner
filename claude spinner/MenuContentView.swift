@@ -579,7 +579,7 @@ struct SessionRow: View {
     /// sessions sharing a directory. A parent row with real subagent children
     /// also has `item.count > 1` (subagent ids ride along on `ids` so `clear()`
     /// cascades), but that is not the idle-collapse case, so it must not badge.
-    private var grouped: Bool { item.subagentCount == 0 && item.count > 1 }
+    private var grouped: Bool { item.showsCountBadge }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

@@ -344,6 +344,20 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(items[0].session.displayName, "Explore")
     }
 
+    func testDisplayItemsSortsPromotedOrphanWithWorkingSessions() {
+        let now = Date()
+        let items = FeedWatcher.displayItems(from: [
+            mk("idle-a", .idle, cwd: "/home", updated: now, lastDuration: 5),
+            mk("idle-b", .idle, cwd: "/home", updated: now.addingTimeInterval(-1), lastDuration: 3),
+            mk("working-root", .thinking, cwd: "/other", updated: now),
+            mk("orphan", .tool, cwd: "/x", updated: now.addingTimeInterval(-1),
+               parentSessionId: "missing", agentId: "a1", agentType: "Explore"),
+        ])
+        XCTAssertEqual(items.map(\.id), ["working-root", "orphan", "done:/home"])
+        XCTAssertEqual(items[1].depth, 0)
+        XCTAssertEqual(items[1].session.displayName, "Explore")
+    }
+
     func testExcludingOrphanIdleChildrenKeepsAttachedAndWorkingOrphans() {
         let now = Date()
         let parent = mk("p", .idle, updated: now)
@@ -639,6 +653,41 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(RowLayout.countBadgeWidth(1), 0)
         XCTAssertGreaterThan(RowLayout.countBadgeWidth(2), 0)
         XCTAssertGreaterThan(RowLayout.countBadgeWidth(10), RowLayout.countBadgeWidth(2))
+    }
+
+    /// Parent `ids` include children so `clear()` cascades, but that is not an
+    /// idle-collapse group. The `×N` badge keys off `showsCountBadge`, not `count`.
+    func testCountBadgeIsIdleCollapseOnly() {
+        let now = Date()
+        let parent = FeedWatcher.displayItems(from: [
+            mk("p", .thinking, cwd: "/p", updated: now),
+            mk("p.a1", .tool, cwd: "/p", updated: now,
+               parentSessionId: "p", agentId: "a1", agentType: "Explore"),
+            mk("p.a2", .idle, cwd: "/p", updated: now, lastDuration: 2,
+               parentSessionId: "p", agentId: "a2", agentType: "Plan"),
+        ])[0]
+        XCTAssertEqual(parent.count, 3)
+        XCTAssertEqual(parent.subagentCount, 2)
+        XCTAssertFalse(parent.showsCountBadge)
+
+        let collapsed = FeedWatcher.displayItems(from: [
+            mk("a", .idle, cwd: "/home", updated: now, lastDuration: 5),
+            mk("b", .idle, cwd: "/home", updated: now.addingTimeInterval(-1), lastDuration: 3),
+        ])[0]
+        XCTAssertEqual(collapsed.count, 2)
+        XCTAssertEqual(collapsed.subagentCount, 0)
+        XCTAssertTrue(collapsed.showsCountBadge)
+
+        let single = FeedWatcher.displayItems(from: [
+            mk("w", .thinking, cwd: "/x", updated: now),
+        ])[0]
+        XCTAssertFalse(single.showsCountBadge)
+
+        let orphan = FeedWatcher.displayItems(from: [
+            mk("orphan", .tool, cwd: "/x", updated: now,
+               parentSessionId: "missing", agentId: "a1", agentType: "Explore"),
+        ])[0]
+        XCTAssertFalse(orphan.showsCountBadge)
     }
 
     /// Regression guard for the 2026-08-15 second-row jitter: the working-dots

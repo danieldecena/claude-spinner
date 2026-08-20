@@ -438,6 +438,10 @@ struct SessionRowItem: Identifiable {
     /// How many subagent child ids are included in `ids` (0 for collapsed
     /// idle groups, which also have `ids.count > 1`).
     var subagentCount: Int = 0
+    /// Idle-collapse `×N` badge. A parent with subagent children also has
+    /// `count > 1` (child ids ride on `ids` so `clear()` cascades), but that
+    /// is not a grouped idle row.
+    var showsCountBadge: Bool { subagentCount == 0 && count > 1 }
 }
 
 /// Polls Anthropic's API for the account's live 5h/7d rate-limit utilization,
@@ -1145,7 +1149,19 @@ final class FeedWatcher: ObservableObject {
             }
         }
 
-        for s in sorted(roots) {
+        let rootIds = Set(roots.map(\.id))
+        let orphans = sessions.filter { child in
+            guard let p = child.parentSessionId else { return false }
+            return !rootIds.contains(p) && (child.isWorking || child.status == .attention)
+        }
+        let namedOrphans: [SessionFeed] = orphans.map { child in
+            var c = child
+            let siblings = orphans.filter { $0.parentSessionId == child.parentSessionId }
+            c.sessionName = childDisplayName(for: child, siblings: siblings)
+            return c
+        }
+
+        for s in sorted(roots + namedOrphans) {
             let kids = childrenByParent[s.id] ?? []
             if !kids.isEmpty {
                 items.append(SessionRowItem(
@@ -1167,18 +1183,6 @@ final class FeedWatcher: ObservableObject {
             let group = groups[key]!
             let rep = group.max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }!
             items.append(SessionRowItem(id: key, session: rep, ids: group.map(\.id), depth: 0))
-        }
-
-        let rootIds = Set(roots.map(\.id))
-        let orphans = sessions.filter { child in
-            guard let p = child.parentSessionId else { return false }
-            return !rootIds.contains(p) && (child.isWorking || child.status == .attention)
-        }
-        for child in sorted(orphans) {
-            var c = child
-            let siblings = orphans.filter { $0.parentSessionId == child.parentSessionId }
-            c.sessionName = childDisplayName(for: child, siblings: siblings)
-            items.append(SessionRowItem(id: c.id, session: c, ids: [c.id], depth: 0))
         }
         return items
     }
