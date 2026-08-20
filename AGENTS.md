@@ -42,3 +42,12 @@ reads the same `*.status.json` usage feed the app produces):
   `NOW=$(date +%s) FEED_DIR=… STATE_DIR=… NO_API=1 bash reset-notifier/check-reset.sh --dry-run`.
 - `check-reset.sh` depends on `jq` (preinstalled). `reset-notifier/install.sh` is
   macOS-only (launchd `LaunchAgents`) and won't run here.
+
+## Learned User Preferences
+
+- "The window" or "the actual window" means the standalone SpinnerPanel (right-click the menu-bar icon → Open Window), not the menu-bar popover.
+
+## Learned Workspace Facts
+
+- Bundled `claude spinner/Scripts/emit.sh` must stay byte-identical to live `~/.claude/spinnerfeed/emit.sh`; hook script changes belong in this repo and in `~/.claude`.
+- Nested child state files copy the parent pid, so idle children must not be PID-pruned (the parent stays until staleCutoff).
