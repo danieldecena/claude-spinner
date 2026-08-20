@@ -834,11 +834,8 @@ final class FeedWatcher: ObservableObject {
         // SessionEnd (e.g. the terminal was force-quit). Restricted to idle sessions
         // with a captured pid, so a live/working session is never dropped on a bad
         // or missing pid — the process check only ever *removes* a truly-dead one.
-        let deadPidIds = Set(recent.filter {
-            $0.status == .idle && ($0.pid.map { !Self.pidAlive($0) } ?? false)
-        }.map(\.id))
         let live = Self.excludingOrphanIdleChildren(
-            recent.filter { !deadPidIds.contains($0.id) })
+            Self.excludingDeadPidIdle(recent, pidAlive: Self.pidAlive))
         let liveIds = Set(live.map(\.id))
         // Prune files that belong to no live session only once the file itself is
         // older than the cutoff — including a dead-pid session's files. A pid check
@@ -1082,6 +1079,19 @@ final class FeedWatcher: ObservableObject {
         let dup = siblings.filter { ($0.agentType ?? "subagent") == base }.count > 1
         guard dup, let aid = child.agentId, aid.count >= 4 else { return base }
         return "\(base) \(String(aid.suffix(4)))"
+    }
+
+    /// Drop idle root sessions whose captured pid is dead. Children are
+    /// exempt — their pid is the parent's, so a dead pid would otherwise
+    /// vanish finished children while a working parent stays until
+    /// `staleCutoff`. `pidAlive` is injected so tests don't probe the
+    /// process table. Pure; `performRescan` uses this before
+    /// `excludingOrphanIdleChildren`.
+    static func excludingDeadPidIdle(_ sessions: [SessionFeed], pidAlive: (Int) -> Bool) -> [SessionFeed] {
+        sessions.filter { s in
+            guard !s.isChild, s.status == .idle, let pid = s.pid else { return true }
+            return pidAlive(pid)
+        }
     }
 
     /// Drop an idle child whose parent is not in the live set. Working /

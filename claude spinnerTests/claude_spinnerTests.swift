@@ -357,6 +357,20 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Set(kept.map(\.id)), ["p", "p.a1", "gone.a3"])
     }
 
+    func testExcludingDeadPidIdleKeepsIdleChildSharingParentsDeadPid() {
+        let now = Date()
+        var parent = mk("p", .thinking, cwd: "/x", updated: now)
+        parent.pid = 4242
+        var child = mk("p.a1", .idle, cwd: "/x", updated: now, lastDuration: 2,
+                       parentSessionId: "p", agentId: "a1", agentType: "Explore")
+        child.pid = 4242
+        let kept = FeedWatcher.excludingDeadPidIdle([parent, child], pidAlive: { _ in false })
+        XCTAssertEqual(Set(kept.map(\.id)), ["p", "p.a1"])
+        let items = FeedWatcher.displayItems(from: kept)
+        XCTAssertEqual(items.map(\.id), ["p", "p.a1"])
+        XCTAssertEqual(items.last?.depth, 1)
+    }
+
     func testMenuBarStaysWorkingWhenOnlyChildrenWork() {
         let now = Date()
         let parent = mk("p", .idle, updated: now, lastDuration: 10)
