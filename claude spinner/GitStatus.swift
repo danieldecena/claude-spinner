@@ -62,12 +62,57 @@ enum PRState: Equatable {
 
     var label: String? {
         switch self {
-        case .unknown: return nil
+        // A word, not nil. `StatSection` drops nil rows, so returning nothing
+        // here made "GitHub couldn't be reached" render exactly like "this
+        // branch has no PR" -- the row simply wasn't there.
+        case .unknown: return "unknown"
         case .none: return "none"
         case .open(let n, _, let draft): return draft ? "#\(n) draft" : "#\(n) open"
         case .merged(let n, _): return "#\(n) merged"
         case .closed(let n, _): return "#\(n) closed"
         }
+    }
+}
+
+/// What GitHub says about merging the branch's PR, verbatim.
+///
+/// Three separate fields because they fail separately: a PR can be mergeable
+/// with red checks, clean with no approval, or approved but behind its base.
+/// Stored as gh's own strings rather than a digested bool -- the digest is what
+/// makes a Merge button that is enabled and then fails.
+struct MergeReadiness: Equatable {
+    /// `MERGEABLE` / `CONFLICTING` / `UNKNOWN`. nil when gh wasn't read.
+    var mergeable: String?
+    /// `CLEAN` / `BLOCKED` / `BEHIND` / `DIRTY` / `DRAFT` / `UNSTABLE` /
+    /// `HAS_HOOKS` / `UNKNOWN`. Only populated for a user with push access.
+    var state: String?
+    /// `APPROVED` / `CHANGES_REQUESTED` / `REVIEW_REQUIRED`, or empty when the
+    /// repository requires no review at all. Empty is not the same as nil.
+    var review: String?
+
+    /// The `checks` row. nil only when nothing was read at all.
+    var label: String? {
+        var parts: [String] = []
+        switch state {
+        case "CLEAN", "HAS_HOOKS": parts.append("checks passing")
+        case "UNSTABLE":           parts.append("checks failing")
+        case "BEHIND":             parts.append("behind the base branch")
+        case "BLOCKED":            parts.append("blocked")
+        case "DRAFT":              parts.append("draft")
+        case "DIRTY":              parts.append("conflicts")
+        default: break
+        }
+        if mergeable == "CONFLICTING" && !parts.contains("conflicts") {
+            parts.append("conflicts")
+        }
+        switch review {
+        case "APPROVED":          parts.append("approved")
+        case "CHANGES_REQUESTED": parts.append("changes requested")
+        case "REVIEW_REQUIRED":   parts.append("no review yet")
+        default: break
+        }
+        if parts.isEmpty { return mergeable == nil && state == nil ? nil : "unknown" }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -84,10 +129,23 @@ struct GitSnapshot: Equatable {
     var staged: Int = 0
     var untracked: Int = 0
     var upstream: String?
+    /// The commit HEAD points at. Carried so the prober can notice a commit and
+    /// re-read the remote, instead of trusting a 90-second clock to have been
+    /// right about a repository that moved two seconds ago.
+    var headSHA: String?
     var sync: SyncState = .unknown
     var pr: PRState = .unknown
+    var merge = MergeReadiness()
+    /// Whether the `gh` binary was found. False makes every GitHub-derived
+    /// answer unavailable for a reason that names gh, rather than for one that
+    /// blames the network for a tool that was never installed.
+    var ghInstalled: Bool = true
     var isDefaultBranch: Bool = false
+    /// When the local half was read.
     var readAt: Date = .distantPast
+    /// When the network half was read. Its own stamp because it runs on its own
+    /// clock, and a single age would misreport whichever half it wasn't.
+    var remoteReadAt: Date = .distantPast
 
     var branchLabel: String {
         if detached { return "detached" }
@@ -170,6 +228,21 @@ enum GitParse {
         default:       return .open(number: number, url: url,
                                     draft: obj["isDraft"] as? Bool ?? false)
         }
+    }
+
+    /// The three mergeability fields, read separately from `pr(json:)` so each
+    /// stays a small pure function over the same gh payload.
+    ///
+    /// A field gh omitted stays nil rather than becoming a default: "GitHub has
+    /// not worked out whether this merges" and "it does not merge" are different
+    /// answers, and only one of them should stop you.
+    static func mergeReadiness(json: Data) -> MergeReadiness {
+        guard let obj = try? JSONSerialization.jsonObject(with: json) as? [String: Any] else {
+            return MergeReadiness()
+        }
+        return MergeReadiness(mergeable: obj["mergeable"] as? String,
+                              state: obj["mergeStateStatus"] as? String,
+                              review: obj["reviewDecision"] as? String)
     }
 
     /// Tell "this branch has no PR" from "GitHub couldn't be reached".

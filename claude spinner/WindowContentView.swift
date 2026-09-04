@@ -389,25 +389,47 @@ private struct ReplyBox: View {
 /// the statusLine hasn't run, and one line saying that is enough.
 private struct StatSection: View {
     let title: String
-    let rows: [(String, String?)]
+    /// Label, value, and an optional dim note after the value -- how old this
+    /// particular row is, for a section whose rows are read on two clocks.
+    let rows: [(String, String?, String?)]
+    /// Drawn beside the title when the section can be re-read on demand.
+    var refresh: (() -> Void)?
 
     init(_ title: String, rows: [(String, String?)]) {
         self.title = title
+        self.rows = rows.map { ($0.0, $0.1, nil) }
+    }
+
+    init(_ title: String, rows: [(String, String?, String?)], refresh: (() -> Void)? = nil) {
+        self.title = title
         self.rows = rows
+        self.refresh = refresh
     }
 
     var body: some View {
-        let present = rows.compactMap { key, value in value.map { (key, $0) } }
+        let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
         if !present.isEmpty {
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                    .textCase(.uppercase)
+                HStack(spacing: 10) {
+                    Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                        .textCase(.uppercase)
+                    if let refresh {
+                        Button("Refresh", action: refresh)
+                            .font(.claudeMono(10)).buttonStyle(.link)
+                    }
+                }
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
-                    ForEach(present, id: \.0) { key, value in
+                    ForEach(present, id: \.0) { key, value, note in
                         GridRow {
                             Text(key).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
                                 .gridColumnAlignment(.leading)
-                            Text(value).font(.claudeMono(11)).textSelection(.enabled)
+                            HStack(spacing: 8) {
+                                Text(value).font(.claudeMono(11)).textSelection(.enabled)
+                                if let note {
+                                    Text(note).font(.claudeMono(10))
+                                        .foregroundStyle(Color.claudeDim)
+                                }
+                            }
                         }
                     }
                 }
@@ -437,6 +459,17 @@ enum StatFormat {
 
     static func compactCount(_ n: Int) -> String {
         n >= 1_000_000 ? "\(n / 1_000_000)M" : (n >= 1_000 ? "\(n / 1_000)k" : "\(n)")
+    }
+
+    /// How long ago something was read, or nil if it never was. A never-read
+    /// stamp renders as nothing rather than as a very large age, which would
+    /// read as a very stale reading rather than as an absent one.
+    static func age(_ read: Date, now: Date) -> String? {
+        guard read != .distantPast else { return nil }
+        let seconds = Int(max(0, now.timeIntervalSince(read)).rounded())
+        if seconds < 60 { return "\(seconds)s ago" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        return "\(seconds / 3600)h ago"
     }
 
     /// nil when neither side is known — "+0 -0" claims a measurement that was
@@ -746,13 +779,20 @@ private struct GitCard: View {
 
     var body: some View {
         if let snap = snapshot {
+            // Two clocks, so two ages. `remote` and `pr` are network reads on a
+            // 90-second cycle sitting next to local facts read every five, and
+            // one age for the section would misreport whichever half it wasn't.
+            let now = Date()
+            let local = StatFormat.age(snap.readAt, now: now)
+            let remote = StatFormat.age(snap.remoteReadAt, now: now)
             VStack(alignment: .leading, spacing: 8) {
                 StatSection("Git", rows: [
-                    ("branch", snap.branchLabel),
-                    ("changes", changesLabel(snap)),
-                    ("remote", snap.sync.label),
-                    ("pr", snap.pr.label),
-                ])
+                    ("branch", snap.branchLabel, local),
+                    ("changes", changesLabel(snap), local),
+                    ("remote", snap.sync.label, remote),
+                    ("pr", snap.pr.label, remote),
+                    ("checks", checksLabel(snap), remote),
+                ], refresh: reload)
                 actions(snap)
                 if let notice {
                     Text(notice)
@@ -778,17 +818,50 @@ private struct GitCard: View {
         }
     }
 
+    /// An action worth drawing, and why it can't run if it can't.
+    private struct Offered: Identifiable {
+        let action: GitAction
+        let block: GitActions.Block?
+        var id: String { action.id }
+    }
+
     @ViewBuilder private func actions(_ snap: GitSnapshot) -> some View {
-        HStack(spacing: 6) {
-            ForEach(GitAction.allCases) { action in
-                let reason = GitActions.unavailableReason(action, snapshot: snap)
-                Button(action.title) { start(action, snap) }
-                    .font(.claudeMono(10))
-                    .disabled(reason != nil || running)
-                    .help(reason ?? action.title)
+        // A settled block isn't drawn at all. The rows above already say why --
+        // "clean", "in sync", "#3 open" -- and three permanently greyed buttons
+        // beside them read as a broken app rather than as a finished repo.
+        // What survives is what can run, plus whatever couldn't be worked out,
+        // and that second kind states its reason on the page instead of behind
+        // a tooltip nobody hovers for.
+        let offered = GitAction.allCases
+            .map { Offered(action: $0, block: GitActions.unavailableReason($0, snapshot: snap)) }
+            .filter { $0.block?.settled != true }
+        VStack(alignment: .leading, spacing: 5) {
+            if offered.isEmpty {
+                Text("Nothing to do here right now.")
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            } else {
+                HStack(spacing: 6) {
+                    ForEach(offered) { item in
+                        Button(item.action.title) { start(item.action, snap) }
+                            .font(.claudeMono(10))
+                            .disabled(item.block != nil || running)
+                            .help(item.block?.reason ?? item.action.title)
+                    }
+                    Spacer(minLength: 0)
+                }
+                ForEach(offered.filter { $0.block != nil }) { item in
+                    Text("\(item.action.title.lowercased()): \(item.block?.reason ?? "")")
+                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Spacer(minLength: 0)
         }
+    }
+
+    /// Only meaningful beside a PR that was actually read.
+    private func checksLabel(_ snap: GitSnapshot) -> String? {
+        guard snap.pr.number != nil else { return nil }
+        return snap.merge.label
     }
 
     /// Untracked files are counted but never folded into the modified count.
@@ -814,7 +887,17 @@ private struct GitCard: View {
         GitActions.perform(action, snapshot: snap, cwd: cwd) { message in
             notice = message
             running = false
-            Task { snapshot = await GitProbe.shared.snapshot(for: cwd) }
+            reload()
+        }
+    }
+
+    /// Invalidate, then read, on one task and in that order. Two unordered
+    /// actor hops let the read win and hand back the pre-action entry, which is
+    /// how a finished push leaves the row still saying "ahead 1".
+    private func reload() {
+        Task {
+            await GitProbe.shared.invalidate(cwd)
+            snapshot = await GitProbe.shared.snapshot(for: cwd)
         }
     }
 

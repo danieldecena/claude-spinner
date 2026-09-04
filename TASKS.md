@@ -11,6 +11,15 @@
   AppleScript/System Events; needs a real click)
 
 
+- [ ] Re-read the remote when HEAD or the branch moves
+- [ ] Order the post-action invalidate before the re-read
+- [ ] Split block reasons into settled and unknown
+- [ ] Hide settled actions, grey unknown ones with the reason inline
+- [ ] Show per-row read age and a Refresh button
+- [ ] Add Merge, gated on real mergeability
+- [ ] Resolve gh by path fallback and say so when it is missing
+- [ ] Test the merge gate, the settled flag, and the branch-change re-read
+
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
@@ -131,7 +140,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-04 11:31.
+Plan approved 2026-09-04 16:21.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -140,7 +149,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 826d154e-b2af-4354-b95a-dec0447bd8a0
+    claude --resume 816e0dbf-2a41-4e23-81c6-9e961a904927
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

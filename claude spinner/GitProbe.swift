@@ -33,6 +33,13 @@ actor GitProbe {
     /// re-run `rev-parse` every few seconds forever.
     private var notRepos: Set<String> = []
 
+    /// Where `gh` lives. Homebrew's ARM prefix, then Intel's. Resolved once,
+    /// because a hardcoded path that isn't there produces a failed run, which
+    /// `prState` used to map to `.unknown` -- a state whose sentence blames
+    /// GitHub for a binary that was never installed.
+    static let ghPath: String? = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"]
+        .first { FileManager.default.isExecutableFile(atPath: $0) }
+
     /// Every subprocess runs on `queue`, never on the actor's own executor.
     /// Blocking a cooperative thread for the length of a network `ls-remote`
     /// starves the pool that the rest of the app's async work shares.
@@ -48,18 +55,20 @@ actor GitProbe {
 
         let previous = cache[cwd]?.snapshot ?? GitSnapshot()
         let remoteAt = cache[cwd]?.remoteAt ?? .distantPast
-        let wantRemote = now.timeIntervalSince(remoteAt) >= Self.remoteTTL
+        let expired = now.timeIntervalSince(remoteAt) >= Self.remoteTTL
 
-        let read = await Self.offMainRead(cwd: cwd, previous: previous, includeRemote: wantRemote)
+        let read = await Self.offMainRead(cwd: cwd, previous: previous, remoteExpired: expired)
 
-        guard var snap = read else {
+        guard let read else {
             notRepos.insert(cwd)
             cache[cwd] = nil
             return nil
         }
+        var snap = read.snapshot
         snap.readAt = now
+        if read.readRemote { snap.remoteReadAt = now }
         cache[cwd] = Entry(snapshot: snap, localAt: now,
-                           remoteAt: wantRemote ? now : remoteAt)
+                           remoteAt: read.readRemote ? now : remoteAt)
         return snap
     }
 
@@ -67,7 +76,8 @@ actor GitProbe {
     /// the `rev-parse` gate below is the only thing allowed to produce it.
     private static func offMainRead(cwd: String,
                                     previous: GitSnapshot,
-                                    includeRemote: Bool) async -> GitSnapshot? {
+                                    remoteExpired: Bool)
+    async -> (snapshot: GitSnapshot, readRemote: Bool)? {
         await withCheckedContinuation { cont in
             queue.async {
                 guard git(["rev-parse", "--is-inside-work-tree"], in: cwd) != nil else {
@@ -76,8 +86,27 @@ actor GitProbe {
                 }
                 var snap = previous
                 readLocal(into: &snap, cwd: cwd)
-                if includeRemote { readRemote(into: &snap, cwd: cwd) }
-                cont.resume(returning: snap)
+
+                // The remote decision is made here, after the local read, and
+                // not from the clock alone. A commit or a branch switch makes
+                // the cached sync and PR wrong immediately; waiting out the
+                // 90-second TTL means the card asserts something false in the
+                // meantime, which is worse than admitting it doesn't know.
+                let switchedBranch = snap.branch != previous.branch
+                if switchedBranch {
+                    // These describe the branch we just left. Dropping them
+                    // before the read means a read that then fails says
+                    // "unknown" instead of attributing the old branch's PR to
+                    // this one.
+                    snap.sync = .unknown
+                    snap.pr = .unknown
+                    snap.merge = MergeReadiness()
+                }
+                let wantRemote = remoteExpired
+                    || switchedBranch
+                    || snap.headSHA != previous.headSHA
+                if wantRemote { readRemote(into: &snap, cwd: cwd) }
+                cont.resume(returning: (snap, wantRemote))
             }
         }
     }
@@ -97,6 +126,9 @@ actor GitProbe {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         snap.detached = (head == "HEAD")
         snap.branch = snap.detached ? nil : head
+        snap.headSHA = git(["rev-parse", "HEAD"], in: cwd)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        snap.ghInstalled = (ghPath != nil)
 
         let counts = GitParse.porcelain(
             git(["status", "--porcelain=v1", "--untracked-files=all"], in: cwd) ?? "")
@@ -120,7 +152,7 @@ actor GitProbe {
 
     private static func readRemote(into snap: inout GitSnapshot, cwd: String) {
         snap.sync = syncState(cwd: cwd, snap: snap)
-        snap.pr = prState(cwd: cwd)
+        (snap.pr, snap.merge) = prState(cwd: cwd)
     }
 
     private static func syncState(cwd: String, snap: GitSnapshot) -> SyncState {
@@ -132,8 +164,8 @@ actor GitProbe {
         guard parts.count == 2 else { return .unknown }
         let (remoteName, remoteBranch) = (parts[0], parts[1])
 
-        let local = git(["rev-parse", "HEAD"], in: cwd)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // Already read by `readLocal`, which always runs first.
+        let local = snap.headSHA
         let remote = git(["ls-remote", remoteName, "refs/heads/\(remoteBranch)"], in: cwd)
             .flatMap { GitParse.lsRemote($0, branch: remoteBranch) }
 
@@ -154,14 +186,16 @@ actor GitProbe {
                              aheadCount: ahead)
     }
 
-    private static func prState(cwd: String) -> PRState {
-        let result = run("/opt/homebrew/bin/gh",
-                         ["pr", "view", "--json", "number,state,isDraft,url"], in: cwd)
-        guard let result else { return .unknown }
+    private static func prState(cwd: String) -> (PRState, MergeReadiness) {
+        guard let gh = ghPath else { return (.unknown, MergeReadiness()) }
+        let fields = "number,state,isDraft,url,mergeable,mergeStateStatus,reviewDecision"
+        let result = run(gh, ["pr", "view", "--json", fields], in: cwd)
+        guard let result else { return (.unknown, MergeReadiness()) }
         if result.status == 0, let state = GitParse.pr(json: Data(result.out.utf8)) {
-            return state
+            return (state, GitParse.mergeReadiness(json: Data(result.out.utf8)))
         }
-        return GitParse.prFailure(stderr: result.err)
+        // Mergeability is only meaningful alongside a PR that was actually read.
+        return (GitParse.prFailure(stderr: result.err), MergeReadiness())
     }
 
     // MARK: - Running

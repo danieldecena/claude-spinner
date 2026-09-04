@@ -2092,11 +2092,139 @@ final class claude_spinnerTests: XCTestCase {
                       sync: SyncState = .ahead(2),
                       pr: PRState = .none,
                       defaultBranch: Bool = false,
-                      detached: Bool = false) -> GitSnapshot {
+                      detached: Bool = false,
+                      merge: MergeReadiness = MergeReadiness(),
+                      ghInstalled: Bool = true) -> GitSnapshot {
         var s = GitSnapshot()
         s.branch = branch; s.dirty = dirty; s.staged = staged; s.untracked = untracked
         s.sync = sync; s.pr = pr; s.isDefaultBranch = defaultBranch; s.detached = detached
+        s.merge = merge; s.ghInstalled = ghInstalled
         return s
+    }
+
+    /// A PR that GitHub says is genuinely ready. The known-GOOD input: without
+    /// it the merge tests below can't tell a gate that works from one that
+    /// always blocks.
+    private func mergeable(_ number: Int = 3) -> GitSnapshot {
+        snap(pr: .open(number: number, url: "u", draft: false),
+             merge: MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "APPROVED"))
+    }
+
+    // MARK: - Blocked, and whether that is the final answer
+
+    /// The flag the whole action row is drawn from. A settled block hides its
+    /// button; an unsettled one keeps it on screen with the reason showing. Get
+    /// this backwards and "couldn't reach GitHub" silently removes the control.
+    func testOnlyFinishedAnswersAreSettled() {
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .inSync))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(sync: .inSync))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(
+            .createPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false)))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .none))?.settled, true)
+
+        // Every "we couldn't tell" stays visible.
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(sync: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.createPR, snapshot: snap(pr: .unknown))?.settled, false)
+        // Diverged is settled as a fact but needs a person, and hiding the
+        // button would hide the only place that says so.
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .diverged))?.settled, false)
+    }
+
+    func testAMissingGHBlamesGHAndNotTheNetwork() {
+        let s = snap(pr: .unknown, ghInstalled: false)
+        for action in [GitAction.openPR, .createPR, .merge] {
+            let block = GitActions.unavailableReason(action, snapshot: s)
+            XCTAssertEqual(block?.settled, false)
+            XCTAssertTrue(block?.reason.contains("gh CLI") == true,
+                          "\(action.title) must name gh, not the network")
+        }
+        // Purely local actions are unaffected by gh being absent.
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .ahead(1), ghInstalled: false)))
+    }
+
+    // MARK: - Merge
+
+    func testMergeIsOfferedOnlyForAPRGitHubCallsReady() {
+        XCTAssertNil(GitActions.unavailableReason(.merge, snapshot: mergeable()))
+    }
+
+    func testMergeRefusesEveryStateGitHubCallsUnready() {
+        // Not `PRState?`. `PRState` has a case called `none`, so an optional
+        // parameter reads `.none` as nil and the case quietly tests the default
+        // instead of the state it names.
+        func blocked(_ m: MergeReadiness,
+                     _ pr: PRState = .open(number: 3, url: "u", draft: false)) -> GitActions.Block? {
+            GitActions.unavailableReason(.merge, snapshot: snap(pr: pr, merge: m))
+        }
+        // Conflicts, failing checks, behind, and protected are all final.
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "CONFLICTING", state: "DIRTY", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "UNSTABLE", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BEHIND", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BLOCKED", review: "APPROVED"))?.settled, true)
+        // Reviews.
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BLOCKED", review: "REVIEW_REQUIRED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "CHANGES_REQUESTED"))?.settled, true)
+        // A draft, and a PR that isn't open.
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "DRAFT", review: ""),
+                                .open(number: 3, url: "u", draft: true)))
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: ""), .none))
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: ""),
+                                .merged(number: 3, url: "u")))
+    }
+
+    /// The half that isn't a refusal. Mergeability GitHub hasn't computed yet
+    /// must not read as a refusal -- it is an absent answer, and the button has
+    /// to stay on screen saying so.
+    func testUncomputedMergeabilityIsNotARefusal() {
+        let pending = snap(pr: .open(number: 3, url: "u", draft: false),
+                           merge: MergeReadiness(mergeable: "UNKNOWN", state: "UNKNOWN", review: ""))
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: pending)?.settled, false)
+
+        let noFields = snap(pr: .open(number: 3, url: "u", draft: false))
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: noFields)?.settled, false)
+    }
+
+    func testMergeNamesItsMethodAndCleanupExplicitly() {
+        // `gh pr merge` with no method prompts, and a subprocess with no
+        // terminal would sit there until the timeout.
+        XCTAssertEqual(GitActions.command(.merge, snapshot: mergeable())?.args,
+                       ["pr", "merge", "--squash", "--delete-branch"])
+        XCTAssertTrue(GitAction.merge.confirmation?.contains("delete the branch") == true)
+    }
+
+    func testMergeReadinessParsesGHsFieldsAndToleratesTheirAbsence() {
+        let full = #"{"number":3,"state":"OPEN","isDraft":false,"url":"u","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED"}"#
+        let r = GitParse.mergeReadiness(json: Data(full.utf8))
+        XCTAssertEqual(r.mergeable, "MERGEABLE")
+        XCTAssertEqual(r.state, "CLEAN")
+        XCTAssertEqual(r.review, "APPROVED")
+        XCTAssertEqual(r.label, "checks passing, approved")
+
+        // An older gh, or a repo the token can't see merge state for: the
+        // fields are simply absent, which must stay nil rather than default.
+        let bare = GitParse.mergeReadiness(json: Data(#"{"number":3,"state":"OPEN"}"#.utf8))
+        XCTAssertNil(bare.mergeable)
+        XCTAssertNil(bare.state)
+        XCTAssertNil(bare.label)
+    }
+
+    // MARK: - Freshness
+
+    func testAgeIsNilUntilSomethingHasActuallyBeenRead() {
+        let now = Date()
+        XCTAssertNil(StatFormat.age(.distantPast, now: now))
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-3), now: now), "3s ago")
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-90), now: now), "1m ago")
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-7200), now: now), "2h ago")
+    }
+
+    /// A failed GitHub read used to render as no row at all, which looks exactly
+    /// like a branch that has no PR.
+    func testAnUnreadablePRStillDrawsARow() {
+        XCTAssertEqual(PRState.unknown.label, "unknown")
+        XCTAssertEqual(PRState.none.label, "none")
     }
 
     func testPullRefusesADirtyTreeAndAllowsACleanOne() {
@@ -2123,9 +2251,9 @@ final class claude_spinnerTests: XCTestCase {
     /// A dirty tree with nothing to pull has to say so. "Commit or stash them
     /// first" reads as a promise that Pull unlocks afterwards, and it does not.
     func testPullReasonNamesTheSyncStateBeforeTheDirtyTree() {
-        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(dirty: 1, sync: .inSync)),
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(dirty: 1, sync: .inSync))?.reason,
                        "Already up to date with the remote.")
-        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(staged: 1, sync: .ahead(2))),
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(staged: 1, sync: .ahead(2)))?.reason,
                        "Nothing to pull; this branch is ahead of the remote.")
     }
 
@@ -2182,7 +2310,7 @@ final class claude_spinnerTests: XCTestCase {
 
     func testOnlyOpenPRSkipsConfirmation() {
         XCTAssertNil(GitAction.openPR.confirmation)
-        for action in [GitAction.push, .createPR, .pull] {
+        for action in [GitAction.push, .createPR, .pull, .merge] {
             XCTAssertNotNil(action.confirmation, "\(action.title) must confirm first")
         }
     }
