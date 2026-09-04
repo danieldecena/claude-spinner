@@ -77,7 +77,16 @@ enum AskAnswer: Equatable {
 /// a debounce.
 @MainActor
 final class AskInbox: ObservableObject {
+    /// One instance owns the directory; views read it without being threaded it
+    /// through every initializer.
+    static let shared = AskInbox()
+
     @Published private(set) var pending: [AskRequest] = []
+    /// nil until the first settings read lands. False is the case that matters:
+    /// `add()` reports no error when authorization is denied, so without this the
+    /// whole feature is a silent no-op — a banner nobody sees looks exactly like
+    /// a banner nobody answered.
+    @Published private(set) var notificationsAllowed: Bool?
 
     private let dir: URL
     private let ioQueue = DispatchQueue(label: "claude-spinner.asks")
@@ -92,6 +101,16 @@ final class AskInbox: ObservableObject {
         try? FileManager.default.createDirectory(at: self.dir, withIntermediateDirectories: true)
         rescan()
         startWatching()
+        refreshAuthorization()
+    }
+
+    /// Re-read whether macOS will actually present what we post.
+    func refreshAuthorization() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let allowed = settings.authorizationStatus == .authorized
+                || settings.authorizationStatus == .provisional
+            Task { @MainActor [weak self] in self?.notificationsAllowed = allowed }
+        }
     }
 
     deinit { source?.cancel() }

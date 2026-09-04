@@ -9,6 +9,7 @@ import SwiftUI
 import AppKit
 import Combine
 import UserNotifications
+import os.log
 
 @main
 struct claude_spinnerApp: App {
@@ -45,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var titleObserver: AnyCancellable?
     /// Prompts a blocked `ask.sh` is waiting on, and the only writer of the
     /// answers it reads back.
-    private let asks = AskInbox()
+    private let asks = AskInbox.shared
     private var askObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -60,7 +61,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // register the "Focus session" action so its button appears on the alert.
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center.requestAuthorization(options: [.alert, .sound]) { [asks] granted, error in
+            // Public on purpose. NSLog's Swift bridge redacts interpolated values
+            // to <private>, and this line is the one that separates "posted but
+            // not presented" from "never posted" — the two look identical from
+            // add()'s error, which is nil either way.
+            os_log("claude spinner: authorization granted=%{public}d error=%{public}@",
+                   granted ? 1 : 0, error?.localizedDescription ?? "none")
+            asks.refreshAuthorization()
+        }
         registerCategories(for: asks.pending)
 
         // Every pending ask contributes its own category, because the buttons are
@@ -470,7 +479,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             content.userInfo = ["req": req.req, "cwd": req.cwd, "sessionId": req.sessionId]
             UNUserNotificationCenter.current().add(
                 UNNotificationRequest(identifier: AskInbox.notificationID(req.req),
-                                      content: content, trigger: nil))
+                                      content: content, trigger: nil)
+            ) { error in
+                // A refused authorization makes add() fail silently, which looks
+                // identical to a banner the user simply didn't see. Say which.
+                if let error {
+                    NSLog("claude spinner: ask banner not posted — \(error.localizedDescription)")
+                } else {
+                    NSLog("claude spinner: ask banner posted for \(req.req)")
+                }
+            }
         }
         requestAttention()
     }
