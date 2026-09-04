@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 /// The window surface: a sidebar of sessions and a detail pane for the selected
 /// one.
@@ -35,7 +36,7 @@ struct WindowContentView: View {
 
     static func defaultSelection(roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
         let asked = Set(asks.map(\.sessionId))
-        if let waiting = roots.first(where: { asked.contains($0.id) || $0.status == .attention }) {
+        if let waiting = roots.first(where: { asked.contains($0.id) || $0.isBlockedOnYou }) {
             return waiting
         }
         let byRecency = roots.sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
@@ -78,7 +79,7 @@ private struct SessionSidebar: View {
 
     /// Waiting first — those are the ones with something blocked on a human.
     private var groups: [(String, [SessionFeed])] {
-        let waiting = sessions.filter { $0.status == .attention || asksFor($0) }
+        let waiting = sessions.filter { $0.isBlockedOnYou || asksFor($0) }
         let waitingIDs = Set(waiting.map(\.id))
         let working = sessions.filter { $0.isWorking && !waitingIDs.contains($0.id) }
         let workingIDs = Set(working.map(\.id))
@@ -122,7 +123,7 @@ private struct SessionSidebar: View {
     }
 
     private func tint(_ session: SessionFeed) -> Color {
-        if session.status == .attention || asksFor(session) { return Color.usageTint(95) }
+        if session.isBlockedOnYou || asksFor(session) { return Color.usageTint(95) }
         return session.isWorking ? .accentColor : Color.claudeDim
     }
 }
@@ -143,6 +144,8 @@ private struct SessionDetail: View {
                 ForEach(asks) { ask in
                     AskCard(ask: ask)
                 }
+
+                TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
 
                 ReplyBox(session: session, feedDir: feedDir)
 
@@ -171,8 +174,12 @@ private struct SessionDetail: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(session.distinctName).font(.claudeMono(18)).fontWeight(.semibold)
             Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
-            if !session.message.isEmpty {
-                Text(session.message).font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
+            if let summary = session.attentionSummary {
+                // Orange only when something is genuinely blocked. A finished
+                // session that simply hasn't been typed at is not an alarm.
+                Text(summary)
+                    .font(.claudeMono(11))
+                    .foregroundStyle(session.isBlockedOnYou ? Color.usageTint(95) : Color.claudeDim)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -519,6 +526,90 @@ private struct Sparkline: View {
                 Text("no usage history yet")
                     .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
             }
+        }
+    }
+}
+
+
+// MARK: - What Claude is actually doing
+
+/// The last thing Claude said, what you last asked, and what it just ran.
+///
+/// Answers the question the rest of the pane cannot: a row saying "needs input"
+/// tells you something is waiting, not what it wants or how to reply. This is
+/// read from the session's own transcript, which no feed file carries.
+private struct TranscriptCard: View {
+    let path: String?
+    let sessionID: String
+    @State private var snapshot = TranscriptSnapshot()
+    @State private var expanded = false
+
+    var body: some View {
+        Group {
+            if !snapshot.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let prompt = snapshot.lastPrompt {
+                        Labelled("you asked", prompt, limit: expanded ? nil : 3)
+                    }
+                    if let said = snapshot.lastAssistantText {
+                        Labelled("claude said", said, limit: expanded ? nil : 6)
+                    }
+                    if !snapshot.recentTools.isEmpty {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("just ran").font(.claudeMono(10))
+                                .foregroundStyle(Color.claudeDim).textCase(.uppercase)
+                            Text(snapshot.recentTools.joined(separator: " · "))
+                                .font(.claudeMono(11))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
+                        .font(.claudeMono(10)).buttonStyle(.link)
+                }
+                .padding(12)
+                .background(Color.claudeDim.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .task(id: sessionID) { await refresh() }
+        // Re-read on the same cadence the rows already tick at. The read is a
+        // bounded tail, not the whole file, so this stays cheap.
+        .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
+            Task { await refresh() }
+        }
+    }
+
+    private func refresh() async {
+        guard let path else { return }
+        // Off the main actor: this touches the filesystem, and the transcripts
+        // are megabytes even though only the tail is read.
+        let read = await Task.detached(priority: .utility) {
+            TranscriptReader.read(path: path)
+        }.value
+        if read != snapshot { snapshot = read }
+    }
+}
+
+/// A titled block of transcript prose, clamped unless expanded.
+private struct Labelled: View {
+    let title: String
+    let body_: String
+    let limit: Int?
+
+    init(_ title: String, _ body: String, limit: Int?) {
+        self.title = title
+        self.body_ = body
+        self.limit = limit
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.claudeMono(10))
+                .foregroundStyle(Color.claudeDim).textCase(.uppercase)
+            Text(body_)
+                .font(.claudeMono(11))
+                .lineLimit(limit)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

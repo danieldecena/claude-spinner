@@ -248,6 +248,7 @@ private struct StateFile: Decodable {
     var status: String?
     var tool: String?
     var message: String?
+    var notification_type: String?
     var cwd: String?
     var host: String?
     var pid: Double?
@@ -395,6 +396,10 @@ struct SessionFeed: Identifiable {
     var todoTotal: Int?
     var todoDone: Int?
     var stats = SessionDetailStats()
+    /// Which notification put this session in `.attention`. `idle_prompt` means
+    /// Claude *finished* and you haven't typed for 60s; everything else means
+    /// something is actually blocked on you. Nil for older feed files.
+    var notificationType: String?
     var parentSessionId: String?
     var agentId: String?
     var agentType: String?
@@ -405,6 +410,7 @@ struct SessionFeed: Identifiable {
     /// Merge the hook-written state file (status, current tool, turn start).
     fileprivate mutating func applyState(_ s: StateFile) {
         if let st = s.status { status = SessionStatus(rawValue: st) ?? .idle }
+        notificationType = s.notification_type
         tool = s.tool ?? ""
         message = s.message ?? ""
         if let c = s.cwd, !c.isEmpty { cwd = c }
@@ -482,6 +488,32 @@ struct SessionFeed: Identifiable {
     }
 
     var isWorking: Bool { status == .thinking || status == .tool }
+
+    /// Whether anything is actually blocked on a person.
+    ///
+    /// `emit.sh` maps every Notification event to `.attention`, and `idle_prompt`
+    /// is one of them — it fires 60 seconds after a turn ends if you haven't
+    /// typed. Treating that as "needs input" put a finished session in the same
+    /// orange row as one holding a permission prompt, with no way to tell which
+    /// deserved an answer.
+    var isBlockedOnYou: Bool {
+        status == .attention && notificationType != "idle_prompt"
+    }
+
+    /// One line saying what the session wants, or nothing if it wants nothing.
+    var attentionSummary: String? {
+        guard status == .attention else { return nil }
+        switch notificationType {
+        case "idle_prompt":
+            return "Finished — waiting at the prompt, nothing to answer"
+        case "permission_prompt":
+            return message.isEmpty ? "Waiting for permission to run a tool" : message
+        case .none:
+            return message.isEmpty ? "Waiting on you" : message
+        default:
+            return message.isEmpty ? "Waiting on you" : message
+        }
+    }
 
     var projectName: String {
         let name = (cwd as NSString).lastPathComponent
@@ -1069,7 +1101,10 @@ final class FeedWatcher: ObservableObject {
     /// Post a macOS notification the first time each session enters attention, so
     /// the user is pulled back without watching the menu bar. Runs on main.
     private func notifyAttention(_ newSessions: [SessionFeed]) {
-        let attentionNow = Set(newSessions.filter { $0.status == .attention }.map(\.id))
+        // Only sessions actually blocked on a person. An `idle_prompt` says a
+        // turn ended and you haven't typed — the done-turn alert covers that,
+        // and banner-ing it as "Claude needs you" is simply untrue.
+        let attentionNow = Set(newSessions.filter(\.isBlockedOnYou).map(\.id))
         for id in attentionNow.subtracting(notifiedAttention) {
             guard let s = newSessions.first(where: { $0.id == id }) else { continue }
             let content = UNMutableNotificationContent()

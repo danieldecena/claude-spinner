@@ -129,6 +129,9 @@ final class claude_spinnerTests: XCTestCase {
                       "bundled Scripts/emit.sh is missing the subagent child-file branch — sync it from ~/.claude/spinnerfeed/emit.sh")
         XCTAssertTrue(contents.contains("SubagentStart"))
         XCTAssertTrue(contents.contains("agent_id"))
+        XCTAssertTrue(contents.contains("notification_type"),
+                      "bundled Scripts/emit.sh must record which notification fired — "
+                      + "without it idle_prompt is indistinguishable from a real block")
         XCTAssertTrue(contents.contains("prev_msg"),
                       "bundled Scripts/emit.sh is missing the message carry-forward — the "
                       + "attention banner falls back to a bare project name without it")
@@ -1085,6 +1088,108 @@ final class claude_spinnerTests: XCTestCase {
     func testGUIFocusLaunchesWithPathOnlyWhenNotRunning() {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: "/some/proj"), .openPath)
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
+    }
+
+    // MARK: - TranscriptReader
+
+    /// Records in the real shapes the transcript actually uses, taken from a
+    /// live file rather than invented.
+    private var transcriptLines: [String] {[
+        #"{"type":"ai-title","aiTitle":"spinner-notification-feedback-loop","sessionId":"s"}"#,
+        #"{"type":"last-prompt","lastPrompt":"why is it 90$ i have max plan?","sessionId":"s"}"#,
+        #"{"type":"permission-mode","permissionMode":"bypassPermissions","sessionId":"s"}"#,
+        #"{"type":"assistant","gitBranch":"notification-answers","version":"2.1.260","timestamp":"2026-09-04T06:40:00.000Z","message":{"usage":{"cache_read_input_tokens":379956,"cache_creation_input_tokens":3027,"output_tokens":1410,"output_tokens_details":{"thinking_tokens":386}},"content":[{"type":"thinking","thinking":"weighing it"},{"type":"text","text":"That is not a bill."},{"type":"tool_use","name":"Bash"}]}}"#,
+        #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#,
+    ]}
+
+    func testTranscriptParsePullsOutWhatTheSessionIsDoing() {
+        let snap = TranscriptReader.parse(transcriptLines.joined(separator: "\n"),
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.title, "spinner-notification-feedback-loop")
+        XCTAssertEqual(snap.lastPrompt, "why is it 90$ i have max plan?")
+        XCTAssertEqual(snap.permissionMode, "bypassPermissions")
+        XCTAssertEqual(snap.lastAssistantText, "That is not a bill.")
+        XCTAssertEqual(snap.lastThinking, "weighing it")
+        XCTAssertEqual(snap.gitBranch, "notification-answers")
+        XCTAssertEqual(snap.cacheReadTokens, 379_956)
+        XCTAssertEqual(snap.thinkingTokens, 386)
+        XCTAssertFalse(snap.isEmpty)
+    }
+
+    /// A turn of eight Bash calls filled the line with "Bash · Bash · Bash …"
+    /// and said less than one count does.
+    func testTranscriptCollapsesRunsOfTheSameTool() {
+        let runs = (0..<8).map { _ in
+            #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}"#
+        } + [#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#]
+        let snap = TranscriptReader.parse(runs.joined(separator: "\n"), droppingFirstLine: false)
+        XCTAssertEqual(snap.recentTools, ["Edit", "Bash ×8"])
+    }
+
+    /// Newest first. Reading forwards would leave "last" holding the oldest
+    /// value in the window, which is wrong in a way nothing else would catch.
+    func testTranscriptTakesTheNewestToolFirst() {
+        let snap = TranscriptReader.parse(transcriptLines.joined(separator: "\n"),
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.recentTools.first, "Edit")
+    }
+
+    /// Seeking into the middle of a file lands mid-record, and that fragment is
+    /// another record's tail rather than a truncated one to recover. Dropping it
+    /// is the whole reason `droppingFirstLine` exists.
+    func testTranscriptDropsThePartialFirstLineAfterASeek() {
+        let text = (["ache_read_input_tokens\":1}}}"] + transcriptLines).joined(separator: "\n")
+        let kept = TranscriptReader.parse(text, droppingFirstLine: true)
+        XCTAssertEqual(kept.title, "spinner-notification-feedback-loop")
+
+        // And without the flag the fragment is simply unparseable, never fatal.
+        let sloppy = TranscriptReader.parse(text, droppingFirstLine: false)
+        XCTAssertEqual(sloppy.title, "spinner-notification-feedback-loop")
+    }
+
+    /// A transcript that hasn't been written yet is a normal state for a session
+    /// that just started, not an error.
+    func testTranscriptReadsMissingFileAsEmptyRatherThanFailing() {
+        let snap = TranscriptReader.read(path: "/nonexistent/transcript.jsonl")
+        XCTAssertTrue(snap.isEmpty)
+    }
+
+    func testTranscriptToleratesGarbageLines() {
+        let snap = TranscriptReader.parse("not json\n{\n" + transcriptLines[0],
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.title, "spinner-notification-feedback-loop")
+    }
+
+    // MARK: - idle_prompt is not a question
+
+    private func attention(_ type: String?, message: String = "") -> SessionFeed {
+        var s = SessionFeed(id: "s")
+        s.status = .attention
+        s.notificationType = type
+        s.message = message
+        return s
+    }
+
+    /// The bug: emit.sh maps every Notification event to .attention, and
+    /// idle_prompt is one of them — it fires 60s after a turn ENDS if you
+    /// haven't typed. A finished session sat in the same orange row as one
+    /// holding a permission prompt, with no way to tell which wanted an answer.
+    func testAnIdlePromptIsNotBlockedOnYou() {
+        XCTAssertFalse(attention("idle_prompt").isBlockedOnYou)
+        XCTAssertTrue(attention("permission_prompt").isBlockedOnYou)
+        XCTAssertTrue(attention("agent_needs_input").isBlockedOnYou)
+        // Older feed files carry no type at all; assume it wants something.
+        XCTAssertTrue(attention(nil).isBlockedOnYou)
+    }
+
+    func testAttentionSummarySaysWhichKindOfWaitingItIs() {
+        XCTAssertEqual(attention("idle_prompt").attentionSummary,
+                       "Finished — waiting at the prompt, nothing to answer")
+        XCTAssertEqual(attention("permission_prompt").attentionSummary,
+                       "Waiting for permission to run a tool")
+        XCTAssertEqual(attention("permission_prompt", message: "Claude needs your permission to use Bash").attentionSummary,
+                       "Claude needs your permission to use Bash")
+        XCTAssertNil(SessionFeed(id: "s").attentionSummary, "not waiting at all")
     }
 
     // MARK: - Which session the window opens on
