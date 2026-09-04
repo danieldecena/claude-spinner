@@ -1087,6 +1087,63 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - SessionReplier (typing into a pane)
+
+    /// Real `tmux list-panes -a -F '#{pane_tty} #{pane_id}'` output from this
+    /// machine, so the parse is tested against the shape it actually meets.
+    private let paneListing = """
+    /dev/ttys005 %10 22489
+    /dev/ttys001 %9 7183
+    /dev/ttys003 %5 96677
+    """
+
+    func testPaneLookupJoinsOnTheControllingTTY() {
+        // `ps -o tty=` prints the bare name; tmux prints the device path.
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "ttys001", in: paneListing), "%9")
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "/dev/ttys001", in: paneListing), "%9")
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "ttys005", in: paneListing), "%10")
+    }
+
+    /// The known-bad half. A session outside tmux has no pane, and that must
+    /// resolve to nothing rather than to the first or nearest row — sending to
+    /// the wrong pane types into another agent's prompt.
+    func testPaneLookupFindsNothingForASessionOutsideTmux() {
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys099", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys001", in: ""))
+    }
+
+    /// A partial match must not count: ttys00 is a prefix of ttys001 and names a
+    /// different device.
+    func testPaneLookupRequiresAWholeDeviceMatch() {
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys00", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys0011", in: paneListing))
+    }
+
+    /// send-keys exiting 0 says the keys reached a pane's buffer, never that
+    /// Claude was foreground in it. The turn starting is the observation, so
+    /// prove the watcher distinguishes both inputs.
+    func testTurnStartedIsObservedOnlyWhenTheStatusLeavesIdle() throws {
+        try withTempDir { dir in
+            let file = dir.appendingPathComponent("sid.state.json")
+            try Data(#"{"status":"idle"}"#.utf8).write(to: file)
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+
+            try Data(#"{"status":"thinking"}"#.utf8).write(to: file)
+            XCTAssertTrue(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+        }
+    }
+
+    /// A missing state file is "not observed", not a crash and not a pass.
+    func testTurnStartedIsNotObservedWithNoStateFile() throws {
+        try withTempDir { dir in
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "absent", feedDir: dir, timeout: 0.2, poll: 0.05))
+        }
+    }
+
     // MARK: - AskInbox (the notification round-trip)
 
     private func makeAsk(kind: String = "question",
