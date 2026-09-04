@@ -895,12 +895,18 @@ final class FeedWatcher: ObservableObject {
         isSetupInstalled = Self.checkSetupInstalled(dir: dir)
     }
 
+    /// Per-script, not "anything of ours". A machine that installed before
+    /// ask.sh existed has emit.sh in both places, so a check for emit.sh alone
+    /// reports a complete install and the answer hooks silently never arrive.
     private static func checkSetupInstalled(dir: URL) -> Bool {
-        guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("emit.sh").path)
-        else { return false }
+        let scripts = ["emit.sh", "ask.sh"]
+        for script in scripts
+        where !FileManager.default.fileExists(atPath: dir.appendingPathComponent(script).path) {
+            return false
+        }
         let settings = dir.deletingLastPathComponent().appendingPathComponent("settings.json")
         guard let text = try? String(contentsOf: settings, encoding: .utf8) else { return false }
-        return text.contains("emit.sh")
+        return scripts.allSatisfy { text.contains($0) }
     }
 
     /// Force a re-read of the feed (right-click → Refresh).

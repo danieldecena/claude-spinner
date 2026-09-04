@@ -25,23 +25,54 @@ enum SetupInstaller {
     ]
 
     static let emitCommandPath = "~/.claude/spinnerfeed/emit.sh"
+    static let askCommandPath = "~/.claude/spinnerfeed/ask.sh"
+
+    /// One hook entry to merge. `script` is the idempotency key, not the whole
+    /// command: two handlers on the same event point at different scripts, so
+    /// "is anything of ours already wired here" would see emit.sh and wrongly
+    /// conclude ask.sh was installed too.
+    struct HookHandler {
+        let event: String
+        let matcher: String
+        let script: String
+        let command: String
+        /// nil leaves Claude Code's default. ask.sh blocks on a human, so its
+        /// handlers pin a ceiling well above the deadline the script enforces
+        /// itself — the script decides the fallback, never the timeout.
+        var timeout: Int?
+    }
+
+    static let handlers: [HookHandler] =
+        hookEvents.map {
+            HookHandler(event: $0, matcher: "", script: "emit.sh",
+                        command: "\(emitCommandPath) \($0)", timeout: nil)
+        } + [
+            HookHandler(event: "PreToolUse", matcher: "AskUserQuestion", script: "ask.sh",
+                        command: "\(askCommandPath) question", timeout: 600),
+            HookHandler(event: "PermissionRequest", matcher: "", script: "ask.sh",
+                        command: "\(askCommandPath) permission", timeout: 600),
+        ]
 
     /// Append-only merge of the spinnerfeed hooks + statusLine. Pure, no I/O.
     static func mergeSpinnerHooks(into settings: [String: Any]) -> [String: Any] {
         var out = settings
         var hooks = (out["hooks"] as? [String: Any]) ?? [:]
-        for event in hookEvents {
-            var groups = (hooks[event] as? [[String: Any]]) ?? []
+        for handler in handlers {
+            var groups = (hooks[handler.event] as? [[String: Any]]) ?? []
+            // Keyed on (script, matcher). A missing "matcher" key means the
+            // empty matcher — settings.json in the wild has both forms.
             let alreadyWired = groups.contains { group in
+                guard (group["matcher"] as? String ?? "") == handler.matcher else { return false }
                 let entries = (group["hooks"] as? [[String: Any]]) ?? []
-                return entries.contains { ($0["command"] as? String)?.contains("emit.sh") == true }
+                return entries.contains {
+                    ($0["command"] as? String)?.contains(handler.script) == true
+                }
             }
             if !alreadyWired {
-                groups.append([
-                    "matcher": "",
-                    "hooks": [["type": "command", "command": "\(emitCommandPath) \(event)"]],
-                ])
-                hooks[event] = groups
+                var entry: [String: Any] = ["type": "command", "command": handler.command]
+                if let timeout = handler.timeout { entry["timeout"] = timeout }
+                groups.append(["matcher": handler.matcher, "hooks": [entry]])
+                hooks[handler.event] = groups
             }
         }
         out["hooks"] = hooks
@@ -61,10 +92,12 @@ enum SetupInstaller {
             try fm.createDirectory(at: feedDir, withIntermediateDirectories: true)
 
             guard let emitSrc = Bundle.main.url(forResource: "emit", withExtension: "sh"),
+                  let askSrc = Bundle.main.url(forResource: "ask", withExtension: "sh"),
                   let statusSrc = Bundle.main.url(forResource: "statusline-command", withExtension: "sh")
             else { return .failure(SetupError.missingBundledScript) }
 
             try copyExecutable(from: emitSrc, to: feedDir.appendingPathComponent("emit.sh"))
+            try copyExecutable(from: askSrc, to: feedDir.appendingPathComponent("ask.sh"))
             try copyExecutable(from: statusSrc, to: claudeDir.appendingPathComponent("statusline-command.sh"))
 
             let settingsURL = claudeDir.appendingPathComponent("settings.json")

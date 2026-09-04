@@ -128,6 +128,34 @@ final class claude_spinnerTests: XCTestCase {
                       "bundled Scripts/emit.sh is missing the subagent child-file branch — sync it from ~/.claude/spinnerfeed/emit.sh")
         XCTAssertTrue(contents.contains("SubagentStart"))
         XCTAssertTrue(contents.contains("agent_id"))
+        XCTAssertTrue(contents.contains("prev_msg"),
+                      "bundled Scripts/emit.sh is missing the message carry-forward — the "
+                      + "attention banner falls back to a bare project name without it")
+    }
+
+    /// Same content-parity smoke check for the answer hook. The three shapes
+    /// asserted here are the ones whose absence would be silent: without the
+    /// pgrep gate every tool call stalls for the deadline when the app is shut,
+    /// and without `passthrough` a dismissed banner never falls back.
+    func testBundledAskScriptKeepsItsFallbacks() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let scriptURL = testFile
+            .deletingLastPathComponent()               // claude spinnerTests/
+            .deletingLastPathComponent()                // repo root
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        let contents = try String(contentsOf: scriptURL, encoding: .utf8)
+        XCTAssertTrue(contents.contains("pgrep -x \"claude spinner\""),
+                      "ask.sh must not write an ask file with no app to answer it")
+        XCTAssertTrue(contents.contains("passthrough"))
+        XCTAssertTrue(contents.contains("multiSelect"),
+                      "ask.sh must pass multiSelect questions through to the terminal")
+        // Comments are stripped first: the script says "must never exit 2" in
+        // prose, and matching that would make this pass for the wrong reason.
+        let code = contents.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
+            .joined(separator: "\n")
+        XCTAssertFalse(code.contains("exit 2"),
+                       "exit 2 reads as a deny on PreToolUse — the fallback must be exit 0")
     }
 
     func testHookEventsIncludeSubagentLifecycle() {
@@ -1110,6 +1138,69 @@ final class claude_spinnerTests: XCTestCase {
         let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
         XCTAssertEqual(emitCommands(merged, "SessionStart").count, 1)  // not duplicated
         XCTAssertEqual(emitCommands(merged, "Stop").count, 1)          // added
+    }
+
+    /// Commands on one event whose text mentions `script`, whatever the matcher.
+    private func commands(_ settings: [String: Any], _ event: String, _ script: String) -> [String] {
+        guard let hooks = settings["hooks"] as? [String: Any],
+              let groups = hooks[event] as? [[String: Any]] else { return [] }
+        return groups.flatMap { ($0["hooks"] as? [[String: Any]]) ?? [] }
+            .compactMap { $0["command"] as? String }
+            .filter { $0.contains(script) }
+    }
+
+    func testMergeAddsTheAnswerHooks() {
+        let merged = SetupInstaller.mergeSpinnerHooks(into: [:])
+        XCTAssertEqual(commands(merged, "PreToolUse", "ask.sh"),
+                       ["~/.claude/spinnerfeed/ask.sh question"])
+        XCTAssertEqual(commands(merged, "PermissionRequest", "ask.sh"),
+                       ["~/.claude/spinnerfeed/ask.sh permission"])
+        // The question handler must carry its matcher, or it fires on every tool.
+        let groups = (merged["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]]
+        let askGroup = groups?.first { group in
+            (group["hooks"] as? [[String: Any]])?
+                .contains { ($0["command"] as? String)?.contains("ask.sh") == true } == true
+        }
+        XCTAssertEqual(askGroup?["matcher"] as? String, "AskUserQuestion")
+        // And a ceiling above the deadline ask.sh enforces itself.
+        let entry = (askGroup?["hooks"] as? [[String: Any]])?.first
+        XCTAssertEqual(entry?["timeout"] as? Int, 600)
+    }
+
+    /// The regression the per-script idempotency key exists for: a machine that
+    /// installed before ask.sh existed has emit.sh already wired on PreToolUse.
+    /// Keyed on "anything of ours", that group made the whole event look done
+    /// and the answer hook was silently never added.
+    func testMergeAddsAskHookToSettingsThatAlreadyHaveEmit() {
+        let existing: [String: Any] = [
+            "hooks": ["PreToolUse": [
+                ["matcher": "", "hooks": [["type": "command",
+                  "command": "~/.claude/spinnerfeed/emit.sh PreToolUse"]]]
+            ]]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(commands(merged, "PreToolUse", "emit.sh").count, 1, "not duplicated")
+        XCTAssertEqual(commands(merged, "PreToolUse", "ask.sh").count, 1, "added alongside")
+    }
+
+    /// A group written without a "matcher" key at all — settings.json in the
+    /// wild has both forms — must read as the empty matcher, not as unmatched.
+    func testMergeTreatsMissingMatcherAsEmpty() {
+        let existing: [String: Any] = [
+            "hooks": ["Notification": [
+                ["hooks": [["type": "command",
+                  "command": "~/.claude/spinnerfeed/emit.sh Notification"]]]
+            ]]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(commands(merged, "Notification", "emit.sh").count, 1, "must not duplicate")
+    }
+
+    func testMergeIsIdempotentForTheAnswerHooks() {
+        let once = SetupInstaller.mergeSpinnerHooks(into: [:])
+        let twice = SetupInstaller.mergeSpinnerHooks(into: once)
+        XCTAssertEqual(commands(twice, "PreToolUse", "ask.sh").count, 1)
+        XCTAssertEqual(commands(twice, "PermissionRequest", "ask.sh").count, 1)
     }
 
     // MARK: - SetupInstaller.copyExecutable (script replacement)
