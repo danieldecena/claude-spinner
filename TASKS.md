@@ -2,6 +2,16 @@
 
 ## Tasks
 
+- [ ] [code] Show the command in the permission card -- `ask.sh` already writes
+  `tool_input`; `AskRequest` never decodes it, so the window asks you to approve
+  a command it does not show
+
+- [ ] [code] Stop the reply field taking first responder on window open -- stray
+  keystrokes land in a box whose Send types into a live session
+
+- [ ] [code] Pull is disabled by untracked files -- an untracked file does not
+  block `git pull`; gate on tracked changes only
+
 - [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
   reads denied, so banners post without error and never appear
 

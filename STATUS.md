@@ -109,15 +109,52 @@
 
 ## Next Up
 
-Two hand-checks, both `[you]` in `TASKS.md`:
+Three `[code]` gaps the 2026-09-04 runtime verification found, in `TASKS.md`:
 
-- Allow notifications for "claude spinner" in System Settings. Authorization
-  reads denied, so banners never appear; the answer path works from the window
-  regardless.
-- Closing the window with a **placed** status item should return the app to
-  `.accessory`. Not scriptable — see the 2026-08-12 decision log.
+- The permission card shows only `Run Bash?` — the command itself is in the ask
+  file and never decoded, so you approve what you cannot see.
+- The reply field takes first responder on window open, and its Send types into
+  a live session.
+- Pull is disabled by an untracked file, which does not block `git pull`.
+
+Then two hand-checks, both `[you]`: allowing notifications in System Settings,
+and the placed-status-item policy round-trip (not scriptable — see the
+2026-08-12 decision log).
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (runtime verification)
+- Verified by running the app rather than the suite. `ask.sh` was driven as a
+  real hook with live payloads and answered by clicking the window: a
+  single-select question returned `permissionDecision:"allow"` with `answers`
+  keyed on the question text (`"Cold brew"`), and a `PermissionRequest` returned
+  `decision{behavior:"deny"}`. Both exit 0 and leave `asks/` empty.
+- The fall-through matrix holds. Timeout, `multiSelect`, two questions, missing
+  `session_id`, non-JSON stdin and app-not-running all exit 0 with empty stdout,
+  and the four decidable without waiting return in 0s. Nothing exits 2. Malformed
+  stdin does leak a `jq: parse error` to stderr.
+- The GIT pane updates live: a tracked edit moved `changes` from `1 untracked` to
+  `1 modified, 1 untracked` with no restart, and every disabled control was
+  confirmed to carry a true reason in its tooltip (mid-turn, in sync, PR already
+  open, uncommitted changes).
+- Found: the permission card renders only `Run \(ask.toolName)?`. `ask.sh` writes
+  `tool_input` into the ask file but `AskRequest` has no `toolInput` field, so the
+  window asks you to approve a command it does not show. Probed with
+  `rm -rf /tmp/verify-probe-dir` and got Allow/Deny with no command text. This is
+  the one place the window is worse than the terminal prompt it replaces.
+- Found: the reply field takes first responder on window open — confirmed via
+  `AXFocusedUIElement` immediately after launch — and mid-run held a stray `ui`
+  nobody typed deliberately. Keystrokes aimed at anything else land in a box whose
+  Send types into a running session. It does not survive relaunch, which is the
+  only thing keeping it harmless.
+- Found: Pull is disabled by untracked files. With a clean tree except `.local/`,
+  the tooltip reads "There are uncommitted changes. Commit or stash them first."
+  An untracked file does not block `git pull`, so Pull is permanently greyed on
+  this repo.
+- Not exercised: the Install-hooks banner (gated on `!feed.isSetupInstalled`, and
+  the hooks are installed — driving it means uninstalling from the live
+  `settings.json`) and Send on the reply field (it would have typed into this
+  session's own pane).
 
 ### 2026-09-04 (installer diff)
 - Investigated and dropped: "SetupInstaller reformats settings.json". It already
