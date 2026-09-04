@@ -14,6 +14,7 @@ import Combine
 struct WindowContentView: View {
     @ObservedObject var feed: FeedWatcher
     @ObservedObject private var asks = AskInbox.shared
+    @StateObject private var install = InstallState()
     @State private var selection: String?
 
     /// Roots only. Children are shown under their parent in the detail pane,
@@ -49,6 +50,11 @@ struct WindowContentView: View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 OverviewStrip(overview: feed.overview, history: feed.usageHistory)
+                if !feed.isSetupInstalled {
+                    Divider()
+                    SetupBanner(feed: feed, install: install)
+                        .padding(.horizontal, 10).padding(.vertical, 10)
+                }
                 Divider()
                 SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
             }

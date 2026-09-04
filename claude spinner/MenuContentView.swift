@@ -52,38 +52,7 @@ struct MenuContentView: View {
                 } else {
                     // Nothing will ever appear until the hooks are wired up — offer a
                     // one-click install instead of a silent empty panel.
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Setup needed")
-                            .font(.claudeMono(12)).fontWeight(.semibold)
-                            .foregroundStyle(Color.usageTint(95))
-                        Text("The feed hooks aren't installed, so no sessions can show.")
-                            .font(.claudeMono(11)).foregroundStyle(Color.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let message = install.message {
-                            Text(message)
-                                .font(.claudeMono(11)).foregroundStyle(Color.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Button(install.installing ? "Installing…" : "Install hooks") {
-                            install.installing = true
-                            install.message = nil
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                let result = SetupInstaller.install()
-                                DispatchQueue.main.async {
-                                    install.installing = false
-                                    switch result {
-                                    case .success:
-                                        feed.refreshSetupState()
-                                        install.message = "Installed — restart your Claude Code sessions to start the feed."
-                                    case .failure(let error):
-                                        install.message = "Couldn't install: \(error.localizedDescription)"
-                                    }
-                                }
-                            }
-                        }
-                        .font(.claudeMono(11))
-                        .disabled(install.installing)
-                    }
+                    SetupBanner(feed: feed, install: install, compact: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10).padding(.vertical, 12)
                 }
