@@ -2,6 +2,18 @@
 
 ## Confirmed working
 
+- Questions and permission prompts can be answered without going back to the
+  terminal. `ask.sh` blocks on `PreToolUse`/`AskUserQuestion` and
+  `PermissionRequest`, the app renders the request, and the answer returns as
+  `allow` + `updatedInput` (or `decision{behavior}`). Proven end to end on
+  2026-09-04: a click in the window produced
+  `{"permissionDecision":"allow","updatedInput":{...,"answers":{"Which surface
+  should own the reply field?":"Window only"}}}` from a live hook.
+- The window is its own UI now — sidebar grouped Needs you / Working / Idle, and
+  a detail pane carrying the full question with every option *and its
+  description*, session stats, subagents, and a reply field. Observed on screen
+  2026-09-04.
+
 - Menu-bar panel tracks live Claude Code sessions via `~/.claude/spinnerfeed/`
   feed files (hooks + statusLine in `~/.claude/settings.json`).
 - The app survives macOS refusing to place the status item (a full menu bar,
@@ -63,7 +75,12 @@
 
 ## Known broken
 
-- (none — the double-ellipsis and buglog-race items were both fixed 2026-07-17)
+- **Notifications are denied for `decenad.claude-spinner`**, so no banner ever
+  appears. `add()` reports `hasError: 0` regardless, which is why this went
+  unnoticed — the log reads
+  `auth=1 ... error=Notifications are not allowed for this application`. No API
+  can grant it; only System Settings can. The panel now says so, with a button.
+  The window surface is unaffected and answers questions fine without it.
 
 ## Scope / by-design limitations
 
@@ -78,11 +95,55 @@
 
 ## Next Up
 
-- One hand-check is outstanding: closing the window with a **placed** status item
-  should return the app to `.accessory`. Not scriptable — see the 2026-08-12
-  decision log. Tagged `[you]` in `TASKS.md`.
+Two hand-checks, both `[you]` in `TASKS.md`:
+
+- Allow notifications for "claude spinner" in System Settings. Authorization
+  reads denied, so banners never appear; the answer path works from the window
+  regardless.
+- Closing the window with a **placed** status item should return the app to
+  `.accessory`. Not scriptable — see the 2026-08-12 decision log.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (answer from the notification)
+- Decided: the round-trip needs no keystroke injection. A `PreToolUse` hook on
+  `AskUserQuestion` receives the full `questions` array and returns `allow`
+  paired with `updatedInput` carrying an `answers` object; `PermissionRequest`
+  takes `decision{behavior}`. Both are first-party and work in any terminal, VS
+  Code, or the Desktop Code tab. Command hooks default to a 600 s timeout, so a
+  hook can genuinely wait for a person.
+- Decided: `ask.sh` never exits 2. On `PreToolUse` that routes as a deny, which
+  would turn "you weren't at the machine" into "the tool was refused". Timeout
+  and `passthrough` both print nothing and exit 0, so the terminal prompt takes
+  over — the documented behaviour for a timed-out command hook.
+- Decided: `pgrep` gates the whole thing before the ask file is written. Without
+  it every tool call stalls for the full deadline whenever the app is closed.
+- Decided: multi-question and `multiSelect` asks pass through to the terminal. A
+  banner has one tap and cannot express either; the window pane shows them.
+- Decided: the installer's idempotency key is `(script, matcher)`, not "anything
+  of ours on this event". Keyed the old way, a machine that installed before
+  `ask.sh` existed already had `emit.sh` on `PreToolUse`, so the event looked
+  complete and the answer hook would never have been added.
+- Noted: notification authorization is **denied** on this machine, found only
+  because the end-to-end check looked at the screen. Every intermediate signal
+  was green — category registered, request added with `hasError: 0`, banner
+  withdrawn on the deadline — because `add()` reports acceptance, never
+  presentation. Reading the status needed `os_log` with an explicit public
+  format; NSLog's Swift bridge redacts interpolated values to `<private>`, so
+  the first attempt at logging it was unreadable.
+- Decided: free-text reply is tmux-only and says so. Measured rather than
+  assumed — writing to another process's `/dev/ttysNNN` is output-only, and
+  `TIOCSTI` returns EPERM on this macOS even against a pty the caller owns.
+  Delivery is confirmed by the session's state leaving `idle`, never by
+  `send-keys`' exit status, which proves only that keys reached a pane's buffer.
+- Decided: the done-turn alert is off by default and gated on the host app not
+  being frontmost. Every turn of every session ends; a turn finishing in the
+  window you are watching does not need announcing.
+- Noted: `windowDidResize` no longer writes `panelWidth`. That coupling existed
+  only because the window hosted the popover panel, and leaving it would make
+  resizing the window reflow the menu-bar dropdown.
+- Noted: `emit.sh` never carried `message` forward, so every state file on disk
+  held an empty string and the attention banner read as a bare project name.
 
 ### 2026-08-17 (nested subagent rows)
 - Decided: subagents share the parent's `session_id`; they are not sibling

@@ -2,17 +2,8 @@
 
 ## Tasks
 
-- [x] Write ask.sh, the blocking hook for AskUserQuestion and PermissionRequest -- 62c5703
-- [x] Carry `message` forward in emit.sh so the banner body is not empty -- 62c5703
-- [x] Install and register ask.sh from SetupInstaller -- 02c060e
-- [ ] Watch asks/ and post notifications whose buttons are the option labels
-- [ ] Handle notification answers and write the answer file
-- [ ] Add the attention signals: status-item pulse, time-sensitive, guarded bounce, done alert
-- [ ] Build SessionReplier for free-text reply into a tmux pane
-- [ ] Unit-test the pure pieces and extend the content-parity test
-- [ ] Build a full window UI beside the menu bar: sidebar, session detail
-- [ ] Surface pending asks and reply in the window detail pane
-- [ ] Verify end to end on both a known-good and a known-bad input
+- [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
+  reads denied, so banners post without error and never appear
 
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
@@ -24,6 +15,18 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Write ask.sh, the blocking hook for AskUserQuestion and PermissionRequest -- 62c5703
+- [x] Carry `message` forward in emit.sh so the banner body is not empty -- 62c5703
+- [x] Install and register ask.sh from SetupInstaller -- 02c060e
+- [x] Watch asks/ and post notifications whose buttons are the option labels -- 8f692eb
+- [x] Handle notification answers and write the answer file -- 8f692eb
+- [x] Add the attention signals: status-item pulse, time-sensitive, guarded bounce, done alert -- 4f10aa9
+- [x] Build SessionReplier for free-text reply into a tmux pane -- b9f30f8
+- [x] Unit-test the pure pieces and extend the content-parity test -- 4f10aa9
+- [x] Build a full window UI beside the menu bar: sidebar, session detail -- 4f10aa9
+- [x] Surface pending asks and reply in the window detail pane -- 4f10aa9
+- [x] Verify end to end on both a known-good and a known-bad input -- 4f10aa9
 
 - [x] Nest subagent sessions under their parent row — child hooks write
   `<parent>.<agent_id>.state.json`; the panel indents them as 2-line children.
