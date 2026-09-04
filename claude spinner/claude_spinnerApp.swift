@@ -168,8 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             NSApp.setActivationPolicy(.regular)
         }
         if mainWindow == nil {
-            feed.setPanelWidth(Constants.fittedPanelWidth(
-                visibleWidth: NSScreen.main?.visibleFrame.width))
+
             // Built from a bare NSHostingView rather than a contentViewController.
             // The controller path could not do both halves of "resizable": its
             // default sizingOptions publish the content's size as the window's min
@@ -186,7 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // No outer `.frame(maxWidth/maxHeight: .infinity)`: `fillsWidth` already
             // frees the width inside the panel, and asking for infinity here is what
             // made AppKit open the window at the size of the screen.
-            let hosting = NSHostingView(rootView: MenuContentView(feed: feed, fillsWidth: true))
+            let hosting = NSHostingView(rootView: WindowContentView(feed: feed))
             hosting.autoresizingMask = [.width, .height]
             // The hosting view goes inside a plain container. NSHostingView drives
             // the window's size through its own constraints whichever way its
@@ -194,19 +193,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // A bare NSView has no intrinsic size and no constraints, so the window
             // is free and the hosting view just follows it via the autoresize mask.
             let container = NSView(frame: NSRect(x: 0, y: 0,
-                                                 width: Constants.panelWidth, height: Constants.panelDefaultHeight))
+                                                 width: Constants.windowDefaultWidth,
+                                                 height: Constants.windowDefaultHeight))
             hosting.frame = container.bounds
             container.addSubview(hosting)
 
             let w = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: Constants.panelWidth, height: Constants.panelDefaultHeight),
+                contentRect: NSRect(x: 0, y: 0,
+                                    width: Constants.windowDefaultWidth,
+                                    height: Constants.windowDefaultHeight),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered, defer: false)
             w.contentView = container
             // Width has a floor because `RowLayout.columns` subtracts fixed slots
             // from it without a `max(0)` guard, relying on the caller never handing
             // it less than `panelMinWidth`.
-            w.contentMinSize = NSSize(width: Constants.panelMinWidth, height: 160)
+            w.contentMinSize = NSSize(width: Constants.windowMinWidth,
+                                      height: Constants.windowMinHeight)
             // `setFrameAutosaveName` restores a saved frame the instant it is called,
             // so it goes before the default size and the default is applied only when
             // there was nothing to restore. Checking UserDefaults directly is the only
@@ -216,23 +219,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerPanel") != nil
             w.setFrameAutosaveName("SpinnerPanel")
             if !remembered {
-                w.setContentSize(NSSize(width: Constants.panelWidth, height: Constants.panelDefaultHeight))
+                w.setContentSize(NSSize(width: Constants.windowDefaultWidth,
+                                        height: Constants.windowDefaultHeight))
                 w.center()
-            } else if let contentSize = w.contentView?.bounds.size,
-                      contentSize.width > Constants.panelWidth || contentSize.height > Constants.panelDefaultHeight {
-                // A remembered size wider/taller than the content's own fit just
-                // opens dead space (rows cap their name column at
-                // RowLayout.maxNameWidth; there's nothing below the footer at
-                // all) -- shrink back to fit on whichever axis overran, keeping
-                // the remembered position.
-                var frame = w.frame
-                if contentSize.width > Constants.panelWidth {
-                    frame.size.width -= contentSize.width - Constants.panelWidth
-                }
-                if contentSize.height > Constants.panelDefaultHeight {
-                    frame.size.height -= contentSize.height - Constants.panelDefaultHeight
-                }
-                w.setFrame(frame, display: false)
             }
             w.isReleasedWhenClosed = false
             w.delegate = self
@@ -252,9 +241,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// ceiling would silently ignore a window the user dragged wider. The floor is
     /// upheld by `contentMinSize` instead.
     func windowDidResize(_ notification: Notification) {
-        guard (notification.object as AnyObject?) === mainWindow,
-              let width = mainWindow?.contentView?.bounds.width else { return }
-        feed.setPanelWidth(max(Constants.panelMinWidth, width))
+        // Nothing to do. This used to write the dragged width into
+        // `feed.panelWidth`, because the window hosted the popover panel and the
+        // panel pins itself to that value. The window now hosts its own view,
+        // and the popover still needs its own fixed width -- so resizing the
+        // window must no longer reflow the menu-bar dropdown.
     }
 
     /// Closing the window hands the Dock icon back -- but only when there is a
@@ -418,6 +409,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         liveUsage.state = feed.usagePollingEnabled ? .on : .off
         menu.addItem(liveUsage)
 
+        // Off by default: every turn of every session ends, so this is the noisy
+        // one. Attention alerts fire whether or not it's on.
+        let doneAlert = NSMenuItem(title: "Notify when a turn finishes",
+                                   action: #selector(toggleNotifyOnDone), keyEquivalent: "")
+        doneAlert.target = self
+        doneAlert.state = feed.notifyOnDone ? .on : .off
+        menu.addItem(doneAlert)
+
         let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshFeed), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
@@ -446,6 +445,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
+    @objc private func toggleNotifyOnDone() { feed.notifyOnDone.toggle() }
     @objc private func setSurfaceMenuBar() { feed.surface = .menuBar }
     @objc private func setSurfaceWindow() { feed.surface = .window }
 

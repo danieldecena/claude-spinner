@@ -12,6 +12,7 @@ import Combine
 import Observation
 import ServiceManagement
 import UserNotifications
+import AppKit
 import CoreGraphics
 import Darwin
 
@@ -40,6 +41,12 @@ enum Constants {
     /// remembered frame gets clamped back to — same "shrink to fit" treatment
     /// `showMainWindow` gives an oversized remembered width.
     static let panelDefaultHeight: CGFloat = 320
+    /// The window is its own surface now, not the panel with more room, so it
+    /// gets sizes that suit a sidebar and a detail pane rather than a dropdown.
+    static let windowDefaultWidth: CGFloat = 900
+    static let windowDefaultHeight: CGFloat = 560
+    static let windowMinWidth: CGFloat = 620
+    static let windowMinHeight: CGFloat = 360
     /// Floor the clamp never drops below. Line 1's row budget goes negative under
     /// ~240 (`rowFixedColumns` 170 + `RowLayout.minNameWidth` 70) and the footer's
     /// fixed-size gauges want ~340; 360 keeps `columns()` arithmetic positive
@@ -635,6 +642,9 @@ final class FeedWatcher: ObservableObject {
     }
 
     private let dir: URL
+    /// Where the state files live. `SessionReplier` watches one to confirm a
+    /// reply actually started a turn.
+    var feedDirectory: URL { dir }
     private var source: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
     private var timer: Timer?
@@ -642,6 +652,14 @@ final class FeedWatcher: ObservableObject {
     private var countdownTimer: Timer?
     /// Session ids already alerted for attention, so each pause notifies once.
     private var notifiedAttention: Set<String> = []
+    /// Same, for finished turns. Separate set: a session alternates between the
+    /// two all day and one set would suppress the other.
+    private var notifiedDone: Set<String> = []
+    /// Alert when a turn finishes, not only when Claude is stuck. Off by default
+    /// -- every turn of every session ends, so this is the noisy one.
+    @Published var notifyOnDone: Bool {
+        didSet { UserDefaults.standard.set(notifyOnDone, forKey: "notifyOnDone") }
+    }
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
     /// Recent 5h utilization samples (oldest→newest), each stamped with when it
@@ -679,6 +697,7 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
+        notifyOnDone = (UserDefaults.standard.object(forKey: "notifyOnDone") as? Bool) ?? false
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -860,6 +879,7 @@ final class FeedWatcher: ObservableObject {
         let result = Array(live)
         DispatchQueue.main.async { [weak self] in
             self?.notifyAttention(result)
+            self?.notifyDone(result)
             self?.updateUsageCache(result)
             self?.sessions = result
         }
@@ -949,6 +969,49 @@ final class FeedWatcher: ObservableObject {
             UNUserNotificationCenter.current().add(request)
         }
         notifiedAttention = attentionNow
+    }
+
+    /// Whether a just-finished turn is worth a banner.
+    ///
+    /// Pure so both gates are testable. The frontmost one is what keeps this from
+    /// being unbearable: a turn finishing in the window you are already looking
+    /// at does not need to be announced -- you watched it happen.
+    static func shouldNotifyDone(session: SessionFeed,
+                                 frontmostBundleID: String?,
+                                 alreadyNotified: Set<String>) -> Bool {
+        guard session.parentSessionId == nil,
+              session.status == .idle,
+              session.lastDuration != nil,
+              !alreadyNotified.contains(session.id)
+        else { return false }
+        guard let frontmostBundleID, !session.host.isEmpty else { return true }
+        return frontmostBundleID != session.host
+    }
+
+    /// Post one banner per finished turn, for the sessions you are not watching.
+    private func notifyDone(_ newSessions: [SessionFeed]) {
+        // Track every finished session either way, so turning the preference on
+        // doesn't immediately fire for turns that ended while it was off.
+        let finished = Set(newSessions.filter {
+            $0.parentSessionId == nil && $0.status == .idle && $0.lastDuration != nil
+        }.map(\.id))
+        defer { notifiedDone = finished }
+        guard notifyOnDone else { return }
+
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        for session in newSessions where Self.shouldNotifyDone(session: session,
+                                                               frontmostBundleID: frontmost,
+                                                               alreadyNotified: notifiedDone) {
+            let content = UNMutableNotificationContent()
+            content.title = "Claude finished"
+            content.body = session.displayName
+            content.sound = .default
+            content.categoryIdentifier = NotificationConfig.attentionCategory
+            content.userInfo = ["host": session.host, "pid": session.pid ?? 0, "cwd": session.cwd]
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: "done-\(session.id)",
+                                      content: content, trigger: nil))
+        }
     }
 
     var workingCount: Int { Self.rootWorkingCount(sessions) }

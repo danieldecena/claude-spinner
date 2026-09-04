@@ -1087,6 +1087,53 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - Done-turn notifications
+
+    private func finishedSession(id: String = "s1", host: String = "com.mitchellh.ghostty") -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.status = .idle
+        s.lastDuration = 42
+        s.host = host
+        return s
+    }
+
+    func testAFinishedTurnNotifiesWhenYouAreLookingElsewhere() {
+        XCTAssertTrue(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(),
+            frontmostBundleID: "com.apple.Safari",
+            alreadyNotified: []))
+    }
+
+    /// The gate that makes this bearable: a turn finishing in the window you are
+    /// already watching does not need announcing — you saw it.
+    func testAFinishedTurnIsSilentInTheAppYouAreAlreadyIn() {
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(host: "com.mitchellh.ghostty"),
+            frontmostBundleID: "com.mitchellh.ghostty",
+            alreadyNotified: []))
+    }
+
+    func testAFinishedTurnNotifiesOnlyOnce() {
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(),
+            frontmostBundleID: "com.apple.Safari",
+            alreadyNotified: ["s1"]))
+    }
+
+    /// A subagent finishing is not a turn finishing, and a session that is idle
+    /// without having run anything (a fresh SessionStart) never "finished".
+    func testOnlyRootSessionsThatActuallyRanATurnNotify() {
+        var child = finishedSession()
+        child.parentSessionId = "parent"
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: child, frontmostBundleID: nil, alreadyNotified: []))
+
+        var neverRan = finishedSession()
+        neverRan.lastDuration = nil
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: neverRan, frontmostBundleID: nil, alreadyNotified: []))
+    }
+
     // MARK: - SessionReplier (typing into a pane)
 
     /// Real `tmux list-panes -a -F '#{pane_tty} #{pane_id}'` output from this
