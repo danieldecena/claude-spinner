@@ -149,6 +149,7 @@ private struct SessionDetail: View {
 
                 ReplyBox(session: session, feedDir: feedDir)
                 ActionBar(session: session, feedDir: feedDir)
+                GitCard(cwd: session.cwd)
 
                 stats
 
@@ -702,6 +703,104 @@ private struct ActionBar: View {
         switch result {
         case .success: return sent
         case .failure(let error): return error.errorDescription
+        }
+    }
+}
+
+// MARK: - Git
+
+/// Branch, working-tree and remote state for the selected session's directory,
+/// with the four actions that act on it.
+///
+/// Absent entirely when the cwd isn't a repository: a section of dashes tells
+/// you nothing that its own absence doesn't tell you faster.
+private struct GitCard: View {
+    let cwd: String
+    @State private var snapshot: GitSnapshot?
+    @State private var notice: String?
+    @State private var confirming: GitAction?
+    @State private var running = false
+
+    var body: some View {
+        if let snap = snapshot {
+            VStack(alignment: .leading, spacing: 8) {
+                StatSection("Git", rows: [
+                    ("branch", snap.branchLabel),
+                    ("changes", changesLabel(snap)),
+                    ("remote", snap.sync.label),
+                    ("pr", snap.pr.label),
+                ])
+                actions(snap)
+                if let notice {
+                    Text(notice)
+                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .task(id: cwd) { await poll() }
+            .confirmationDialog(confirming?.confirmation ?? "",
+                                isPresented: Binding(get: { confirming != nil },
+                                                     set: { if !$0 { confirming = nil } }),
+                                titleVisibility: .visible) {
+                if let action = confirming {
+                    Button(action.title) {
+                        confirming = nil
+                        perform(action, snap)
+                    }
+                }
+                Button("Cancel", role: .cancel) { confirming = nil }
+            }
+        } else {
+            Color.clear.frame(height: 0).task(id: cwd) { await poll() }
+        }
+    }
+
+    @ViewBuilder private func actions(_ snap: GitSnapshot) -> some View {
+        HStack(spacing: 6) {
+            ForEach(GitAction.allCases) { action in
+                let reason = GitActions.unavailableReason(action, snapshot: snap)
+                Button(action.title) { start(action, snap) }
+                    .font(.claudeMono(10))
+                    .disabled(reason != nil || running)
+                    .help(reason ?? action.title)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Untracked files are counted but never folded into the modified count.
+    /// A repo with a deny-by-default ignore file carries a permanent untracked
+    /// population, and adding it to "3 modified" would make every such directory
+    /// read as busy forever.
+    private func changesLabel(_ snap: GitSnapshot) -> String? {
+        var parts: [String] = []
+        if snap.dirty > 0 { parts.append("\(snap.dirty) modified") }
+        if snap.staged > 0 { parts.append("\(snap.staged) staged") }
+        if snap.untracked > 0 { parts.append("\(snap.untracked) untracked") }
+        if parts.isEmpty { return "clean" }
+        return parts.joined(separator: ", ")
+    }
+
+    private func start(_ action: GitAction, _ snap: GitSnapshot) {
+        notice = nil
+        if action.confirmation != nil { confirming = action } else { perform(action, snap) }
+    }
+
+    private func perform(_ action: GitAction, _ snap: GitSnapshot) {
+        running = true
+        GitActions.perform(action, snapshot: snap, cwd: cwd) { message in
+            notice = message
+            running = false
+            Task { snapshot = await GitProbe.shared.snapshot(for: cwd) }
+        }
+    }
+
+    /// Re-reads on the probe's own local TTL. The probe caches, so this loop
+    /// costs a dictionary lookup on most passes and a `git status` on the rest.
+    private func poll() async {
+        while !Task.isCancelled {
+            snapshot = await GitProbe.shared.snapshot(for: cwd)
+            try? await Task.sleep(for: .seconds(5))
         }
     }
 }

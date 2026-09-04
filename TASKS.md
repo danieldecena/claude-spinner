@@ -9,12 +9,23 @@
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
+- [ ] [code] Add SessionFeed.restingEvidence(now:) -- resting-evidence string
+- [ ] [code] Show resting evidence on panel idle rows
+- [ ] [code] Show resting evidence in the window detail pane
+- [ ] [code] Test restingEvidence and the column budget
+
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Add GitStatus.swift: snapshot model and pure parsers
+- [x] Add the per-cwd git prober with cache and timeouts
+- [x] Add GitActions: open PR, push, create PR, pull
+- [x] Wire the Git section into the window detail pane
+- [x] Test the git parsers and availability rules
 
 - [x] Add an overview strip: spend, context, turns, burn sparkline -- b7fe36f
 - [x] Build TranscriptReader for what Claude is actually doing -- 6a44b42

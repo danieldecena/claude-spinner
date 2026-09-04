@@ -1930,4 +1930,250 @@ final class claude_spinnerTests: XCTestCase {
         // The statusLine feed carries a percentage but no resets_at.
         XCTAssertEqual(FeedWatcher.usageTitle(pct: 70, countdown: nil), "5h 70%")
     }
+
+    // MARK: - Git parsing
+
+    func testPorcelainCountsWorktreeStagedAndUntrackedSeparately() {
+        // " M" worktree-only, "M " staged-only, "MM" both, "??" untracked.
+        let out = " M a.swift\nM  b.swift\nMM c.swift\n?? d.swift\n?? e.swift\n"
+        let r = GitParse.porcelain(out)
+        XCTAssertEqual(r.dirty, 2)      // a and c
+        XCTAssertEqual(r.staged, 2)     // b and c
+        XCTAssertEqual(r.untracked, 2)  // d and e
+    }
+
+    func testPorcelainOfACleanTreeIsAllZero() {
+        // The known-good input: an empty porcelain must not be read as anything
+        // but clean, or every clean repo would look busy.
+        let r = GitParse.porcelain("")
+        XCTAssertEqual(r.dirty, 0)
+        XCTAssertEqual(r.staged, 0)
+        XCTAssertEqual(r.untracked, 0)
+    }
+
+    func testLsRemoteMatchesTheRefExactlyNotBySuffix() {
+        let out = "aaa111\trefs/heads/feature/main\nbbb222\trefs/heads/main\n"
+        // A suffix match would return aaa111 here, because it comes first.
+        XCTAssertEqual(GitParse.lsRemote(out, branch: "main"), "bbb222")
+        XCTAssertEqual(GitParse.lsRemote(out, branch: "feature/main"), "aaa111")
+    }
+
+    func testLsRemoteReturnsNilWhenTheBranchIsAbsent() {
+        XCTAssertNil(GitParse.lsRemote("aaa111\trefs/heads/main\n", branch: "nope"))
+    }
+
+    func testSyncStatesCoverEveryBranchOfTheDecision() {
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: false,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .noUpstream)
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "a", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: true,
+                                     aheadCount: 0), .inSync)
+        // The remote SHA isn't in this clone: how far behind is unknowable
+        // without fetching, so it must not be rendered as a number.
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .remoteAhead)
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: true,
+                                     aheadCount: 3), .ahead(3))
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: false,
+                                     aheadCount: 0), .diverged)
+    }
+
+    func testSyncIsUnknownWhenTheRemoteReadFailed() {
+        // A failed ls-remote must render as unknown, never as in-sync. Defaulting
+        // an unread value to "everything matches" is the fabricated-empty failure.
+        XCTAssertEqual(GitParse.sync(local: "a", remote: nil, hasUpstream: true,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .unknown)
+    }
+
+    func testPRJSONParsesEachState() {
+        func parse(_ json: String) -> PRState? { GitParse.pr(json: Data(json.utf8)) }
+        XCTAssertEqual(parse(#"{"number":7,"state":"OPEN","isDraft":false,"url":"u"}"#),
+                       .open(number: 7, url: "u", draft: false))
+        XCTAssertEqual(parse(#"{"number":7,"state":"OPEN","isDraft":true,"url":"u"}"#),
+                       .open(number: 7, url: "u", draft: true))
+        XCTAssertEqual(parse(#"{"number":8,"state":"MERGED","isDraft":false,"url":"u"}"#),
+                       .merged(number: 8, url: "u"))
+        XCTAssertEqual(parse(#"{"number":9,"state":"CLOSED","isDraft":false,"url":"u"}"#),
+                       .closed(number: 9, url: "u"))
+        XCTAssertNil(parse("not json"))
+    }
+
+    func testGhFailureTellsNoPRApartFromUnreachable() {
+        // The known-bad: gh naming the absence in its own words.
+        XCTAssertEqual(GitParse.prFailure(stderr: "no pull requests found for branch \"x\""),
+                       PRState.none)
+        // The known-good pair: every other failure must stay unknown, because a
+        // 404 and a dead network are the same exit code.
+        XCTAssertEqual(GitParse.prFailure(stderr: "error connecting to api.github.com"),
+                       PRState.unknown)
+        XCTAssertEqual(GitParse.prFailure(stderr: "gh: authentication required"),
+                       PRState.unknown)
+    }
+
+    // MARK: - Git action availability
+
+    private func snap(branch: String? = "feat",
+                      dirty: Int = 0, staged: Int = 0,
+                      sync: SyncState = .ahead(2),
+                      pr: PRState = .none,
+                      defaultBranch: Bool = false,
+                      detached: Bool = false) -> GitSnapshot {
+        var s = GitSnapshot()
+        s.branch = branch; s.dirty = dirty; s.staged = staged
+        s.sync = sync; s.pr = pr; s.isDefaultBranch = defaultBranch; s.detached = detached
+        return s
+    }
+
+    func testPullRefusesADirtyTreeAndAllowsACleanOne() {
+        // The pair that proves the guard fires rather than always firing.
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(dirty: 1, sync: .remoteAhead)))
+        XCTAssertNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(sync: .remoteAhead)))
+    }
+
+    func testPullNeverOffersToReconcileADivergedBranch() {
+        XCTAssertNotNil(GitActions.unavailableReason(.pull, snapshot: snap(sync: .diverged)))
+    }
+
+    func testPushIsOfferedWhenAheadAndRefusedWhenBehindOrDiverged() {
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .ahead(1))))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .remoteAhead)))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .diverged)))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .inSync)))
+    }
+
+    func testPushIsOfferedForABranchThatHasNoUpstreamYet() {
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .noUpstream)))
+    }
+
+    func testFirstPushSetsTheUpstreamAndLaterPushesDoNot() {
+        let cmd = GitActions.command(.push, snapshot: snap(sync: .noUpstream))
+        XCTAssertEqual(cmd?.args, ["push", "--set-upstream", "origin", "feat"])
+        XCTAssertEqual(GitActions.command(.push, snapshot: snap(sync: .ahead(1)))?.args, ["push"])
+    }
+
+    func testPullIsAlwaysFastForwardOnly() {
+        // The whole safety story of the button. If this argument ever goes
+        // missing, Pull silently becomes a merge or a rebase.
+        XCTAssertEqual(GitActions.command(.pull, snapshot: snap(sync: .remoteAhead))?.args,
+                       ["pull", "--ff-only"])
+    }
+
+    func testCreatePRIsRefusedOnTheDefaultBranchAndWhenOneIsOpen() {
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .createPR, snapshot: snap(branch: "main", defaultBranch: true)))
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .createPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false))))
+        XCTAssertNil(GitActions.unavailableReason(.createPR, snapshot: snap()))
+    }
+
+    func testCreatePRWaitsWhenGitHubCouldNotBeReached() {
+        // Unknown is not none. Offering to create a second PR because the first
+        // couldn't be seen is the "not found is not absence" failure.
+        XCTAssertNotNil(GitActions.unavailableReason(.createPR, snapshot: snap(pr: .unknown)))
+    }
+
+    func testOpenPRNeedsAnActualPR() {
+        XCTAssertNotNil(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .none)))
+        XCTAssertNotNil(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .unknown)))
+        XCTAssertNil(GitActions.unavailableReason(
+            .openPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false))))
+    }
+
+    func testDetachedHeadOffersNeitherPushNorPR() {
+        let d = snap(branch: nil, detached: true)
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: d))
+        XCTAssertNotNil(GitActions.unavailableReason(.createPR, snapshot: d))
+    }
+
+    func testOnlyOpenPRSkipsConfirmation() {
+        XCTAssertNil(GitAction.openPR.confirmation)
+        for action in [GitAction.push, .createPR, .pull] {
+            XCTAssertNotNil(action.confirmation, "\(action.title) must confirm first")
+        }
+    }
+
+    func testFirstLineSkipsBlankLeadingOutput() {
+        XCTAssertEqual(GitActions.firstLine("\n\n  Everything up-to-date\nnoise\n"),
+                       "Everything up-to-date")
+        XCTAssertNil(GitActions.firstLine("   \n\n"))
+    }
+
+    func testACleanSnapshotIsNotDirty() {
+        XCTAssertFalse(snap().isDirty)
+        XCTAssertTrue(snap(dirty: 1).isDirty)
+        XCTAssertTrue(snap(staged: 1).isDirty)
+        // Untracked alone is not dirt: a deny-by-default ignore file leaves a
+        // permanent untracked population that must not read as work in progress.
+        var untrackedOnly = snap()
+        untrackedOnly.untracked = 22
+        XCTAssertFalse(untrackedOnly.isDirty)
+    }
+
+    // MARK: - Git probe, end to end
+
+    /// Everything above tests parsers against canned strings, which cannot tell
+    /// a working probe from one that never runs a command. This builds a real
+    /// repository and reads it, so the subprocess plumbing -- cwd, PATH, the
+    /// pipe draining -- is exercised rather than assumed. No network: a repo
+    /// with no remote settles on `.noUpstream`.
+    func testProbeReadsARealRepositoryOnDisk() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("spinner-git-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.path
+
+        func git(_ args: [String]) throws {
+            let r = GitProbe.run("/usr/bin/git", args, in: path)
+            let status = try XCTUnwrap(r?.status, "git \(args.first ?? "") did not run")
+            XCTAssertEqual(status, 0, "git \(args.joined(separator: " ")): \(r?.err ?? "")")
+        }
+
+        try git(["init", "--initial-branch=trunk"])
+        try git(["config", "user.email", "t@example.com"])
+        try git(["config", "user.name", "Test"])
+        try "one\n".write(to: root.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        try git(["add", "a.txt"])
+        try git(["commit", "-m", "first"])
+
+        // One tracked modification, one staged addition, one untracked file --
+        // so a probe that merely returns an empty snapshot cannot pass.
+        try "two\n".write(to: root.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        try "b\n".write(to: root.appendingPathComponent("b.txt"), atomically: true, encoding: .utf8)
+        try git(["add", "b.txt"])
+        try "c\n".write(to: root.appendingPathComponent("c.txt"), atomically: true, encoding: .utf8)
+
+        let probed = await GitProbe.shared.snapshot(for: path)
+        let snap = try XCTUnwrap(probed, "probe returned nil for a real repository")
+        XCTAssertEqual(snap.branch, "trunk")
+        XCTAssertFalse(snap.detached)
+        XCTAssertEqual(snap.dirty, 1)
+        XCTAssertEqual(snap.staged, 1)
+        XCTAssertEqual(snap.untracked, 1)
+        XCTAssertTrue(snap.isDirty)
+        XCTAssertEqual(snap.sync, .noUpstream)
+        // Dirty plus no upstream: Pull must refuse, Push must be offered.
+        XCTAssertNotNil(GitActions.unavailableReason(.pull, snapshot: snap))
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap))
+    }
+
+    /// The other half of the pair: a directory that is not a repository must
+    /// produce nil, so the detail pane drops the section instead of drawing
+    /// a row of unknowns. Without this, a probe that returns an empty snapshot
+    /// for everything would pass the test above.
+    func testProbeReturnsNilForADirectoryThatIsNotARepository() async {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("spinner-nogit-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snap = await GitProbe.shared.snapshot(for: root.path)
+        XCTAssertNil(snap)
+    }
 }
