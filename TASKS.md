@@ -17,18 +17,9 @@ via `run.sh`.
 
 ## Completed
 
-- [x] Show the command in the permission card -- `AskRequest` decodes `tool_input`
-  and `toolSubject` picks the command/path/url; the card and the banner both name
-  it. Verified on screen against live `ask.sh` runs: Bash showed
-  `rm -rf /tmp/verify-probe-dir`, Read showed the file path, and a payload with no
-  string field fell back to `Run TodoWrite?`; done 2026-09-04
-- [x] Stop the reply field taking first responder on window open --
-  `makeFirstResponder(nil)` after the window is ordered front. `AXFocusedUIElement`
-  reads `AXWindow` on two launches and a typed "ui" landed nowhere; done 2026-09-04
-- [x] Say the true reason Pull is unavailable -- the filed "untracked files disable
-  Pull" was a misdiagnosis; the real defect was `isDirty` answering ahead of the
-  sync state, so an up-to-date repo was told to commit first. Sync answers first
-  now; done 2026-09-04
+- [x] Show the command in the permission card -- e089338
+- [x] Stop the reply field taking first responder on window open -- caa02e1
+- [x] Say the true reason Pull is unavailable -- e089338
 
 - [x] Add SessionFeed.restingEvidence(now:) -- resting-evidence string
 - [x] Show resting evidence on panel idle rows
