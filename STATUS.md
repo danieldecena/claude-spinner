@@ -38,7 +38,7 @@
   2026-08-12.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 95 unit tests green; runs on a self-hosted runner (project is Xcode 27
+- CI: 193 unit tests green; runs on a self-hosted runner (project is Xcode 27
   format 110, which GitHub-hosted runners can't open).
 - Which surface the app presents is a choice, not luck. `Show in` (Menu bar /
   Window, persisted, default Menu bar) sits in the settings menu; Window creates
@@ -109,19 +109,44 @@
 
 ## Next Up
 
-Three `[code]` gaps the 2026-09-04 runtime verification found, in `TASKS.md`:
-
-- The permission card shows only `Run Bash?` — the command itself is in the ask
-  file and never decoded, so you approve what you cannot see.
-- The reply field takes first responder on window open, and its Send types into
-  a live session.
-- Pull is disabled by an untracked file, which does not block `git pull`.
-
-Then two hand-checks, both `[you]`: allowing notifications in System Settings,
-and the placed-status-item policy round-trip (not scriptable — see the
-2026-08-12 decision log).
+All three `[code]` gaps the 2026-09-04 runtime verification found are closed
+(see the decision log below). What is left is two hand-checks, both `[you]` in
+`TASKS.md`: allowing notifications in System Settings, and the placed-status-item
+policy round-trip (not scriptable — see the 2026-08-12 decision log).
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (closing the runtime-verification gaps)
+- The permission card names what it is asking about. `AskRequest` now decodes
+  `tool_input` (string fields only; a non-object one leaves it empty rather than
+  throwing, since a decode failure loses a request the hook is still blocked on),
+  and `toolSubject` returns the first of `command`, `file_path`, `url`, `pattern`,
+  `query`, `path`, `prompt`, capped at 600 chars. The notification body carries it
+  too. Observed against live `ask.sh` runs: Bash rendered
+  `rm -rf /tmp/verify-probe-dir`, Read rendered the full path, and a payload whose
+  only fields were non-strings fell back to the old `Run TodoWrite?`. A click
+  returned `decision{behavior:"allow"}` and an answer file returned `"deny"`, both
+  exit 0 with `asks/` empty afterwards.
+- The window opens with nothing focused -- `makeFirstResponder(nil)` after
+  `makeKeyAndOrderFront`. `AXFocusedUIElement` read `AXWindow` on two separate
+  launches, and two characters typed at the frontmost window landed nowhere while
+  the reply field still rendered its placeholder.
+- Decided: the "Pull is disabled by untracked files" finding was a misdiagnosis,
+  the second one this branch has produced after the installer-reformatting task.
+  `GitParse.porcelain` files `??` lines under `untracked` and `isDirty` reads only
+  `dirty`/`staged`, so the gate could not have seen the untracked file; the tooltip
+  observed proves `dirty > 0`, and that session had just made a tracked edit to
+  watch the pane update live. The real defect was adjacent: `isDirty` answered
+  ahead of the sync switch, so an in-sync repo with a dirty tree was told to commit
+  or stash -- which reads as a promise that pulling would then work. Sync answers
+  first now; the dirty gate survives inside `.remoteAhead`, where it is the only
+  state a pull would otherwise run in. Proven by re-introducing the old ordering:
+  the new test failed with the commit-or-stash sentence, and passed once restored.
+- Not done: reading the Pull tooltip in the running app. Selecting a session by
+  synthetic click kept missing -- the sidebar re-sorts live under the pointer and a
+  stray click opened System Settings -- and the string is a pure function already
+  pinned by a test with a demonstrated failing case, so this was dropped rather
+  than chased further.
 
 ### 2026-09-04 (runtime verification)
 - Verified by running the app rather than the suite. `ask.sh` was driven as a

@@ -2,16 +2,6 @@
 
 ## Tasks
 
-- [ ] [code] Show the command in the permission card -- `ask.sh` already writes
-  `tool_input`; `AskRequest` never decodes it, so the window asks you to approve
-  a command it does not show
-
-- [ ] [code] Stop the reply field taking first responder on window open -- stray
-  keystrokes land in a box whose Send types into a live session
-
-- [ ] [code] Pull is disabled by untracked files -- an untracked file does not
-  block `git pull`; gate on tracked changes only
-
 - [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
   reads denied, so banners post without error and never appear
 
@@ -26,6 +16,19 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Show the command in the permission card -- `AskRequest` decodes `tool_input`
+  and `toolSubject` picks the command/path/url; the card and the banner both name
+  it. Verified on screen against live `ask.sh` runs: Bash showed
+  `rm -rf /tmp/verify-probe-dir`, Read showed the file path, and a payload with no
+  string field fell back to `Run TodoWrite?`; done 2026-09-04
+- [x] Stop the reply field taking first responder on window open --
+  `makeFirstResponder(nil)` after the window is ordered front. `AXFocusedUIElement`
+  reads `AXWindow` on two launches and a typed "ui" landed nowhere; done 2026-09-04
+- [x] Say the true reason Pull is unavailable -- the filed "untracked files disable
+  Pull" was a misdiagnosis; the real defect was `isDirty` answering ahead of the
+  sync state, so an up-to-date repo was told to commit first. Sync answers first
+  now; done 2026-09-04
 
 - [x] Add SessionFeed.restingEvidence(now:) -- resting-evidence string
 - [x] Show resting evidence on panel idle rows
@@ -137,7 +140,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-04 06:01.
+Plan approved 2026-09-04 11:31.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -146,7 +149,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume be82eace-a15b-40dd-90cb-763dad3a2246
+    claude --resume 826d154e-b2af-4354-b95a-dec0447bd8a0
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
