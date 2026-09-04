@@ -267,6 +267,20 @@ private struct AskCard: View {
                 .font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
             Text(prompt).font(.claudeMono(13)).fixedSize(horizontal: false, vertical: true)
 
+            // What the tool would actually do. Without this the card asks you to
+            // approve a command it never shows, which is the one place this
+            // surface is worse than the terminal prompt it replaces.
+            if let subject = ask.toolSubject {
+                Text(subject)
+                    .font(.claudeMono(11))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(6)
+                    .background(Color.claudeDim.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 4))
+            }
+
             if let answered {
                 Text("Answered: \(answered)").font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
             } else {

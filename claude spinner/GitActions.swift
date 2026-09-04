@@ -78,17 +78,22 @@ enum GitActions {
             return nil
 
         case .pull:
-            // The one rule this feature inherited from `start-up`: a diverged or
-            // dirty repo is flagged and stopped at, never reconciled behind your
-            // back. Pull here fast-forwards or refuses; it never rebases or merges.
-            if snapshot.isDirty { return "There are uncommitted changes. Commit or stash them first." }
+            // Sync answers first. Asked before it, `isDirty` tells a repo that is
+            // already up to date to commit or stash -- which reads as a promise
+            // that pulling would then work, when there is nothing to pull at all.
             switch snapshot.sync {
-            case .remoteAhead: return nil
             case .diverged:    return "This branch and its remote have both moved; a fast-forward isn't possible."
             case .inSync:      return "Already up to date with the remote."
             case .ahead:       return "Nothing to pull; this branch is ahead of the remote."
             case .noUpstream:  return "No upstream is configured for this branch."
             case .unknown:     return "The remote couldn't be read, so it isn't known whether there is anything to pull."
+            case .remoteAhead:
+                // The one rule this feature inherited from `start-up`: a dirty
+                // repo is flagged and stopped at, never reconciled behind your
+                // back. Tracked changes only -- `isDirty` excludes untracked
+                // files, which cannot conflict with a fast-forward.
+                if snapshot.isDirty { return "There are uncommitted changes. Commit or stash them first." }
+                return nil
             }
         }
     }

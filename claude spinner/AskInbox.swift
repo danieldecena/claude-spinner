@@ -15,6 +15,39 @@ struct AskQuestion: Decodable, Equatable {
     let options: [AskOption]?
 }
 
+/// `tool_input`, decoded only as far as its string fields.
+///
+/// The shape differs per tool and the card only ever prints one value, so the
+/// strings are kept and everything else -- numbers, arrays, nested objects -- is
+/// discarded rather than modelled.
+struct ToolInput: Decodable, Equatable {
+    let strings: [String: String]
+
+    private struct AnyKey: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    init(from decoder: Decoder) throws {
+        // A `tool_input` that isn't an object leaves this empty rather than
+        // throwing: a decode failure here loses the whole request, and a prompt
+        // that vanishes from the window is worse than one shown without detail.
+        guard let container = try? decoder.container(keyedBy: AnyKey.self) else {
+            strings = [:]
+            return
+        }
+        var found: [String: String] = [:]
+        for key in container.allKeys {
+            if let value = try? container.decode(String.self, forKey: key) {
+                found[key.stringValue] = value
+            }
+        }
+        strings = found
+    }
+}
+
 /// A prompt `ask.sh` is blocking on, read from `<req>.ask.json`.
 ///
 /// The hook is sitting in a poll loop the whole time one of these exists, so the
@@ -30,9 +63,32 @@ struct AskRequest: Decodable, Identifiable, Equatable {
     let cwd: String
     let created: Double
     let toolName: String?
+    let toolInput: ToolInput?
     let questions: [AskQuestion]?
 
     var id: String { req }
+
+    /// Keys that name what a tool would actually do, most specific first.
+    ///
+    /// One ordered list rather than a table per tool: every tool with a subject
+    /// puts it under one of these, and one without falls back to its own name.
+    static let subjectKeys = ["command", "file_path", "url", "pattern", "query", "path", "prompt"]
+    /// Capped because a heredoc script would otherwise *be* the card.
+    static let subjectLimit = 600
+
+    /// The command, path or URL the permission is actually for. Nil when the
+    /// input carries no string field -- then the tool name is all there is.
+    var toolSubject: String? {
+        guard let strings = toolInput?.strings else { return nil }
+        for key in Self.subjectKeys {
+            let value = strings[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !value.isEmpty else { continue }
+            return value.count > Self.subjectLimit
+                ? String(value.prefix(Self.subjectLimit)) + "…"
+                : value
+        }
+        return nil
+    }
 
     var projectName: String {
         let name = (cwd as NSString).lastPathComponent
@@ -48,6 +104,7 @@ struct AskRequest: Decodable, Identifiable, Equatable {
         case req, kind, cwd, created, questions
         case sessionId = "session_id"
         case toolName = "tool_name"
+        case toolInput = "tool_input"
     }
 }
 
@@ -283,8 +340,10 @@ final class AskInbox: ObservableObject {
             return (req.question?.header ?? "Claude has a question",
                     "\(req.projectName) — \(req.question?.question ?? "")")
         case .permission:
+            // The subject, not the tool name: "Bash" is not a thing you can
+            // decide about. The banner truncates it, which is the tradeoff.
             return ("Permission needed",
-                    "\(req.projectName) — \(req.toolName ?? "a tool")")
+                    "\(req.projectName) — \(req.toolSubject ?? req.toolName ?? "a tool")")
         }
     }
 }

@@ -153,6 +153,10 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(contents.contains("passthrough"))
         XCTAssertTrue(contents.contains("multiSelect"),
                       "ask.sh must pass multiSelect questions through to the terminal")
+        XCTAssertTrue(contents.contains("tool_input:"),
+                      "ask.sh must copy tool_input into the ask file; the permission card "
+                      + "reads it to show the command, and drops silently back to the tool "
+                      + "name without it")
         // Comments are stripped first: the script says "must never exit 2" in
         // prose, and matching that would make this pass for the wrong reason.
         let code = contents.split(separator: "\n", omittingEmptySubsequences: false)
@@ -1651,6 +1655,71 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(AskInbox.answer(for: "nonsense", in: makeAsk()))
     }
 
+    // MARK: - What the permission is actually for
+    //
+    // The card used to render `Run Bash?` and nothing else, because `ask.sh`
+    // wrote `tool_input` and `AskRequest` never declared it. These pin the
+    // decode, the key order, and every shape that has to fall back rather than
+    // throw — a request that fails to decode disappears from the window while
+    // the hook is still blocked on it.
+
+    private func makePermissionAsk(toolInput: String) -> AskRequest {
+        let json = """
+        {"req":"sid-1-2","kind":"permission","session_id":"sid","cwd":"/tmp/proj",
+         "created":1,"tool_name":"Bash","tool_input":\(toolInput)}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    func testPermissionSubjectIsTheCommandNotTheDescription() {
+        let ask = makePermissionAsk(
+            toolInput: #"{"command":"rm -rf /tmp/verify-probe-dir","description":"clean up"}"#)
+        XCTAssertEqual(ask.toolSubject, "rm -rf /tmp/verify-probe-dir")
+    }
+
+    func testPermissionSubjectFallsThroughToAPath() {
+        XCTAssertEqual(makePermissionAsk(toolInput: #"{"file_path":"/a/b.swift"}"#).toolSubject,
+                       "/a/b.swift")
+        XCTAssertEqual(makePermissionAsk(toolInput: #"{"url":"https://example.com"}"#).toolSubject,
+                       "https://example.com")
+    }
+
+    /// The order is the contract: an Edit carries both a path and, for some
+    /// tools, a command. Whichever is listed first must win every time, or the
+    /// card shows a different field depending on dictionary iteration.
+    func testPermissionSubjectPrefersTheCommand() {
+        let ask = makePermissionAsk(toolInput: #"{"file_path":"/a/b","command":"ls /a"}"#)
+        XCTAssertEqual(ask.toolSubject, "ls /a")
+    }
+
+    /// The known-bad inputs. Each has to decode into a usable request and simply
+    /// carry no subject — the card then falls back to the tool name it always had.
+    func testPermissionSubjectIsNilWhenNothingNamesIt() {
+        XCTAssertNil(makePermissionAsk(toolInput: #"{"timeout":5000,"nested":{"command":"x"}}"#)
+            .toolSubject)
+        XCTAssertNil(makePermissionAsk(toolInput: #"{"command":"   "}"#).toolSubject)
+        XCTAssertNil(makePermissionAsk(toolInput: "null").toolSubject)
+        // Not an object at all. Must not throw: ask files written before this
+        // field existed, and anything unexpected, still have to reach the window.
+        XCTAssertNil(makePermissionAsk(toolInput: #""just a string""#).toolSubject)
+        XCTAssertNil(makeAsk(kind: "permission").toolSubject)   // no tool_input key
+    }
+
+    func testPermissionSubjectIsCappedForALongCommand() {
+        let long = String(repeating: "x", count: 5000)
+        let subject = makePermissionAsk(toolInput: #"{"command":"\#(long)"}"#).toolSubject
+        XCTAssertEqual(subject?.count, AskRequest.subjectLimit + 1)
+        XCTAssertTrue(subject?.hasSuffix("…") ?? false)
+    }
+
+    /// The banner had the same gap: "claude-spinner — Bash" is not a thing you
+    /// can decide about.
+    func testPermissionBannerNamesTheCommand() {
+        let ask = makePermissionAsk(toolInput: #"{"command":"rm -rf /tmp/probe"}"#)
+        XCTAssertEqual(AskInbox.notificationText(ask).body, "proj — rm -rf /tmp/probe")
+        XCTAssertEqual(AskInbox.notificationText(makeAsk(kind: "permission")).body, "proj — Bash")
+    }
+
     func testCategoriesCarryOneActionPerOptionPlusFocus() {
         let cats = AskInbox.categories(for: [makeAsk(labels: ["Alpha", "Beta", "Gamma"])])
         XCTAssertEqual(cats.count, 1)
@@ -2019,13 +2088,13 @@ final class claude_spinnerTests: XCTestCase {
     // MARK: - Git action availability
 
     private func snap(branch: String? = "feat",
-                      dirty: Int = 0, staged: Int = 0,
+                      dirty: Int = 0, staged: Int = 0, untracked: Int = 0,
                       sync: SyncState = .ahead(2),
                       pr: PRState = .none,
                       defaultBranch: Bool = false,
                       detached: Bool = false) -> GitSnapshot {
         var s = GitSnapshot()
-        s.branch = branch; s.dirty = dirty; s.staged = staged
+        s.branch = branch; s.dirty = dirty; s.staged = staged; s.untracked = untracked
         s.sync = sync; s.pr = pr; s.isDefaultBranch = defaultBranch; s.detached = detached
         return s
     }
@@ -2040,6 +2109,24 @@ final class claude_spinnerTests: XCTestCase {
 
     func testPullNeverOffersToReconcileADivergedBranch() {
         XCTAssertNotNil(GitActions.unavailableReason(.pull, snapshot: snap(sync: .diverged)))
+    }
+
+    /// Untracked files must never gate Pull. Filed as "Pull is disabled by
+    /// untracked files" off a tooltip read while the tree also had a tracked
+    /// edit; the gate only ever saw tracked changes. Pinned in the direction the
+    /// report got wrong, so the misreading can't be re-introduced as a fix.
+    func testPullIgnoresUntrackedFiles() {
+        XCTAssertNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(untracked: 40, sync: .remoteAhead)))
+    }
+
+    /// A dirty tree with nothing to pull has to say so. "Commit or stash them
+    /// first" reads as a promise that Pull unlocks afterwards, and it does not.
+    func testPullReasonNamesTheSyncStateBeforeTheDirtyTree() {
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(dirty: 1, sync: .inSync)),
+                       "Already up to date with the remote.")
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(staged: 1, sync: .ahead(2))),
+                       "Nothing to pull; this branch is ahead of the remote.")
     }
 
     func testPushIsOfferedWhenAheadAndRefusedWhenBehindOrDiverged() {
