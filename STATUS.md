@@ -2,6 +2,20 @@
 
 ## Confirmed working
 
+- The window detail pane carries the whole statusLine payload, not the eight
+  fields the app used to decode: spend (labelled api-equivalent, since nothing
+  here is billed on a Max plan), wall vs API time, lines changed, context and
+  window size, prompt-cache hit ratio and warmth, effort, thinking, model id,
+  Claude Code version and repo. An overview strip totals them and leads with the
+  5h/7d rate-limit windows, which are the only numbers that can actually stop a
+  Max session.
+- `TranscriptReader` shows what a session is *doing* — the last thing Claude
+  said, what you last asked, and what it just ran — read from the last 256KB of
+  its own transcript. Observed on screen 2026-09-04 against a live 4.7MB file.
+- Six session actions under the reply field: Interrupt, Compact and Clear
+  through the tmux pane, Reveal folder / Open transcript / Copy session id
+  locally. Each is enabled or carries a stated reason.
+
 - Questions and permission prompts can be answered without going back to the
   terminal. `ask.sh` blocks on `PreToolUse`/`AskUserQuestion` and
   `PermissionRequest`, the app renders the request, and the answer returns as
@@ -104,6 +118,40 @@ Two hand-checks, both `[you]` in `TASKS.md`:
   `.accessory`. Not scriptable — see the 2026-08-12 decision log.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (filling the window)
+- Noted: the pane looked empty because the statusLine writes 45 fields to
+  `<id>.status.json` every few seconds and `StatusFile` decoded 8. Nothing new
+  had to be plumbed; the rest was already on disk.
+- Decided: the dollar figure never leads and is labelled `api-equivalent, not
+  billed`. `cost.total_cost_usd` is API list pricing; on a Max plan it is a burn
+  proxy and charging language is simply false. The 5h/7d windows lead instead.
+- Decided: rate-limit windows are account-wide, so the overview takes the
+  freshest reading. Summing three sessions reporting 49% would say 147% of a
+  five-hour window.
+- Decided: totals stay nil when nothing has reported rather than summing to a
+  confident $0.00 over sessions whose statusLine has not run.
+- **Fixed a real misclassification.** `emit.sh` mapped every `Notification`
+  event to `.attention`, and `idle_prompt` is one — it fires 60s after a turn
+  *ends* if you have not typed. A finished session therefore sat in the same
+  orange "needs input" row as one holding a permission prompt. `emit.sh` now
+  records `notification_type`; `isBlockedOnYou` excludes `idle_prompt`, and the
+  "Claude needs you" banner no longer fires for it.
+- **Fixed the gate that shipped backwards.** The reply box and every slash
+  command asked `status == .idle`, but `.attention` means the session is sitting
+  at its prompt waiting on a person — exactly when typing works. They were
+  disabled on the one session you most want to answer. Now `isAtPrompt`, i.e.
+  not working. Tightening it exposed a second: the delivery check watched for
+  the status leaving `idle`, which `.attention` satisfies, so a session already
+  in attention would have reported a turn that never started. It now waits for
+  `thinking` or `tool`.
+- Decided: the transcript is read as a bounded 256KB tail, parsed backwards, and
+  the first line after a seek is dropped — landing mid-record yields another
+  record's tail, not a truncated one to recover. Files here are 4.7MB and are
+  appended to while being read.
+- Decided: every action button is enabled or states its reason. The commonest
+  one, "not in a tmux pane", is permanent rather than temporary, so a silently
+  greyed control would read as a broken app.
 
 ### 2026-09-04 (answer from the notification)
 - Decided: the round-trip needs no keystroke injection. A `PreToolUse` hook on

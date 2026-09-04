@@ -16,6 +16,12 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Add an overview strip: spend, context, turns, burn sparkline -- b7fe36f
+- [x] Build TranscriptReader for what Claude is actually doing -- 6a44b42
+- [x] Add session actions: interrupt, compact, clear, reveal, open transcript -- bc8158e
+
+- [x] Decode the rest of the statusLine fields into the detail pane -- 3cc145e
+
 - [x] Write ask.sh, the blocking hook for AskUserQuestion and PermissionRequest -- 62c5703
 - [x] Carry `message` forward in emit.sh so the banner body is not empty -- 62c5703
 - [x] Install and register ask.sh from SetupInstaller -- 02c060e
