@@ -27,3 +27,6 @@ buildServer.json
 *.profraw
 .metadata_never_index
 .wolf/daemon.log
+
+# gh CLI machine-local state
+.local/
