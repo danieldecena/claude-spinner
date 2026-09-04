@@ -489,6 +489,14 @@ struct SessionFeed: Identifiable {
 
     var isWorking: Bool { status == .thinking || status == .tool }
 
+    /// Whether the prompt is free to type into.
+    ///
+    /// Not `status == .idle`. A session in `.attention` is *waiting on you* --
+    /// it is sitting at the prompt, which is exactly when typing works. Gating
+    /// on idle alone disabled the reply box and the slash commands on the one
+    /// session you most want to answer.
+    var isAtPrompt: Bool { !isWorking }
+
     /// Whether anything is actually blocked on a person.
     ///
     /// `emit.sh` maps every Notification event to `.attention`, and `idle_prompt`

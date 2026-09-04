@@ -148,6 +148,7 @@ private struct SessionDetail: View {
                 TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
 
                 ReplyBox(session: session, feedDir: feedDir)
+                ActionBar(session: session, feedDir: feedDir)
 
                 stats
 
@@ -610,6 +611,97 @@ private struct Labelled: View {
                 .lineLimit(limit)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+
+// MARK: - Actions
+
+/// The action row under the reply field.
+///
+/// Every button is either enabled or disabled with a stated reason. A control
+/// that is greyed out and says nothing is what makes people click it twice and
+/// conclude the app is broken -- and here the commonest reason, "not in a tmux
+/// pane", is permanent rather than temporary, so it especially needs saying.
+private struct ActionBar: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @State private var hasPane = false
+    @State private var notice: String?
+    @State private var confirming: SessionAction?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                ForEach(SessionAction.allCases) { action in
+                    let reason = SessionActions.unavailableReason(action,
+                                                                  session: session,
+                                                                  hasPane: hasPane)
+                    Button(action.title) { start(action) }
+                        .font(.claudeMono(10))
+                        .disabled(reason != nil)
+                        .help(reason ?? action.title)
+                }
+                Spacer(minLength: 0)
+            }
+            if let notice {
+                Text(notice).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .task(id: session.id) {
+            // Resolving a pane shells out to ps and tmux, so it happens once per
+            // selected session rather than on every redraw.
+            let pid = session.pid
+            hasPane = await Task.detached(priority: .utility) {
+                pid != nil && SessionReplier.hasPane(session)
+            }.value
+        }
+        .confirmationDialog(confirming?.confirmation ?? "",
+                            isPresented: Binding(get: { confirming != nil },
+                                                 set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible) {
+            if let action = confirming {
+                Button(action.title, role: .destructive) {
+                    confirming = nil
+                    perform(action)
+                }
+            }
+            Button("Cancel", role: .cancel) { confirming = nil }
+        }
+    }
+
+    private func start(_ action: SessionAction) {
+        notice = nil
+        // /clear and /compact discard context that cannot be recovered, and one
+        // of these buttons sits a few pixels from "Interrupt".
+        if action.isDestructive { confirming = action } else { perform(action) }
+    }
+
+    private func perform(_ action: SessionAction) {
+        if !action.needsPane {
+            notice = SessionActions.runLocal(action, session: session)
+                ? nil : "Couldn't do that."
+            return
+        }
+        if action == .interrupt {
+            SessionReplier.interrupt(session) { result in
+                notice = describe(result, sent: "Interrupted.")
+            }
+            return
+        }
+        guard let text = action.promptText else { return }
+        SessionReplier.reply(to: session, text: text, feedDir: feedDir) { result in
+            notice = describe(result, sent: "Sent \(text).")
+        }
+    }
+
+    private func describe(_ result: Result<Void, SessionReplier.Failure>,
+                          sent: String) -> String? {
+        switch result {
+        case .success: return sent
+        case .failure(let error): return error.errorDescription
         }
     }
 }

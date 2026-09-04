@@ -61,6 +61,13 @@ enum SessionReplier {
         return nil
     }
 
+    /// Whether this session can be typed into at all — the check the UI needs
+    /// before offering an action that sends keys.
+    static func hasPane(_ session: SessionFeed) -> Bool {
+        guard let pid = session.pid else { return false }
+        return paneID(forPID: pid) != nil
+    }
+
     /// The pane a pid's session is running in, or nil when it isn't in tmux.
     static func paneID(forPID pid: Int) -> String? {
         guard let tmux = tmuxPath else { return nil }
@@ -72,6 +79,21 @@ enum SessionReplier {
     }
 
     // MARK: - Sending
+
+    /// Cancel the current turn. Escape alone, and deliberately no Enter: this
+    /// interrupts what is running rather than submitting anything.
+    static func interrupt(_ session: SessionFeed,
+                          completion: @escaping (Result<Void, Failure>) -> Void) {
+        let done: (Result<Void, Failure>) -> Void = { result in
+            DispatchQueue.main.async { completion(result) }
+        }
+        guard let pid = session.pid, let tmux = tmuxPath,
+              let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
+        DispatchQueue.global(qos: .userInitiated).async {
+            done(run(tmux, ["send-keys", "-t", pane, "Escape"]) == nil
+                 ? .failure(.sendFailed) : .success(()))
+        }
+    }
 
     /// Type `text` into the session and confirm it landed.
     ///
@@ -87,8 +109,9 @@ enum SessionReplier {
             DispatchQueue.main.async { completion(result) }
         }
         // Only type into a session that is actually at its prompt. Keys sent
-        // mid-turn land in whatever Claude is doing.
-        guard session.status == .idle else { return done(.failure(.busy)) }
+        // mid-turn land in whatever Claude is doing -- but `.attention` IS at
+        // the prompt, so this asks whether it is working, not whether it is idle.
+        guard session.isAtPrompt else { return done(.failure(.busy)) }
         guard let pid = session.pid, let tmux = tmuxPath,
               let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
 
@@ -109,7 +132,7 @@ enum SessionReplier {
         }
     }
 
-    /// Watch the session's own state file leave `idle`. This is the observation
+    /// Watch the session's own state file start working. This is the observation
     /// the return value is worth: everything upstream of it reports success for a
     /// pane that swallowed the keys.
     static func observeTurnStarted(sessionID: String,
@@ -121,7 +144,8 @@ enum SessionReplier {
         while Date() < deadline {
             if let data = try? Data(contentsOf: file),
                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let status = obj["status"] as? String, status != "idle" {
+               let status = obj["status"] as? String,
+               status == "thinking" || status == "tool" {
                 return true
             }
             Thread.sleep(forTimeInterval: poll)

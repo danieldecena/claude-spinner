@@ -1090,6 +1090,100 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - Session actions
+
+    private func actionable(pid: Int? = 7190,
+                            status: SessionStatus = .idle,
+                            cwd: String = "/tmp/proj",
+                            transcript: String? = "/tmp/t.jsonl") -> SessionFeed {
+        var s = SessionFeed(id: "sid")
+        s.pid = pid
+        s.status = status
+        s.cwd = cwd
+        s.stats.transcriptPath = transcript
+        return s
+    }
+
+    /// Not "is it disabled" but "does it say why". A greyed-out button with no
+    /// reason is what makes people click twice and assume the app is broken —
+    /// and the commonest reason here is permanent, not temporary.
+    func testTypedActionsExplainThemselvesWithoutAPane() {
+        for action in [SessionAction.interrupt, .compact, .clear] {
+            XCTAssertEqual(
+                SessionActions.unavailableReason(action, session: actionable(), hasPane: false),
+                "That session isn't in a tmux pane, so there's nowhere to type.",
+                "\(action.title) must say why it can't run")
+        }
+    }
+
+    /// Interrupt is the one action FOR a running turn; the other two type at the
+    /// prompt and need it free. Getting this backwards would offer /clear
+    /// mid-turn and interrupt with nothing running.
+    func testInterruptAndTheSlashCommandsWantOppositeStates() {
+        let running = actionable(status: .tool)
+        XCTAssertNil(SessionActions.unavailableReason(.interrupt, session: running, hasPane: true))
+        XCTAssertEqual(SessionActions.unavailableReason(.clear, session: running, hasPane: true),
+                       "That session is mid-turn — wait for it to finish.")
+
+        let idle = actionable(status: .idle)
+        XCTAssertEqual(SessionActions.unavailableReason(.interrupt, session: idle, hasPane: true),
+                       "Nothing is running to interrupt.")
+        XCTAssertNil(SessionActions.unavailableReason(.clear, session: idle, hasPane: true))
+    }
+
+    /// The bug this exists for: `.attention` means the session is sitting at its
+    /// prompt waiting on a person, which is exactly when typing works. Gating on
+    /// `status == .idle` greyed out the slash commands — and the reply box —
+    /// on the one session you most want to answer.
+    func testASessionWaitingOnYouCanBeTypedInto() {
+        let waiting = actionable(status: .attention)
+        XCTAssertTrue(waiting.isAtPrompt)
+        XCTAssertNil(SessionActions.unavailableReason(.clear, session: waiting, hasPane: true))
+        XCTAssertNil(SessionActions.unavailableReason(.compact, session: waiting, hasPane: true))
+    }
+
+    func testAWorkingSessionIsNotAtItsPrompt() {
+        for status in [SessionStatus.thinking, .tool] {
+            var s = SessionFeed(id: "s")
+            s.status = status
+            XCTAssertFalse(s.isAtPrompt, "\(status) is mid-turn")
+        }
+    }
+
+    /// The local actions touch only this Mac, so a missing pane is irrelevant to
+    /// them — but missing data is not.
+    func testLocalActionsIgnoreThePaneAndCheckTheirOwnInputs() {
+        XCTAssertNil(SessionActions.unavailableReason(.copySessionID,
+                                                      session: actionable(pid: nil),
+                                                      hasPane: false))
+        XCTAssertEqual(SessionActions.unavailableReason(.revealCWD,
+                                                        session: actionable(cwd: ""),
+                                                        hasPane: true),
+                       "This session has no working directory yet.")
+        XCTAssertEqual(SessionActions.unavailableReason(.openTranscript,
+                                                        session: actionable(transcript: nil),
+                                                        hasPane: true),
+                       "No transcript yet — the statusLine hasn't reported.")
+    }
+
+    /// The two that throw away unrecoverable context must confirm, and they sit
+    /// a few pixels from Interrupt, which must not.
+    func testOnlyTheContextDiscardingActionsConfirm() {
+        XCTAssertTrue(SessionAction.clear.isDestructive)
+        XCTAssertTrue(SessionAction.compact.isDestructive)
+        XCTAssertNotNil(SessionAction.clear.confirmation)
+        XCTAssertFalse(SessionAction.interrupt.isDestructive)
+        XCTAssertNil(SessionAction.interrupt.confirmation)
+    }
+
+    /// Interrupt cancels a turn rather than submitting anything, so it must send
+    /// no text at all — a stray Enter would submit whatever was in the prompt.
+    func testInterruptTypesNothing() {
+        XCTAssertNil(SessionAction.interrupt.promptText)
+        XCTAssertEqual(SessionAction.compact.promptText, "/compact")
+        XCTAssertEqual(SessionAction.clear.promptText, "/clear")
+    }
+
     // MARK: - TranscriptReader
 
     /// Records in the real shapes the transcript actually uses, taken from a
@@ -1484,6 +1578,13 @@ final class claude_spinnerTests: XCTestCase {
         try withTempDir { dir in
             let file = dir.appendingPathComponent("sid.state.json")
             try Data(#"{"status":"idle"}"#.utf8).write(to: file)
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+
+            // `.attention` is not a started turn either — it is the state the
+            // session was already in when the keys were sent, so accepting it
+            // would report delivery for a pane that swallowed them.
+            try Data(#"{"status":"attention"}"#.utf8).write(to: file)
             XCTAssertFalse(SessionReplier.observeTurnStarted(
                 sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
 
