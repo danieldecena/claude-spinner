@@ -161,29 +161,53 @@ private struct SessionDetail: View {
         }
     }
 
-    private var stats: some View {
-        // Every value here can legitimately be unknown — the statusLine may not
-        // have reported yet — so each renders an em dash rather than a zero that
-        // reads as a measurement.
+    /// Grouped rather than one long list. These arrive from the statusLine as
+    /// four unrelated things -- what the turn cost, how full the window is, how
+    /// the cache is behaving, how this session is configured -- and reading them
+    /// as one column of twenty rows was the version that felt like a data dump.
+    @ViewBuilder private var stats: some View {
+        let st = session.stats
         let progress = session.todoProgress
-        let rows: [(String, String)] = [
+
+        StatSection("Session", rows: [
             ("status", label(for: session)),
-            ("model", session.model ?? "—"),
-            ("context", session.contextTokens.map { "\($0.formatted()) tok" } ?? "—"),
-            ("todos", progress.total == 0 ? "—" : "\(progress.done)/\(progress.total)"),
-            ("5h", session.fiveHourPct.map { "\($0)%" } ?? "—"),
-            ("7d", session.sevenDayPct.map { "\($0)%" } ?? "—"),
-            ("host", session.host.isEmpty ? "—" : session.host),
-            ("pid", session.pid.map(String.init) ?? "—"),
-        ]
-        return Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
-            ForEach(rows, id: \.0) { key, value in
-                GridRow {
-                    Text(key).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
-                    Text(value).font(.claudeMono(11)).textSelection(.enabled)
-                }
-            }
-        }
+            ("todos", progress.total == 0 ? nil : "\(progress.done)/\(progress.total)"),
+            ("host", session.host.isEmpty ? nil : session.host),
+            ("pid", session.pid.map(String.init)),
+            ("repo", st.repo),
+        ])
+
+        StatSection("Cost", rows: [
+            ("spend", st.costUSD.map(StatFormat.money)),
+            ("wall", st.wallSeconds.map(StatFormat.duration)),
+            ("api", st.apiSeconds.map(StatFormat.duration)),
+            ("api share", st.apiShare.map(StatFormat.percent)),
+            ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
+        ])
+
+        StatSection("Context", rows: [
+            ("used", st.contextUsedPercent.map { "\($0)%" }),
+            ("tokens", session.contextTokens.map { "\($0.formatted())" }),
+            ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
+            ("over 200k", st.exceeds200k.map { $0 ? "yes" : "no" }),
+        ])
+
+        StatSection("Prompt cache", rows: [
+            ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
+            ("state", st.cacheWarm.map { $0 ? "warm" : "cold" }),
+            ("ttl", st.cacheTTL),
+            ("requests", st.cacheRequests.map(String.init)),
+            ("misses", st.cacheMisses.map(String.init)),
+        ])
+
+        StatSection("Config", rows: [
+            ("model", session.model),
+            ("model id", st.modelID),
+            ("effort", st.effort),
+            ("thinking", st.thinking.map { $0 ? "on" : "off" }),
+            ("style", st.outputStyle),
+            ("claude", st.claudeVersion),
+        ])
     }
 
     private func label(for session: SessionFeed) -> String {
@@ -305,5 +329,71 @@ private struct ReplyBox: View {
                 notice = error.errorDescription
             }
         }
+    }
+}
+
+
+// MARK: - Stat rendering
+
+/// A titled group of key/value rows. A nil value drops its row entirely rather
+/// than drawing an em dash: a section of eight dashes says nothing except that
+/// the statusLine hasn't run, and one line saying that is enough.
+private struct StatSection: View {
+    let title: String
+    let rows: [(String, String?)]
+
+    init(_ title: String, rows: [(String, String?)]) {
+        self.title = title
+        self.rows = rows
+    }
+
+    var body: some View {
+        let present = rows.compactMap { key, value in value.map { (key, $0) } }
+        if !present.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .textCase(.uppercase)
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+                    ForEach(present, id: \.0) { key, value in
+                        GridRow {
+                            Text(key).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                                .gridColumnAlignment(.leading)
+                            Text(value).font(.claudeMono(11)).textSelection(.enabled)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Pure formatting, kept out of the views so the awkward cases are testable:
+/// sub-dollar spend, a zero denominator, and a diff with only one side.
+enum StatFormat {
+    /// Always two decimals: a session starts in the cents, and a rounded "$0"
+    /// would read as free.
+    static func money(_ usd: Double) -> String { String(format: "$%.2f", usd) }
+
+    static func duration(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        let h = total / 3600, m = (total % 3600) / 60, sec = total % 60
+        if h > 0 { return "\(h)h \(m)m" }
+        if m > 0 { return "\(m)m \(sec)s" }
+        return "\(sec)s"
+    }
+
+    static func percent(_ ratio: Double) -> String {
+        String(format: "%.1f%%", ratio * 100)
+    }
+
+    static func compactCount(_ n: Int) -> String {
+        n >= 1_000_000 ? "\(n / 1_000_000)M" : (n >= 1_000 ? "\(n / 1_000)k" : "\(n)")
+    }
+
+    /// nil when neither side is known — "+0 -0" claims a measurement that was
+    /// never taken.
+    static func lines(added: Int?, removed: Int?) -> String? {
+        guard added != nil || removed != nil else { return nil }
+        return "+\(added ?? 0) −\(removed ?? 0)"
     }
 }

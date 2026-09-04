@@ -1087,6 +1087,95 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - Detail-pane stats
+
+    func testMoneyKeepsCentsSoASessionNeverReadsAsFree() {
+        XCTAssertEqual(StatFormat.money(23.877466), "$23.88")
+        XCTAssertEqual(StatFormat.money(0.004), "$0.00")
+        XCTAssertEqual(StatFormat.money(0.42), "$0.42")
+    }
+
+    func testDurationDropsToTheLargestUsefulUnit() {
+        XCTAssertEqual(StatFormat.duration(2660.3), "44m 20s")
+        XCTAssertEqual(StatFormat.duration(7325), "2h 2m")
+        XCTAssertEqual(StatFormat.duration(9), "9s")
+    }
+
+    func testCompactCountShortensTheContextWindow() {
+        XCTAssertEqual(StatFormat.compactCount(1_000_000), "1M")
+        XCTAssertEqual(StatFormat.compactCount(200_000), "200k")
+        XCTAssertEqual(StatFormat.compactCount(512), "512")
+    }
+
+    /// "+0 −0" claims a measurement that was never taken; one side known is
+    /// still a real diff.
+    func testLineDiffIsNilOnlyWhenNeitherSideIsKnown() {
+        XCTAssertNil(StatFormat.lines(added: nil, removed: nil))
+        XCTAssertEqual(StatFormat.lines(added: 369, removed: 131), "+369 −131")
+        XCTAssertEqual(StatFormat.lines(added: 5, removed: nil), "+5 −0")
+    }
+
+    /// A ratio against a missing or zero denominator is a made-up number.
+    func testApiShareNeedsBothHalves() {
+        var stats = SessionDetailStats()
+        stats.apiSeconds = 2105
+        XCTAssertNil(stats.apiShare, "no wall time to divide by")
+        stats.wallSeconds = 0
+        XCTAssertNil(stats.apiShare, "zero denominator")
+        stats.wallSeconds = 2660
+        XCTAssertEqual(try XCTUnwrap(stats.apiShare), 0.791, accuracy: 0.001)
+    }
+
+    /// Decoded straight from a real statusLine payload, so the field names are
+    /// tested against the shape the script actually writes.
+    func testStatusDecodesTheFullStatusLinePayload() throws {
+        let json = """
+        {"model":{"display_name":"Opus 5 (1M context)","id":"claude-opus-5[1m]"},
+         "session_name":"spinner-notification-answers","version":"2.1.260",
+         "effort":{"level":"high"},"thinking":{"enabled":true},
+         "output_style":{"name":"default"},"exceeds_200k_tokens":true,
+         "transcript_path":"/tmp/t.jsonl",
+         "workspace":{"current_dir":"/Users/home/developer/claude-spinner",
+                      "repo":{"host":"github.com","owner":"danieldecena","name":"claude-spinner"}},
+         "cost":{"total_cost_usd":23.877466,"total_duration_ms":2660308,
+                 "total_api_duration_ms":2105017,"total_lines_added":369,
+                 "total_lines_removed":131},
+         "context_window":{"total_input_tokens":300000,"total_output_tokens":8706,
+                           "context_window_size":1000000,"used_percentage":34},
+         "prompt_cache":{"hit_ratio":0.9892967697353634,"warm":true,"ttl":"1h",
+                         "requests":129,"misses":0}}
+        """
+        var session = SessionFeed(id: "s1")
+        try session.applyStatusJSONForTest(json)
+
+        XCTAssertEqual(session.stats.costUSD, 23.877466)
+        XCTAssertEqual(session.stats.linesAdded, 369)
+        XCTAssertEqual(session.stats.contextUsedPercent, 34)
+        XCTAssertEqual(session.stats.contextWindowSize, 1_000_000)
+        XCTAssertEqual(session.stats.cacheWarm, true)
+        XCTAssertEqual(session.stats.cacheTTL, "1h")
+        XCTAssertEqual(session.stats.effort, "high")
+        XCTAssertEqual(session.stats.thinking, true)
+        XCTAssertEqual(session.stats.modelID, "claude-opus-5[1m]")
+        XCTAssertEqual(session.stats.claudeVersion, "2.1.260")
+        XCTAssertEqual(session.stats.repo, "danieldecena/claude-spinner")
+        XCTAssertEqual(session.stats.exceeds200k, true)
+        XCTAssertEqual(session.contextTokens, 308_706)
+    }
+
+    /// A statusLine that reports nothing beyond the basics must leave every new
+    /// field nil rather than defaulting to zero — the detail pane drops nil rows
+    /// and would otherwise show a fabricated $0.00 and 0% cache hit rate.
+    func testAThinStatusPayloadLeavesTheNewFieldsUnknown() throws {
+        var session = SessionFeed(id: "s1")
+        try session.applyStatusJSONForTest(#"{"model":{"display_name":"Opus 5"}}"#)
+        XCTAssertEqual(session.model, "Opus 5")
+        XCTAssertNil(session.stats.costUSD)
+        XCTAssertNil(session.stats.cacheHitRatio)
+        XCTAssertNil(session.stats.contextUsedPercent)
+        XCTAssertNil(session.stats.repo)
+    }
+
     // MARK: - Done-turn notifications
 
     private func finishedSession(id: String = "s1", host: String = "com.mitchellh.ghostty") -> SessionFeed {

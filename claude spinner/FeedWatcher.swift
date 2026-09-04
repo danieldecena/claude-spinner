@@ -269,8 +269,16 @@ private struct StateFile: Decodable {
 private struct StatusFile: Decodable {
     struct Model: Decodable {
         var display_name: String?
+        var id: String?
     }
-    struct Workspace: Decodable { var current_dir: String? }
+    struct Workspace: Decodable {
+        struct Repo: Decodable {
+            var owner: String?
+            var name: String?
+        }
+        var current_dir: String?
+        var repo: Repo?
+    }
     struct RateLimits: Decodable {
         struct Window: Decodable {
             var used_percentage: Double?
@@ -282,13 +290,78 @@ private struct StatusFile: Decodable {
     struct ContextWindow: Decodable {
         var total_input_tokens: Int?
         var total_output_tokens: Int?
+        var context_window_size: Int?
+        var used_percentage: Double?
     }
+    struct Cost: Decodable {
+        var total_cost_usd: Double?
+        var total_duration_ms: Double?
+        var total_api_duration_ms: Double?
+        var total_lines_added: Int?
+        var total_lines_removed: Int?
+    }
+    struct PromptCache: Decodable {
+        var hit_ratio: Double?
+        var warm: Bool?
+        var ttl: String?
+        var requests: Int?
+        var misses: Int?
+    }
+    struct Named: Decodable { var name: String? }
+    struct Effort: Decodable { var level: String? }
+    struct Thinking: Decodable { var enabled: Bool? }
     var model: Model?
     var cwd: String?
     var session_name: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
     var context_window: ContextWindow?
+    var cost: Cost?
+    var prompt_cache: PromptCache?
+    var output_style: Named?
+    var effort: Effort?
+    var thinking: Thinking?
+    var version: String?
+    var transcript_path: String?
+    var exceeds_200k_tokens: Bool?
+}
+
+/// Everything the statusLine reports that isn't a number the rows already draw.
+/// Grouped rather than flattened onto `SessionFeed`: these arrive together, are
+/// all optional for the same reason (no statusLine has run yet), and are read
+/// together by the one view that shows them.
+struct SessionDetailStats: Equatable {
+    var costUSD: Double?
+    var wallSeconds: Double?
+    var apiSeconds: Double?
+    var linesAdded: Int?
+    var linesRemoved: Int?
+
+    var contextWindowSize: Int?
+    var contextUsedPercent: Int?
+    var exceeds200k: Bool?
+
+    var cacheHitRatio: Double?
+    var cacheWarm: Bool?
+    var cacheTTL: String?
+    var cacheRequests: Int?
+    var cacheMisses: Int?
+
+    var modelID: String?
+    var effort: String?
+    var thinking: Bool?
+    var outputStyle: String?
+    var claudeVersion: String?
+    var repo: String?
+    var transcriptPath: String?
+
+    /// How much of the turn was spent waiting on the API rather than on tools
+    /// and everything else. nil unless both halves are known — a ratio against a
+    /// missing denominator is a made-up number.
+    var apiShare: Double? {
+        guard let apiSeconds, let wallSeconds, wallSeconds > 0 else { return nil }
+        return apiSeconds / wallSeconds
+    }
 }
 
 struct SessionFeed: Identifiable {
@@ -321,6 +394,7 @@ struct SessionFeed: Identifiable {
     var contextOutputTokens: Int?
     var todoTotal: Int?
     var todoDone: Int?
+    var stats = SessionDetailStats()
     var parentSessionId: String?
     var agentId: String?
     var agentType: String?
@@ -356,6 +430,11 @@ struct SessionFeed: Identifiable {
         let s = try JSONDecoder().decode(StateFile.self, from: Data(json.utf8))
         applyState(s)
     }
+
+    mutating func applyStatusJSONForTest(_ json: String) throws {
+        let s = try JSONDecoder().decode(StatusFile.self, from: Data(json.utf8))
+        applyStatus(s)
+    }
     #endif
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
@@ -373,6 +452,32 @@ struct SessionFeed: Identifiable {
         if let ctx = s.context_window {
             contextInputTokens = ctx.total_input_tokens
             contextOutputTokens = ctx.total_output_tokens
+            stats.contextWindowSize = ctx.context_window_size
+            stats.contextUsedPercent = ctx.used_percentage.map { Int($0.rounded()) }
+        }
+        if let c = s.cost {
+            stats.costUSD = c.total_cost_usd
+            stats.wallSeconds = c.total_duration_ms.map { $0 / 1000 }
+            stats.apiSeconds = c.total_api_duration_ms.map { $0 / 1000 }
+            stats.linesAdded = c.total_lines_added
+            stats.linesRemoved = c.total_lines_removed
+        }
+        if let pc = s.prompt_cache {
+            stats.cacheHitRatio = pc.hit_ratio
+            stats.cacheWarm = pc.warm
+            stats.cacheTTL = pc.ttl
+            stats.cacheRequests = pc.requests
+            stats.cacheMisses = pc.misses
+        }
+        stats.modelID = s.model?.id ?? stats.modelID
+        stats.effort = s.effort?.level ?? stats.effort
+        stats.thinking = s.thinking?.enabled ?? stats.thinking
+        stats.outputStyle = s.output_style?.name ?? stats.outputStyle
+        stats.claudeVersion = s.version ?? stats.claudeVersion
+        stats.transcriptPath = s.transcript_path ?? stats.transcriptPath
+        stats.exceeds200k = s.exceeds_200k_tokens ?? stats.exceeds200k
+        if let repo = s.workspace?.repo, let name = repo.name {
+            stats.repo = [repo.owner, name].compactMap { $0 }.joined(separator: "/")
         }
     }
 
