@@ -2,6 +2,18 @@
 
 ## Tasks
 
+- [x] Write ask.sh, the blocking hook for AskUserQuestion and PermissionRequest -- 62c5703
+- [x] Carry `message` forward in emit.sh so the banner body is not empty -- 62c5703
+- [x] Install and register ask.sh from SetupInstaller -- 02c060e
+- [ ] Watch asks/ and post notifications whose buttons are the option labels
+- [ ] Handle notification answers and write the answer file
+- [ ] Add the attention signals: status-item pulse, time-sensitive, guarded bounce, done alert
+- [ ] Build SessionReplier for free-text reply into a tmux pane
+- [ ] Unit-test the pure pieces and extend the content-parity test
+- [ ] Build a full window UI beside the menu bar: sidebar, session detail
+- [ ] Surface pending asks and reply in the window detail pane
+- [ ] Verify end to end on both a known-good and a known-bad input
+
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
@@ -94,7 +106,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-08-14 23:01.
+Plan approved 2026-09-04 06:01.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -103,7 +115,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume b9967906-b69d-497f-96cd-6b225691abc5
+    claude --resume be82eace-a15b-40dd-90cb-763dad3a2246
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

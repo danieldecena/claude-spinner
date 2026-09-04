@@ -43,6 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// otherwise unreachable; .regular gives the app a real menu bar to hang it on.
     private var spinnerMenuItem: NSMenuItem?
     private var titleObserver: AnyCancellable?
+    /// Prompts a blocked `ask.sh` is waiting on, and the only writer of the
+    /// answers it reads back.
+    private let asks = AskInbox()
+    private var askObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Single instance: a second copy exits immediately.
@@ -56,12 +60,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // register the "Focus session" action so its button appears on the alert.
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let focus = UNNotificationAction(identifier: NotificationConfig.focusAction,
-                                         title: "Focus session", options: [.foreground])
-        let category = UNNotificationCategory(identifier: NotificationConfig.attentionCategory,
-                                              actions: [focus], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([category])
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        registerCategories(for: asks.pending)
+
+        // Every pending ask contributes its own category, because the buttons are
+        // that request's option labels. Re-register on each change rather than at
+        // launch: `setNotificationCategories` replaces the whole set, so the
+        // static one has to be rebuilt alongside them every time.
+        askObserver = asks.$pending.sink { [weak self] pending in
+            self?.registerCategories(for: pending)
+            self?.postAskNotifications(pending)
+        }
 
         popover.behavior = .transient
         popover.animates = true
@@ -433,12 +442,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     /// Quit and reopen. A short-lived helper reopens after this instance exits, so
     /// the single-instance guard doesn't reject the new copy.
+    /// The static "Focus session" category plus one per live ask.
+    private func registerCategories(for pending: [AskRequest]) {
+        let focus = UNNotificationAction(identifier: NotificationConfig.focusAction,
+                                         title: "Focus session", options: [.foreground])
+        let attention = UNNotificationCategory(identifier: NotificationConfig.attentionCategory,
+                                               actions: [focus], intentIdentifiers: [], options: [])
+        UNUserNotificationCenter.current()
+            .setNotificationCategories(Set([attention] + AskInbox.categories(for: pending)))
+    }
+
+    /// One banner per pending ask. The request id is the notification id, so a
+    /// rescan that sees the same file again replaces the banner rather than
+    /// stacking a second copy of the same question.
+    private func postAskNotifications(_ pending: [AskRequest]) {
+        for req in pending {
+            let text = AskInbox.notificationText(req)
+            let content = UNMutableNotificationContent()
+            content.title = text.title
+            content.body = text.body
+            content.sound = .default
+            content.categoryIdentifier = AskInbox.categoryID(req.req)
+            // There is a process blocked on this one, on a deadline. That is
+            // what .timeSensitive is for, and it is the difference between an
+            // answer and a five-minute stall behind a Focus filter.
+            content.interruptionLevel = .timeSensitive
+            content.userInfo = ["req": req.req, "cwd": req.cwd, "sessionId": req.sessionId]
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: AskInbox.notificationID(req.req),
+                                      content: content, trigger: nil))
+        }
+        requestAttention()
+    }
+
+    /// Bounce the Dock icon. Only the `window` surface has one to bounce -- the
+    /// app is `LSUIElement` and sits at `.accessory` behind the menu bar, where
+    /// there is no Dock tile and this is deliberately a no-op.
+    private func requestAttention() {
+        guard NSApp.activationPolicy() == .regular else { return }
+        NSApp.requestUserAttention(.criticalRequest)
+    }
+
+    /// A tap on one of an ask's option buttons. Nothing here can assume the hook
+    /// is still listening: it may have hit its deadline while the banner sat on
+    /// screen, in which case `answer` reports false and Claude Code is already
+    /// showing its own prompt in the terminal.
+    private func handleAskResponse(_ response: UNNotificationResponse) -> Bool {
+        guard let parsed = AskInbox.parseAction(response.actionIdentifier),
+              let req = asks.pending.first(where: { $0.req == parsed.req })
+        else { return false }
+
+        if parsed.choice == "focus" {
+            // Going to the session is itself an answer: it says "I'll deal with
+            // this in the terminal", so release the hook instead of leaving it
+            // blocked until the deadline.
+            asks.answer(req, with: .passthrough)
+            SessionLauncher.focus(host: "", pid: nil, cwd: req.cwd)
+            return true
+        }
+        guard let answer = AskInbox.answer(for: parsed.choice, in: req) else { return false }
+        if !asks.answer(req, with: answer) {
+            NSLog("claude spinner: ask \(req.req) expired before it was answered")
+        }
+        asks.rescan()
+        return true
+    }
+
     /// Handle a tap on the attention notification (or its "Focus session" button):
     /// bring the session's host window to the front. Both the default tap and the
     /// explicit action focus — the button just makes the affordance visible.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        if handleAskResponse(response) {
+            completionHandler()
+            return
+        }
         if response.actionIdentifier == NotificationConfig.focusAction
             || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             let host = response.notification.request.content.userInfo["host"] as? String ?? ""

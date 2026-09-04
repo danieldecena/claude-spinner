@@ -8,6 +8,7 @@
 
 import XCTest
 import SwiftUI
+import UserNotifications
 @testable import claude_spinner
 
 final class claude_spinnerTests: XCTestCase {
@@ -1084,6 +1085,128 @@ final class claude_spinnerTests: XCTestCase {
     func testGUIFocusLaunchesWithPathOnlyWhenNotRunning() {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: "/some/proj"), .openPath)
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
+    }
+
+    // MARK: - AskInbox (the notification round-trip)
+
+    private func makeAsk(kind: String = "question",
+                         req: String = "sid-1-2",
+                         labels: [String] = ["Alpha", "Beta"]) -> AskRequest {
+        let options = labels.map { "{\"label\":\"\($0)\",\"description\":\"d\"}" }
+            .joined(separator: ",")
+        let json = """
+        {"req":"\(req)","kind":"\(kind)","session_id":"sid","cwd":"/tmp/proj",
+         "created":1,"tool_name":"Bash",
+         "questions":[{"question":"Which one?","header":"Pick","options":[\(options)]}]}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    /// A tap resolves through the action identifier alone, so an id that doesn't
+    /// round-trip is a button that silently does nothing — indistinguishable from
+    /// a notification nobody touched.
+    func testActionIdentifierRoundTrips() {
+        let id = AskInbox.actionID(req: "sid-1-2", choice: AskInbox.optionChoice(1))
+        let parsed = AskInbox.parseAction(id)
+        XCTAssertEqual(parsed?.req, "sid-1-2")
+        XCTAssertEqual(parsed?.choice, "opt1")
+    }
+
+    /// The built-in default and dismiss identifiers must not parse as ours, or
+    /// merely dismissing a banner would answer the question.
+    func testParseActionRejectsForeignIdentifiers() {
+        XCTAssertNil(AskInbox.parseAction(UNNotificationDefaultActionIdentifier))
+        XCTAssertNil(AskInbox.parseAction(UNNotificationDismissActionIdentifier))
+        XCTAssertNil(AskInbox.parseAction(NotificationConfig.focusAction))
+    }
+
+    func testChoiceMapsToTheOptionLabel() {
+        let req = makeAsk()
+        XCTAssertEqual(AskInbox.answer(for: "opt0", in: req), .option("Alpha"))
+        XCTAssertEqual(AskInbox.answer(for: "opt1", in: req), .option("Beta"))
+        XCTAssertEqual(AskInbox.answer(for: "allow", in: makeAsk(kind: "permission")), .allow)
+        XCTAssertEqual(AskInbox.answer(for: "deny", in: makeAsk(kind: "permission")), .deny)
+    }
+
+    /// An index past the end must resolve to nothing rather than crash or pick a
+    /// neighbour: a stale banner can outlive the ask file it was built from.
+    func testChoiceOutOfRangeResolvesToNoAnswer() {
+        XCTAssertNil(AskInbox.answer(for: "opt9", in: makeAsk()))
+        XCTAssertNil(AskInbox.answer(for: "nonsense", in: makeAsk()))
+    }
+
+    func testCategoriesCarryOneActionPerOptionPlusFocus() {
+        let cats = AskInbox.categories(for: [makeAsk(labels: ["Alpha", "Beta", "Gamma"])])
+        XCTAssertEqual(cats.count, 1)
+        XCTAssertEqual(cats[0].identifier, AskInbox.categoryID("sid-1-2"))
+        XCTAssertEqual(cats[0].actions.map(\.title), ["Alpha", "Beta", "Gamma", "Open session"])
+    }
+
+    func testPermissionCategoryIsAllowDeny() {
+        let cats = AskInbox.categories(for: [makeAsk(kind: "permission")])
+        XCTAssertEqual(cats[0].actions.map(\.title), ["Allow", "Deny", "Open session"])
+    }
+
+    /// The known-good half: an answer written against a live ask file lands, and
+    /// carries the label keyed on the question's own text — the shape
+    /// AskUserQuestion requires back in `updatedInput`.
+    func testWritingAnAnswerForALiveRequest() throws {
+        try withTempDir { dir in
+            let req = makeAsk()
+            try Data("{}".utf8).write(to: dir.appendingPathComponent("\(req.req).ask.json"))
+
+            XCTAssertTrue(AskInbox.write(.option("Beta"), for: req, in: dir))
+
+            let data = try Data(contentsOf: dir.appendingPathComponent("\(req.req).answer.json"))
+            let out = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(out["behavior"] as? String, "allow")
+            XCTAssertEqual((out["answers"] as? [String: String])?["Which one?"], "Beta")
+        }
+    }
+
+    /// The known-bad half, and the one that matters: once ask.sh hits its
+    /// deadline it deletes the ask file and Claude Code shows its own prompt. A
+    /// write after that must report false rather than leave a file nothing reads
+    /// — reporting success here would claim an answer reached a session it never
+    /// touched.
+    func testWritingAnAnswerForAnExpiredRequestFails() throws {
+        try withTempDir { dir in
+            let req = makeAsk()
+            XCTAssertFalse(AskInbox.write(.option("Alpha"), for: req, in: dir))
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: dir.appendingPathComponent("\(req.req).answer.json").path))
+        }
+    }
+
+    func testDenyCarriesNoAnswersObject() throws {
+        try withTempDir { dir in
+            let req = makeAsk(kind: "permission")
+            try Data("{}".utf8).write(to: dir.appendingPathComponent("\(req.req).ask.json"))
+            XCTAssertTrue(AskInbox.write(.deny, for: req, in: dir))
+            let data = try Data(contentsOf: dir.appendingPathComponent("\(req.req).answer.json"))
+            let out = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(out["behavior"] as? String, "deny")
+            XCTAssertNil(out["answers"])
+        }
+    }
+
+    /// Reads the file ask.sh actually writes, oldest first.
+    func testReadDecodesAskFilesInCreationOrder() throws {
+        try withTempDir { dir in
+            for (req, created) in [("b", 20), ("a", 10)] {
+                let json = """
+                {"req":"\(req)","kind":"question","session_id":"s","cwd":"/tmp/p",
+                 "created":\(created),"questions":[{"question":"Q","header":"H",
+                 "options":[{"label":"L","description":"d"}]}]}
+                """
+                try Data(json.utf8).write(to: dir.appendingPathComponent("\(req).ask.json"))
+            }
+            // A stray file that isn't an ask must not decode into the queue.
+            try Data("not json".utf8).write(to: dir.appendingPathComponent("junk.txt"))
+            let found = AskInbox.read(from: dir)
+            XCTAssertEqual(found.map(\.req), ["a", "b"])
+            XCTAssertEqual(found.first?.question?.options?.first?.label, "L")
+        }
     }
 
     // MARK: - SetupInstaller.mergeSpinnerHooks (settings.json merge)

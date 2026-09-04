@@ -1,0 +1,271 @@
+import Foundation
+import Combine
+import UserNotifications
+
+/// One question option as `ask.sh` copied it out of the tool input.
+struct AskOption: Decodable, Equatable {
+    let label: String
+    let description: String?
+}
+
+/// One question, verbatim from `AskUserQuestion`'s `tool_input`.
+struct AskQuestion: Decodable, Equatable {
+    let question: String
+    let header: String?
+    let options: [AskOption]?
+}
+
+/// A prompt `ask.sh` is blocking on, read from `<req>.ask.json`.
+///
+/// The hook is sitting in a poll loop the whole time one of these exists, so the
+/// file's lifetime *is* the window in which an answer counts. It disappearing
+/// means the deadline passed and the terminal took over — any answer written
+/// after that lands nowhere, which is why every write checks first.
+struct AskRequest: Decodable, Identifiable, Equatable {
+    enum Kind: String, Decodable { case question, permission }
+
+    let req: String
+    let kind: Kind
+    let sessionId: String
+    let cwd: String
+    let created: Double
+    let toolName: String?
+    let questions: [AskQuestion]?
+
+    var id: String { req }
+
+    var projectName: String {
+        let name = (cwd as NSString).lastPathComponent
+        return name.isEmpty ? "session" : name
+    }
+
+    /// The single question `ask.sh` guarantees when it hands over a `question`
+    /// ask — it passes multi-question and multiSelect shapes through to the
+    /// terminal, because a banner cannot express either.
+    var question: AskQuestion? { questions?.first }
+
+    enum CodingKeys: String, CodingKey {
+        case req, kind, cwd, created, questions
+        case sessionId = "session_id"
+        case toolName = "tool_name"
+    }
+}
+
+/// What the user chose, written back as `<req>.answer.json` for `ask.sh` to read.
+enum AskAnswer: Equatable {
+    case option(String)   // a labelled choice for a question ask
+    case allow
+    case deny
+    /// Seen and declined — the banner was dismissed, or the user went to the
+    /// session instead. Same outcome as a timeout: the terminal prompt takes over.
+    case passthrough
+
+    var behavior: String {
+        switch self {
+        case .option, .allow: return "allow"
+        case .deny: return "deny"
+        case .passthrough: return "passthrough"
+        }
+    }
+}
+
+/// Watches `~/.claude/spinnerfeed/asks/` and answers what's in it.
+///
+/// Separate from `FeedWatcher` on purpose: the feed is a poll-and-render loop over
+/// state that is true whether or not anyone looks, while this is a request/response
+/// with a process blocked at the other end. Mixing them would put a deadline inside
+/// a debounce.
+@MainActor
+final class AskInbox: ObservableObject {
+    @Published private(set) var pending: [AskRequest] = []
+
+    private let dir: URL
+    private let ioQueue = DispatchQueue(label: "claude-spinner.asks")
+    private var source: DispatchSourceFileSystemObject?
+    private var dirFD: Int32 = -1
+    /// Requests already put on screen, so a rescan doesn't re-post a live banner.
+    private var notified: Set<String> = []
+
+    init(dir: URL? = nil) {
+        self.dir = dir ?? FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/spinnerfeed/asks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: self.dir, withIntermediateDirectories: true)
+        rescan()
+        startWatching()
+    }
+
+    deinit { source?.cancel() }
+
+    // MARK: - Reading
+
+    private func startWatching() {
+        dirFD = open(dir.path, O_EVTONLY)
+        guard dirFD >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: dirFD,
+            eventMask: [.write, .extend, .delete, .rename],
+            queue: ioQueue
+        )
+        src.setEventHandler { [weak self] in
+            Task { @MainActor in self?.rescan() }
+        }
+        src.setCancelHandler { [dirFD] in if dirFD >= 0 { close(dirFD) } }
+        src.resume()
+        source = src
+    }
+
+    func rescan() {
+        let found = Self.read(from: dir)
+        let live = Set(found.map(\.req))
+
+        // A request whose file vanished timed out; pull its banner so a tap can't
+        // land on a hook that stopped listening several minutes ago.
+        for gone in notified.subtracting(live) {
+            UNUserNotificationCenter.current()
+                .removeDeliveredNotifications(withIdentifiers: [Self.notificationID(gone)])
+        }
+        notified = live
+        pending = found
+    }
+
+    /// Decode every `*.ask.json` in `dir`, oldest first. Pure but for the read, so
+    /// a test can point it at a temp directory.
+    nonisolated static func read(from dir: URL) -> [AskRequest] {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        let decoder = JSONDecoder()
+        return names
+            .filter { $0.hasSuffix(".ask.json") }
+            .compactMap { name -> AskRequest? in
+                guard let data = try? Data(contentsOf: dir.appendingPathComponent(name))
+                else { return nil }
+                return try? decoder.decode(AskRequest.self, from: data)
+            }
+            .sorted { $0.created < $1.created }
+    }
+
+    // MARK: - Answering
+
+    /// Write the answer `ask.sh` is waiting on. Returns false when the request is
+    /// no longer live, which is a real outcome and not an error: the hook gave up
+    /// and Claude Code is showing its own prompt, so silently "succeeding" here
+    /// would claim an answer landed somewhere it did not.
+    @discardableResult
+    func answer(_ req: AskRequest, with answer: AskAnswer) -> Bool {
+        Self.write(answer, for: req, in: dir)
+    }
+
+    nonisolated static func write(_ answer: AskAnswer, for req: AskRequest, in dir: URL) -> Bool {
+        let askFile = dir.appendingPathComponent("\(req.req).ask.json")
+        guard FileManager.default.fileExists(atPath: askFile.path) else { return false }
+
+        var payload: [String: Any] = ["behavior": answer.behavior]
+        if case .option(let label) = answer, let question = req.question {
+            payload["answers"] = [question.question: label]
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return false }
+
+        // Same tmp+rename the hook scripts use: ask.sh polls for this path, and a
+        // partially written file would decode as an empty behavior and pass through.
+        let dst = dir.appendingPathComponent("\(req.req).answer.json")
+        let tmp = dir.appendingPathComponent(".\(req.req).answer.tmp-\(UUID().uuidString)")
+        do {
+            try data.write(to: tmp)
+            try FileManager.default.moveItem(at: tmp, to: dst)
+        } catch {
+            try? FileManager.default.removeItem(at: tmp)
+            return false
+        }
+        return true
+    }
+
+    // MARK: - Notification identifiers
+    //
+    // Pure string work, kept together and testable: an action identifier that
+    // doesn't round-trip means a tap resolves to no request and does nothing,
+    // which looks exactly like a notification the user never touched.
+
+    nonisolated static let prefix = "ASK"
+    /// `|` because request ids are `<session-uuid>-<epoch>-<pid>` — every other
+    /// obvious separator already appears inside one.
+    nonisolated static let separator = "|"
+
+    nonisolated static func categoryID(_ req: String) -> String { "\(prefix)\(separator)\(req)" }
+    nonisolated static func notificationID(_ req: String) -> String { "ask-\(req)" }
+
+    nonisolated static func actionID(req: String, choice: String) -> String {
+        [prefix, req, choice].joined(separator: separator)
+    }
+
+    /// Split an action identifier back into its request and choice. Nil for
+    /// anything that isn't ours, including the built-in default/dismiss actions.
+    nonisolated static func parseAction(_ identifier: String) -> (req: String, choice: String)? {
+        let parts = identifier.components(separatedBy: separator)
+        guard parts.count == 3, parts[0] == prefix else { return nil }
+        return (parts[1], parts[2])
+    }
+
+    /// The choice token for option `index`, and the answer a token maps back to.
+    nonisolated static func optionChoice(_ index: Int) -> String { "opt\(index)" }
+
+    nonisolated static func answer(for choice: String, in req: AskRequest) -> AskAnswer? {
+        switch choice {
+        case "allow": return .allow
+        case "deny": return .deny
+        default:
+            guard choice.hasPrefix("opt"),
+                  let index = Int(choice.dropFirst(3)),
+                  let options = req.question?.options,
+                  options.indices.contains(index)
+            else { return nil }
+            return .option(options[index].label)
+        }
+    }
+
+    // MARK: - Categories
+
+    /// A category per live request, since the buttons *are* that request's option
+    /// labels. `setNotificationCategories` replaces the whole set, so the caller
+    /// passes the static ones in alongside.
+    nonisolated static func categories(for requests: [AskRequest]) -> [UNNotificationCategory] {
+        requests.map { req in
+            var actions: [UNNotificationAction] = []
+            switch req.kind {
+            case .permission:
+                actions = [
+                    UNNotificationAction(identifier: actionID(req: req.req, choice: "allow"),
+                                         title: "Allow", options: []),
+                    UNNotificationAction(identifier: actionID(req: req.req, choice: "deny"),
+                                         title: "Deny", options: [.destructive]),
+                ]
+            case .question:
+                // Only two show on a banner; the rest need the notification
+                // expanded. Documented behaviour, and the reason the window's
+                // detail pane is the surface for anything longer.
+                actions = (req.question?.options ?? []).enumerated().map { index, option in
+                    UNNotificationAction(identifier: actionID(req: req.req,
+                                                              choice: optionChoice(index)),
+                                         title: option.label, options: [])
+                }
+            }
+            actions.append(UNNotificationAction(
+                identifier: actionID(req: req.req, choice: "focus"),
+                title: "Open session", options: [.foreground]))
+            return UNNotificationCategory(identifier: categoryID(req.req),
+                                          actions: actions,
+                                          intentIdentifiers: [],
+                                          options: [])
+        }
+    }
+
+    /// Title and body for a request's banner.
+    nonisolated static func notificationText(_ req: AskRequest) -> (title: String, body: String) {
+        switch req.kind {
+        case .question:
+            return (req.question?.header ?? "Claude has a question",
+                    "\(req.projectName) — \(req.question?.question ?? "")")
+        case .permission:
+            return ("Permission needed",
+                    "\(req.projectName) — \(req.toolName ?? "a tool")")
+        }
+    }
+}
