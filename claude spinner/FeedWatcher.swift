@@ -523,6 +523,38 @@ struct SessionFeed: Identifiable {
         }
     }
 
+    /// What the feed observed about a session that is sitting still, or nil
+    /// when it isn't sitting still.
+    ///
+    /// Deliberately not a verdict. Whether a session is safe to clear turns on
+    /// whether the reasoning in its context is written down anywhere, and no
+    /// feed file can see that. What the feed can say is how long it has rested
+    /// and whether it left todos open, so that is all this says. A row reading
+    /// "safe to clear" above three open todos would be the same defect as a
+    /// cost figure that reads as a bill.
+    ///
+    /// `includeTodos` is false in the panel, where `TodoProgressBar` already
+    /// draws that same fact one column to the left.
+    func restingEvidence(now: Date, includeTodos: Bool = true) -> String? {
+        guard !isWorking, !isBlockedOnYou else { return nil }
+        var parts: [String] = []
+        if includeTodos, let total = todoTotal, total > 0 {
+            let open = total - (todoDone ?? 0)
+            if open > 0 {
+                parts.append("\(open) todo\(open == 1 ? "" : "s") open")
+            } else {
+                parts.append("\(total)/\(total) todos")
+            }
+        }
+        // Omitted, never rendered as zero, when the feed carries no stamp:
+        // "idle 0s" on a session last seen an hour ago is an invented reading.
+        if let updated {
+            let age = max(0, Int(now.timeIntervalSince(updated)))
+            parts.append("idle \(FeedWatcher.formatDuration(age))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
+    }
+
     var projectName: String {
         let name = (cwd as NSString).lastPathComponent
         return name.isEmpty ? "session" : name

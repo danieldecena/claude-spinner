@@ -814,6 +814,7 @@ final class claude_spinnerTests: XCTestCase {
             - RowLayout.secondRowLeadingInset - Constants.childRowIndent
             - TodoProgressBar.width
             - RowLayout.todoStatusGap - RowLayout.dotsSlot
+            - RowLayout.evidenceSlot
         XCTAssertEqual(c.status, max(0, line2Budget), accuracy: 0.01)
     }
 
@@ -2176,4 +2177,72 @@ final class claude_spinnerTests: XCTestCase {
         let snap = await GitProbe.shared.snapshot(for: root.path)
         XCTAssertNil(snap)
     }
+
+    // MARK: - Resting evidence
+
+    private func resting(status: SessionStatus = .idle,
+                         notification: String? = nil,
+                         total: Int? = nil, done: Int? = nil,
+                         updated: Date? = Date(timeIntervalSinceNow: -120)) -> SessionFeed {
+        var s = SessionFeed(id: "r")
+        s.status = status
+        s.notificationType = notification
+        s.todoTotal = total
+        s.todoDone = done
+        s.updated = updated
+        return s
+    }
+
+    func testRestingEvidenceLeadsWithOpenTodos() {
+        let s = resting(total: 8, done: 5)
+        XCTAssertEqual(s.restingEvidence(now: Date()), "3 todos open · idle 2m 0s")
+    }
+
+    func testRestingEvidenceSaysOneTodoInTheSingular() {
+        XCTAssertEqual(resting(total: 4, done: 3).restingEvidence(now: Date()),
+                       "1 todo open · idle 2m 0s")
+    }
+
+    func testRestingEvidenceReportsAFullyDoneList() {
+        XCTAssertEqual(resting(total: 5, done: 5).restingEvidence(now: Date()),
+                       "5/5 todos · idle 2m 0s")
+    }
+
+    func testRestingEvidenceOmitsTodosWhenNoneWereRecorded() {
+        XCTAssertEqual(resting().restingEvidence(now: Date()), "idle 2m 0s")
+    }
+
+    func testRestingEvidenceOmitsAgeRatherThanInventingZero() {
+        // No stamp in the feed. "idle 0s" would read as "just now" for a session
+        // last seen an hour ago -- a value fabricated from a missing read.
+        XCTAssertEqual(resting(total: 3, done: 1, updated: nil).restingEvidence(now: Date()),
+                       "2 todos open")
+        XCTAssertNil(resting(updated: nil).restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceIsNilForAWorkingSession() {
+        XCTAssertNil(resting(status: .thinking).restingEvidence(now: Date()))
+        XCTAssertNil(resting(status: .tool).restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceIsNilWhenSomethingIsActuallyBlockedOnYou() {
+        // The known-bad input: a real permission prompt is not resting.
+        XCTAssertNil(resting(status: .attention, notification: "permission_prompt")
+            .restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceStillFiresForTheSixtySecondIdleNudge() {
+        // The known-good pair for the guard above. idle_prompt means the turn
+        // ended and nobody typed, which is precisely a resting session -- without
+        // this case, a guard that always returned nil would pass the test above.
+        XCTAssertEqual(resting(status: .attention, notification: "idle_prompt")
+            .restingEvidence(now: Date()), "idle 2m 0s")
+    }
+
+    func testPanelDropsTodosBecauseTheBarAlreadyDrawsThem() {
+        XCTAssertEqual(resting(total: 8, done: 5).restingEvidence(now: Date(),
+                                                                 includeTodos: false),
+                       "idle 2m 0s")
+    }
+
 }

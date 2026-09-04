@@ -176,6 +176,9 @@ private struct SessionDetail: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(session.distinctName).font(.claudeMono(18)).fontWeight(.semibold)
             Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+            if let evidence = session.restingEvidence(now: Date()) {
+                Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+            }
             if let summary = session.attentionSummary {
                 // Orange only when something is genuinely blocked. A finished
                 // session that simply hasn't been typed at is not an alarm.

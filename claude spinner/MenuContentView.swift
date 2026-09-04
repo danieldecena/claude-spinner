@@ -446,6 +446,11 @@ enum RowLayout {
     /// edge doesn't move as the dots grow (see the SessionRow comment). Lives on
     /// line 2, next to the status text.
     static let dotsSlot: CGFloat = 13
+    /// Right-flushed resting evidence ("idle 12m") on line 2. Charged to every
+    /// row's budget, not only the resting ones: the columns are sized once for
+    /// the whole panel so they stay aligned, and a slot that came and went would
+    /// shift the status text every time a session finished a turn.
+    static let evidenceSlot: CGFloat = 56
     /// The name never shrinks past this, even if a long model word wants more —
     /// past this point the model is the one that gives way (see `columns`).
     static let minNameWidth: CGFloat = 70
@@ -577,7 +582,8 @@ enum RowLayout {
         // the gap between the bar and the status text, and the working-dots slot.
         let line2Width = panelWidth - 2 * rowHorizontalPadding - secondRowLeadingInset
             - Constants.childRowIndent
-        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap - dotsSlot)
+        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap
+                                - dotsSlot - evidenceSlot)
         status = min(status, statusBudget)
 
         return Columns(name: name, model: model, status: status)
@@ -726,6 +732,19 @@ struct SessionRow: View {
                 }
                 .font(.claudeMono(11))
                 .foregroundStyle(statusColor)
+
+                Spacer(minLength: 4)
+
+                // What the feed saw about a session that is sitting still. Todos
+                // are left out here because the bar at the head of this same line
+                // already draws them.
+                if let evidence = session.restingEvidence(now: now, includeTodos: false) {
+                    Text(evidence)
+                        .font(.claudeMono(10))
+                        .foregroundStyle(Color.claudeDim)
+                        .lineLimit(1)
+                        .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
+                }
             }
             .padding(.leading, 20)  // aligns under the name column, past the glyph
         }
