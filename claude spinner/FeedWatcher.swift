@@ -496,6 +496,19 @@ struct SessionFeed: Identifiable {
         return sessionName ?? projectName
     }
 
+    /// `displayName`, but never the bare word "session".
+    ///
+    /// A session with no generated name and no cwd — one whose statusLine hasn't
+    /// reported yet — falls all the way through to `projectName`'s "session"
+    /// placeholder, and a sidebar of four rows reading "session / session" tells
+    /// you nothing and hides which is which. The id prefix is ugly but it is at
+    /// least distinguishing, and it disappears the moment a statusLine lands.
+    var distinctName: String {
+        let name = displayName
+        guard name == "session" else { return name }
+        return "session \(id.prefix(6))"
+    }
+
     /// Context tokens in play, or nil when the statusLine hasn't reported a window
     /// yet — which the row draws as an empty column rather than a misleading `0`.
     var contextTokens: Int? {
@@ -1118,6 +1131,52 @@ final class FeedWatcher: ObservableObject {
                                       content: content, trigger: nil))
         }
     }
+
+    /// Totals across every root session, for the window's overview strip.
+    ///
+    /// Pure and static so the awkward part is testable: a session whose
+    /// statusLine hasn't reported contributes nothing, and if *none* has
+    /// reported the total stays nil rather than becoming a confident zero.
+    struct Overview: Equatable {
+        var sessions: Int = 0
+        var working: Int = 0
+        var waiting: Int = 0
+        var spendUSD: Double?
+        var contextTokens: Int?
+        var linesAdded: Int?
+        var linesRemoved: Int?
+        /// Account-wide, so this is one session's reading rather than a total.
+        var fiveHourPct: Int?
+        var sevenDayPct: Int?
+    }
+
+    static func overview(for sessions: [SessionFeed]) -> Overview {
+        let roots = sessions.filter { $0.parentSessionId == nil }
+        var out = Overview()
+        out.sessions = roots.count
+        out.working = roots.filter(\.isWorking).count
+        out.waiting = roots.filter { $0.status == .attention }.count
+
+        // `compactMap` then "is it empty" rather than `reduce(0)`: summing an
+        // empty list gives 0, which renders as "$0.00 spent today" when the
+        // truth is that nothing has reported yet.
+        func total<T: AdditiveArithmetic>(_ values: [T]) -> T? {
+            values.isEmpty ? nil : values.reduce(.zero, +)
+        }
+        out.spendUSD = total(roots.compactMap(\.stats.costUSD))
+        out.contextTokens = total(roots.compactMap(\.contextTokens))
+        out.linesAdded = total(roots.compactMap(\.stats.linesAdded))
+        out.linesRemoved = total(roots.compactMap(\.stats.linesRemoved))
+        // The rate-limit windows belong to the account, not the session: every
+        // session reports the same pair, so take the freshest reading rather
+        // than summing or averaging identical values.
+        let freshest = roots.sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
+        out.fiveHourPct = freshest.compactMap(\.fiveHourPct).first
+        out.sevenDayPct = freshest.compactMap(\.sevenDayPct).first
+        return out
+    }
+
+    var overview: Overview { Self.overview(for: sessions) }
 
     var workingCount: Int { Self.rootWorkingCount(sessions) }
     var attentionCount: Int { sessions.filter { $0.parentSessionId == nil && $0.status == .attention }.count }

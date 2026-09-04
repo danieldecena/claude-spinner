@@ -1087,6 +1087,122 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - Which session the window opens on
+
+    private func root(_ id: String, model: String? = nil,
+                      updated: Date? = nil,
+                      status: SessionStatus = .idle) -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.model = model
+        s.updated = updated
+        s.status = status
+        return s
+    }
+
+    /// The bug this exists for: opening on whatever sorted first showed a
+    /// session with no statusLine, so the pane rendered two rows and read as
+    /// broken while a fully-reported session sat one row below.
+    func testWindowOpensOnASessionThatHasSomethingToShow() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("bare", model: nil, updated: Date()),
+            root("reported", model: "Opus 5", updated: Date().addingTimeInterval(-60)),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "reported")
+    }
+
+    func testWaitingBeatsRecency() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("reported", model: "Opus 5", updated: Date()),
+            root("stuck", model: nil, updated: .distantPast, status: .attention),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "stuck")
+    }
+
+    /// With nothing reported anywhere, still open on something rather than an
+    /// empty pane.
+    func testFallsBackToTheMostRecentWhenNothingHasReported() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("old", updated: Date().addingTimeInterval(-600)),
+            root("new", updated: Date()),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "new")
+        XCTAssertNil(WindowContentView.defaultSelection(roots: [], asks: []))
+    }
+
+    /// Four sidebar rows all reading "session" name nothing.
+    func testUnnamedSessionsStayDistinguishable() {
+        XCTAssertEqual(root("abcdef123456").distinctName, "session abcdef")
+        var named = root("abcdef123456")
+        named.cwd = "/Users/home/developer/claude-spinner"
+        XCTAssertEqual(named.distinctName, "claude-spinner")
+    }
+
+    // MARK: - Overview totals
+
+    private func costed(_ id: String, usd: Double?, tokens: Int?) -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.stats.costUSD = usd
+        s.contextInputTokens = tokens
+        return s
+    }
+
+    func testOverviewSumsRootSessions() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: 23.87, tokens: 300_000),
+            costed("b", usd: 2.13, tokens: 50_000),
+        ])
+        XCTAssertEqual(out.sessions, 2)
+        XCTAssertEqual(try XCTUnwrap(out.spendUSD), 26.00, accuracy: 0.001)
+        XCTAssertEqual(out.contextTokens, 350_000)
+    }
+
+    /// The case that would otherwise print "$0.00 today" over sessions whose
+    /// statusLine simply hasn't run. Nothing reported is unknown, not zero.
+    func testOverviewTotalsAreNilWhenNothingHasReported() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: nil, tokens: nil),
+            costed("b", usd: nil, tokens: nil),
+        ])
+        XCTAssertEqual(out.sessions, 2)
+        XCTAssertNil(out.spendUSD)
+        XCTAssertNil(out.contextTokens)
+    }
+
+    /// A partial report is still a real total — it just isn't everything.
+    func testOverviewSumsWhatItHasWhenOnlySomeReported() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: 5, tokens: nil),
+            costed("b", usd: nil, tokens: 1_000),
+        ])
+        XCTAssertEqual(out.spendUSD, 5)
+        XCTAssertEqual(out.contextTokens, 1_000)
+    }
+
+    /// The rate-limit windows are account-wide: every session reports the same
+    /// pair, so the overview takes the freshest reading. Summing them would
+    /// report 250% of a 5h window across three sessions.
+    func testRateLimitsAreTakenFreshRatherThanSummed() {
+        var old = root("old", updated: Date().addingTimeInterval(-600))
+        old.fiveHourPct = 40
+        old.sevenDayPct = 30
+        var new = root("new", updated: Date())
+        new.fiveHourPct = 49
+        new.sevenDayPct = 34
+        let out = FeedWatcher.overview(for: [old, new])
+        XCTAssertEqual(out.fiveHourPct, 49)
+        XCTAssertEqual(out.sevenDayPct, 34)
+    }
+
+    /// Subagents share their parent's numbers; counting them would double the
+    /// spend and treble the session count.
+    func testOverviewIgnoresSubagents() {
+        var child = costed("child", usd: 99, tokens: 99)
+        child.parentSessionId = "a"
+        let out = FeedWatcher.overview(for: [costed("a", usd: 1, tokens: 1), child])
+        XCTAssertEqual(out.sessions, 1)
+        XCTAssertEqual(out.spendUSD, 1)
+    }
+
     // MARK: - Detail-pane stats
 
     func testMoneyKeepsCentsSoASessionNeverReadsAsFree() {

@@ -21,20 +21,37 @@ struct WindowContentView: View {
         feed.sessions.filter { $0.parentSessionId == nil }
     }
 
-    /// Opening on whatever sorted first showed an idle, unnamed session while a
-    /// question sat unanswered two rows above it. Default to the one that is
-    /// actually waiting on a person.
+    /// What to show before anything is clicked.
+    ///
+    /// Two earlier versions of this were wrong in the same way — they opened on
+    /// whatever happened to sort first, which is reliably a session whose
+    /// statusLine hasn't reported, so the pane rendered two rows and looked
+    /// broken. Order: something waiting on a person, then the most recently
+    /// active session that actually has numbers to show, then anything.
     private var selected: SessionFeed? {
         if let selection, let picked = roots.first(where: { $0.id == selection }) { return picked }
-        return roots.first { session in
-            asks.pending.contains { $0.sessionId == session.id }
-        } ?? roots.first { $0.status == .attention } ?? roots.first
+        return Self.defaultSelection(roots: roots, asks: asks.pending)
+    }
+
+    static func defaultSelection(roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
+        let asked = Set(asks.map(\.sessionId))
+        if let waiting = roots.first(where: { asked.contains($0.id) || $0.status == .attention }) {
+            return waiting
+        }
+        let byRecency = roots.sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
+        // `model` is the cheapest proof a statusLine has run for this session,
+        // and a statusLine is what fills the whole detail pane.
+        return byRecency.first { $0.model != nil } ?? byRecency.first
     }
 
     var body: some View {
         NavigationSplitView {
-            SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
-                .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 300)
+            VStack(spacing: 0) {
+                OverviewStrip(overview: feed.overview, history: feed.usageHistory)
+                Divider()
+                SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
+            }
+            .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 320)
         } detail: {
             if let session = selected {
                 SessionDetail(session: session,
@@ -84,7 +101,7 @@ private struct SessionSidebar: View {
                                 .fill(tint(session))
                                 .frame(width: 6, height: 6)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(session.displayName)
+                                Text(session.distinctName)
                                     .font(.claudeMono(12)).lineLimit(1)
                                 Text(session.projectName)
                                     .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
@@ -152,7 +169,7 @@ private struct SessionDetail: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(session.displayName).font(.claudeMono(18)).fontWeight(.semibold)
+            Text(session.distinctName).font(.claudeMono(18)).fontWeight(.semibold)
             Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
             if !session.message.isEmpty {
                 Text(session.message).font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
@@ -395,5 +412,113 @@ enum StatFormat {
     static func lines(added: Int?, removed: Int?) -> String? {
         guard added != nil || removed != nil else { return nil }
         return "+\(added ?? 0) −\(removed ?? 0)"
+    }
+}
+
+
+// MARK: - Overview
+
+/// Totals across every session, above the sidebar groups. The one thing here
+/// that isn't in the detail pane is the shape of the 5h window over time, which
+/// only means anything aggregated.
+private struct OverviewStrip: View {
+    let overview: FeedWatcher.Overview
+    let history: [UsageSample]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // The rate-limit windows lead, not the dollar figure. On a Max plan
+            // these are the only numbers that can actually stop you; the money
+            // is a proxy for burn and is never charged.
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(fiveHour.map { "\($0)%" } ?? "—")
+                    .font(.claudeMono(20)).fontWeight(.semibold)
+                    .foregroundStyle(Color.usageTint(fiveHour ?? 0))
+                Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                if let sevenDay {
+                    Text("· \(sevenDay)% of 7d")
+                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                }
+                Spacer(minLength: 0)
+            }
+
+            // Labelled for what it is. "$93.62 today" under a dollar sign reads
+            // as a bill, and on a subscription plan that is simply wrong.
+            if let spend = overview.spendUSD {
+                Text("\(StatFormat.money(spend)) api-equivalent, not billed")
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+
+            Text(counts).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+
+            if let tokens = overview.contextTokens {
+                Text("\(StatFormat.compactCount(tokens)) context in play")
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+            if let diff = StatFormat.lines(added: overview.linesAdded,
+                                           removed: overview.linesRemoved) {
+                Text("\(diff) lines").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+
+            Sparkline(samples: history)
+                .frame(height: 22)
+                .padding(.top, 2)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Every session reports the same account-wide window, so the first one that
+    /// has it is the answer -- averaging or summing them would be nonsense.
+    private var fiveHour: Int? { overview.fiveHourPct }
+    private var sevenDay: Int? { overview.sevenDayPct }
+
+    private var counts: String {
+        var parts = ["\(overview.sessions) session\(overview.sessions == 1 ? "" : "s")"]
+        if overview.working > 0 { parts.append("\(overview.working) working") }
+        if overview.waiting > 0 { parts.append("\(overview.waiting) waiting") }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// The persisted 5h utilization samples as a filled line.
+///
+/// Scaled 0-100 rather than to its own min/max: this is a percentage of a rate
+/// limit, so a flat 4% and a flat 90% must not draw the same line.
+private struct Sparkline: View {
+    let samples: [UsageSample]
+
+    var body: some View {
+        GeometryReader { geo in
+            // Two points is the minimum that can be a trend; one is a dot with
+            // no shape, and drawing it as a line implies history that isn't there.
+            if samples.count >= 2 {
+                let w = geo.size.width, h = geo.size.height
+                let step = w / CGFloat(samples.count - 1)
+                let points = samples.enumerated().map { index, sample in
+                    CGPoint(x: CGFloat(index) * step,
+                            y: h - (CGFloat(min(max(sample.pct, 0), 100)) / 100 * h))
+                }
+                let tint = Color.usageTint(samples.last?.pct ?? 0)
+                let line = Path { path in
+                    path.move(to: points[0])
+                    for point in points.dropFirst() { path.addLine(to: point) }
+                }
+                // The fill is the same line closed down to the baseline, built
+                // as its own path rather than reusing the stroked one.
+                let area = Path { path in
+                    path.move(to: CGPoint(x: 0, y: h))
+                    path.addLine(to: points[0])
+                    for point in points.dropFirst() { path.addLine(to: point) }
+                    path.addLine(to: CGPoint(x: w, y: h))
+                    path.closeSubpath()
+                }
+                area.fill(tint.opacity(0.15))
+                line.stroke(tint, lineWidth: 1.5)
+            } else {
+                Text("no usage history yet")
+                    .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
+            }
+        }
     }
 }

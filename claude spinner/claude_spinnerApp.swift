@@ -216,8 +216,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // way to tell: the call reports whether the NAME was set, not whether a
             // frame came back. Without the explicit size a first run opens at
             // 1904x1050 — the content can fill, so AppKit gives it the screen.
-            let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerPanel") != nil
-            w.setFrameAutosaveName("SpinnerPanel")
+            // Deliberately not "SpinnerPanel". That frame was saved when this
+            // window hosted the popover panel and is sized for a dropdown --
+            // restoring it opens the sidebar-and-detail layout at 360pt wide.
+            // A new name lets the window take its own default once, and keeps
+            // the old key untouched in case the panel ever wants it back.
+            let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerWindow") != nil
+            w.setFrameAutosaveName("SpinnerWindow")
             if !remembered {
                 w.setContentSize(NSSize(width: Constants.windowDefaultWidth,
                                         height: Constants.windowDefaultHeight))
