@@ -11,20 +11,21 @@
   AppleScript/System Events; needs a real click)
 
 
-- [ ] Re-read the remote when HEAD or the branch moves
-- [ ] Order the post-action invalidate before the re-read
-- [ ] Split block reasons into settled and unknown
-- [ ] Hide settled actions, grey unknown ones with the reason inline
-- [ ] Show per-row read age and a Refresh button
-- [ ] Add Merge, gated on real mergeability
-- [ ] Resolve gh by path fallback and say so when it is missing
-- [ ] Test the merge gate, the settled flag, and the branch-change re-read
-
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Re-read the remote when HEAD or the branch moves -- eaf5cad
+- [x] Order the post-action invalidate before the re-read -- eaf5cad
+- [x] Split block reasons into settled and unknown -- eaf5cad
+- [x] Hide settled actions, grey unknown ones with the reason inline -- eaf5cad
+- [x] Show per-row read age and a Refresh button -- eaf5cad
+- [x] Add Merge, gated on real mergeability -- eaf5cad
+- [x] Resolve gh by path fallback and say so when it is missing -- eaf5cad
+- [x] Test the merge gate, the settled flag, and the branch-change re-read -- eaf5cad
+- [x] Say checks have not passed, not that they failed -- aa339f2
 
 - [x] Show the command in the permission card -- e089338
 - [x] Stop the reply field taking first responder on window open -- caa02e1

@@ -15,6 +15,14 @@
 - Six session actions under the reply field: Interrupt, Compact and Clear
   through the tmux pane, Reveal folder / Open transcript / Copy session id
   locally. Each is enabled or carries a stated reason.
+- The Git card states what the repo can do rather than a row of greyed
+  buttons. An action with a finished answer ("already in sync", "#3 is
+  already open") is not drawn at all; one whose state could not be read stays
+  on screen greyed with its reason printed underneath. Five rows -- branch,
+  changes, remote, pr, checks -- each carry their own age, because the local
+  half is read every 5s and the network half every 90s, and Refresh forces
+  the network half early. Merge runs `gh pr merge --squash --delete-branch`
+  and is offered only when gh reports the PR mergeable, reviewed and passing.
 
 - Questions and permission prompts can be answered without going back to the
   terminal. `ask.sh` blocks on `PreToolUse`/`AskUserQuestion` and
@@ -109,12 +117,58 @@
 
 ## Next Up
 
-All three `[code]` gaps the 2026-09-04 runtime verification found are closed
-(see the decision log below). What is left is two hand-checks, both `[you]` in
-`TASKS.md`: allowing notifications in System Settings, and the placed-status-item
-policy round-trip (not scriptable — see the 2026-08-12 decision log).
+All three `[code]` gaps the 2026-09-04 runtime verification found are closed,
+and so is the Git card rework below. What is left is two hand-checks, both
+`[you]` in `TASKS.md`: allowing notifications in System Settings, and the
+placed-status-item policy round-trip (not scriptable — see the 2026-08-12
+decision log). One runtime case from the Git work also stayed unobserved: the
+unreadable-remote rendering, noted in the decision log.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (the Git card said things that were not true)
+- Reported as "confusing, not sure it's accurate when available": three of the
+  four buttons greyed in a healthy repo. The values were right, but the reasons
+  were invisible (a `.help` tooltip nobody hovers for) and, worse, sometimes
+  false. `sync` and `pr` ran on a 90-second TTL that nothing invalidated when
+  HEAD moved, so for up to a minute and a half after a commit the card read
+  `in sync` and Push refused with "Already in sync with the remote." The cache
+  is keyed by directory, so a branch switch carried the previous branch's PR
+  and sync forward for the rest of that window.
+- Decided: the remote decision moves after the local read. A changed `headSHA`
+  or branch forces it, and a branch switch clears `sync`/`pr`/mergeability
+  first so a read that then fails says unknown rather than mislabelling the new
+  branch. Observed: committing `eaf5cad` flipped `remote` to `ahead 1` and made
+  Push appear within one poll, against 90s before.
+- Decided: `unavailableReason` returns the sentence *and* whether it is
+  settled. A settled block hides its button, since the rows above already say
+  "clean" / "in sync" / "#3 open"; an unreadable one keeps the button greyed
+  with the reason printed on the page. Absence now means "nothing to do" and
+  grey means "couldn't tell" — the distinction the report was actually about.
+  This is why "hide unavailable actions" is safe: without the split, a failed
+  probe would delete a control silently.
+- The post-action `invalidate` moved into the view, ordered ahead of its own
+  re-read. As two unordered actor hops the read could win and return the
+  pre-action entry, which is the "still says ahead 1 after a push" symptom the
+  `invalidate` doc comment claims to prevent.
+- `gh` is resolved against `/opt/homebrew/bin` then `/usr/local/bin`. A missing
+  binary used to fail the run, map to `.unknown`, and blame GitHub for a tool
+  that was never installed.
+- Correction, found while verifying: the new `checks` row read `checks failing`
+  off `mergeStateStatus == UNSTABLE`, while `gh pr checks` reported no checks
+  at all on the branch. UNSTABLE covers any non-passing status, pending
+  included. Now `checks not passing` (`aa339f2`) — a false claim in the row
+  whose entire purpose is not making false claims.
+- Also caught by an assertion rather than by luck: a test helper typed
+  `PRState?` read `.none` as `Optional.none`, so the "no PR" merge case
+  silently re-tested the mergeable default. `PRState` has a case called `none`;
+  never take it through an optional parameter.
+- Not done: the unreadable-remote rendering was never observed on screen. The
+  predicate is covered both ways by unit tests, but the greyed-plus-inline-
+  reason path has only been reasoned about. Toggling wifi would have disturbed
+  three other live sessions, and the throwaway-repo probe was denied.
+- 202 unit tests green, including a mergeable snapshot that yields no block, so
+  the merge gate is shown to pass and not only to block.
 
 ### 2026-09-04 (closing the runtime-verification gaps)
 - The permission card names what it is asking about. `AskRequest` now decodes
