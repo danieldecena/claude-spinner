@@ -45,12 +45,17 @@ prev_dur=$(jq -r '.last_duration // empty' "$f" 2>/dev/null)
 prev_todo_total=$(jq -r '.todo_total // empty' "$f" 2>/dev/null)
 prev_todo_done=$(jq -r '.todo_done // empty' "$f" 2>/dev/null)
 prev_agent_type=$(jq -r '.agent_type // empty' "$f" 2>/dev/null)
+prev_msg=$(jq -r '.message // empty' "$f" 2>/dev/null)
 
 last_seed="$prev_seed"
 last_duration="$prev_dur"
 todo_total="$prev_todo_total"
 todo_done="$prev_todo_done"
 [ -z "$agent_type" ] && agent_type="$prev_agent_type"
+# Only the Notification event carries .message, and the PreToolUse that follows
+# it lands milliseconds later — without this the attention banner's body was the
+# bare project name every time. Cleared where the turn restarts or ends, below.
+[ -z "$msg" ] && msg="$prev_msg"
 
 # Host app the session runs in, so the menubar can open the right one on click.
 # __CFBundleIdentifier is inherited from the launching GUI app (Claude desktop,
@@ -79,14 +84,14 @@ done
 [ -z "$pid" ] && pid=$(jq -r '.pid // empty' "$f" 2>/dev/null)
 
 case "$event" in
-    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
-    UserPromptSubmit) status=thinking;  turn_start="$now"; last_seed=""; last_duration="" ;;
+    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration=""; todo_total=""; todo_done=""; msg="" ;;
+    UserPromptSubmit) status=thinking;  turn_start="$now"; last_seed=""; last_duration=""; msg="" ;;
     PreToolUse)       status=tool;      turn_start="$prev_ts" ;;
     PostToolUse)      status=thinking;  turn_start="$prev_ts" ;;
     Notification)     status=attention; turn_start="$prev_ts" ;;
     SubagentStart)
         [ -z "$agent_id" ] && exit 0
-        status=thinking; turn_start="$now"; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
+        status=thinking; turn_start="$now"; last_seed=""; last_duration=""; todo_total=""; todo_done=""; msg="" ;;
     Stop|SubagentStop)
         [ "$event" = "SubagentStop" ] && [ -z "$agent_id" ] && exit 0
         status=idle
@@ -94,7 +99,7 @@ case "$event" in
             last_seed="$prev_ts"
             last_duration=$(( now - prev_ts ))
         fi
-        turn_start="" ;;
+        turn_start=""; msg="" ;;
     SessionEnd)
         if [ -n "$agent_id" ]; then
             rm -f "$dir/$sid.$agent_id.state.json"
