@@ -2,6 +2,10 @@
 
 ## Tasks
 
+- [ ] [code] Stop SetupInstaller reformatting settings.json -- a two-hook add
+  produced a 428/406 line diff because the file is round-tripped through
+  JSONSerialization; preserve key order so the diff stays reviewable
+
 - [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
   reads denied, so banners post without error and never appear
 
