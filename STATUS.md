@@ -119,6 +119,20 @@ Two hand-checks, both `[you]` in `TASKS.md`:
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-04 (installer diff)
+- Investigated and dropped: "SetupInstaller reformats settings.json". It already
+  writes `.prettyPrinted, .sortedKeys`, so its output is deterministic. The
+  428/406 diff on first install was one-time normalisation -- the file carried 86
+  unsorted objects because Claude Code's own writer does not sort, and the
+  install sorted all of them at once. A semantic diff confirmed exactly two
+  additions, 23 deny and 9 allow rules unchanged. It can recur only after Claude
+  Code rewrites the file, and installs are rare, so an order-preserving encoder
+  is not worth writing.
+- Verified while installing: `ask.sh` had never run on this machine. The control
+  that installs it lived only in `MenuContentView`, unreachable under
+  `surface = window` where the app has no status item, so every permission
+  prompt arrived with nothing to press.
+
 ### 2026-09-04 (filling the window)
 - Noted: the pane looked empty because the statusLine writes 45 fields to
   `<id>.status.json` every few seconds and `StatusFile` decoded 8. Nothing new
