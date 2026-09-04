@@ -234,6 +234,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             startWindowTitleUpdates()
         }
         mainWindow?.makeKeyAndOrderFront(nil)
+        // Nothing is focused on open. Left to AppKit the key loop hands first
+        // responder to the first view that accepts it — the reply field — so
+        // keystrokes aimed anywhere else queue up in a box whose Send types into
+        // a live session.
+        mainWindow?.makeFirstResponder(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
