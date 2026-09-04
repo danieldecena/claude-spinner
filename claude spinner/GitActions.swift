@@ -167,7 +167,7 @@ enum GitActions {
 
         switch snapshot.merge.state {
         case "CLEAN", "HAS_HOOKS": return nil
-        case "UNSTABLE": return Block("Checks are failing on PR #\(n).", settled: true)
+        case "UNSTABLE": return Block("Checks on PR #\(n) haven't passed.", settled: true)
         case "BEHIND":   return Block("PR #\(n) is behind its base branch. Update it first.", settled: true)
         case "BLOCKED":  return Block("PR #\(n) is blocked by a branch protection rule.", settled: true)
         case "DIRTY":    return Block("PR #\(n) conflicts with its base branch.", settled: true)

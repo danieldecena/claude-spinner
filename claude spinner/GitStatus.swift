@@ -95,7 +95,10 @@ struct MergeReadiness: Equatable {
         var parts: [String] = []
         switch state {
         case "CLEAN", "HAS_HOOKS": parts.append("checks passing")
-        case "UNSTABLE":           parts.append("checks failing")
+        // UNSTABLE is any non-passing commit status, pending included -- gh can
+        // report it for a branch with no checks at all. "failing" would be a
+        // claim GitHub never made.
+        case "UNSTABLE":           parts.append("checks not passing")
         case "BEHIND":             parts.append("behind the base branch")
         case "BLOCKED":            parts.append("blocked")
         case "DRAFT":              parts.append("draft")
