@@ -20,11 +20,11 @@ via `run.sh`.
 
 ## Completed
 
-- [x] Scope the context-history feature in docs -- PENDING_SHA
-- [x] Sample per-session context tokens into a history buffer -- PENDING_SHA
-- [x] Draw the context meter against the window -- PENDING_SHA
-- [x] Draw the context trend on a time-scaled axis -- PENDING_SHA
-- [x] Test the sampler and the chart geometry -- PENDING_SHA
+- [x] Scope the context-history feature in docs -- 1ebd230
+- [x] Sample per-session context tokens into a history buffer -- 1ebd230
+- [x] Draw the context meter against the window -- 1ebd230
+- [x] Draw the context trend on a time-scaled axis -- 1ebd230
+- [x] Test the sampler and the chart geometry -- 1ebd230
 
 - [x] Re-read the remote when HEAD or the branch moves -- eaf5cad
 - [x] Order the post-action invalidate before the re-read -- eaf5cad
