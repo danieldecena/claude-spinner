@@ -2110,6 +2110,101 @@ final class claude_spinnerTests: XCTestCase {
              merge: MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "APPROVED"))
     }
 
+
+    // MARK: - Per-session context history
+
+    private func samples(_ pairs: [(Int, Double)]) -> [ContextSample] {
+        pairs.map { ContextSample(tokens: $0.0, at: $0.1) }
+    }
+
+    /// The known-GOOD case first: a real gap and a real change appends.
+    func testAContextSampleIsAppendedWhenTheCountMovesAfterTheGap() {
+        let out = FeedWatcher.appending(tokens: 200, at: 100, to: samples([(100, 0)]))
+        XCTAssertEqual(out, samples([(100, 0), (200, 100)]))
+    }
+
+    /// An unchanged count appends nothing. Sampling it would fill the buffer with
+    /// a flat line during an idle session and push out the part of the curve that
+    /// has something to say.
+    func testAnUnchangedContextCountAppendsNothing() {
+        let existing = samples([(100, 0)])
+        XCTAssertEqual(FeedWatcher.appending(tokens: 100, at: 9_999, to: existing), existing)
+    }
+
+    /// Inside the gap the newest value replaces the last point rather than being
+    /// dropped. Dropping it would hold a stale token count on screen through a
+    /// fast-moving turn, and the count is what the chart is about.
+    func testAChangeInsideTheGapCorrectsTheLastPointInPlace() {
+        let out = FeedWatcher.appending(tokens: 175, at: 5, to: samples([(100, 0)]))
+        XCTAssertEqual(out, samples([(175, 0)]), "timestamp stays, value updates")
+    }
+
+    func testTheFirstSampleIsAlwaysTaken() {
+        XCTAssertEqual(FeedWatcher.appending(tokens: 42, at: 0, to: []), samples([(42, 0)]))
+    }
+
+    func testTheContextBufferIsCappedAndDropsTheOldestFirst() {
+        var buffer: [ContextSample] = []
+        for i in 0..<(Constants.contextHistoryMax + 30) {
+            buffer = FeedWatcher.appending(tokens: i + 1, at: Double(i) * 60, to: buffer)
+        }
+        XCTAssertEqual(buffer.count, Constants.contextHistoryMax)
+        XCTAssertEqual(buffer.last?.tokens, Constants.contextHistoryMax + 30)
+        XCTAssertEqual(buffer.first?.tokens, 31, "the oldest points go, not the newest")
+    }
+
+    func testAContextBufferSurvivesACodingRoundTrip() {
+        let original = ["a": samples([(1, 0), (2, 60)])]
+        let data = try! JSONEncoder().encode(original)
+        XCTAssertEqual(try! JSONDecoder().decode([String: [ContextSample]].self, from: data),
+                       original)
+    }
+
+    // MARK: - Context chart geometry
+
+    func testContextPointsAreScaledByTimeNotByIndex() {
+        // Two minutes of work, then a twenty-minute silence, then one more point.
+        // Index spacing would draw the silence as one ordinary step.
+        let points = ContextChart.unitPoints(samples([(0, 0), (50, 120), (100, 1_320)]),
+                                             window: 100)!
+        XCTAssertEqual(points[0].x, 0, accuracy: 0.0001)
+        XCTAssertEqual(points[1].x, 120.0 / 1_320.0, accuracy: 0.0001)
+        XCTAssertEqual(points[2].x, 1, accuracy: 0.0001)
+        XCTAssertLessThan(points[1].x, 0.25, "the idle stretch must dominate the width")
+    }
+
+    /// y is the share of the window, flipped so 0 is the top of the box.
+    func testContextPointsAreScaledToTheWindowAndClamped() {
+        let points = ContextChart.unitPoints(
+            samples([(0, 0), (50_000, 10), (400_000, 20)]), window: 200_000)!
+        XCTAssertEqual(points[0].y, 1, accuracy: 0.0001)
+        XCTAssertEqual(points[1].y, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(points[2].y, 0, accuracy: 0.0001, "over the window clamps, never draws above")
+    }
+
+    /// A compaction is a cliff, and the cliff is the point of the chart.
+    func testACompactionDropsTheLineRatherThanBeingSmoothed() {
+        let points = ContextChart.unitPoints(
+            samples([(180_000, 0), (190_000, 60), (12_000, 120)]), window: 200_000)!
+        XCTAssertEqual(points[1].y, 0.05, accuracy: 0.0001)
+        XCTAssertEqual(points[2].y, 0.94, accuracy: 0.0001)
+    }
+
+    func testAContextChartNeedsTwoPointsAndAWindow() {
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0)]), window: 100),
+                     "one sample is a dot, not a trend")
+        XCTAssertNil(ContextChart.unitPoints([], window: 100))
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0), (2, 1)]), window: nil),
+                     "no window is no scale; an invented one makes every session look full")
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0), (2, 1)]), window: 0))
+    }
+
+    /// Samples that share a timestamp would divide by zero on the span.
+    func testIdenticalTimestampsFallBackToEvenSpacing() {
+        let points = ContextChart.unitPoints(samples([(0, 7), (50, 7), (100, 7)]), window: 100)!
+        XCTAssertEqual(points.map(\.x), [0, 0.5, 1])
+    }
+
     // MARK: - Blocked, and whether that is the final answer
 
     /// The flag the whole action row is drawn from. A settled block hides its

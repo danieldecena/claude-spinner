@@ -12,6 +12,11 @@
 - `TranscriptReader` shows what a session is *doing* — the last thing Claude
   said, what you last asked, and what it just ran — read from the last 256KB of
   its own transcript. Observed on screen 2026-09-04 against a live 4.7MB file.
+- The Context section carries a meter and a chart, both scaled to the window so
+  they mean the same thing: how close this session is to needing a compact, and
+  how fast it got there. Behind them is the app's first per-session time series
+  -- `contextHistory`, sampled on each rescan, only when the count actually
+  moves, capped at 240 points and dropped when the session goes away.
 - Six session actions under the reply field: Interrupt, Compact and Clear
   through the tmux pane, Reveal folder / Open transcript / Copy session id
   locally. Each is enabled or carries a stated reason.
@@ -125,6 +130,38 @@ decision log). One runtime case from the Git work also stayed unobserved: the
 unreadable-remote rendering, noted in the decision log.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-04 (per-session context history)
+- Asked for more graphs and data points; scoped to the detail pane and to
+  context growth. The inventory that preceded it is the finding worth keeping:
+  **the app had no per-session time series at all.** `usageHistory` is global,
+  account-scoped and sampled only by the usage poller, and every per-session
+  number in the pane -- spend, tokens, cache ratio, lines -- is latest-value
+  only, overwritten on each statusLine write. So this was new plumbing, not a
+  new view over data already held.
+- Decided: sample only when the token count changes. A flat line through an idle
+  session would push the informative part of the curve out of a capped buffer,
+  and the chart is time-scaled, so a gap between two points already draws the
+  idle stretch.
+- Decided: a change inside the 15s min gap rewrites the last point rather than
+  being dropped. Dropping it would hold a stale count on screen through a fast
+  turn, and the count is the thing being plotted.
+- Decided: scaled 0 to the window, not to the data, for both the meter and the
+  chart. A 1M-window session holding 20k should draw as a flat crawl; auto-zoom
+  would make it look as full as 190k on a 200k window. Same reasoning as the
+  existing sparkline's fixed 0-100 axis.
+- Decided: x is time-scaled, unlike `Sparkline`, which is index-based and so
+  compresses a polling gap into an ordinary step. The old chart was left alone.
+- Observed: the sampler works end to end. After a relaunch, UserDefaults held
+  six samples for this session with rising token counts, gaps of 17-143s, no
+  duplicate values, and no entry for sessions that report no context.
+- Not done: **the meter and the chart have never been seen rendered.** The unit
+  tests cover the geometry both ways, but every attempt to screenshot the window
+  failed on machine state, not on the code -- a BetterDisplay "Virtual 16:9"
+  5120x2880 display reports as present, is DISCONNECTED, will not reconnect, is
+  display 1, and is where AppKit places the window. On it the window is invisible
+  to `screencapture` (black), to Accessibility (0 windows), and to the user. The
+  window's saved frame was restored to what it was. Left as a `[you]` check.
 
 ### 2026-09-04 (the Git card said things that were not true)
 - Reported as "confusing, not sure it's accurate when available": three of the

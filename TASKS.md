@@ -10,12 +10,21 @@
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
 
+- [ ] [you] Confirm the context meter and chart render -- open the window, look at
+  a session's Context section (blocked here by a phantom virtual display)
+
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Scope the context-history feature in docs -- PENDING_SHA
+- [x] Sample per-session context tokens into a history buffer -- PENDING_SHA
+- [x] Draw the context meter against the window -- PENDING_SHA
+- [x] Draw the context trend on a time-scaled axis -- PENDING_SHA
+- [x] Test the sampler and the chart geometry -- PENDING_SHA
 
 - [x] Re-read the remote when HEAD or the branch moves -- eaf5cad
 - [x] Order the post-action invalidate before the re-read -- eaf5cad

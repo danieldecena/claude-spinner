@@ -64,7 +64,8 @@ struct WindowContentView: View {
                 SessionDetail(session: session,
                               children: feed.sessions.filter { $0.parentSessionId == session.id },
                               asks: asks.pending.filter { $0.sessionId == session.id },
-                              feedDir: feed.feedDirectory)
+                              feedDir: feed.feedDirectory,
+                              history: feed.contextHistory[session.id] ?? [])
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -141,6 +142,9 @@ private struct SessionDetail: View {
     let children: [SessionFeed]
     let asks: [AskRequest]
     let feedDir: URL
+    /// This session's context over time. Passed in rather than read from the
+    /// watcher, the way `OverviewStrip` already receives `usageHistory`.
+    let history: [ContextSample]
 
     var body: some View {
         ScrollView {
@@ -220,12 +224,23 @@ private struct SessionDetail: View {
             ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
         ])
 
-        StatSection("Context", rows: [
-            ("used", st.contextUsedPercent.map { "\($0)%" }),
-            ("tokens", session.contextTokens.map { "\($0.formatted())" }),
-            ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
-            ("over 200k", st.exceeds200k.map { $0 ? "yes" : "no" }),
-        ])
+        VStack(alignment: .leading, spacing: 8) {
+            StatSection("Context", rows: [
+                ("used", st.contextUsedPercent.map { "\($0)%" }),
+                ("tokens", session.contextTokens.map { "\($0.formatted())" }),
+                ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
+                ("over 200k", st.exceeds200k.map { $0 ? "yes" : "no" }),
+            ])
+            // Both are scaled to the window, so the bar's fill and the chart's
+            // height mean the same thing. Neither is drawn without a window to
+            // scale against: a chart with an invented denominator is worse than
+            // the four rows above on their own.
+            if let window = st.contextWindowSize, window > 0,
+               let tokens = session.contextTokens {
+                ContextMeter(tokens: tokens, window: window)
+                ContextTrend(samples: history, window: window, tokens: tokens)
+            }
+        }
 
         StatSection("Prompt cache", rows: [
             ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
@@ -585,6 +600,98 @@ private struct Sparkline: View {
                     .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
             }
         }
+    }
+}
+
+
+/// Where each context sample sits in a unit box: x from its timestamp, y from
+/// its share of the window. Pure, so the degenerate cases are testable without
+/// laying out a view.
+enum ContextChart {
+    /// nil when there is nothing honest to draw. Two points is the minimum that
+    /// can be a trend, and without a window size there is no scale to plot
+    /// against -- inventing one would make every session look equally full.
+    static func unitPoints(_ samples: [ContextSample], window: Int?) -> [CGPoint]? {
+        guard let window, window > 0, samples.count >= 2,
+              let first = samples.first, let last = samples.last else { return nil }
+        let span = last.at - first.at
+        return samples.enumerated().map { index, sample in
+            // Time-scaled, unlike `Sparkline` above: a session that sat idle for
+            // twenty minutes has to read as a flat stretch rather than as one
+            // step the same width as a busy minute. Equal timestamps would divide
+            // by zero, so those fall back to even spacing.
+            let x = span > 0 ? (sample.at - first.at) / span
+                             : Double(index) / Double(samples.count - 1)
+            let y = min(1, max(0, Double(sample.tokens) / Double(window)))
+            return CGPoint(x: x, y: 1 - y)
+        }
+    }
+}
+
+/// Context against the window, in the same capsule language as `UsageGauge`.
+///
+/// The `used` row above already prints the percentage; this is the same number
+/// as a length, which is the form a ratio-against-a-limit actually wants.
+private struct ContextMeter: View {
+    let tokens: Int
+    let window: Int
+
+    var body: some View {
+        let ratio = min(1, max(0, Double(tokens) / Double(window)))
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.secondary.opacity(0.22))
+                Capsule().fill(Color.contextTint(tokens))
+                    // Keep a sliver visible for a tiny non-zero context, so a
+                    // just-started session doesn't read as an empty track.
+                    .frame(width: max(tokens > 0 ? 3 : 0, geo.size.width * ratio))
+            }
+        }
+        .frame(height: 5)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Context used")
+        .accessibilityValue("\(Int((ratio * 100).rounded())) percent of the window")
+    }
+}
+
+/// Context over the session's life, scaled 0 to the window.
+///
+/// Scaled to the window rather than to the data on purpose. A 1M-window session
+/// holding 20k *should* draw as a flat crawl along the bottom; auto-zooming
+/// would make it look as full as a 190k session on a 200k window, which is the
+/// same failure `Sparkline`'s fixed 0-100 axis exists to avoid. A compaction
+/// shows as a cliff, and is not smoothed -- it is the most informative shape
+/// the chart has.
+private struct ContextTrend: View {
+    let samples: [ContextSample]
+    let window: Int
+    let tokens: Int
+
+    var body: some View {
+        GeometryReader { geo in
+            if let unit = ContextChart.unitPoints(samples, window: window) {
+                let points = unit.map { CGPoint(x: $0.x * geo.size.width,
+                                                y: $0.y * geo.size.height) }
+                let tint = Color.contextTint(tokens)
+                let line = Path { path in
+                    path.move(to: points[0])
+                    for point in points.dropFirst() { path.addLine(to: point) }
+                }
+                let area = Path { path in
+                    path.move(to: CGPoint(x: points[0].x, y: geo.size.height))
+                    for point in points { path.addLine(to: point) }
+                    path.addLine(to: CGPoint(x: points[points.count - 1].x, y: geo.size.height))
+                    path.closeSubpath()
+                }
+                area.fill(tint.opacity(0.15))
+                line.stroke(tint, lineWidth: 1.5)
+            } else {
+                Text("no context history yet")
+                    .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
+            }
+        }
+        .frame(height: 28)
+        .accessibilityLabel("Context over this session")
     }
 }
 

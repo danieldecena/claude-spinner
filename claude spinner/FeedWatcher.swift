@@ -126,6 +126,13 @@ enum Constants {
     /// this fast on its own. The trend only compares samples since the most
     /// recent such reset, so it never reports a misleading giant negative.
     static let usageResetDropThreshold = 20
+    /// Collapse context samples closer together than this. A busy turn rewrites
+    /// the statusLine far faster than the chart can show, and every rescan would
+    /// otherwise append a point.
+    static let contextSampleMinGap: TimeInterval = 15
+    /// Points kept per session. At the gap above that is over an hour of solid
+    /// work, and far longer in practice since an unchanged count appends nothing.
+    static let contextHistoryMax = 240
     /// Usage older than this is flagged stale in the footer — no statusLine session
     /// has refreshed it recently (the only source of the 5h/7d percentages).
     static let usageStaleAfter: TimeInterval = 15 * 60
@@ -617,6 +624,16 @@ struct UsageSnapshot: Codable {
     var savedAt: Double
 }
 
+/// One session's context size at a moment.
+///
+/// Separate from `UsageSample` on purpose: that one is an account-wide rate
+/// limit sampled by the poller, this is per session and arrives with the
+/// statusLine. Nothing about them is shared but the shape.
+struct ContextSample: Codable, Equatable {
+    var tokens: Int
+    var at: Double  // epoch seconds
+}
+
 /// One timestamped 5h-utilization poll result, kept for the "chg" trend gauge.
 struct UsageSample: Codable {
     var pct: Int
@@ -856,6 +873,9 @@ final class FeedWatcher: ObservableObject {
     /// was polled, backing the footer's "chg" trend gauge. Persisted so the trend
     /// survives relaunch; trimmed to `Constants.usageTrendWindow`.
     @Published private(set) var usageHistory: [UsageSample] = []
+    /// Context size over time, per session id. The app's first per-session time
+    /// series -- every other number in the detail pane is latest-value only.
+    @Published private(set) var contextHistory: [String: [ContextSample]] = [:]
 
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
@@ -885,6 +905,8 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
         usageHistory = UserDefaults.standard.data(forKey: "usageHistory")
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
+        contextHistory = UserDefaults.standard.data(forKey: "contextHistory")
+            .flatMap { try? JSONDecoder().decode([String: [ContextSample]].self, from: $0) } ?? [:]
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
         notifyOnDone = (UserDefaults.standard.object(forKey: "notifyOnDone") as? Bool) ?? false
@@ -1071,6 +1093,7 @@ final class FeedWatcher: ObservableObject {
             self?.notifyAttention(result)
             self?.notifyDone(result)
             self?.updateUsageCache(result)
+            self?.recordContextSamples(result)
             self?.sessions = result
         }
     }
@@ -1136,6 +1159,57 @@ final class FeedWatcher: ObservableObject {
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: "usageSnapshot")
         }
+    }
+
+    /// Append each live session's context size, and forget the sessions that are
+    /// gone. Runs on main, once per rescan.
+    ///
+    /// Dropping a departed session's buffer here rather than on a timer means the
+    /// history has exactly the same lifetime as the row it belongs to: a session
+    /// pruned at `staleCutoff` takes its curve with it, and nothing accumulates
+    /// for ids that will never render again.
+    private func recordContextSamples(_ newSessions: [SessionFeed]) {
+        let now = Date().timeIntervalSince1970
+        var history = contextHistory
+        let liveIds = Set(newSessions.map(\.id))
+        history = history.filter { liveIds.contains($0.key) }
+        for session in newSessions {
+            guard let tokens = session.contextTokens else { continue }
+            history[session.id] = Self.appending(tokens: tokens, at: now,
+                                                 to: history[session.id] ?? [])
+        }
+        guard history != contextHistory else { return }
+        contextHistory = history
+        if let data = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(data, forKey: "contextHistory")
+        }
+    }
+
+    /// Pure, so the three rules below are testable without a feed directory.
+    ///
+    /// An unchanged count appends nothing at all. Sampling it would fill the
+    /// buffer with a flat line during an idle session and push out the part of
+    /// the curve that has something to say -- and the chart is time-scaled, so
+    /// the flat stretch is drawn from the gap between two points anyway.
+    static func appending(tokens: Int, at now: Double,
+                          to samples: [ContextSample]) -> [ContextSample] {
+        if let last = samples.last {
+            if last.tokens == tokens { return samples }
+            if now - last.at < Constants.contextSampleMinGap {
+                // Within the gap, correct the last point rather than skipping the
+                // value. Skipping would hold a stale token count on screen for a
+                // fast-moving turn; the count is what the chart is about.
+                var out = samples
+                out[out.count - 1] = ContextSample(tokens: tokens, at: last.at)
+                return out
+            }
+        }
+        var out = samples
+        out.append(ContextSample(tokens: tokens, at: now))
+        if out.count > Constants.contextHistoryMax {
+            out.removeFirst(out.count - Constants.contextHistoryMax)
+        }
+        return out
     }
 
     /// Post a macOS notification the first time each session enters attention, so
