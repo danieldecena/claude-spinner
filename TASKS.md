@@ -22,6 +22,8 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Show the notifications-denied notice on both surfaces -- f2cf7ee
+- [x] Re-read notification authorization when the app becomes active -- f2cf7ee
 - [x] Confirm the context CHART renders -- observed 2026-09-15, no commit (hand-check)
 - [x] Add FeedWatcher.projectSections with stable, non-ticking ordering -- fa8d2b0
 - [x] Group the window sidebar by project -- fa8d2b0

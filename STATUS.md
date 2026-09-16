@@ -121,8 +121,10 @@
   appears. `add()` reports `hasError: 0` regardless, which is why this went
   unnoticed — the log reads
   `auth=1 ... error=Notifications are not allowed for this application`. No API
-  can grant it; only System Settings can. The panel now says so, with a button.
-  The window surface is unaffected and answers questions fine without it.
+  can grant it; only System Settings can. Both surfaces now say so, with a
+  button that opens the right pane, and authorization is re-read whenever the
+  app becomes active so the notice cannot outlive the switch being flipped. The
+  window surface is unaffected and answers questions fine without it.
 
 ## Scope / by-design limitations
 
@@ -137,15 +139,43 @@
 
 ## Next Up
 
-CI runs for real now and the session lists group by project. What is left is
-three hand-checks, all `[you]` in `TASKS.md`: allowing notifications in System
-Settings, the placed-status-item policy round-trip (not scriptable — see the
-2026-08-12 decision log), and the context chart against a session with several
-samples (the meter was seen; the chart was not). Two runtime cases stayed
-unobserved and are named in the decision log: the unreadable-remote rendering
-from the Git work, and the panel's new project sections.
+CI runs for real now, the session lists group by project, and the
+notifications-denied notice reaches whichever surface you are on. What is left
+is three hand-checks, all `[you]` in `TASKS.md`: allowing notifications in
+System Settings — which the window now both reports and offers a button for,
+and which doubles as the observation that the on-activation re-read clears the
+notice — the placed-status-item policy round-trip (not scriptable, see the
+2026-08-12 decision log), and a context line with a visible slope. Two runtime
+cases stay unobserved and are named in the decision log: the unreadable-remote
+rendering from the Git work, and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-15 (the notice reaches both surfaces)
+- Fixed the first of the two surfacing gaps found earlier today.
+  `NotificationsNotice` is its own view now, drawn by the panel and by the
+  window sidebar, so the state that silences every banner is readable from the
+  surface this machine is actually set to. Observed on screen: amber text and
+  an Open Settings button under the overview strip, captured by window id
+  because a foreground app kept winning the raise.
+- Decided the guard against a third instance is a source-text test, not a
+  convention. `SetupBanner` was stranded in the panel once and the notice after
+  it; `testBothSurfacesDrawTheSharedNotices` reads both view files and asserts
+  each names both. Proved it fails first: with the window's line deleted it
+  reports exactly the stranding it is there to catch.
+- Found a second, quieter half of the same bug: authorization was read once at
+  launch, and the notice's own button sends you to System Settings to change
+  it. So the notice would keep claiming notifications are off for the rest of
+  the session, on the path it creates itself. Re-read in
+  `applicationDidBecomeActive` now.
+- That re-read is logged on purpose. While the answer stays `false` it changes
+  nothing on screen, so a refresh that never runs and one that runs and finds
+  the same denial are the same picture; the log line is the only thing that
+  separates them. Observed: `authorization re-read status=1 allowed=0`, three
+  lines per launch, and the third has no caller but `didBecomeActive`.
+- Still unobserved, deliberately not claimed: the notice *clearing*. That needs
+  the switch flipped, which is the top `[you]` task, and granting is the only
+  input that distinguishes a working re-read from one that always reads denied.
 
 ### 2026-09-15 (context chart observed; two surfacing gaps)
 - Observed: the context chart draws. Window surface, `fix-dock-passwords-icon`,
