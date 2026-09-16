@@ -2,9 +2,6 @@
 
 ## Tasks
 
-- [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
-  reads denied, so banners post without error and never appear
-
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
@@ -22,6 +19,8 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Allow notifications for "claude spinner" -- granted 2026-09-15, banner
+  answered end to end (hand-check)
 - [x] Show the notifications-denied notice on both surfaces -- f2cf7ee
 - [x] Re-read notification authorization when the app becomes active -- f2cf7ee
 - [x] Confirm the context CHART renders -- observed 2026-09-15, no commit (hand-check)

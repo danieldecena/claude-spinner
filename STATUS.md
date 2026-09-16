@@ -36,6 +36,11 @@
   the network half early. Merge runs `gh pr merge --squash --delete-branch`
   and is offered only when gh reports the PR mergeable, reviewed and passing.
 
+- Notifications reach you. Authorization was denied for the app's whole life
+  until 2026-09-15; granted, a posted ask clears the entitlement check, runs the
+  full `usernotificationsd` pipeline and lands in `destinations=[notices]`. Both
+  surfaces carry the denied notice for the case where it is off again, and the
+  read refreshes whenever the app becomes active.
 - Questions and permission prompts can be answered without going back to the
   terminal. `ask.sh` blocks on `PreToolUse`/`AskUserQuestion` and
   `PermissionRequest`, the app renders the request, and the answer returns as
@@ -117,14 +122,7 @@
 
 ## Known broken
 
-- **Notifications are denied for `decenad.claude-spinner`**, so no banner ever
-  appears. `add()` reports `hasError: 0` regardless, which is why this went
-  unnoticed — the log reads
-  `auth=1 ... error=Notifications are not allowed for this application`. No API
-  can grant it; only System Settings can. Both surfaces now say so, with a
-  button that opens the right pane, and authorization is re-read whenever the
-  app becomes active so the notice cannot outlive the switch being flipped. The
-  window surface is unaffected and answers questions fine without it.
+- Nothing known broken.
 
 ## Scope / by-design limitations
 
@@ -139,17 +137,36 @@
 
 ## Next Up
 
-CI runs for real now, the session lists group by project, and the
-notifications-denied notice reaches whichever surface you are on. What is left
-is three hand-checks, all `[you]` in `TASKS.md`: allowing notifications in
-System Settings — which the window now both reports and offers a button for,
-and which doubles as the observation that the on-activation re-read clears the
-notice — the placed-status-item policy round-trip (not scriptable, see the
-2026-08-12 decision log), and a context line with a visible slope. Two runtime
-cases stay unobserved and are named in the decision log: the unreadable-remote
-rendering from the Git work, and the panel's new project sections.
+Notifications work end to end, so the app's last blocking gap is closed. What
+is left is two hand-checks, both `[you]` in `TASKS.md`: the placed-status-item
+policy round-trip (not scriptable, see the 2026-08-12 decision log), and a
+context line with a visible slope. Two runtime cases stay unobserved and are
+named in the decision log: the unreadable-remote rendering from the Git work,
+and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-15 (notifications granted; the feature rings for the first time)
+- Daniel allowed notifications in System Settings. The on-activation re-read
+  then logged `authorization re-read status=2 allowed=1` -- the known-GOOD input
+  the earlier entry said was missing. Until now every recorded read was a
+  denial, which a detector that always reads denied would have produced
+  identically; this is the first time the pair exists.
+- It needed an activation to fire, and none had happened since the switch was
+  flipped: the read still said `status=1` four minutes after. That is the design
+  working, not a lag -- but it means the notice clears when you next come back to
+  the app, not the instant you grant.
+- Proved the whole path, not just the flag. Wrote a real ask file into
+  `spinnerfeed/asks/`; `usernotificationsd` logged `Entitlement check success`,
+  ran the pipeline to `NotificationRequest: Completed`, and filed it under
+  `destinations=[notices]`. Daniel then pressed a button on the banner and the
+  app wrote `{"behavior":"allow","answers":{"Did this banner reach you?":"Yes"}}`.
+  Banner -> button -> answer file, which is the feature.
+- Not observed, and worth saying: the notice *disappearing* from the window.
+  Hearthstone held the screen full-screen on its own Space, which also shrank
+  the window's `CGWindowList` entry to 80x137 while Accessibility still read
+  996x1106 -- so no capture of that window could be trusted. The flag it renders
+  from is confirmed `true`; the pixels are not.
 
 ### 2026-09-15 (the notice reaches both surfaces)
 - Fixed the first of the two surfacing gaps found earlier today.
