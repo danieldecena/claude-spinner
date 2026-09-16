@@ -26,6 +26,8 @@ via `run.sh`.
 - [x] Group the menu-bar panel by project -- fa8d2b0
 - [x] Test projectSections, including the input-order regression -- fa8d2b0
 - [x] Recolour the app icon to the Claude burst on red -- 9857727
+- [x] Correct the CI claim in STATUS.md and log the finding -- 344a9af
+- [x] Confirm the context meter renders (chart still open above) -- 344a9af
 
 - [x] Probe whether GitHub-hosted macOS images can build this project -- a8c68e1
 - [x] Install and register a self-hosted Actions runner on this Mac -- a8c68e1
