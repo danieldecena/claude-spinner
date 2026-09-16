@@ -84,15 +84,17 @@ private struct SessionSidebar: View {
     let asks: [AskRequest]
     @Binding var selection: String?
 
-    /// Waiting first — those are the ones with something blocked on a human.
-    private var groups: [(String, [SessionFeed])] {
-        let waiting = sessions.filter { $0.isBlockedOnYou || asksFor($0) }
-        let waitingIDs = Set(waiting.map(\.id))
-        let working = sessions.filter { $0.isWorking && !waitingIDs.contains($0.id) }
-        let workingIDs = Set(working.map(\.id))
-        let resting = sessions.filter { !waitingIDs.contains($0.id) && !workingIDs.contains($0.id) }
-        return [("Needs you", waiting), ("Working", working), ("Idle", resting)]
-            .filter { !$0.1.isEmpty }
+    /// One section per project, with anything blocked on a human pinned above them.
+    ///
+    /// This replaced three status sections (Needs you / Working / Idle) rendered in
+    /// whatever order `sessions` arrived in — which `rescan` builds from a
+    /// dictionary's `values`, so the rows reshuffled on every scan. Status is still
+    /// legible per row through the dot and the badge; what a heading is worth here
+    /// is the project, which does not change while you are reading it.
+    private var groups: [ProjectSection] {
+        FeedWatcher.projectSections(
+            sessions.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) },
+            asked: Set(asks.map(\.sessionId)))
     }
 
     private func asksFor(_ session: SessionFeed) -> Bool {
@@ -101,9 +103,10 @@ private struct SessionSidebar: View {
 
     var body: some View {
         List(selection: $selection) {
-            ForEach(groups, id: \.0) { title, items in
-                Section(title) {
-                    ForEach(items) { session in
+            ForEach(groups) { section in
+                Section {
+                    ForEach(section.items) { item in
+                        let session = item.session
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(tint(session))
@@ -111,9 +114,13 @@ private struct SessionSidebar: View {
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(session.distinctName)
                                     .font(.claudeMono(12)).lineLimit(1)
-                                Text(session.projectName)
-                                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                                    .lineLimit(1)
+                                // Under a project heading the project name is already
+                                // overhead; only the pinned section needs it spelled out.
+                                if section.id == "needs-you" {
+                                    Text(session.projectName)
+                                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                                        .lineLimit(1)
+                                }
                             }
                             Spacer(minLength: 0)
                             if asksFor(session) {
@@ -123,6 +130,8 @@ private struct SessionSidebar: View {
                         }
                         .tag(session.id)
                     }
+                } header: {
+                    SectionHeader(section: section)
                 }
             }
         }
@@ -132,6 +141,28 @@ private struct SessionSidebar: View {
     private func tint(_ session: SessionFeed) -> Color {
         if session.isBlockedOnYou || asksFor(session) { return Color.usageTint(95) }
         return session.isWorking ? .accentColor : Color.claudeDim
+    }
+}
+
+/// A project heading: what it is, how many sessions, and their context added up.
+///
+/// The total is deliberately untinted, for the reason recorded on
+/// `FeedWatcher.totalContextTokens` — these are separate windows, so a summed 210k
+/// is not the same "heavy" as one 210k session, and `contextTint` bands for one.
+private struct SectionHeader: View {
+    let section: ProjectSection
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(section.title).lineLimit(1)
+            Spacer(minLength: 4)
+            Text("\(section.sessionCount)")
+                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            if let total = section.contextTotal {
+                Text(FeedWatcher.formatTokens(total))
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+        }
     }
 }
 

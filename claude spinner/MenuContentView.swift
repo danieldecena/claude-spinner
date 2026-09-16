@@ -62,19 +62,26 @@ struct MenuContentView: View {
                     // Resolve the row list once per tick — displayItems does a full
                     // sort + grouping, so evaluating it per-row (ForEach, last, and
                     // the animation value) would repeat that work every 100ms.
-                    let rows = feed.displayItems
-                    // Sized once per panel, not per row, so the columns line up
-                    // down the list instead of jagging with each row's content.
+                    let sections = FeedWatcher.projectSections(
+                        feed.displayItems, asked: Set(asks.pending.map(\.sessionId)))
+                    // Flattened once: the columns must be sized across the WHOLE
+                    // panel, not per section, or they jag at every heading.
+                    let rows = sections.flatMap(\.items)
                     let columns = RowLayout.columns(
                         statusLabels: rows.map(\.session.statusLabel),
                         models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" },
                         panelWidth: feed.panelWidth)
                     let list = VStack(spacing: 0) {
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
-                            SessionRow(feed: feed, item: item, now: context.date, columns: columns)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                            if index < rows.count - 1 && rows[index + 1].depth == 0 {
-                                Divider().opacity(0.5)
+                        ForEach(sections) { section in
+                            PanelSectionHeader(section: section)
+                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                                SessionRow(feed: feed, item: item, now: context.date, columns: columns)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                // Dividers separate rows inside a section; the next
+                                // heading is what separates one section from the next.
+                                if index < section.items.count - 1 && section.items[index + 1].depth == 0 {
+                                    Divider().opacity(0.5)
+                                }
                             }
                         }
                     }
@@ -556,6 +563,33 @@ enum RowLayout {
         status = min(status, statusBudget)
 
         return Columns(name: name, model: model, status: status)
+    }
+}
+
+/// A project heading in the dropdown. Same content as the sidebar's, sized for the
+/// panel: name, session count, and the section's context added up.
+///
+/// The total is untinted on purpose, matching `FeedWatcher.totalContextTokens` —
+/// summed context across separate windows is not the same "heavy" a single
+/// session's `contextTint` band means.
+private struct PanelSectionHeader: View {
+    let section: ProjectSection
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(section.title)
+                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text("\(section.sessionCount)")
+                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            if let total = section.contextTotal {
+                Text(FeedWatcher.formatTokens(total))
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 8).padding(.bottom, 3)
     }
 }
 

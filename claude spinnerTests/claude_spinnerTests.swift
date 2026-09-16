@@ -509,6 +509,120 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.id), ["new", "old"])
     }
 
+    // MARK: - Project sections
+
+    /// Wrap sessions the way the sidebar does: one depth-0 row each.
+    private func rows(_ sessions: [SessionFeed]) -> [SessionRowItem] {
+        sessions.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) }
+    }
+
+    private func named(_ id: String, _ status: SessionStatus, cwd: String,
+                       name: String? = nil, tokens: Int? = nil) -> SessionFeed {
+        var s = mk(id, status, cwd: cwd, tokens: tokens)
+        s.sessionName = name
+        return s
+    }
+
+    /// The regression this whole feature exists for. `rescan` builds `sessions` from
+    /// a dictionary's `values`, whose order Swift does not define, so the same set
+    /// arrives in a different order on every scan. Sections must not move with it.
+    func testProjectSectionsAreIdenticalUnderAnyInputOrder() {
+        let a = named("a", .tool, cwd: "/w/alpha", name: "one")
+        let b = named("b", .tool, cwd: "/w/beta", name: "two")
+        let c = named("c", .idle, cwd: "/w/alpha", name: "three")
+        let forward = FeedWatcher.projectSections(rows([a, b, c]))
+        let shuffled = FeedWatcher.projectSections(rows([c, a, b]))
+        let reversed = FeedWatcher.projectSections(rows([b, c, a]))
+        XCTAssertEqual(forward.map(\.id), shuffled.map(\.id))
+        XCTAssertEqual(forward.map(\.id), reversed.map(\.id))
+        XCTAssertEqual(forward.map { $0.items.map(\.id) }, shuffled.map { $0.items.map(\.id) })
+        XCTAssertEqual(forward.map { $0.items.map(\.id) }, reversed.map { $0.items.map(\.id) })
+    }
+
+    func testProjectSectionsAreAlphabeticalByProjectThenSessionName() {
+        let sections = FeedWatcher.projectSections(rows([
+            named("z", .tool, cwd: "/w/zebra", name: "z1"),
+            named("m2", .tool, cwd: "/w/alpha", name: "second"),
+            named("m1", .tool, cwd: "/w/alpha", name: "first"),
+        ]))
+        XCTAssertEqual(sections.map(\.title), ["alpha", "zebra"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["m1", "m2"])
+    }
+
+    /// Pinned on top, and listed once — the sidebar tags rows by session id, so the
+    /// same session appearing under its project too would duplicate a selection tag.
+    func testNeedsYouIsPinnedFirstAndNotRepeatedUnderItsProject() {
+        var blocked = named("b", .attention, cwd: "/w/alpha", name: "blocked")
+        blocked.notificationType = "permission_prompt"
+        let sections = FeedWatcher.projectSections(rows([
+            named("w", .tool, cwd: "/w/alpha", name: "working"), blocked,
+        ]))
+        XCTAssertEqual(sections.map(\.title), ["Needs you", "alpha"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["b"])
+        XCTAssertEqual(sections[1].items.map(\.id), ["w"])
+    }
+
+    /// An `asks` entry pins a session even when its own status has not flipped.
+    func testNeedsYouIncludesSessionsWithAPendingAsk() {
+        let sections = FeedWatcher.projectSections(
+            rows([named("q", .tool, cwd: "/w/alpha", name: "asking")]), asked: ["q"])
+        XCTAssertEqual(sections.map(\.title), ["Needs you", ])
+    }
+
+    /// An idle_prompt is not blocked on anyone, so nothing gets pinned and the
+    /// section is omitted rather than drawn empty.
+    func testNeedsYouIsOmittedWhenNothingIsBlocked() {
+        var finished = named("f", .attention, cwd: "/w/alpha", name: "done")
+        finished.notificationType = "idle_prompt"
+        let sections = FeedWatcher.projectSections(rows([finished]))
+        XCTAssertEqual(sections.map(\.title), ["alpha"])
+    }
+
+    /// A collapsed idle row stands for several sessions; a subagent row is not a
+    /// session of its own.
+    func testSessionCountExpandsCollapsedRowsAndIgnoresSubagents() {
+        let parent = named("p", .tool, cwd: "/w/alpha", name: "parent")
+        let child = mk("kid", .tool, cwd: "/w/alpha", parentSessionId: "p")
+        let collapsed = SessionRowItem(id: "idle:/w/alpha",
+                                       session: named("i1", .idle, cwd: "/w/alpha", name: "idle"),
+                                       ids: ["i1", "i2", "i3"], depth: 0)
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "p", session: parent, ids: ["p", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: child, ids: ["kid"], depth: 1),
+            collapsed,
+        ])
+        XCTAssertEqual(sections.count, 1)
+        // 1 parent (its child ids don't count) + 3 collapsed idles.
+        XCTAssertEqual(sections[0].sessionCount, 4)
+    }
+
+    func testContextTotalSumsAndIsNilWhenNothingReported() {
+        let withTokens = FeedWatcher.projectSections(rows([
+            named("a", .tool, cwd: "/w/alpha", name: "a", tokens: 40_000),
+            named("b", .tool, cwd: "/w/alpha", name: "b", tokens: 60_000),
+        ]))
+        XCTAssertEqual(withTokens[0].contextTotal, 100_000)
+
+        let without = FeedWatcher.projectSections(rows([
+            named("c", .tool, cwd: "/w/alpha", name: "c"),
+        ]))
+        XCTAssertNil(without[0].contextTotal)
+    }
+
+    /// Children stay directly under the parent they are indented beneath, even
+    /// though the roots around them get re-sorted.
+    func testChildrenStayAttachedToTheirParentAfterSorting() {
+        let zed = named("z", .tool, cwd: "/w/alpha", name: "zed")
+        let kid = mk("kid", .tool, cwd: "/w/alpha", parentSessionId: "z")
+        let abe = named("a", .tool, cwd: "/w/alpha", name: "abe")
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "z", session: zed, ids: ["z", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: kid, ids: ["kid"], depth: 1),
+            SessionRowItem(id: "a", session: abe, ids: ["a"], depth: 0),
+        ])
+        XCTAssertEqual(sections[0].items.map(\.id), ["a", "z", "kid"])
+    }
+
     // MARK: - Color tier boundaries
 
     func testUsageTintTiers() {

@@ -658,6 +658,21 @@ struct SessionRowItem: Identifiable {
     var showsCountBadge: Bool { subagentCount == 0 && count > 1 }
 }
 
+/// One section of either session list: a project, or the pinned "Needs you" group.
+struct ProjectSection: Identifiable {
+    let id: String          // "needs-you", or "project:<name>"
+    let title: String
+    let items: [SessionRowItem]
+    /// Sessions this section lists, expanding a collapsed idle row's `×N` and
+    /// ignoring nested subagent rows.
+    let sessionCount: Int
+    /// The section's context tokens added together, or nil when nothing in it has
+    /// reported a window. Untinted at the call sites for the same reason
+    /// `totalContextTokens` is: these are separate windows, so a summed 210k is not
+    /// the same "heavy" as one 210k session.
+    let contextTotal: Int?
+}
+
 /// Polls Anthropic's API for the account's live 5h/7d rate-limit utilization,
 /// using the OAuth token Claude Code stores in the login keychain. Unlike the
 /// statusLine feed (which only refreshes during an interactive TUI session), this
@@ -1568,6 +1583,78 @@ final class FeedWatcher: ObservableObject {
         }
         return items
     }
+
+    /// Both session lists grouped into project sections, with anything blocked on a
+    /// person pinned above them.
+    ///
+    /// The ordering keys here are deliberately ones that DO NOT TICK — project name,
+    /// then session name, then id. The sidebar used to render `sessions` in arrival
+    /// order, and `rescan` builds that array from a dictionary's `values`, whose
+    /// iteration order Swift does not define; the rows therefore reshuffled on every
+    /// rescan. Sorting on anything live (tokens, timestamps) would have replaced an
+    /// arbitrary order with a merely slower-moving one.
+    ///
+    /// A blocked session appears in "Needs you" ONLY, not also under its project:
+    /// the sidebar tags rows with the session id for `List` selection, and two rows
+    /// sharing a tag is undefined. Section counts follow the rows each section lists.
+    static func projectSections(_ items: [SessionRowItem],
+                                asked: Set<String> = []) -> [ProjectSection] {
+        func needsYou(_ item: SessionRowItem) -> Bool {
+            item.session.isBlockedOnYou || asked.contains(item.session.id)
+        }
+
+        var sections: [ProjectSection] = []
+        let waiting = items.filter { $0.depth == 0 && needsYou($0) }
+        if !waiting.isEmpty {
+            sections.append(makeSection(id: "needs-you", title: "Needs you", items: ordered(waiting)))
+        }
+
+        let waitingIds = Set(waiting.map(\.id))
+        var byProject: [String: [SessionRowItem]] = [:]
+        for item in items where !waitingIds.contains(item.id) {
+            // A child rides with its parent's project, not its own row's grouping.
+            byProject[item.session.projectName, default: []].append(item)
+        }
+        for name in byProject.keys.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
+            sections.append(makeSection(id: "project:" + name, title: name, items: ordered(byProject[name]!)))
+        }
+        return sections
+    }
+
+    /// Roots alphabetically, each followed by its own nested children in the order
+    /// `displayItems` already put them in — re-sorting children would split them
+    /// from the parent they are indented under.
+    private static func ordered(_ items: [SessionRowItem]) -> [SessionRowItem] {
+        var childrenOf: [String: [SessionRowItem]] = [:]
+        var roots: [SessionRowItem] = []
+        var lastRoot: String?
+        for item in items {
+            if item.depth == 0 {
+                roots.append(item)
+                lastRoot = item.id
+            } else if let parent = lastRoot {
+                childrenOf[parent, default: []].append(item)
+            }
+        }
+        let sortedRoots = roots.sorted { a, b in
+            let (an, bn) = (a.session.distinctName, b.session.distinctName)
+            if an != bn { return an.localizedStandardCompare(bn) == .orderedAscending }
+            return a.id < b.id
+        }
+        return sortedRoots.flatMap { [$0] + (childrenOf[$0.id] ?? []) }
+    }
+
+    private static func makeSection(id: String, title: String, items: [SessionRowItem]) -> ProjectSection {
+        // A collapsed idle row stands for several sessions; a parent row's `count`
+        // includes its subagent ids, which are not sessions of their own here.
+        let count = items.filter { $0.depth == 0 }
+            .reduce(0) { $0 + ($1.showsCountBadge ? $1.count : 1) }
+        let tokens = items.compactMap { $0.session.contextTokens }
+        return ProjectSection(id: id, title: title, items: items,
+                              sessionCount: count,
+                              contextTotal: tokens.isEmpty ? nil : tokens.reduce(0, +))
+    }
+
 
     /// The session whose status feed carries the account-wide rate-limit numbers
     /// (any recent session has them; they're not per-project). Cached in
