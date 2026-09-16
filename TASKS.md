@@ -28,6 +28,7 @@ via `run.sh`.
 - [x] Recolour the app icon to the Claude burst on red -- 9857727
 - [x] Correct the CI claim in STATUS.md and log the finding -- 344a9af
 - [x] Confirm the context meter renders (chart still open above) -- 344a9af
+- [x] Sync the deployed /Applications copy with the current build -- no commit (deploy)
 
 - [x] Probe whether GitHub-hosted macOS images can build this project -- a8c68e1
 - [x] Install and register a self-hosted Actions runner on this Mac -- a8c68e1
