@@ -12,6 +12,7 @@ import Combine
 import Observation
 import ServiceManagement
 import UserNotifications
+import AppKit
 import CoreGraphics
 import Darwin
 
@@ -40,6 +41,12 @@ enum Constants {
     /// remembered frame gets clamped back to — same "shrink to fit" treatment
     /// `showMainWindow` gives an oversized remembered width.
     static let panelDefaultHeight: CGFloat = 320
+    /// The window is its own surface now, not the panel with more room, so it
+    /// gets sizes that suit a sidebar and a detail pane rather than a dropdown.
+    static let windowDefaultWidth: CGFloat = 900
+    static let windowDefaultHeight: CGFloat = 560
+    static let windowMinWidth: CGFloat = 620
+    static let windowMinHeight: CGFloat = 360
     /// Floor the clamp never drops below. Line 1's row budget goes negative under
     /// ~240 (`rowFixedColumns` 170 + `RowLayout.minNameWidth` 70) and the footer's
     /// fixed-size gauges want ~340; 360 keeps `columns()` arithmetic positive
@@ -119,6 +126,13 @@ enum Constants {
     /// this fast on its own. The trend only compares samples since the most
     /// recent such reset, so it never reports a misleading giant negative.
     static let usageResetDropThreshold = 20
+    /// Collapse context samples closer together than this. A busy turn rewrites
+    /// the statusLine far faster than the chart can show, and every rescan would
+    /// otherwise append a point.
+    static let contextSampleMinGap: TimeInterval = 15
+    /// Points kept per session. At the gap above that is over an hour of solid
+    /// work, and far longer in practice since an unchanged count appends nothing.
+    static let contextHistoryMax = 240
     /// Usage older than this is flagged stale in the footer — no statusLine session
     /// has refreshed it recently (the only source of the 5h/7d percentages).
     static let usageStaleAfter: TimeInterval = 15 * 60
@@ -241,6 +255,7 @@ private struct StateFile: Decodable {
     var status: String?
     var tool: String?
     var message: String?
+    var notification_type: String?
     var cwd: String?
     var host: String?
     var pid: Double?
@@ -262,8 +277,16 @@ private struct StateFile: Decodable {
 private struct StatusFile: Decodable {
     struct Model: Decodable {
         var display_name: String?
+        var id: String?
     }
-    struct Workspace: Decodable { var current_dir: String? }
+    struct Workspace: Decodable {
+        struct Repo: Decodable {
+            var owner: String?
+            var name: String?
+        }
+        var current_dir: String?
+        var repo: Repo?
+    }
     struct RateLimits: Decodable {
         struct Window: Decodable {
             var used_percentage: Double?
@@ -275,13 +298,78 @@ private struct StatusFile: Decodable {
     struct ContextWindow: Decodable {
         var total_input_tokens: Int?
         var total_output_tokens: Int?
+        var context_window_size: Int?
+        var used_percentage: Double?
     }
+    struct Cost: Decodable {
+        var total_cost_usd: Double?
+        var total_duration_ms: Double?
+        var total_api_duration_ms: Double?
+        var total_lines_added: Int?
+        var total_lines_removed: Int?
+    }
+    struct PromptCache: Decodable {
+        var hit_ratio: Double?
+        var warm: Bool?
+        var ttl: String?
+        var requests: Int?
+        var misses: Int?
+    }
+    struct Named: Decodable { var name: String? }
+    struct Effort: Decodable { var level: String? }
+    struct Thinking: Decodable { var enabled: Bool? }
     var model: Model?
     var cwd: String?
     var session_name: String?
     var workspace: Workspace?
     var rate_limits: RateLimits?
     var context_window: ContextWindow?
+    var cost: Cost?
+    var prompt_cache: PromptCache?
+    var output_style: Named?
+    var effort: Effort?
+    var thinking: Thinking?
+    var version: String?
+    var transcript_path: String?
+    var exceeds_200k_tokens: Bool?
+}
+
+/// Everything the statusLine reports that isn't a number the rows already draw.
+/// Grouped rather than flattened onto `SessionFeed`: these arrive together, are
+/// all optional for the same reason (no statusLine has run yet), and are read
+/// together by the one view that shows them.
+struct SessionDetailStats: Equatable {
+    var costUSD: Double?
+    var wallSeconds: Double?
+    var apiSeconds: Double?
+    var linesAdded: Int?
+    var linesRemoved: Int?
+
+    var contextWindowSize: Int?
+    var contextUsedPercent: Int?
+    var exceeds200k: Bool?
+
+    var cacheHitRatio: Double?
+    var cacheWarm: Bool?
+    var cacheTTL: String?
+    var cacheRequests: Int?
+    var cacheMisses: Int?
+
+    var modelID: String?
+    var effort: String?
+    var thinking: Bool?
+    var outputStyle: String?
+    var claudeVersion: String?
+    var repo: String?
+    var transcriptPath: String?
+
+    /// How much of the turn was spent waiting on the API rather than on tools
+    /// and everything else. nil unless both halves are known — a ratio against a
+    /// missing denominator is a made-up number.
+    var apiShare: Double? {
+        guard let apiSeconds, let wallSeconds, wallSeconds > 0 else { return nil }
+        return apiSeconds / wallSeconds
+    }
 }
 
 struct SessionFeed: Identifiable {
@@ -314,6 +402,11 @@ struct SessionFeed: Identifiable {
     var contextOutputTokens: Int?
     var todoTotal: Int?
     var todoDone: Int?
+    var stats = SessionDetailStats()
+    /// Which notification put this session in `.attention`. `idle_prompt` means
+    /// Claude *finished* and you haven't typed for 60s; everything else means
+    /// something is actually blocked on you. Nil for older feed files.
+    var notificationType: String?
     var parentSessionId: String?
     var agentId: String?
     var agentType: String?
@@ -324,6 +417,7 @@ struct SessionFeed: Identifiable {
     /// Merge the hook-written state file (status, current tool, turn start).
     fileprivate mutating func applyState(_ s: StateFile) {
         if let st = s.status { status = SessionStatus(rawValue: st) ?? .idle }
+        notificationType = s.notification_type
         tool = s.tool ?? ""
         message = s.message ?? ""
         if let c = s.cwd, !c.isEmpty { cwd = c }
@@ -349,6 +443,11 @@ struct SessionFeed: Identifiable {
         let s = try JSONDecoder().decode(StateFile.self, from: Data(json.utf8))
         applyState(s)
     }
+
+    mutating func applyStatusJSONForTest(_ json: String) throws {
+        let s = try JSONDecoder().decode(StatusFile.self, from: Data(json.utf8))
+        applyStatus(s)
+    }
     #endif
 
     fileprivate mutating func applyStatus(_ s: StatusFile) {
@@ -366,10 +465,102 @@ struct SessionFeed: Identifiable {
         if let ctx = s.context_window {
             contextInputTokens = ctx.total_input_tokens
             contextOutputTokens = ctx.total_output_tokens
+            stats.contextWindowSize = ctx.context_window_size
+            stats.contextUsedPercent = ctx.used_percentage.map { Int($0.rounded()) }
+        }
+        if let c = s.cost {
+            stats.costUSD = c.total_cost_usd
+            stats.wallSeconds = c.total_duration_ms.map { $0 / 1000 }
+            stats.apiSeconds = c.total_api_duration_ms.map { $0 / 1000 }
+            stats.linesAdded = c.total_lines_added
+            stats.linesRemoved = c.total_lines_removed
+        }
+        if let pc = s.prompt_cache {
+            stats.cacheHitRatio = pc.hit_ratio
+            stats.cacheWarm = pc.warm
+            stats.cacheTTL = pc.ttl
+            stats.cacheRequests = pc.requests
+            stats.cacheMisses = pc.misses
+        }
+        stats.modelID = s.model?.id ?? stats.modelID
+        stats.effort = s.effort?.level ?? stats.effort
+        stats.thinking = s.thinking?.enabled ?? stats.thinking
+        stats.outputStyle = s.output_style?.name ?? stats.outputStyle
+        stats.claudeVersion = s.version ?? stats.claudeVersion
+        stats.transcriptPath = s.transcript_path ?? stats.transcriptPath
+        stats.exceeds200k = s.exceeds_200k_tokens ?? stats.exceeds200k
+        if let repo = s.workspace?.repo, let name = repo.name {
+            stats.repo = [repo.owner, name].compactMap { $0 }.joined(separator: "/")
         }
     }
 
     var isWorking: Bool { status == .thinking || status == .tool }
+
+    /// Whether the prompt is free to type into.
+    ///
+    /// Not `status == .idle`. A session in `.attention` is *waiting on you* --
+    /// it is sitting at the prompt, which is exactly when typing works. Gating
+    /// on idle alone disabled the reply box and the slash commands on the one
+    /// session you most want to answer.
+    var isAtPrompt: Bool { !isWorking }
+
+    /// Whether anything is actually blocked on a person.
+    ///
+    /// `emit.sh` maps every Notification event to `.attention`, and `idle_prompt`
+    /// is one of them — it fires 60 seconds after a turn ends if you haven't
+    /// typed. Treating that as "needs input" put a finished session in the same
+    /// orange row as one holding a permission prompt, with no way to tell which
+    /// deserved an answer.
+    var isBlockedOnYou: Bool {
+        status == .attention && notificationType != "idle_prompt"
+    }
+
+    /// One line saying what the session wants, or nothing if it wants nothing.
+    var attentionSummary: String? {
+        guard status == .attention else { return nil }
+        switch notificationType {
+        case "idle_prompt":
+            return "Finished — waiting at the prompt, nothing to answer"
+        case "permission_prompt":
+            return message.isEmpty ? "Waiting for permission to run a tool" : message
+        case .none:
+            return message.isEmpty ? "Waiting on you" : message
+        default:
+            return message.isEmpty ? "Waiting on you" : message
+        }
+    }
+
+    /// What the feed observed about a session that is sitting still, or nil
+    /// when it isn't sitting still.
+    ///
+    /// Deliberately not a verdict. Whether a session is safe to clear turns on
+    /// whether the reasoning in its context is written down anywhere, and no
+    /// feed file can see that. What the feed can say is how long it has rested
+    /// and whether it left todos open, so that is all this says. A row reading
+    /// "safe to clear" above three open todos would be the same defect as a
+    /// cost figure that reads as a bill.
+    ///
+    /// `includeTodos` is false in the panel, where `TodoProgressBar` already
+    /// draws that same fact one column to the left.
+    func restingEvidence(now: Date, includeTodos: Bool = true) -> String? {
+        guard !isWorking, !isBlockedOnYou else { return nil }
+        var parts: [String] = []
+        if includeTodos, let total = todoTotal, total > 0 {
+            let open = total - (todoDone ?? 0)
+            if open > 0 {
+                parts.append("\(open) todo\(open == 1 ? "" : "s") open")
+            } else {
+                parts.append("\(total)/\(total) todos")
+            }
+        }
+        // Omitted, never rendered as zero, when the feed carries no stamp:
+        // "idle 0s" on a session last seen an hour ago is an invented reading.
+        if let updated {
+            let age = max(0, Int(now.timeIntervalSince(updated)))
+            parts.append("idle \(FeedWatcher.formatDuration(age))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
+    }
 
     var projectName: String {
         let name = (cwd as NSString).lastPathComponent
@@ -382,6 +573,19 @@ struct SessionFeed: Identifiable {
     var displayName: String {
         if isChild { return sessionName ?? agentType ?? "subagent" }
         return sessionName ?? projectName
+    }
+
+    /// `displayName`, but never the bare word "session".
+    ///
+    /// A session with no generated name and no cwd — one whose statusLine hasn't
+    /// reported yet — falls all the way through to `projectName`'s "session"
+    /// placeholder, and a sidebar of four rows reading "session / session" tells
+    /// you nothing and hides which is which. The id prefix is ugly but it is at
+    /// least distinguishing, and it disappears the moment a statusLine lands.
+    var distinctName: String {
+        let name = displayName
+        guard name == "session" else { return name }
+        return "session \(id.prefix(6))"
     }
 
     /// Context tokens in play, or nil when the statusLine hasn't reported a window
@@ -420,6 +624,16 @@ struct UsageSnapshot: Codable {
     var savedAt: Double
 }
 
+/// One session's context size at a moment.
+///
+/// Separate from `UsageSample` on purpose: that one is an account-wide rate
+/// limit sampled by the poller, this is per session and arrives with the
+/// statusLine. Nothing about them is shared but the shape.
+struct ContextSample: Codable, Equatable {
+    var tokens: Int
+    var at: Double  // epoch seconds
+}
+
 /// One timestamped 5h-utilization poll result, kept for the "chg" trend gauge.
 struct UsageSample: Codable {
     var pct: Int
@@ -442,6 +656,21 @@ struct SessionRowItem: Identifiable {
     /// `count > 1` (child ids ride on `ids` so `clear()` cascades), but that
     /// is not a grouped idle row.
     var showsCountBadge: Bool { subagentCount == 0 && count > 1 }
+}
+
+/// One section of either session list: a project, or the pinned "Needs you" group.
+struct ProjectSection: Identifiable {
+    let id: String          // "needs-you", or "project:<name>"
+    let title: String
+    let items: [SessionRowItem]
+    /// Sessions this section lists, expanding a collapsed idle row's `×N` and
+    /// ignoring nested subagent rows.
+    let sessionCount: Int
+    /// The section's context tokens added together, or nil when nothing in it has
+    /// reported a window. Untinted at the call sites for the same reason
+    /// `totalContextTokens` is: these are separate windows, so a summed 210k is not
+    /// the same "heavy" as one 210k session.
+    let contextTotal: Int?
 }
 
 /// Polls Anthropic's API for the account's live 5h/7d rate-limit utilization,
@@ -635,6 +864,9 @@ final class FeedWatcher: ObservableObject {
     }
 
     private let dir: URL
+    /// Where the state files live. `SessionReplier` watches one to confirm a
+    /// reply actually started a turn.
+    var feedDirectory: URL { dir }
     private var source: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
     private var timer: Timer?
@@ -642,12 +874,23 @@ final class FeedWatcher: ObservableObject {
     private var countdownTimer: Timer?
     /// Session ids already alerted for attention, so each pause notifies once.
     private var notifiedAttention: Set<String> = []
+    /// Same, for finished turns. Separate set: a session alternates between the
+    /// two all day and one set would suppress the other.
+    private var notifiedDone: Set<String> = []
+    /// Alert when a turn finishes, not only when Claude is stuck. Off by default
+    /// -- every turn of every session ends, so this is the noisy one.
+    @Published var notifyOnDone: Bool {
+        didSet { UserDefaults.standard.set(notifyOnDone, forKey: "notifyOnDone") }
+    }
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
     /// Recent 5h utilization samples (oldest→newest), each stamped with when it
     /// was polled, backing the footer's "chg" trend gauge. Persisted so the trend
     /// survives relaunch; trimmed to `Constants.usageTrendWindow`.
     @Published private(set) var usageHistory: [UsageSample] = []
+    /// Context size over time, per session id. The app's first per-session time
+    /// series -- every other number in the detail pane is latest-value only.
+    @Published private(set) var contextHistory: [String: [ContextSample]] = [:]
 
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
@@ -677,8 +920,11 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode(UsageSnapshot.self, from: $0) }
         usageHistory = UserDefaults.standard.data(forKey: "usageHistory")
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
+        contextHistory = UserDefaults.standard.data(forKey: "contextHistory")
+            .flatMap { try? JSONDecoder().decode([String: [ContextSample]].self, from: $0) } ?? [:]
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
+        notifyOnDone = (UserDefaults.standard.object(forKey: "notifyOnDone") as? Bool) ?? false
         dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/spinnerfeed", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -860,7 +1106,9 @@ final class FeedWatcher: ObservableObject {
         let result = Array(live)
         DispatchQueue.main.async { [weak self] in
             self?.notifyAttention(result)
+            self?.notifyDone(result)
             self?.updateUsageCache(result)
+            self?.recordContextSamples(result)
             self?.sessions = result
         }
     }
@@ -895,12 +1143,18 @@ final class FeedWatcher: ObservableObject {
         isSetupInstalled = Self.checkSetupInstalled(dir: dir)
     }
 
+    /// Per-script, not "anything of ours". A machine that installed before
+    /// ask.sh existed has emit.sh in both places, so a check for emit.sh alone
+    /// reports a complete install and the answer hooks silently never arrive.
     private static func checkSetupInstalled(dir: URL) -> Bool {
-        guard FileManager.default.fileExists(atPath: dir.appendingPathComponent("emit.sh").path)
-        else { return false }
+        let scripts = ["emit.sh", "ask.sh"]
+        for script in scripts
+        where !FileManager.default.fileExists(atPath: dir.appendingPathComponent(script).path) {
+            return false
+        }
         let settings = dir.deletingLastPathComponent().appendingPathComponent("settings.json")
         guard let text = try? String(contentsOf: settings, encoding: .utf8) else { return false }
-        return text.contains("emit.sh")
+        return scripts.allSatisfy { text.contains($0) }
     }
 
     /// Force a re-read of the feed (right-click → Refresh).
@@ -922,10 +1176,64 @@ final class FeedWatcher: ObservableObject {
         }
     }
 
+    /// Append each live session's context size, and forget the sessions that are
+    /// gone. Runs on main, once per rescan.
+    ///
+    /// Dropping a departed session's buffer here rather than on a timer means the
+    /// history has exactly the same lifetime as the row it belongs to: a session
+    /// pruned at `staleCutoff` takes its curve with it, and nothing accumulates
+    /// for ids that will never render again.
+    private func recordContextSamples(_ newSessions: [SessionFeed]) {
+        let now = Date().timeIntervalSince1970
+        var history = contextHistory
+        let liveIds = Set(newSessions.map(\.id))
+        history = history.filter { liveIds.contains($0.key) }
+        for session in newSessions {
+            guard let tokens = session.contextTokens else { continue }
+            history[session.id] = Self.appending(tokens: tokens, at: now,
+                                                 to: history[session.id] ?? [])
+        }
+        guard history != contextHistory else { return }
+        contextHistory = history
+        if let data = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(data, forKey: "contextHistory")
+        }
+    }
+
+    /// Pure, so the three rules below are testable without a feed directory.
+    ///
+    /// An unchanged count appends nothing at all. Sampling it would fill the
+    /// buffer with a flat line during an idle session and push out the part of
+    /// the curve that has something to say -- and the chart is time-scaled, so
+    /// the flat stretch is drawn from the gap between two points anyway.
+    static func appending(tokens: Int, at now: Double,
+                          to samples: [ContextSample]) -> [ContextSample] {
+        if let last = samples.last {
+            if last.tokens == tokens { return samples }
+            if now - last.at < Constants.contextSampleMinGap {
+                // Within the gap, correct the last point rather than skipping the
+                // value. Skipping would hold a stale token count on screen for a
+                // fast-moving turn; the count is what the chart is about.
+                var out = samples
+                out[out.count - 1] = ContextSample(tokens: tokens, at: last.at)
+                return out
+            }
+        }
+        var out = samples
+        out.append(ContextSample(tokens: tokens, at: now))
+        if out.count > Constants.contextHistoryMax {
+            out.removeFirst(out.count - Constants.contextHistoryMax)
+        }
+        return out
+    }
+
     /// Post a macOS notification the first time each session enters attention, so
     /// the user is pulled back without watching the menu bar. Runs on main.
     private func notifyAttention(_ newSessions: [SessionFeed]) {
-        let attentionNow = Set(newSessions.filter { $0.status == .attention }.map(\.id))
+        // Only sessions actually blocked on a person. An `idle_prompt` says a
+        // turn ended and you haven't typed — the done-turn alert covers that,
+        // and banner-ing it as "Claude needs you" is simply untrue.
+        let attentionNow = Set(newSessions.filter(\.isBlockedOnYou).map(\.id))
         for id in attentionNow.subtracting(notifiedAttention) {
             guard let s = newSessions.first(where: { $0.id == id }) else { continue }
             let content = UNMutableNotificationContent()
@@ -944,6 +1252,95 @@ final class FeedWatcher: ObservableObject {
         }
         notifiedAttention = attentionNow
     }
+
+    /// Whether a just-finished turn is worth a banner.
+    ///
+    /// Pure so both gates are testable. The frontmost one is what keeps this from
+    /// being unbearable: a turn finishing in the window you are already looking
+    /// at does not need to be announced -- you watched it happen.
+    static func shouldNotifyDone(session: SessionFeed,
+                                 frontmostBundleID: String?,
+                                 alreadyNotified: Set<String>) -> Bool {
+        guard session.parentSessionId == nil,
+              session.status == .idle,
+              session.lastDuration != nil,
+              !alreadyNotified.contains(session.id)
+        else { return false }
+        guard let frontmostBundleID, !session.host.isEmpty else { return true }
+        return frontmostBundleID != session.host
+    }
+
+    /// Post one banner per finished turn, for the sessions you are not watching.
+    private func notifyDone(_ newSessions: [SessionFeed]) {
+        // Track every finished session either way, so turning the preference on
+        // doesn't immediately fire for turns that ended while it was off.
+        let finished = Set(newSessions.filter {
+            $0.parentSessionId == nil && $0.status == .idle && $0.lastDuration != nil
+        }.map(\.id))
+        defer { notifiedDone = finished }
+        guard notifyOnDone else { return }
+
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        for session in newSessions where Self.shouldNotifyDone(session: session,
+                                                               frontmostBundleID: frontmost,
+                                                               alreadyNotified: notifiedDone) {
+            let content = UNMutableNotificationContent()
+            content.title = "Claude finished"
+            content.body = session.displayName
+            content.sound = .default
+            content.categoryIdentifier = NotificationConfig.attentionCategory
+            content.userInfo = ["host": session.host, "pid": session.pid ?? 0, "cwd": session.cwd]
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: "done-\(session.id)",
+                                      content: content, trigger: nil))
+        }
+    }
+
+    /// Totals across every root session, for the window's overview strip.
+    ///
+    /// Pure and static so the awkward part is testable: a session whose
+    /// statusLine hasn't reported contributes nothing, and if *none* has
+    /// reported the total stays nil rather than becoming a confident zero.
+    struct Overview: Equatable {
+        var sessions: Int = 0
+        var working: Int = 0
+        var waiting: Int = 0
+        var spendUSD: Double?
+        var contextTokens: Int?
+        var linesAdded: Int?
+        var linesRemoved: Int?
+        /// Account-wide, so this is one session's reading rather than a total.
+        var fiveHourPct: Int?
+        var sevenDayPct: Int?
+    }
+
+    static func overview(for sessions: [SessionFeed]) -> Overview {
+        let roots = sessions.filter { $0.parentSessionId == nil }
+        var out = Overview()
+        out.sessions = roots.count
+        out.working = roots.filter(\.isWorking).count
+        out.waiting = roots.filter { $0.status == .attention }.count
+
+        // `compactMap` then "is it empty" rather than `reduce(0)`: summing an
+        // empty list gives 0, which renders as "$0.00 spent today" when the
+        // truth is that nothing has reported yet.
+        func total<T: AdditiveArithmetic>(_ values: [T]) -> T? {
+            values.isEmpty ? nil : values.reduce(.zero, +)
+        }
+        out.spendUSD = total(roots.compactMap(\.stats.costUSD))
+        out.contextTokens = total(roots.compactMap(\.contextTokens))
+        out.linesAdded = total(roots.compactMap(\.stats.linesAdded))
+        out.linesRemoved = total(roots.compactMap(\.stats.linesRemoved))
+        // The rate-limit windows belong to the account, not the session: every
+        // session reports the same pair, so take the freshest reading rather
+        // than summing or averaging identical values.
+        let freshest = roots.sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
+        out.fiveHourPct = freshest.compactMap(\.fiveHourPct).first
+        out.sevenDayPct = freshest.compactMap(\.sevenDayPct).first
+        return out
+    }
+
+    var overview: Overview { Self.overview(for: sessions) }
 
     var workingCount: Int { Self.rootWorkingCount(sessions) }
     var attentionCount: Int { sessions.filter { $0.parentSessionId == nil && $0.status == .attention }.count }
@@ -1186,6 +1583,78 @@ final class FeedWatcher: ObservableObject {
         }
         return items
     }
+
+    /// Both session lists grouped into project sections, with anything blocked on a
+    /// person pinned above them.
+    ///
+    /// The ordering keys here are deliberately ones that DO NOT TICK — project name,
+    /// then session name, then id. The sidebar used to render `sessions` in arrival
+    /// order, and `rescan` builds that array from a dictionary's `values`, whose
+    /// iteration order Swift does not define; the rows therefore reshuffled on every
+    /// rescan. Sorting on anything live (tokens, timestamps) would have replaced an
+    /// arbitrary order with a merely slower-moving one.
+    ///
+    /// A blocked session appears in "Needs you" ONLY, not also under its project:
+    /// the sidebar tags rows with the session id for `List` selection, and two rows
+    /// sharing a tag is undefined. Section counts follow the rows each section lists.
+    static func projectSections(_ items: [SessionRowItem],
+                                asked: Set<String> = []) -> [ProjectSection] {
+        func needsYou(_ item: SessionRowItem) -> Bool {
+            item.session.isBlockedOnYou || asked.contains(item.session.id)
+        }
+
+        var sections: [ProjectSection] = []
+        let waiting = items.filter { $0.depth == 0 && needsYou($0) }
+        if !waiting.isEmpty {
+            sections.append(makeSection(id: "needs-you", title: "Needs you", items: ordered(waiting)))
+        }
+
+        let waitingIds = Set(waiting.map(\.id))
+        var byProject: [String: [SessionRowItem]] = [:]
+        for item in items where !waitingIds.contains(item.id) {
+            // A child rides with its parent's project, not its own row's grouping.
+            byProject[item.session.projectName, default: []].append(item)
+        }
+        for name in byProject.keys.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
+            sections.append(makeSection(id: "project:" + name, title: name, items: ordered(byProject[name]!)))
+        }
+        return sections
+    }
+
+    /// Roots alphabetically, each followed by its own nested children in the order
+    /// `displayItems` already put them in — re-sorting children would split them
+    /// from the parent they are indented under.
+    private static func ordered(_ items: [SessionRowItem]) -> [SessionRowItem] {
+        var childrenOf: [String: [SessionRowItem]] = [:]
+        var roots: [SessionRowItem] = []
+        var lastRoot: String?
+        for item in items {
+            if item.depth == 0 {
+                roots.append(item)
+                lastRoot = item.id
+            } else if let parent = lastRoot {
+                childrenOf[parent, default: []].append(item)
+            }
+        }
+        let sortedRoots = roots.sorted { a, b in
+            let (an, bn) = (a.session.distinctName, b.session.distinctName)
+            if an != bn { return an.localizedStandardCompare(bn) == .orderedAscending }
+            return a.id < b.id
+        }
+        return sortedRoots.flatMap { [$0] + (childrenOf[$0.id] ?? []) }
+    }
+
+    private static func makeSection(id: String, title: String, items: [SessionRowItem]) -> ProjectSection {
+        // A collapsed idle row stands for several sessions; a parent row's `count`
+        // includes its subagent ids, which are not sessions of their own here.
+        let count = items.filter { $0.depth == 0 }
+            .reduce(0) { $0 + ($1.showsCountBadge ? $1.count : 1) }
+        let tokens = items.compactMap { $0.session.contextTokens }
+        return ProjectSection(id: id, title: title, items: items,
+                              sessionCount: count,
+                              contextTotal: tokens.isEmpty ? nil : tokens.reduce(0, +))
+    }
+
 
     /// The session whose status feed carries the account-wide rate-limit numbers
     /// (any recent session has them; they're not per-project). Cached in

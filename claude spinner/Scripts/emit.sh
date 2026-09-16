@@ -34,6 +34,10 @@ now=$(date +%s)
 cwd=$(printf '%s' "$input" | jq -r '.cwd // .workspace.current_dir // empty')
 tool=$(printf '%s' "$input" | jq -r '.tool_name // empty')
 msg=$(printf '%s' "$input" | jq -r '.message // empty')
+# Which KIND of notification. Every Notification event became "attention",
+# so a session that merely finished 60s ago (idle_prompt) was indistinguishable
+# from one actually blocked on a question — same orange row, same "needs input".
+notif=$(printf '%s' "$input" | jq -r '.notification_type // empty')
 
 # turn_start must survive across PreToolUse/PostToolUse within one turn, so carry
 # the previous values forward unless this event (re)starts or ends the turn.
@@ -45,12 +49,19 @@ prev_dur=$(jq -r '.last_duration // empty' "$f" 2>/dev/null)
 prev_todo_total=$(jq -r '.todo_total // empty' "$f" 2>/dev/null)
 prev_todo_done=$(jq -r '.todo_done // empty' "$f" 2>/dev/null)
 prev_agent_type=$(jq -r '.agent_type // empty' "$f" 2>/dev/null)
+prev_msg=$(jq -r '.message // empty' "$f" 2>/dev/null)
+prev_notif=$(jq -r '.notification_type // empty' "$f" 2>/dev/null)
 
 last_seed="$prev_seed"
 last_duration="$prev_dur"
 todo_total="$prev_todo_total"
 todo_done="$prev_todo_done"
 [ -z "$agent_type" ] && agent_type="$prev_agent_type"
+# Only the Notification event carries .message, and the PreToolUse that follows
+# it lands milliseconds later — without this the attention banner's body was the
+# bare project name every time. Cleared where the turn restarts or ends, below.
+[ -z "$msg" ] && msg="$prev_msg"
+[ -z "$notif" ] && notif="$prev_notif"
 
 # Host app the session runs in, so the menubar can open the right one on click.
 # __CFBundleIdentifier is inherited from the launching GUI app (Claude desktop,
@@ -79,14 +90,14 @@ done
 [ -z "$pid" ] && pid=$(jq -r '.pid // empty' "$f" 2>/dev/null)
 
 case "$event" in
-    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
-    UserPromptSubmit) status=thinking;  turn_start="$now"; last_seed=""; last_duration="" ;;
+    SessionStart)     status=idle;      turn_start=""; last_seed=""; last_duration=""; todo_total=""; todo_done=""; msg=""; notif="" ;;
+    UserPromptSubmit) status=thinking;  turn_start="$now"; last_seed=""; last_duration=""; msg=""; notif="" ;;
     PreToolUse)       status=tool;      turn_start="$prev_ts" ;;
     PostToolUse)      status=thinking;  turn_start="$prev_ts" ;;
     Notification)     status=attention; turn_start="$prev_ts" ;;
     SubagentStart)
         [ -z "$agent_id" ] && exit 0
-        status=thinking; turn_start="$now"; last_seed=""; last_duration=""; todo_total=""; todo_done="" ;;
+        status=thinking; turn_start="$now"; last_seed=""; last_duration=""; todo_total=""; todo_done=""; msg=""; notif="" ;;
     Stop|SubagentStop)
         [ "$event" = "SubagentStop" ] && [ -z "$agent_id" ] && exit 0
         status=idle
@@ -94,7 +105,7 @@ case "$event" in
             last_seed="$prev_ts"
             last_duration=$(( now - prev_ts ))
         fi
-        turn_start="" ;;
+        turn_start=""; msg=""; notif="" ;;
     SessionEnd)
         if [ -n "$agent_id" ]; then
             rm -f "$dir/$sid.$agent_id.state.json"
@@ -118,12 +129,14 @@ jq -n \
     --arg ls "$last_seed" --arg ld "$last_duration" --arg host "$host" \
     --arg pid "$pid" --arg tt "$todo_total" --arg td "$todo_done" \
     --arg psid "$parent_sid" --arg aid "$agent_id" --arg atype "$agent_type" \
+    --arg notif "$notif" \
     '{
         session_id:        $sid,
         status:            $status,
         tool:              $tool,
         cwd:               $cwd,
         message:           $msg,
+        notification_type: (if $notif == "" then null else $notif end),
         host:              $host,
         pid:               (if $pid == "" then null else ($pid | tonumber) end),
         turn_start:        (if $ts == "" then null else ($ts | tonumber) end),

@@ -2,16 +2,89 @@
 
 ## Tasks
 
+- [ ] [you] Allow notifications for "claude spinner" in System Settings -- authorization
+  reads denied, so banners post without error and never appear
+
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
+
+- [ ] [you] Confirm a SLOPED context line renders -- every session on this machine
+  is Opus 1M and none has passed ~18%, so the flat-crawl case is the only one ever
+  drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
+  session) to see the line climb on screen
+
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Show the notifications-denied notice on both surfaces -- f2cf7ee
+- [x] Re-read notification authorization when the app becomes active -- f2cf7ee
+- [x] Confirm the context CHART renders -- observed 2026-09-15, no commit (hand-check)
+- [x] Add FeedWatcher.projectSections with stable, non-ticking ordering -- fa8d2b0
+- [x] Group the window sidebar by project -- fa8d2b0
+- [x] Group the menu-bar panel by project -- fa8d2b0
+- [x] Test projectSections, including the input-order regression -- fa8d2b0
+- [x] Recolour the app icon to the Claude burst on red -- 9857727
+- [x] Correct the CI claim in STATUS.md and log the finding -- 344a9af
+- [x] Confirm the context meter renders (chart still open above) -- 344a9af
+- [x] Sync the deployed /Applications copy with the current build -- no commit (deploy)
+
+- [x] Probe whether GitHub-hosted macOS images can build this project -- a8c68e1
+- [x] Install and register a self-hosted Actions runner on this Mac -- a8c68e1
+
+- [x] Scope the context-history feature in docs -- 1ebd230
+- [x] Sample per-session context tokens into a history buffer -- 1ebd230
+- [x] Draw the context meter against the window -- 1ebd230
+- [x] Draw the context trend on a time-scaled axis -- 1ebd230
+- [x] Test the sampler and the chart geometry -- 1ebd230
+
+- [x] Re-read the remote when HEAD or the branch moves -- eaf5cad
+- [x] Order the post-action invalidate before the re-read -- eaf5cad
+- [x] Split block reasons into settled and unknown -- eaf5cad
+- [x] Hide settled actions, grey unknown ones with the reason inline -- eaf5cad
+- [x] Show per-row read age and a Refresh button -- eaf5cad
+- [x] Add Merge, gated on real mergeability -- eaf5cad
+- [x] Resolve gh by path fallback and say so when it is missing -- eaf5cad
+- [x] Test the merge gate, the settled flag, and the branch-change re-read -- eaf5cad
+- [x] Say checks have not passed, not that they failed -- aa339f2
+
+- [x] Show the command in the permission card -- e089338
+- [x] Stop the reply field taking first responder on window open -- caa02e1
+- [x] Say the true reason Pull is unavailable -- e089338
+
+- [x] Add SessionFeed.restingEvidence(now:) -- resting-evidence string
+- [x] Show resting evidence on panel idle rows
+- [x] Show resting evidence in the window detail pane
+- [x] Test restingEvidence and the column budget
+
+- [x] Add GitStatus.swift: snapshot model and pure parsers
+- [x] Add the per-cwd git prober with cache and timeouts
+- [x] Add GitActions: open PR, push, create PR, pull
+- [x] Wire the Git section into the window detail pane
+- [x] Test the git parsers and availability rules
+
+- [x] Add an overview strip: spend, context, turns, burn sparkline -- b7fe36f
+- [x] Build TranscriptReader for what Claude is actually doing -- 6a44b42
+- [x] Add session actions: interrupt, compact, clear, reveal, open transcript -- bc8158e
+
+- [x] Decode the rest of the statusLine fields into the detail pane -- 3cc145e
+
+- [x] Write ask.sh, the blocking hook for AskUserQuestion and PermissionRequest -- 62c5703
+- [x] Carry `message` forward in emit.sh so the banner body is not empty -- 62c5703
+- [x] Install and register ask.sh from SetupInstaller -- 02c060e
+- [x] Watch asks/ and post notifications whose buttons are the option labels -- 8f692eb
+- [x] Handle notification answers and write the answer file -- 8f692eb
+- [x] Add the attention signals: status-item pulse, time-sensitive, guarded bounce, done alert -- 4f10aa9
+- [x] Build SessionReplier for free-text reply into a tmux pane -- b9f30f8
+- [x] Unit-test the pure pieces and extend the content-parity test -- 4f10aa9
+- [x] Build a full window UI beside the menu bar: sidebar, session detail -- 4f10aa9
+- [x] Surface pending asks and reply in the window detail pane -- 4f10aa9
+- [x] Verify end to end on both a known-good and a known-bad input -- 4f10aa9
 
 - [x] Nest subagent sessions under their parent row — child hooks write
   `<parent>.<agent_id>.state.json`; the panel indents them as 2-line children.
@@ -94,7 +167,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-08-14 23:01.
+Plan approved 2026-09-15 21:10.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -103,7 +176,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume b9967906-b69d-497f-96cd-6b225691abc5
+    claude --resume fbee8952-e05f-4097-b430-6125c0a8f05d
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

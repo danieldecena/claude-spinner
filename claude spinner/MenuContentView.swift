@@ -17,10 +17,16 @@ struct MenuContentView: View {
     /// content forces the window back to `panelWidth` every time it is dragged.
     var fillsWidth = false
     @StateObject private var install = InstallState()
+    @ObservedObject private var asks = AskInbox.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             UsageHeader(feed: feed)
+
+            // Denied authorization makes every banner a no-op that still reports
+            // success, so the panel has to say it out loud. macOS has no API to
+            // grant this — only System Settings can.
+            NotificationsNotice()
 
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
@@ -31,38 +37,7 @@ struct MenuContentView: View {
                 } else {
                     // Nothing will ever appear until the hooks are wired up — offer a
                     // one-click install instead of a silent empty panel.
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Setup needed")
-                            .font(.claudeMono(12)).fontWeight(.semibold)
-                            .foregroundStyle(Color.usageTint(95))
-                        Text("The feed hooks aren't installed, so no sessions can show.")
-                            .font(.claudeMono(11)).foregroundStyle(Color.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let message = install.message {
-                            Text(message)
-                                .font(.claudeMono(11)).foregroundStyle(Color.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Button(install.installing ? "Installing…" : "Install hooks") {
-                            install.installing = true
-                            install.message = nil
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                let result = SetupInstaller.install()
-                                DispatchQueue.main.async {
-                                    install.installing = false
-                                    switch result {
-                                    case .success:
-                                        feed.refreshSetupState()
-                                        install.message = "Installed — restart your Claude Code sessions to start the feed."
-                                    case .failure(let error):
-                                        install.message = "Couldn't install: \(error.localizedDescription)"
-                                    }
-                                }
-                            }
-                        }
-                        .font(.claudeMono(11))
-                        .disabled(install.installing)
-                    }
+                    SetupBanner(feed: feed, install: install, compact: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10).padding(.vertical, 12)
                 }
@@ -72,19 +47,26 @@ struct MenuContentView: View {
                     // Resolve the row list once per tick — displayItems does a full
                     // sort + grouping, so evaluating it per-row (ForEach, last, and
                     // the animation value) would repeat that work every 100ms.
-                    let rows = feed.displayItems
-                    // Sized once per panel, not per row, so the columns line up
-                    // down the list instead of jagging with each row's content.
+                    let sections = FeedWatcher.projectSections(
+                        feed.displayItems, asked: Set(asks.pending.map(\.sessionId)))
+                    // Flattened once: the columns must be sized across the WHOLE
+                    // panel, not per section, or they jag at every heading.
+                    let rows = sections.flatMap(\.items)
                     let columns = RowLayout.columns(
                         statusLabels: rows.map(\.session.statusLabel),
                         models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" },
                         panelWidth: feed.panelWidth)
                     let list = VStack(spacing: 0) {
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
-                            SessionRow(feed: feed, item: item, now: context.date, columns: columns)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                            if index < rows.count - 1 && rows[index + 1].depth == 0 {
-                                Divider().opacity(0.5)
+                        ForEach(sections) { section in
+                            PanelSectionHeader(section: section)
+                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                                SessionRow(feed: feed, item: item, now: context.date, columns: columns)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                // Dividers separate rows inside a section; the next
+                                // heading is what separates one section from the next.
+                                if index < section.items.count - 1 && section.items[index + 1].depth == 0 {
+                                    Divider().opacity(0.5)
+                                }
                             }
                         }
                     }
@@ -425,6 +407,11 @@ enum RowLayout {
     /// edge doesn't move as the dots grow (see the SessionRow comment). Lives on
     /// line 2, next to the status text.
     static let dotsSlot: CGFloat = 13
+    /// Right-flushed resting evidence ("idle 12m") on line 2. Charged to every
+    /// row's budget, not only the resting ones: the columns are sized once for
+    /// the whole panel so they stay aligned, and a slot that came and went would
+    /// shift the status text every time a session finished a turn.
+    static let evidenceSlot: CGFloat = 56
     /// The name never shrinks past this, even if a long model word wants more —
     /// past this point the model is the one that gives way (see `columns`).
     static let minNameWidth: CGFloat = 70
@@ -556,10 +543,38 @@ enum RowLayout {
         // the gap between the bar and the status text, and the working-dots slot.
         let line2Width = panelWidth - 2 * rowHorizontalPadding - secondRowLeadingInset
             - Constants.childRowIndent
-        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap - dotsSlot)
+        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap
+                                - dotsSlot - evidenceSlot)
         status = min(status, statusBudget)
 
         return Columns(name: name, model: model, status: status)
+    }
+}
+
+/// A project heading in the dropdown. Same content as the sidebar's, sized for the
+/// panel: name, session count, and the section's context added up.
+///
+/// The total is untinted on purpose, matching `FeedWatcher.totalContextTokens` —
+/// summed context across separate windows is not the same "heavy" a single
+/// session's `contextTint` band means.
+private struct PanelSectionHeader: View {
+    let section: ProjectSection
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(section.title)
+                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text("\(section.sessionCount)")
+                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            if let total = section.contextTotal {
+                Text(FeedWatcher.formatTokens(total))
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 8).padding(.bottom, 3)
     }
 }
 
@@ -705,6 +720,19 @@ struct SessionRow: View {
                 }
                 .font(.claudeMono(11))
                 .foregroundStyle(statusColor)
+
+                Spacer(minLength: 4)
+
+                // What the feed saw about a session that is sitting still. Todos
+                // are left out here because the bar at the head of this same line
+                // already draws them.
+                if let evidence = session.restingEvidence(now: now, includeTodos: false) {
+                    Text(evidence)
+                        .font(.claudeMono(10))
+                        .foregroundStyle(Color.claudeDim)
+                        .lineLimit(1)
+                        .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
+                }
             }
             .padding(.leading, 20)  // aligns under the name column, past the glyph
         }

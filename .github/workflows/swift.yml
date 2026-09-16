@@ -1,9 +1,26 @@
 # Builds the menu-bar app and runs its unit tests on every push / PR.
 #
-# Runs on a SELF-HOSTED macOS runner because the project is saved in Xcode 27
-# format (objectVersion 110), which GitHub's hosted runners (Xcode 26.x) cannot
-# open. The self-hosted runner is a Mac with Xcode 27 selected as the active
-# toolchain (xcode-select). Register it in repo Settings > Actions > Runners.
+# Runs on a SELF-HOSTED macOS runner. Two reasons, one measured and one not:
+#
+#   - Measured 2026-09-15: GitHub-hosted jobs on this account are refused before
+#     they start. macos-latest/26/15 each failed in ~6s with zero steps and the
+#     annotation "The job was not started because recent account payments have
+#     failed or your spending limit needs to be increased." A self-hosted job in
+#     the same repo queues normally, so the block is on hosted minutes only.
+#   - Unverified: the project is saved in Xcode 27 format (objectVersion 110),
+#     which hosted images were believed unable to open. That claim predates
+#     Xcode 27 shipping and could not be re-tested, because the billing block
+#     stops any hosted job from running. Do not cite it as fact.
+#
+# Either way the runner must be a Mac running macOS 27 with Xcode 27 selected
+# (xcode-select), not merely one with Xcode 27 installed: every configuration
+# sets MACOSX_DEPLOYMENT_TARGET = 27.0 and `xcodebuild test` launches the app as
+# its own test host, so the tests need macOS 27 at RUNTIME.
+#
+# The runner lives at ~/Tools/actions-runner on Daniel's MacBook Pro, registered
+# as Daniels-MacBook-Pro-xcode27 and kept alive by the LaunchAgent that
+# `svc.sh install` wrote to ~/Library/LaunchAgents. Re-register with a fresh
+# token from `gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token`.
 #
 # Why a real `xcodebuild test` and not just `swiftc -typecheck`:
 #   - A prior type-check-only CI passed while the app failed to BUILD (a missing

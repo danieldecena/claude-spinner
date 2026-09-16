@@ -8,6 +8,7 @@
 
 import XCTest
 import SwiftUI
+import UserNotifications
 @testable import claude_spinner
 
 final class claude_spinnerTests: XCTestCase {
@@ -128,6 +129,61 @@ final class claude_spinnerTests: XCTestCase {
                       "bundled Scripts/emit.sh is missing the subagent child-file branch — sync it from ~/.claude/spinnerfeed/emit.sh")
         XCTAssertTrue(contents.contains("SubagentStart"))
         XCTAssertTrue(contents.contains("agent_id"))
+        XCTAssertTrue(contents.contains("notification_type"),
+                      "bundled Scripts/emit.sh must record which notification fired — "
+                      + "without it idle_prompt is indistinguishable from a real block")
+        XCTAssertTrue(contents.contains("prev_msg"),
+                      "bundled Scripts/emit.sh is missing the message carry-forward — the "
+                      + "attention banner falls back to a bare project name without it")
+    }
+
+    /// Same content-parity smoke check for the answer hook. The three shapes
+    /// asserted here are the ones whose absence would be silent: without the
+    /// pgrep gate every tool call stalls for the deadline when the app is shut,
+    /// and without `passthrough` a dismissed banner never falls back.
+    func testBundledAskScriptKeepsItsFallbacks() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let scriptURL = testFile
+            .deletingLastPathComponent()               // claude spinnerTests/
+            .deletingLastPathComponent()                // repo root
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        let contents = try String(contentsOf: scriptURL, encoding: .utf8)
+        XCTAssertTrue(contents.contains("pgrep -x \"claude spinner\""),
+                      "ask.sh must not write an ask file with no app to answer it")
+        XCTAssertTrue(contents.contains("passthrough"))
+        XCTAssertTrue(contents.contains("multiSelect"),
+                      "ask.sh must pass multiSelect questions through to the terminal")
+        XCTAssertTrue(contents.contains("tool_input:"),
+                      "ask.sh must copy tool_input into the ask file; the permission card "
+                      + "reads it to show the command, and drops silently back to the tool "
+                      + "name without it")
+        // Comments are stripped first: the script says "must never exit 2" in
+        // prose, and matching that would make this pass for the wrong reason.
+        let code = contents.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
+            .joined(separator: "\n")
+        XCTAssertFalse(code.contains("exit 2"),
+                       "exit 2 reads as a deny on PreToolUse — the fallback must be exit 0")
+    }
+
+    /// Both surfaces must draw the shared notices, and neither is reachable from
+    /// the other: the panel needs a status item, the window needs `surface =
+    /// window`. `SetupBanner` was already stranded in the panel once and
+    /// `NotificationsNotice` after it, so this asserts the source of each view
+    /// names both rather than waiting for the third time.
+    func testBothSurfacesDrawTheSharedNotices() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()               // claude spinnerTests/
+            .deletingLastPathComponent()                // repo root
+            .appendingPathComponent("claude spinner")
+        for surface in ["MenuContentView.swift", "WindowContentView.swift"] {
+            let source = try String(contentsOf: root.appendingPathComponent(surface), encoding: .utf8)
+            XCTAssertTrue(source.contains("NotificationsNotice()"),
+                          "\(surface) never says notifications are off — on that surface "
+                          + "every banner is a silent no-op with nothing on screen to say so")
+            XCTAssertTrue(source.contains("SetupBanner("),
+                          "\(surface) offers no way to install the hooks")
+        }
     }
 
     func testHookEventsIncludeSubagentLifecycle() {
@@ -473,6 +529,120 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.id), ["new", "old"])
     }
 
+    // MARK: - Project sections
+
+    /// Wrap sessions the way the sidebar does: one depth-0 row each.
+    private func rows(_ sessions: [SessionFeed]) -> [SessionRowItem] {
+        sessions.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) }
+    }
+
+    private func named(_ id: String, _ status: SessionStatus, cwd: String,
+                       name: String? = nil, tokens: Int? = nil) -> SessionFeed {
+        var s = mk(id, status, cwd: cwd, tokens: tokens)
+        s.sessionName = name
+        return s
+    }
+
+    /// The regression this whole feature exists for. `rescan` builds `sessions` from
+    /// a dictionary's `values`, whose order Swift does not define, so the same set
+    /// arrives in a different order on every scan. Sections must not move with it.
+    func testProjectSectionsAreIdenticalUnderAnyInputOrder() {
+        let a = named("a", .tool, cwd: "/w/alpha", name: "one")
+        let b = named("b", .tool, cwd: "/w/beta", name: "two")
+        let c = named("c", .idle, cwd: "/w/alpha", name: "three")
+        let forward = FeedWatcher.projectSections(rows([a, b, c]))
+        let shuffled = FeedWatcher.projectSections(rows([c, a, b]))
+        let reversed = FeedWatcher.projectSections(rows([b, c, a]))
+        XCTAssertEqual(forward.map(\.id), shuffled.map(\.id))
+        XCTAssertEqual(forward.map(\.id), reversed.map(\.id))
+        XCTAssertEqual(forward.map { $0.items.map(\.id) }, shuffled.map { $0.items.map(\.id) })
+        XCTAssertEqual(forward.map { $0.items.map(\.id) }, reversed.map { $0.items.map(\.id) })
+    }
+
+    func testProjectSectionsAreAlphabeticalByProjectThenSessionName() {
+        let sections = FeedWatcher.projectSections(rows([
+            named("z", .tool, cwd: "/w/zebra", name: "z1"),
+            named("m2", .tool, cwd: "/w/alpha", name: "second"),
+            named("m1", .tool, cwd: "/w/alpha", name: "first"),
+        ]))
+        XCTAssertEqual(sections.map(\.title), ["alpha", "zebra"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["m1", "m2"])
+    }
+
+    /// Pinned on top, and listed once — the sidebar tags rows by session id, so the
+    /// same session appearing under its project too would duplicate a selection tag.
+    func testNeedsYouIsPinnedFirstAndNotRepeatedUnderItsProject() {
+        var blocked = named("b", .attention, cwd: "/w/alpha", name: "blocked")
+        blocked.notificationType = "permission_prompt"
+        let sections = FeedWatcher.projectSections(rows([
+            named("w", .tool, cwd: "/w/alpha", name: "working"), blocked,
+        ]))
+        XCTAssertEqual(sections.map(\.title), ["Needs you", "alpha"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["b"])
+        XCTAssertEqual(sections[1].items.map(\.id), ["w"])
+    }
+
+    /// An `asks` entry pins a session even when its own status has not flipped.
+    func testNeedsYouIncludesSessionsWithAPendingAsk() {
+        let sections = FeedWatcher.projectSections(
+            rows([named("q", .tool, cwd: "/w/alpha", name: "asking")]), asked: ["q"])
+        XCTAssertEqual(sections.map(\.title), ["Needs you", ])
+    }
+
+    /// An idle_prompt is not blocked on anyone, so nothing gets pinned and the
+    /// section is omitted rather than drawn empty.
+    func testNeedsYouIsOmittedWhenNothingIsBlocked() {
+        var finished = named("f", .attention, cwd: "/w/alpha", name: "done")
+        finished.notificationType = "idle_prompt"
+        let sections = FeedWatcher.projectSections(rows([finished]))
+        XCTAssertEqual(sections.map(\.title), ["alpha"])
+    }
+
+    /// A collapsed idle row stands for several sessions; a subagent row is not a
+    /// session of its own.
+    func testSessionCountExpandsCollapsedRowsAndIgnoresSubagents() {
+        let parent = named("p", .tool, cwd: "/w/alpha", name: "parent")
+        let child = mk("kid", .tool, cwd: "/w/alpha", parentSessionId: "p")
+        let collapsed = SessionRowItem(id: "idle:/w/alpha",
+                                       session: named("i1", .idle, cwd: "/w/alpha", name: "idle"),
+                                       ids: ["i1", "i2", "i3"], depth: 0)
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "p", session: parent, ids: ["p", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: child, ids: ["kid"], depth: 1),
+            collapsed,
+        ])
+        XCTAssertEqual(sections.count, 1)
+        // 1 parent (its child ids don't count) + 3 collapsed idles.
+        XCTAssertEqual(sections[0].sessionCount, 4)
+    }
+
+    func testContextTotalSumsAndIsNilWhenNothingReported() {
+        let withTokens = FeedWatcher.projectSections(rows([
+            named("a", .tool, cwd: "/w/alpha", name: "a", tokens: 40_000),
+            named("b", .tool, cwd: "/w/alpha", name: "b", tokens: 60_000),
+        ]))
+        XCTAssertEqual(withTokens[0].contextTotal, 100_000)
+
+        let without = FeedWatcher.projectSections(rows([
+            named("c", .tool, cwd: "/w/alpha", name: "c"),
+        ]))
+        XCTAssertNil(without[0].contextTotal)
+    }
+
+    /// Children stay directly under the parent they are indented beneath, even
+    /// though the roots around them get re-sorted.
+    func testChildrenStayAttachedToTheirParentAfterSorting() {
+        let zed = named("z", .tool, cwd: "/w/alpha", name: "zed")
+        let kid = mk("kid", .tool, cwd: "/w/alpha", parentSessionId: "z")
+        let abe = named("a", .tool, cwd: "/w/alpha", name: "abe")
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "z", session: zed, ids: ["z", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: kid, ids: ["kid"], depth: 1),
+            SessionRowItem(id: "a", session: abe, ids: ["a"], depth: 0),
+        ])
+        XCTAssertEqual(sections[0].items.map(\.id), ["a", "z", "kid"])
+    }
+
     // MARK: - Color tier boundaries
 
     func testUsageTintTiers() {
@@ -782,6 +952,7 @@ final class claude_spinnerTests: XCTestCase {
             - RowLayout.secondRowLeadingInset - Constants.childRowIndent
             - TodoProgressBar.width
             - RowLayout.todoStatusGap - RowLayout.dotsSlot
+            - RowLayout.evidenceSlot
         XCTAssertEqual(c.status, max(0, line2Budget), accuracy: 0.01)
     }
 
@@ -1058,6 +1229,705 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionLauncher.guiFocusAction(isRunning: false, cwd: ""), .launchBare)
     }
 
+    // MARK: - Session actions
+
+    private func actionable(pid: Int? = 7190,
+                            status: SessionStatus = .idle,
+                            cwd: String = "/tmp/proj",
+                            transcript: String? = "/tmp/t.jsonl") -> SessionFeed {
+        var s = SessionFeed(id: "sid")
+        s.pid = pid
+        s.status = status
+        s.cwd = cwd
+        s.stats.transcriptPath = transcript
+        return s
+    }
+
+    /// Not "is it disabled" but "does it say why". A greyed-out button with no
+    /// reason is what makes people click twice and assume the app is broken —
+    /// and the commonest reason here is permanent, not temporary.
+    func testTypedActionsExplainThemselvesWithoutAPane() {
+        for action in [SessionAction.interrupt, .compact, .clear] {
+            XCTAssertEqual(
+                SessionActions.unavailableReason(action, session: actionable(), hasPane: false),
+                "That session isn't in a tmux pane, so there's nowhere to type.",
+                "\(action.title) must say why it can't run")
+        }
+    }
+
+    /// Interrupt is the one action FOR a running turn; the other two type at the
+    /// prompt and need it free. Getting this backwards would offer /clear
+    /// mid-turn and interrupt with nothing running.
+    func testInterruptAndTheSlashCommandsWantOppositeStates() {
+        let running = actionable(status: .tool)
+        XCTAssertNil(SessionActions.unavailableReason(.interrupt, session: running, hasPane: true))
+        XCTAssertEqual(SessionActions.unavailableReason(.clear, session: running, hasPane: true),
+                       "That session is mid-turn — wait for it to finish.")
+
+        let idle = actionable(status: .idle)
+        XCTAssertEqual(SessionActions.unavailableReason(.interrupt, session: idle, hasPane: true),
+                       "Nothing is running to interrupt.")
+        XCTAssertNil(SessionActions.unavailableReason(.clear, session: idle, hasPane: true))
+    }
+
+    /// The bug this exists for: `.attention` means the session is sitting at its
+    /// prompt waiting on a person, which is exactly when typing works. Gating on
+    /// `status == .idle` greyed out the slash commands — and the reply box —
+    /// on the one session you most want to answer.
+    func testASessionWaitingOnYouCanBeTypedInto() {
+        let waiting = actionable(status: .attention)
+        XCTAssertTrue(waiting.isAtPrompt)
+        XCTAssertNil(SessionActions.unavailableReason(.clear, session: waiting, hasPane: true))
+        XCTAssertNil(SessionActions.unavailableReason(.compact, session: waiting, hasPane: true))
+    }
+
+    func testAWorkingSessionIsNotAtItsPrompt() {
+        for status in [SessionStatus.thinking, .tool] {
+            var s = SessionFeed(id: "s")
+            s.status = status
+            XCTAssertFalse(s.isAtPrompt, "\(status) is mid-turn")
+        }
+    }
+
+    /// The local actions touch only this Mac, so a missing pane is irrelevant to
+    /// them — but missing data is not.
+    func testLocalActionsIgnoreThePaneAndCheckTheirOwnInputs() {
+        XCTAssertNil(SessionActions.unavailableReason(.copySessionID,
+                                                      session: actionable(pid: nil),
+                                                      hasPane: false))
+        XCTAssertEqual(SessionActions.unavailableReason(.revealCWD,
+                                                        session: actionable(cwd: ""),
+                                                        hasPane: true),
+                       "This session has no working directory yet.")
+        XCTAssertEqual(SessionActions.unavailableReason(.openTranscript,
+                                                        session: actionable(transcript: nil),
+                                                        hasPane: true),
+                       "No transcript yet — the statusLine hasn't reported.")
+    }
+
+    /// The two that throw away unrecoverable context must confirm, and they sit
+    /// a few pixels from Interrupt, which must not.
+    func testOnlyTheContextDiscardingActionsConfirm() {
+        XCTAssertTrue(SessionAction.clear.isDestructive)
+        XCTAssertTrue(SessionAction.compact.isDestructive)
+        XCTAssertNotNil(SessionAction.clear.confirmation)
+        XCTAssertFalse(SessionAction.interrupt.isDestructive)
+        XCTAssertNil(SessionAction.interrupt.confirmation)
+    }
+
+    /// Interrupt cancels a turn rather than submitting anything, so it must send
+    /// no text at all — a stray Enter would submit whatever was in the prompt.
+    func testInterruptTypesNothing() {
+        XCTAssertNil(SessionAction.interrupt.promptText)
+        XCTAssertEqual(SessionAction.compact.promptText, "/compact")
+        XCTAssertEqual(SessionAction.clear.promptText, "/clear")
+    }
+
+    // MARK: - TranscriptReader
+
+    /// Records in the real shapes the transcript actually uses, taken from a
+    /// live file rather than invented.
+    private var transcriptLines: [String] {[
+        #"{"type":"ai-title","aiTitle":"spinner-notification-feedback-loop","sessionId":"s"}"#,
+        #"{"type":"last-prompt","lastPrompt":"why is it 90$ i have max plan?","sessionId":"s"}"#,
+        #"{"type":"permission-mode","permissionMode":"bypassPermissions","sessionId":"s"}"#,
+        #"{"type":"assistant","gitBranch":"notification-answers","version":"2.1.260","timestamp":"2026-09-04T06:40:00.000Z","message":{"usage":{"cache_read_input_tokens":379956,"cache_creation_input_tokens":3027,"output_tokens":1410,"output_tokens_details":{"thinking_tokens":386}},"content":[{"type":"thinking","thinking":"weighing it"},{"type":"text","text":"That is not a bill."},{"type":"tool_use","name":"Bash"}]}}"#,
+        #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#,
+    ]}
+
+    func testTranscriptParsePullsOutWhatTheSessionIsDoing() {
+        let snap = TranscriptReader.parse(transcriptLines.joined(separator: "\n"),
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.title, "spinner-notification-feedback-loop")
+        XCTAssertEqual(snap.lastPrompt, "why is it 90$ i have max plan?")
+        XCTAssertEqual(snap.permissionMode, "bypassPermissions")
+        XCTAssertEqual(snap.lastAssistantText, "That is not a bill.")
+        XCTAssertEqual(snap.lastThinking, "weighing it")
+        XCTAssertEqual(snap.gitBranch, "notification-answers")
+        XCTAssertEqual(snap.cacheReadTokens, 379_956)
+        XCTAssertEqual(snap.thinkingTokens, 386)
+        XCTAssertFalse(snap.isEmpty)
+    }
+
+    /// A turn of eight Bash calls filled the line with "Bash · Bash · Bash …"
+    /// and said less than one count does.
+    func testTranscriptCollapsesRunsOfTheSameTool() {
+        let runs = (0..<8).map { _ in
+            #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}"#
+        } + [#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#]
+        let snap = TranscriptReader.parse(runs.joined(separator: "\n"), droppingFirstLine: false)
+        XCTAssertEqual(snap.recentTools, ["Edit", "Bash ×8"])
+    }
+
+    /// Newest first. Reading forwards would leave "last" holding the oldest
+    /// value in the window, which is wrong in a way nothing else would catch.
+    func testTranscriptTakesTheNewestToolFirst() {
+        let snap = TranscriptReader.parse(transcriptLines.joined(separator: "\n"),
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.recentTools.first, "Edit")
+    }
+
+    /// Seeking into the middle of a file lands mid-record, and that fragment is
+    /// another record's tail rather than a truncated one to recover. Dropping it
+    /// is the whole reason `droppingFirstLine` exists.
+    func testTranscriptDropsThePartialFirstLineAfterASeek() {
+        let text = (["ache_read_input_tokens\":1}}}"] + transcriptLines).joined(separator: "\n")
+        let kept = TranscriptReader.parse(text, droppingFirstLine: true)
+        XCTAssertEqual(kept.title, "spinner-notification-feedback-loop")
+
+        // And without the flag the fragment is simply unparseable, never fatal.
+        let sloppy = TranscriptReader.parse(text, droppingFirstLine: false)
+        XCTAssertEqual(sloppy.title, "spinner-notification-feedback-loop")
+    }
+
+    /// A transcript that hasn't been written yet is a normal state for a session
+    /// that just started, not an error.
+    func testTranscriptReadsMissingFileAsEmptyRatherThanFailing() {
+        let snap = TranscriptReader.read(path: "/nonexistent/transcript.jsonl")
+        XCTAssertTrue(snap.isEmpty)
+    }
+
+    func testTranscriptToleratesGarbageLines() {
+        let snap = TranscriptReader.parse("not json\n{\n" + transcriptLines[0],
+                                          droppingFirstLine: false)
+        XCTAssertEqual(snap.title, "spinner-notification-feedback-loop")
+    }
+
+    // MARK: - idle_prompt is not a question
+
+    private func attention(_ type: String?, message: String = "") -> SessionFeed {
+        var s = SessionFeed(id: "s")
+        s.status = .attention
+        s.notificationType = type
+        s.message = message
+        return s
+    }
+
+    /// The bug: emit.sh maps every Notification event to .attention, and
+    /// idle_prompt is one of them — it fires 60s after a turn ENDS if you
+    /// haven't typed. A finished session sat in the same orange row as one
+    /// holding a permission prompt, with no way to tell which wanted an answer.
+    func testAnIdlePromptIsNotBlockedOnYou() {
+        XCTAssertFalse(attention("idle_prompt").isBlockedOnYou)
+        XCTAssertTrue(attention("permission_prompt").isBlockedOnYou)
+        XCTAssertTrue(attention("agent_needs_input").isBlockedOnYou)
+        // Older feed files carry no type at all; assume it wants something.
+        XCTAssertTrue(attention(nil).isBlockedOnYou)
+    }
+
+    func testAttentionSummarySaysWhichKindOfWaitingItIs() {
+        XCTAssertEqual(attention("idle_prompt").attentionSummary,
+                       "Finished — waiting at the prompt, nothing to answer")
+        XCTAssertEqual(attention("permission_prompt").attentionSummary,
+                       "Waiting for permission to run a tool")
+        XCTAssertEqual(attention("permission_prompt", message: "Claude needs your permission to use Bash").attentionSummary,
+                       "Claude needs your permission to use Bash")
+        XCTAssertNil(SessionFeed(id: "s").attentionSummary, "not waiting at all")
+    }
+
+    // MARK: - Which session the window opens on
+
+    private func root(_ id: String, model: String? = nil,
+                      updated: Date? = nil,
+                      status: SessionStatus = .idle) -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.model = model
+        s.updated = updated
+        s.status = status
+        return s
+    }
+
+    /// The bug this exists for: opening on whatever sorted first showed a
+    /// session with no statusLine, so the pane rendered two rows and read as
+    /// broken while a fully-reported session sat one row below.
+    func testWindowOpensOnASessionThatHasSomethingToShow() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("bare", model: nil, updated: Date()),
+            root("reported", model: "Opus 5", updated: Date().addingTimeInterval(-60)),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "reported")
+    }
+
+    func testWaitingBeatsRecency() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("reported", model: "Opus 5", updated: Date()),
+            root("stuck", model: nil, updated: .distantPast, status: .attention),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "stuck")
+    }
+
+    /// With nothing reported anywhere, still open on something rather than an
+    /// empty pane.
+    func testFallsBackToTheMostRecentWhenNothingHasReported() {
+        let picked = WindowContentView.defaultSelection(roots: [
+            root("old", updated: Date().addingTimeInterval(-600)),
+            root("new", updated: Date()),
+        ], asks: [])
+        XCTAssertEqual(picked?.id, "new")
+        XCTAssertNil(WindowContentView.defaultSelection(roots: [], asks: []))
+    }
+
+    /// Four sidebar rows all reading "session" name nothing.
+    func testUnnamedSessionsStayDistinguishable() {
+        XCTAssertEqual(root("abcdef123456").distinctName, "session abcdef")
+        var named = root("abcdef123456")
+        named.cwd = "/Users/home/developer/claude-spinner"
+        XCTAssertEqual(named.distinctName, "claude-spinner")
+    }
+
+    // MARK: - Overview totals
+
+    private func costed(_ id: String, usd: Double?, tokens: Int?) -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.stats.costUSD = usd
+        s.contextInputTokens = tokens
+        return s
+    }
+
+    func testOverviewSumsRootSessions() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: 23.87, tokens: 300_000),
+            costed("b", usd: 2.13, tokens: 50_000),
+        ])
+        XCTAssertEqual(out.sessions, 2)
+        XCTAssertEqual(try XCTUnwrap(out.spendUSD), 26.00, accuracy: 0.001)
+        XCTAssertEqual(out.contextTokens, 350_000)
+    }
+
+    /// The case that would otherwise print "$0.00 today" over sessions whose
+    /// statusLine simply hasn't run. Nothing reported is unknown, not zero.
+    func testOverviewTotalsAreNilWhenNothingHasReported() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: nil, tokens: nil),
+            costed("b", usd: nil, tokens: nil),
+        ])
+        XCTAssertEqual(out.sessions, 2)
+        XCTAssertNil(out.spendUSD)
+        XCTAssertNil(out.contextTokens)
+    }
+
+    /// A partial report is still a real total — it just isn't everything.
+    func testOverviewSumsWhatItHasWhenOnlySomeReported() {
+        let out = FeedWatcher.overview(for: [
+            costed("a", usd: 5, tokens: nil),
+            costed("b", usd: nil, tokens: 1_000),
+        ])
+        XCTAssertEqual(out.spendUSD, 5)
+        XCTAssertEqual(out.contextTokens, 1_000)
+    }
+
+    /// The rate-limit windows are account-wide: every session reports the same
+    /// pair, so the overview takes the freshest reading. Summing them would
+    /// report 250% of a 5h window across three sessions.
+    func testRateLimitsAreTakenFreshRatherThanSummed() {
+        var old = root("old", updated: Date().addingTimeInterval(-600))
+        old.fiveHourPct = 40
+        old.sevenDayPct = 30
+        var new = root("new", updated: Date())
+        new.fiveHourPct = 49
+        new.sevenDayPct = 34
+        let out = FeedWatcher.overview(for: [old, new])
+        XCTAssertEqual(out.fiveHourPct, 49)
+        XCTAssertEqual(out.sevenDayPct, 34)
+    }
+
+    /// Subagents share their parent's numbers; counting them would double the
+    /// spend and treble the session count.
+    func testOverviewIgnoresSubagents() {
+        var child = costed("child", usd: 99, tokens: 99)
+        child.parentSessionId = "a"
+        let out = FeedWatcher.overview(for: [costed("a", usd: 1, tokens: 1), child])
+        XCTAssertEqual(out.sessions, 1)
+        XCTAssertEqual(out.spendUSD, 1)
+    }
+
+    // MARK: - Detail-pane stats
+
+    func testMoneyKeepsCentsSoASessionNeverReadsAsFree() {
+        XCTAssertEqual(StatFormat.money(23.877466), "$23.88")
+        XCTAssertEqual(StatFormat.money(0.004), "$0.00")
+        XCTAssertEqual(StatFormat.money(0.42), "$0.42")
+    }
+
+    func testDurationDropsToTheLargestUsefulUnit() {
+        XCTAssertEqual(StatFormat.duration(2660.3), "44m 20s")
+        XCTAssertEqual(StatFormat.duration(7325), "2h 2m")
+        XCTAssertEqual(StatFormat.duration(9), "9s")
+    }
+
+    func testCompactCountShortensTheContextWindow() {
+        XCTAssertEqual(StatFormat.compactCount(1_000_000), "1M")
+        XCTAssertEqual(StatFormat.compactCount(200_000), "200k")
+        XCTAssertEqual(StatFormat.compactCount(512), "512")
+    }
+
+    /// "+0 −0" claims a measurement that was never taken; one side known is
+    /// still a real diff.
+    func testLineDiffIsNilOnlyWhenNeitherSideIsKnown() {
+        XCTAssertNil(StatFormat.lines(added: nil, removed: nil))
+        XCTAssertEqual(StatFormat.lines(added: 369, removed: 131), "+369 −131")
+        XCTAssertEqual(StatFormat.lines(added: 5, removed: nil), "+5 −0")
+    }
+
+    /// A ratio against a missing or zero denominator is a made-up number.
+    func testApiShareNeedsBothHalves() {
+        var stats = SessionDetailStats()
+        stats.apiSeconds = 2105
+        XCTAssertNil(stats.apiShare, "no wall time to divide by")
+        stats.wallSeconds = 0
+        XCTAssertNil(stats.apiShare, "zero denominator")
+        stats.wallSeconds = 2660
+        XCTAssertEqual(try XCTUnwrap(stats.apiShare), 0.791, accuracy: 0.001)
+    }
+
+    /// Decoded straight from a real statusLine payload, so the field names are
+    /// tested against the shape the script actually writes.
+    func testStatusDecodesTheFullStatusLinePayload() throws {
+        let json = """
+        {"model":{"display_name":"Opus 5 (1M context)","id":"claude-opus-5[1m]"},
+         "session_name":"spinner-notification-answers","version":"2.1.260",
+         "effort":{"level":"high"},"thinking":{"enabled":true},
+         "output_style":{"name":"default"},"exceeds_200k_tokens":true,
+         "transcript_path":"/tmp/t.jsonl",
+         "workspace":{"current_dir":"/Users/home/developer/claude-spinner",
+                      "repo":{"host":"github.com","owner":"danieldecena","name":"claude-spinner"}},
+         "cost":{"total_cost_usd":23.877466,"total_duration_ms":2660308,
+                 "total_api_duration_ms":2105017,"total_lines_added":369,
+                 "total_lines_removed":131},
+         "context_window":{"total_input_tokens":300000,"total_output_tokens":8706,
+                           "context_window_size":1000000,"used_percentage":34},
+         "prompt_cache":{"hit_ratio":0.9892967697353634,"warm":true,"ttl":"1h",
+                         "requests":129,"misses":0}}
+        """
+        var session = SessionFeed(id: "s1")
+        try session.applyStatusJSONForTest(json)
+
+        XCTAssertEqual(session.stats.costUSD, 23.877466)
+        XCTAssertEqual(session.stats.linesAdded, 369)
+        XCTAssertEqual(session.stats.contextUsedPercent, 34)
+        XCTAssertEqual(session.stats.contextWindowSize, 1_000_000)
+        XCTAssertEqual(session.stats.cacheWarm, true)
+        XCTAssertEqual(session.stats.cacheTTL, "1h")
+        XCTAssertEqual(session.stats.effort, "high")
+        XCTAssertEqual(session.stats.thinking, true)
+        XCTAssertEqual(session.stats.modelID, "claude-opus-5[1m]")
+        XCTAssertEqual(session.stats.claudeVersion, "2.1.260")
+        XCTAssertEqual(session.stats.repo, "danieldecena/claude-spinner")
+        XCTAssertEqual(session.stats.exceeds200k, true)
+        XCTAssertEqual(session.contextTokens, 308_706)
+    }
+
+    /// A statusLine that reports nothing beyond the basics must leave every new
+    /// field nil rather than defaulting to zero — the detail pane drops nil rows
+    /// and would otherwise show a fabricated $0.00 and 0% cache hit rate.
+    func testAThinStatusPayloadLeavesTheNewFieldsUnknown() throws {
+        var session = SessionFeed(id: "s1")
+        try session.applyStatusJSONForTest(#"{"model":{"display_name":"Opus 5"}}"#)
+        XCTAssertEqual(session.model, "Opus 5")
+        XCTAssertNil(session.stats.costUSD)
+        XCTAssertNil(session.stats.cacheHitRatio)
+        XCTAssertNil(session.stats.contextUsedPercent)
+        XCTAssertNil(session.stats.repo)
+    }
+
+    // MARK: - Done-turn notifications
+
+    private func finishedSession(id: String = "s1", host: String = "com.mitchellh.ghostty") -> SessionFeed {
+        var s = SessionFeed(id: id)
+        s.status = .idle
+        s.lastDuration = 42
+        s.host = host
+        return s
+    }
+
+    func testAFinishedTurnNotifiesWhenYouAreLookingElsewhere() {
+        XCTAssertTrue(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(),
+            frontmostBundleID: "com.apple.Safari",
+            alreadyNotified: []))
+    }
+
+    /// The gate that makes this bearable: a turn finishing in the window you are
+    /// already watching does not need announcing — you saw it.
+    func testAFinishedTurnIsSilentInTheAppYouAreAlreadyIn() {
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(host: "com.mitchellh.ghostty"),
+            frontmostBundleID: "com.mitchellh.ghostty",
+            alreadyNotified: []))
+    }
+
+    func testAFinishedTurnNotifiesOnlyOnce() {
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: finishedSession(),
+            frontmostBundleID: "com.apple.Safari",
+            alreadyNotified: ["s1"]))
+    }
+
+    /// A subagent finishing is not a turn finishing, and a session that is idle
+    /// without having run anything (a fresh SessionStart) never "finished".
+    func testOnlyRootSessionsThatActuallyRanATurnNotify() {
+        var child = finishedSession()
+        child.parentSessionId = "parent"
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: child, frontmostBundleID: nil, alreadyNotified: []))
+
+        var neverRan = finishedSession()
+        neverRan.lastDuration = nil
+        XCTAssertFalse(FeedWatcher.shouldNotifyDone(
+            session: neverRan, frontmostBundleID: nil, alreadyNotified: []))
+    }
+
+    // MARK: - SessionReplier (typing into a pane)
+
+    /// Real `tmux list-panes -a -F '#{pane_tty} #{pane_id}'` output from this
+    /// machine, so the parse is tested against the shape it actually meets.
+    private let paneListing = """
+    /dev/ttys005 %10 22489
+    /dev/ttys001 %9 7183
+    /dev/ttys003 %5 96677
+    """
+
+    func testPaneLookupJoinsOnTheControllingTTY() {
+        // `ps -o tty=` prints the bare name; tmux prints the device path.
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "ttys001", in: paneListing), "%9")
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "/dev/ttys001", in: paneListing), "%9")
+        XCTAssertEqual(SessionReplier.paneID(forTTY: "ttys005", in: paneListing), "%10")
+    }
+
+    /// The known-bad half. A session outside tmux has no pane, and that must
+    /// resolve to nothing rather than to the first or nearest row — sending to
+    /// the wrong pane types into another agent's prompt.
+    func testPaneLookupFindsNothingForASessionOutsideTmux() {
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys099", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys001", in: ""))
+    }
+
+    /// A partial match must not count: ttys00 is a prefix of ttys001 and names a
+    /// different device.
+    func testPaneLookupRequiresAWholeDeviceMatch() {
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys00", in: paneListing))
+        XCTAssertNil(SessionReplier.paneID(forTTY: "ttys0011", in: paneListing))
+    }
+
+    /// send-keys exiting 0 says the keys reached a pane's buffer, never that
+    /// Claude was foreground in it. The turn starting is the observation, so
+    /// prove the watcher distinguishes both inputs.
+    func testTurnStartedIsObservedOnlyWhenTheStatusLeavesIdle() throws {
+        try withTempDir { dir in
+            let file = dir.appendingPathComponent("sid.state.json")
+            try Data(#"{"status":"idle"}"#.utf8).write(to: file)
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+
+            // `.attention` is not a started turn either — it is the state the
+            // session was already in when the keys were sent, so accepting it
+            // would report delivery for a pane that swallowed them.
+            try Data(#"{"status":"attention"}"#.utf8).write(to: file)
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+
+            try Data(#"{"status":"thinking"}"#.utf8).write(to: file)
+            XCTAssertTrue(SessionReplier.observeTurnStarted(
+                sessionID: "sid", feedDir: dir, timeout: 0.3, poll: 0.05))
+        }
+    }
+
+    /// A missing state file is "not observed", not a crash and not a pass.
+    func testTurnStartedIsNotObservedWithNoStateFile() throws {
+        try withTempDir { dir in
+            XCTAssertFalse(SessionReplier.observeTurnStarted(
+                sessionID: "absent", feedDir: dir, timeout: 0.2, poll: 0.05))
+        }
+    }
+
+    // MARK: - AskInbox (the notification round-trip)
+
+    private func makeAsk(kind: String = "question",
+                         req: String = "sid-1-2",
+                         labels: [String] = ["Alpha", "Beta"]) -> AskRequest {
+        let options = labels.map { "{\"label\":\"\($0)\",\"description\":\"d\"}" }
+            .joined(separator: ",")
+        let json = """
+        {"req":"\(req)","kind":"\(kind)","session_id":"sid","cwd":"/tmp/proj",
+         "created":1,"tool_name":"Bash",
+         "questions":[{"question":"Which one?","header":"Pick","options":[\(options)]}]}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    /// A tap resolves through the action identifier alone, so an id that doesn't
+    /// round-trip is a button that silently does nothing — indistinguishable from
+    /// a notification nobody touched.
+    func testActionIdentifierRoundTrips() {
+        let id = AskInbox.actionID(req: "sid-1-2", choice: AskInbox.optionChoice(1))
+        let parsed = AskInbox.parseAction(id)
+        XCTAssertEqual(parsed?.req, "sid-1-2")
+        XCTAssertEqual(parsed?.choice, "opt1")
+    }
+
+    /// The built-in default and dismiss identifiers must not parse as ours, or
+    /// merely dismissing a banner would answer the question.
+    func testParseActionRejectsForeignIdentifiers() {
+        XCTAssertNil(AskInbox.parseAction(UNNotificationDefaultActionIdentifier))
+        XCTAssertNil(AskInbox.parseAction(UNNotificationDismissActionIdentifier))
+        XCTAssertNil(AskInbox.parseAction(NotificationConfig.focusAction))
+    }
+
+    func testChoiceMapsToTheOptionLabel() {
+        let req = makeAsk()
+        XCTAssertEqual(AskInbox.answer(for: "opt0", in: req), .option("Alpha"))
+        XCTAssertEqual(AskInbox.answer(for: "opt1", in: req), .option("Beta"))
+        XCTAssertEqual(AskInbox.answer(for: "allow", in: makeAsk(kind: "permission")), .allow)
+        XCTAssertEqual(AskInbox.answer(for: "deny", in: makeAsk(kind: "permission")), .deny)
+    }
+
+    /// An index past the end must resolve to nothing rather than crash or pick a
+    /// neighbour: a stale banner can outlive the ask file it was built from.
+    func testChoiceOutOfRangeResolvesToNoAnswer() {
+        XCTAssertNil(AskInbox.answer(for: "opt9", in: makeAsk()))
+        XCTAssertNil(AskInbox.answer(for: "nonsense", in: makeAsk()))
+    }
+
+    // MARK: - What the permission is actually for
+    //
+    // The card used to render `Run Bash?` and nothing else, because `ask.sh`
+    // wrote `tool_input` and `AskRequest` never declared it. These pin the
+    // decode, the key order, and every shape that has to fall back rather than
+    // throw — a request that fails to decode disappears from the window while
+    // the hook is still blocked on it.
+
+    private func makePermissionAsk(toolInput: String) -> AskRequest {
+        let json = """
+        {"req":"sid-1-2","kind":"permission","session_id":"sid","cwd":"/tmp/proj",
+         "created":1,"tool_name":"Bash","tool_input":\(toolInput)}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    func testPermissionSubjectIsTheCommandNotTheDescription() {
+        let ask = makePermissionAsk(
+            toolInput: #"{"command":"rm -rf /tmp/verify-probe-dir","description":"clean up"}"#)
+        XCTAssertEqual(ask.toolSubject, "rm -rf /tmp/verify-probe-dir")
+    }
+
+    func testPermissionSubjectFallsThroughToAPath() {
+        XCTAssertEqual(makePermissionAsk(toolInput: #"{"file_path":"/a/b.swift"}"#).toolSubject,
+                       "/a/b.swift")
+        XCTAssertEqual(makePermissionAsk(toolInput: #"{"url":"https://example.com"}"#).toolSubject,
+                       "https://example.com")
+    }
+
+    /// The order is the contract: an Edit carries both a path and, for some
+    /// tools, a command. Whichever is listed first must win every time, or the
+    /// card shows a different field depending on dictionary iteration.
+    func testPermissionSubjectPrefersTheCommand() {
+        let ask = makePermissionAsk(toolInput: #"{"file_path":"/a/b","command":"ls /a"}"#)
+        XCTAssertEqual(ask.toolSubject, "ls /a")
+    }
+
+    /// The known-bad inputs. Each has to decode into a usable request and simply
+    /// carry no subject — the card then falls back to the tool name it always had.
+    func testPermissionSubjectIsNilWhenNothingNamesIt() {
+        XCTAssertNil(makePermissionAsk(toolInput: #"{"timeout":5000,"nested":{"command":"x"}}"#)
+            .toolSubject)
+        XCTAssertNil(makePermissionAsk(toolInput: #"{"command":"   "}"#).toolSubject)
+        XCTAssertNil(makePermissionAsk(toolInput: "null").toolSubject)
+        // Not an object at all. Must not throw: ask files written before this
+        // field existed, and anything unexpected, still have to reach the window.
+        XCTAssertNil(makePermissionAsk(toolInput: #""just a string""#).toolSubject)
+        XCTAssertNil(makeAsk(kind: "permission").toolSubject)   // no tool_input key
+    }
+
+    func testPermissionSubjectIsCappedForALongCommand() {
+        let long = String(repeating: "x", count: 5000)
+        let subject = makePermissionAsk(toolInput: #"{"command":"\#(long)"}"#).toolSubject
+        XCTAssertEqual(subject?.count, AskRequest.subjectLimit + 1)
+        XCTAssertTrue(subject?.hasSuffix("…") ?? false)
+    }
+
+    /// The banner had the same gap: "claude-spinner — Bash" is not a thing you
+    /// can decide about.
+    func testPermissionBannerNamesTheCommand() {
+        let ask = makePermissionAsk(toolInput: #"{"command":"rm -rf /tmp/probe"}"#)
+        XCTAssertEqual(AskInbox.notificationText(ask).body, "proj — rm -rf /tmp/probe")
+        XCTAssertEqual(AskInbox.notificationText(makeAsk(kind: "permission")).body, "proj — Bash")
+    }
+
+    func testCategoriesCarryOneActionPerOptionPlusFocus() {
+        let cats = AskInbox.categories(for: [makeAsk(labels: ["Alpha", "Beta", "Gamma"])])
+        XCTAssertEqual(cats.count, 1)
+        XCTAssertEqual(cats[0].identifier, AskInbox.categoryID("sid-1-2"))
+        XCTAssertEqual(cats[0].actions.map(\.title), ["Alpha", "Beta", "Gamma", "Open session"])
+    }
+
+    func testPermissionCategoryIsAllowDeny() {
+        let cats = AskInbox.categories(for: [makeAsk(kind: "permission")])
+        XCTAssertEqual(cats[0].actions.map(\.title), ["Allow", "Deny", "Open session"])
+    }
+
+    /// The known-good half: an answer written against a live ask file lands, and
+    /// carries the label keyed on the question's own text — the shape
+    /// AskUserQuestion requires back in `updatedInput`.
+    func testWritingAnAnswerForALiveRequest() throws {
+        try withTempDir { dir in
+            let req = makeAsk()
+            try Data("{}".utf8).write(to: dir.appendingPathComponent("\(req.req).ask.json"))
+
+            XCTAssertTrue(AskInbox.write(.option("Beta"), for: req, in: dir))
+
+            let data = try Data(contentsOf: dir.appendingPathComponent("\(req.req).answer.json"))
+            let out = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(out["behavior"] as? String, "allow")
+            XCTAssertEqual((out["answers"] as? [String: String])?["Which one?"], "Beta")
+        }
+    }
+
+    /// The known-bad half, and the one that matters: once ask.sh hits its
+    /// deadline it deletes the ask file and Claude Code shows its own prompt. A
+    /// write after that must report false rather than leave a file nothing reads
+    /// — reporting success here would claim an answer reached a session it never
+    /// touched.
+    func testWritingAnAnswerForAnExpiredRequestFails() throws {
+        try withTempDir { dir in
+            let req = makeAsk()
+            XCTAssertFalse(AskInbox.write(.option("Alpha"), for: req, in: dir))
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: dir.appendingPathComponent("\(req.req).answer.json").path))
+        }
+    }
+
+    func testDenyCarriesNoAnswersObject() throws {
+        try withTempDir { dir in
+            let req = makeAsk(kind: "permission")
+            try Data("{}".utf8).write(to: dir.appendingPathComponent("\(req.req).ask.json"))
+            XCTAssertTrue(AskInbox.write(.deny, for: req, in: dir))
+            let data = try Data(contentsOf: dir.appendingPathComponent("\(req.req).answer.json"))
+            let out = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(out["behavior"] as? String, "deny")
+            XCTAssertNil(out["answers"])
+        }
+    }
+
+    /// Reads the file ask.sh actually writes, oldest first.
+    func testReadDecodesAskFilesInCreationOrder() throws {
+        try withTempDir { dir in
+            for (req, created) in [("b", 20), ("a", 10)] {
+                let json = """
+                {"req":"\(req)","kind":"question","session_id":"s","cwd":"/tmp/p",
+                 "created":\(created),"questions":[{"question":"Q","header":"H",
+                 "options":[{"label":"L","description":"d"}]}]}
+                """
+                try Data(json.utf8).write(to: dir.appendingPathComponent("\(req).ask.json"))
+            }
+            // A stray file that isn't an ask must not decode into the queue.
+            try Data("not json".utf8).write(to: dir.appendingPathComponent("junk.txt"))
+            let found = AskInbox.read(from: dir)
+            XCTAssertEqual(found.map(\.req), ["a", "b"])
+            XCTAssertEqual(found.first?.question?.options?.first?.label, "L")
+        }
+    }
+
     // MARK: - SetupInstaller.mergeSpinnerHooks (settings.json merge)
 
     /// Casts the emit.sh command out of a merged settings dict for one event.
@@ -1110,6 +1980,69 @@ final class claude_spinnerTests: XCTestCase {
         let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
         XCTAssertEqual(emitCommands(merged, "SessionStart").count, 1)  // not duplicated
         XCTAssertEqual(emitCommands(merged, "Stop").count, 1)          // added
+    }
+
+    /// Commands on one event whose text mentions `script`, whatever the matcher.
+    private func commands(_ settings: [String: Any], _ event: String, _ script: String) -> [String] {
+        guard let hooks = settings["hooks"] as? [String: Any],
+              let groups = hooks[event] as? [[String: Any]] else { return [] }
+        return groups.flatMap { ($0["hooks"] as? [[String: Any]]) ?? [] }
+            .compactMap { $0["command"] as? String }
+            .filter { $0.contains(script) }
+    }
+
+    func testMergeAddsTheAnswerHooks() {
+        let merged = SetupInstaller.mergeSpinnerHooks(into: [:])
+        XCTAssertEqual(commands(merged, "PreToolUse", "ask.sh"),
+                       ["~/.claude/spinnerfeed/ask.sh question"])
+        XCTAssertEqual(commands(merged, "PermissionRequest", "ask.sh"),
+                       ["~/.claude/spinnerfeed/ask.sh permission"])
+        // The question handler must carry its matcher, or it fires on every tool.
+        let groups = (merged["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]]
+        let askGroup = groups?.first { group in
+            (group["hooks"] as? [[String: Any]])?
+                .contains { ($0["command"] as? String)?.contains("ask.sh") == true } == true
+        }
+        XCTAssertEqual(askGroup?["matcher"] as? String, "AskUserQuestion")
+        // And a ceiling above the deadline ask.sh enforces itself.
+        let entry = (askGroup?["hooks"] as? [[String: Any]])?.first
+        XCTAssertEqual(entry?["timeout"] as? Int, 600)
+    }
+
+    /// The regression the per-script idempotency key exists for: a machine that
+    /// installed before ask.sh existed has emit.sh already wired on PreToolUse.
+    /// Keyed on "anything of ours", that group made the whole event look done
+    /// and the answer hook was silently never added.
+    func testMergeAddsAskHookToSettingsThatAlreadyHaveEmit() {
+        let existing: [String: Any] = [
+            "hooks": ["PreToolUse": [
+                ["matcher": "", "hooks": [["type": "command",
+                  "command": "~/.claude/spinnerfeed/emit.sh PreToolUse"]]]
+            ]]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(commands(merged, "PreToolUse", "emit.sh").count, 1, "not duplicated")
+        XCTAssertEqual(commands(merged, "PreToolUse", "ask.sh").count, 1, "added alongside")
+    }
+
+    /// A group written without a "matcher" key at all — settings.json in the
+    /// wild has both forms — must read as the empty matcher, not as unmatched.
+    func testMergeTreatsMissingMatcherAsEmpty() {
+        let existing: [String: Any] = [
+            "hooks": ["Notification": [
+                ["hooks": [["type": "command",
+                  "command": "~/.claude/spinnerfeed/emit.sh Notification"]]]
+            ]]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(commands(merged, "Notification", "emit.sh").count, 1, "must not duplicate")
+    }
+
+    func testMergeIsIdempotentForTheAnswerHooks() {
+        let once = SetupInstaller.mergeSpinnerHooks(into: [:])
+        let twice = SetupInstaller.mergeSpinnerHooks(into: once)
+        XCTAssertEqual(commands(twice, "PreToolUse", "ask.sh").count, 1)
+        XCTAssertEqual(commands(twice, "PermissionRequest", "ask.sh").count, 1)
     }
 
     // MARK: - SetupInstaller.copyExecutable (script replacement)
@@ -1201,4 +2134,559 @@ final class claude_spinnerTests: XCTestCase {
         // The statusLine feed carries a percentage but no resets_at.
         XCTAssertEqual(FeedWatcher.usageTitle(pct: 70, countdown: nil), "5h 70%")
     }
+
+    // MARK: - Git parsing
+
+    func testPorcelainCountsWorktreeStagedAndUntrackedSeparately() {
+        // " M" worktree-only, "M " staged-only, "MM" both, "??" untracked.
+        let out = " M a.swift\nM  b.swift\nMM c.swift\n?? d.swift\n?? e.swift\n"
+        let r = GitParse.porcelain(out)
+        XCTAssertEqual(r.dirty, 2)      // a and c
+        XCTAssertEqual(r.staged, 2)     // b and c
+        XCTAssertEqual(r.untracked, 2)  // d and e
+    }
+
+    func testPorcelainOfACleanTreeIsAllZero() {
+        // The known-good input: an empty porcelain must not be read as anything
+        // but clean, or every clean repo would look busy.
+        let r = GitParse.porcelain("")
+        XCTAssertEqual(r.dirty, 0)
+        XCTAssertEqual(r.staged, 0)
+        XCTAssertEqual(r.untracked, 0)
+    }
+
+    func testLsRemoteMatchesTheRefExactlyNotBySuffix() {
+        let out = "aaa111\trefs/heads/feature/main\nbbb222\trefs/heads/main\n"
+        // A suffix match would return aaa111 here, because it comes first.
+        XCTAssertEqual(GitParse.lsRemote(out, branch: "main"), "bbb222")
+        XCTAssertEqual(GitParse.lsRemote(out, branch: "feature/main"), "aaa111")
+    }
+
+    func testLsRemoteReturnsNilWhenTheBranchIsAbsent() {
+        XCTAssertNil(GitParse.lsRemote("aaa111\trefs/heads/main\n", branch: "nope"))
+    }
+
+    func testSyncStatesCoverEveryBranchOfTheDecision() {
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: false,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .noUpstream)
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "a", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: true,
+                                     aheadCount: 0), .inSync)
+        // The remote SHA isn't in this clone: how far behind is unknowable
+        // without fetching, so it must not be rendered as a number.
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .remoteAhead)
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: true,
+                                     aheadCount: 3), .ahead(3))
+        XCTAssertEqual(GitParse.sync(local: "a", remote: "b", hasUpstream: true,
+                                     haveRemoteObject: true, remoteIsAncestor: false,
+                                     aheadCount: 0), .diverged)
+    }
+
+    func testSyncIsUnknownWhenTheRemoteReadFailed() {
+        // A failed ls-remote must render as unknown, never as in-sync. Defaulting
+        // an unread value to "everything matches" is the fabricated-empty failure.
+        XCTAssertEqual(GitParse.sync(local: "a", remote: nil, hasUpstream: true,
+                                     haveRemoteObject: false, remoteIsAncestor: false,
+                                     aheadCount: 0), .unknown)
+    }
+
+    func testPRJSONParsesEachState() {
+        func parse(_ json: String) -> PRState? { GitParse.pr(json: Data(json.utf8)) }
+        XCTAssertEqual(parse(#"{"number":7,"state":"OPEN","isDraft":false,"url":"u"}"#),
+                       .open(number: 7, url: "u", draft: false))
+        XCTAssertEqual(parse(#"{"number":7,"state":"OPEN","isDraft":true,"url":"u"}"#),
+                       .open(number: 7, url: "u", draft: true))
+        XCTAssertEqual(parse(#"{"number":8,"state":"MERGED","isDraft":false,"url":"u"}"#),
+                       .merged(number: 8, url: "u"))
+        XCTAssertEqual(parse(#"{"number":9,"state":"CLOSED","isDraft":false,"url":"u"}"#),
+                       .closed(number: 9, url: "u"))
+        XCTAssertNil(parse("not json"))
+    }
+
+    func testGhFailureTellsNoPRApartFromUnreachable() {
+        // The known-bad: gh naming the absence in its own words.
+        XCTAssertEqual(GitParse.prFailure(stderr: "no pull requests found for branch \"x\""),
+                       PRState.none)
+        // The known-good pair: every other failure must stay unknown, because a
+        // 404 and a dead network are the same exit code.
+        XCTAssertEqual(GitParse.prFailure(stderr: "error connecting to api.github.com"),
+                       PRState.unknown)
+        XCTAssertEqual(GitParse.prFailure(stderr: "gh: authentication required"),
+                       PRState.unknown)
+    }
+
+    // MARK: - Git action availability
+
+    private func snap(branch: String? = "feat",
+                      dirty: Int = 0, staged: Int = 0, untracked: Int = 0,
+                      sync: SyncState = .ahead(2),
+                      pr: PRState = .none,
+                      defaultBranch: Bool = false,
+                      detached: Bool = false,
+                      merge: MergeReadiness = MergeReadiness(),
+                      ghInstalled: Bool = true) -> GitSnapshot {
+        var s = GitSnapshot()
+        s.branch = branch; s.dirty = dirty; s.staged = staged; s.untracked = untracked
+        s.sync = sync; s.pr = pr; s.isDefaultBranch = defaultBranch; s.detached = detached
+        s.merge = merge; s.ghInstalled = ghInstalled
+        return s
+    }
+
+    /// A PR that GitHub says is genuinely ready. The known-GOOD input: without
+    /// it the merge tests below can't tell a gate that works from one that
+    /// always blocks.
+    private func mergeable(_ number: Int = 3) -> GitSnapshot {
+        snap(pr: .open(number: number, url: "u", draft: false),
+             merge: MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "APPROVED"))
+    }
+
+
+    // MARK: - Per-session context history
+
+    private func samples(_ pairs: [(Int, Double)]) -> [ContextSample] {
+        pairs.map { ContextSample(tokens: $0.0, at: $0.1) }
+    }
+
+    /// The known-GOOD case first: a real gap and a real change appends.
+    func testAContextSampleIsAppendedWhenTheCountMovesAfterTheGap() {
+        let out = FeedWatcher.appending(tokens: 200, at: 100, to: samples([(100, 0)]))
+        XCTAssertEqual(out, samples([(100, 0), (200, 100)]))
+    }
+
+    /// An unchanged count appends nothing. Sampling it would fill the buffer with
+    /// a flat line during an idle session and push out the part of the curve that
+    /// has something to say.
+    func testAnUnchangedContextCountAppendsNothing() {
+        let existing = samples([(100, 0)])
+        XCTAssertEqual(FeedWatcher.appending(tokens: 100, at: 9_999, to: existing), existing)
+    }
+
+    /// Inside the gap the newest value replaces the last point rather than being
+    /// dropped. Dropping it would hold a stale token count on screen through a
+    /// fast-moving turn, and the count is what the chart is about.
+    func testAChangeInsideTheGapCorrectsTheLastPointInPlace() {
+        let out = FeedWatcher.appending(tokens: 175, at: 5, to: samples([(100, 0)]))
+        XCTAssertEqual(out, samples([(175, 0)]), "timestamp stays, value updates")
+    }
+
+    func testTheFirstSampleIsAlwaysTaken() {
+        XCTAssertEqual(FeedWatcher.appending(tokens: 42, at: 0, to: []), samples([(42, 0)]))
+    }
+
+    func testTheContextBufferIsCappedAndDropsTheOldestFirst() {
+        var buffer: [ContextSample] = []
+        for i in 0..<(Constants.contextHistoryMax + 30) {
+            buffer = FeedWatcher.appending(tokens: i + 1, at: Double(i) * 60, to: buffer)
+        }
+        XCTAssertEqual(buffer.count, Constants.contextHistoryMax)
+        XCTAssertEqual(buffer.last?.tokens, Constants.contextHistoryMax + 30)
+        XCTAssertEqual(buffer.first?.tokens, 31, "the oldest points go, not the newest")
+    }
+
+    func testAContextBufferSurvivesACodingRoundTrip() {
+        let original = ["a": samples([(1, 0), (2, 60)])]
+        let data = try! JSONEncoder().encode(original)
+        XCTAssertEqual(try! JSONDecoder().decode([String: [ContextSample]].self, from: data),
+                       original)
+    }
+
+    // MARK: - Context chart geometry
+
+    func testContextPointsAreScaledByTimeNotByIndex() {
+        // Two minutes of work, then a twenty-minute silence, then one more point.
+        // Index spacing would draw the silence as one ordinary step.
+        let points = ContextChart.unitPoints(samples([(0, 0), (50, 120), (100, 1_320)]),
+                                             window: 100)!
+        XCTAssertEqual(points[0].x, 0, accuracy: 0.0001)
+        XCTAssertEqual(points[1].x, 120.0 / 1_320.0, accuracy: 0.0001)
+        XCTAssertEqual(points[2].x, 1, accuracy: 0.0001)
+        XCTAssertLessThan(points[1].x, 0.25, "the idle stretch must dominate the width")
+    }
+
+    /// y is the share of the window, flipped so 0 is the top of the box.
+    func testContextPointsAreScaledToTheWindowAndClamped() {
+        let points = ContextChart.unitPoints(
+            samples([(0, 0), (50_000, 10), (400_000, 20)]), window: 200_000)!
+        XCTAssertEqual(points[0].y, 1, accuracy: 0.0001)
+        XCTAssertEqual(points[1].y, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(points[2].y, 0, accuracy: 0.0001, "over the window clamps, never draws above")
+    }
+
+    /// A compaction is a cliff, and the cliff is the point of the chart.
+    func testACompactionDropsTheLineRatherThanBeingSmoothed() {
+        let points = ContextChart.unitPoints(
+            samples([(180_000, 0), (190_000, 60), (12_000, 120)]), window: 200_000)!
+        XCTAssertEqual(points[1].y, 0.05, accuracy: 0.0001)
+        XCTAssertEqual(points[2].y, 0.94, accuracy: 0.0001)
+    }
+
+    func testAContextChartNeedsTwoPointsAndAWindow() {
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0)]), window: 100),
+                     "one sample is a dot, not a trend")
+        XCTAssertNil(ContextChart.unitPoints([], window: 100))
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0), (2, 1)]), window: nil),
+                     "no window is no scale; an invented one makes every session look full")
+        XCTAssertNil(ContextChart.unitPoints(samples([(1, 0), (2, 1)]), window: 0))
+    }
+
+    /// Samples that share a timestamp would divide by zero on the span.
+    func testIdenticalTimestampsFallBackToEvenSpacing() {
+        let points = ContextChart.unitPoints(samples([(0, 7), (50, 7), (100, 7)]), window: 100)!
+        XCTAssertEqual(points.map(\.x), [0, 0.5, 1])
+    }
+
+    // MARK: - Blocked, and whether that is the final answer
+
+    /// The flag the whole action row is drawn from. A settled block hides its
+    /// button; an unsettled one keeps it on screen with the reason showing. Get
+    /// this backwards and "couldn't reach GitHub" silently removes the control.
+    func testOnlyFinishedAnswersAreSettled() {
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .inSync))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(sync: .inSync))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(
+            .createPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false)))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .none))?.settled, true)
+
+        // Every "we couldn't tell" stays visible.
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(sync: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .unknown))?.settled, false)
+        XCTAssertEqual(GitActions.unavailableReason(.createPR, snapshot: snap(pr: .unknown))?.settled, false)
+        // Diverged is settled as a fact but needs a person, and hiding the
+        // button would hide the only place that says so.
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .diverged))?.settled, false)
+    }
+
+    func testAMissingGHBlamesGHAndNotTheNetwork() {
+        let s = snap(pr: .unknown, ghInstalled: false)
+        for action in [GitAction.openPR, .createPR, .merge] {
+            let block = GitActions.unavailableReason(action, snapshot: s)
+            XCTAssertEqual(block?.settled, false)
+            XCTAssertTrue(block?.reason.contains("gh CLI") == true,
+                          "\(action.title) must name gh, not the network")
+        }
+        // Purely local actions are unaffected by gh being absent.
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .ahead(1), ghInstalled: false)))
+    }
+
+    // MARK: - Merge
+
+    func testMergeIsOfferedOnlyForAPRGitHubCallsReady() {
+        XCTAssertNil(GitActions.unavailableReason(.merge, snapshot: mergeable()))
+    }
+
+    func testMergeRefusesEveryStateGitHubCallsUnready() {
+        // Not `PRState?`. `PRState` has a case called `none`, so an optional
+        // parameter reads `.none` as nil and the case quietly tests the default
+        // instead of the state it names.
+        func blocked(_ m: MergeReadiness,
+                     _ pr: PRState = .open(number: 3, url: "u", draft: false)) -> GitActions.Block? {
+            GitActions.unavailableReason(.merge, snapshot: snap(pr: pr, merge: m))
+        }
+        // Conflicts, failing checks, behind, and protected are all final.
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "CONFLICTING", state: "DIRTY", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "UNSTABLE", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BEHIND", review: "APPROVED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BLOCKED", review: "APPROVED"))?.settled, true)
+        // Reviews.
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "BLOCKED", review: "REVIEW_REQUIRED"))?.settled, true)
+        XCTAssertEqual(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "CHANGES_REQUESTED"))?.settled, true)
+        // A draft, and a PR that isn't open.
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "DRAFT", review: ""),
+                                .open(number: 3, url: "u", draft: true)))
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: ""), .none))
+        XCTAssertNotNil(blocked(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: ""),
+                                .merged(number: 3, url: "u")))
+    }
+
+    /// The half that isn't a refusal. Mergeability GitHub hasn't computed yet
+    /// must not read as a refusal -- it is an absent answer, and the button has
+    /// to stay on screen saying so.
+    func testUncomputedMergeabilityIsNotARefusal() {
+        let pending = snap(pr: .open(number: 3, url: "u", draft: false),
+                           merge: MergeReadiness(mergeable: "UNKNOWN", state: "UNKNOWN", review: ""))
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: pending)?.settled, false)
+
+        let noFields = snap(pr: .open(number: 3, url: "u", draft: false))
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: noFields)?.settled, false)
+    }
+
+    func testMergeNamesItsMethodAndCleanupExplicitly() {
+        // `gh pr merge` with no method prompts, and a subprocess with no
+        // terminal would sit there until the timeout.
+        XCTAssertEqual(GitActions.command(.merge, snapshot: mergeable())?.args,
+                       ["pr", "merge", "--squash", "--delete-branch"])
+        XCTAssertTrue(GitAction.merge.confirmation?.contains("delete the branch") == true)
+    }
+
+    func testMergeReadinessParsesGHsFieldsAndToleratesTheirAbsence() {
+        let full = #"{"number":3,"state":"OPEN","isDraft":false,"url":"u","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED"}"#
+        let r = GitParse.mergeReadiness(json: Data(full.utf8))
+        XCTAssertEqual(r.mergeable, "MERGEABLE")
+        XCTAssertEqual(r.state, "CLEAN")
+        XCTAssertEqual(r.review, "APPROVED")
+        XCTAssertEqual(r.label, "checks passing, approved")
+
+        // An older gh, or a repo the token can't see merge state for: the
+        // fields are simply absent, which must stay nil rather than default.
+        let bare = GitParse.mergeReadiness(json: Data(#"{"number":3,"state":"OPEN"}"#.utf8))
+        XCTAssertNil(bare.mergeable)
+        XCTAssertNil(bare.state)
+        XCTAssertNil(bare.label)
+    }
+
+    // MARK: - Freshness
+
+    func testAgeIsNilUntilSomethingHasActuallyBeenRead() {
+        let now = Date()
+        XCTAssertNil(StatFormat.age(.distantPast, now: now))
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-3), now: now), "3s ago")
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-90), now: now), "1m ago")
+        XCTAssertEqual(StatFormat.age(now.addingTimeInterval(-7200), now: now), "2h ago")
+    }
+
+    /// A failed GitHub read used to render as no row at all, which looks exactly
+    /// like a branch that has no PR.
+    func testAnUnreadablePRStillDrawsARow() {
+        XCTAssertEqual(PRState.unknown.label, "unknown")
+        XCTAssertEqual(PRState.none.label, "none")
+    }
+
+    func testPullRefusesADirtyTreeAndAllowsACleanOne() {
+        // The pair that proves the guard fires rather than always firing.
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(dirty: 1, sync: .remoteAhead)))
+        XCTAssertNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(sync: .remoteAhead)))
+    }
+
+    func testPullNeverOffersToReconcileADivergedBranch() {
+        XCTAssertNotNil(GitActions.unavailableReason(.pull, snapshot: snap(sync: .diverged)))
+    }
+
+    /// Untracked files must never gate Pull. Filed as "Pull is disabled by
+    /// untracked files" off a tooltip read while the tree also had a tracked
+    /// edit; the gate only ever saw tracked changes. Pinned in the direction the
+    /// report got wrong, so the misreading can't be re-introduced as a fix.
+    func testPullIgnoresUntrackedFiles() {
+        XCTAssertNil(GitActions.unavailableReason(
+            .pull, snapshot: snap(untracked: 40, sync: .remoteAhead)))
+    }
+
+    /// A dirty tree with nothing to pull has to say so. "Commit or stash them
+    /// first" reads as a promise that Pull unlocks afterwards, and it does not.
+    func testPullReasonNamesTheSyncStateBeforeTheDirtyTree() {
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(dirty: 1, sync: .inSync))?.reason,
+                       "Already up to date with the remote.")
+        XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(staged: 1, sync: .ahead(2)))?.reason,
+                       "Nothing to pull; this branch is ahead of the remote.")
+    }
+
+    func testPushIsOfferedWhenAheadAndRefusedWhenBehindOrDiverged() {
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .ahead(1))))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .remoteAhead)))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .diverged)))
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .inSync)))
+    }
+
+    func testPushIsOfferedForABranchThatHasNoUpstreamYet() {
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap(sync: .noUpstream)))
+    }
+
+    func testFirstPushSetsTheUpstreamAndLaterPushesDoNot() {
+        let cmd = GitActions.command(.push, snapshot: snap(sync: .noUpstream))
+        XCTAssertEqual(cmd?.args, ["push", "--set-upstream", "origin", "feat"])
+        XCTAssertEqual(GitActions.command(.push, snapshot: snap(sync: .ahead(1)))?.args, ["push"])
+    }
+
+    func testPullIsAlwaysFastForwardOnly() {
+        // The whole safety story of the button. If this argument ever goes
+        // missing, Pull silently becomes a merge or a rebase.
+        XCTAssertEqual(GitActions.command(.pull, snapshot: snap(sync: .remoteAhead))?.args,
+                       ["pull", "--ff-only"])
+    }
+
+    func testCreatePRIsRefusedOnTheDefaultBranchAndWhenOneIsOpen() {
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .createPR, snapshot: snap(branch: "main", defaultBranch: true)))
+        XCTAssertNotNil(GitActions.unavailableReason(
+            .createPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false))))
+        XCTAssertNil(GitActions.unavailableReason(.createPR, snapshot: snap()))
+    }
+
+    func testCreatePRWaitsWhenGitHubCouldNotBeReached() {
+        // Unknown is not none. Offering to create a second PR because the first
+        // couldn't be seen is the "not found is not absence" failure.
+        XCTAssertNotNil(GitActions.unavailableReason(.createPR, snapshot: snap(pr: .unknown)))
+    }
+
+    func testOpenPRNeedsAnActualPR() {
+        XCTAssertNotNil(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .none)))
+        XCTAssertNotNil(GitActions.unavailableReason(.openPR, snapshot: snap(pr: .unknown)))
+        XCTAssertNil(GitActions.unavailableReason(
+            .openPR, snapshot: snap(pr: .open(number: 3, url: "u", draft: false))))
+    }
+
+    func testDetachedHeadOffersNeitherPushNorPR() {
+        let d = snap(branch: nil, detached: true)
+        XCTAssertNotNil(GitActions.unavailableReason(.push, snapshot: d))
+        XCTAssertNotNil(GitActions.unavailableReason(.createPR, snapshot: d))
+    }
+
+    func testOnlyOpenPRSkipsConfirmation() {
+        XCTAssertNil(GitAction.openPR.confirmation)
+        for action in [GitAction.push, .createPR, .pull, .merge] {
+            XCTAssertNotNil(action.confirmation, "\(action.title) must confirm first")
+        }
+    }
+
+    func testFirstLineSkipsBlankLeadingOutput() {
+        XCTAssertEqual(GitActions.firstLine("\n\n  Everything up-to-date\nnoise\n"),
+                       "Everything up-to-date")
+        XCTAssertNil(GitActions.firstLine("   \n\n"))
+    }
+
+    func testACleanSnapshotIsNotDirty() {
+        XCTAssertFalse(snap().isDirty)
+        XCTAssertTrue(snap(dirty: 1).isDirty)
+        XCTAssertTrue(snap(staged: 1).isDirty)
+        // Untracked alone is not dirt: a deny-by-default ignore file leaves a
+        // permanent untracked population that must not read as work in progress.
+        var untrackedOnly = snap()
+        untrackedOnly.untracked = 22
+        XCTAssertFalse(untrackedOnly.isDirty)
+    }
+
+    // MARK: - Git probe, end to end
+
+    /// Everything above tests parsers against canned strings, which cannot tell
+    /// a working probe from one that never runs a command. This builds a real
+    /// repository and reads it, so the subprocess plumbing -- cwd, PATH, the
+    /// pipe draining -- is exercised rather than assumed. No network: a repo
+    /// with no remote settles on `.noUpstream`.
+    func testProbeReadsARealRepositoryOnDisk() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("spinner-git-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.path
+
+        func git(_ args: [String]) throws {
+            let r = GitProbe.run("/usr/bin/git", args, in: path)
+            let status = try XCTUnwrap(r?.status, "git \(args.first ?? "") did not run")
+            XCTAssertEqual(status, 0, "git \(args.joined(separator: " ")): \(r?.err ?? "")")
+        }
+
+        try git(["init", "--initial-branch=trunk"])
+        try git(["config", "user.email", "t@example.com"])
+        try git(["config", "user.name", "Test"])
+        try "one\n".write(to: root.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        try git(["add", "a.txt"])
+        try git(["commit", "-m", "first"])
+
+        // One tracked modification, one staged addition, one untracked file --
+        // so a probe that merely returns an empty snapshot cannot pass.
+        try "two\n".write(to: root.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        try "b\n".write(to: root.appendingPathComponent("b.txt"), atomically: true, encoding: .utf8)
+        try git(["add", "b.txt"])
+        try "c\n".write(to: root.appendingPathComponent("c.txt"), atomically: true, encoding: .utf8)
+
+        let probed = await GitProbe.shared.snapshot(for: path)
+        let snap = try XCTUnwrap(probed, "probe returned nil for a real repository")
+        XCTAssertEqual(snap.branch, "trunk")
+        XCTAssertFalse(snap.detached)
+        XCTAssertEqual(snap.dirty, 1)
+        XCTAssertEqual(snap.staged, 1)
+        XCTAssertEqual(snap.untracked, 1)
+        XCTAssertTrue(snap.isDirty)
+        XCTAssertEqual(snap.sync, .noUpstream)
+        // Dirty plus no upstream: Pull must refuse, Push must be offered.
+        XCTAssertNotNil(GitActions.unavailableReason(.pull, snapshot: snap))
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap))
+    }
+
+    /// The other half of the pair: a directory that is not a repository must
+    /// produce nil, so the detail pane drops the section instead of drawing
+    /// a row of unknowns. Without this, a probe that returns an empty snapshot
+    /// for everything would pass the test above.
+    func testProbeReturnsNilForADirectoryThatIsNotARepository() async {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("spinner-nogit-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snap = await GitProbe.shared.snapshot(for: root.path)
+        XCTAssertNil(snap)
+    }
+
+    // MARK: - Resting evidence
+
+    private func resting(status: SessionStatus = .idle,
+                         notification: String? = nil,
+                         total: Int? = nil, done: Int? = nil,
+                         updated: Date? = Date(timeIntervalSinceNow: -120)) -> SessionFeed {
+        var s = SessionFeed(id: "r")
+        s.status = status
+        s.notificationType = notification
+        s.todoTotal = total
+        s.todoDone = done
+        s.updated = updated
+        return s
+    }
+
+    func testRestingEvidenceLeadsWithOpenTodos() {
+        let s = resting(total: 8, done: 5)
+        XCTAssertEqual(s.restingEvidence(now: Date()), "3 todos open · idle 2m 0s")
+    }
+
+    func testRestingEvidenceSaysOneTodoInTheSingular() {
+        XCTAssertEqual(resting(total: 4, done: 3).restingEvidence(now: Date()),
+                       "1 todo open · idle 2m 0s")
+    }
+
+    func testRestingEvidenceReportsAFullyDoneList() {
+        XCTAssertEqual(resting(total: 5, done: 5).restingEvidence(now: Date()),
+                       "5/5 todos · idle 2m 0s")
+    }
+
+    func testRestingEvidenceOmitsTodosWhenNoneWereRecorded() {
+        XCTAssertEqual(resting().restingEvidence(now: Date()), "idle 2m 0s")
+    }
+
+    func testRestingEvidenceOmitsAgeRatherThanInventingZero() {
+        // No stamp in the feed. "idle 0s" would read as "just now" for a session
+        // last seen an hour ago -- a value fabricated from a missing read.
+        XCTAssertEqual(resting(total: 3, done: 1, updated: nil).restingEvidence(now: Date()),
+                       "2 todos open")
+        XCTAssertNil(resting(updated: nil).restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceIsNilForAWorkingSession() {
+        XCTAssertNil(resting(status: .thinking).restingEvidence(now: Date()))
+        XCTAssertNil(resting(status: .tool).restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceIsNilWhenSomethingIsActuallyBlockedOnYou() {
+        // The known-bad input: a real permission prompt is not resting.
+        XCTAssertNil(resting(status: .attention, notification: "permission_prompt")
+            .restingEvidence(now: Date()))
+    }
+
+    func testRestingEvidenceStillFiresForTheSixtySecondIdleNudge() {
+        // The known-good pair for the guard above. idle_prompt means the turn
+        // ended and nobody typed, which is precisely a resting session -- without
+        // this case, a guard that always returned nil would pass the test above.
+        XCTAssertEqual(resting(status: .attention, notification: "idle_prompt")
+            .restingEvidence(now: Date()), "idle 2m 0s")
+    }
+
+    func testPanelDropsTodosBecauseTheBarAlreadyDrawsThem() {
+        XCTAssertEqual(resting(total: 8, done: 5).restingEvidence(now: Date(),
+                                                                 includeTodos: false),
+                       "idle 2m 0s")
+    }
+
 }

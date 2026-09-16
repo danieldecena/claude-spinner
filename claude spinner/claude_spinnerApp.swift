@@ -9,6 +9,7 @@ import SwiftUI
 import AppKit
 import Combine
 import UserNotifications
+import os.log
 
 @main
 struct claude_spinnerApp: App {
@@ -43,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// otherwise unreachable; .regular gives the app a real menu bar to hang it on.
     private var spinnerMenuItem: NSMenuItem?
     private var titleObserver: AnyCancellable?
+    /// Prompts a blocked `ask.sh` is waiting on, and the only writer of the
+    /// answers it reads back.
+    private let asks = AskInbox.shared
+    private var askObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Single instance: a second copy exits immediately.
@@ -56,12 +61,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // register the "Focus session" action so its button appears on the alert.
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let focus = UNNotificationAction(identifier: NotificationConfig.focusAction,
-                                         title: "Focus session", options: [.foreground])
-        let category = UNNotificationCategory(identifier: NotificationConfig.attentionCategory,
-                                              actions: [focus], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([category])
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center.requestAuthorization(options: [.alert, .sound]) { [asks] granted, error in
+            // Public on purpose. NSLog's Swift bridge redacts interpolated values
+            // to <private>, and this line is the one that separates "posted but
+            // not presented" from "never posted" — the two look identical from
+            // add()'s error, which is nil either way.
+            os_log("claude spinner: authorization granted=%{public}d error=%{public}@",
+                   granted ? 1 : 0, error?.localizedDescription ?? "none")
+            asks.refreshAuthorization()
+        }
+        registerCategories(for: asks.pending)
+
+        // Every pending ask contributes its own category, because the buttons are
+        // that request's option labels. Re-register on each change rather than at
+        // launch: `setNotificationCategories` replaces the whole set, so the
+        // static one has to be rebuilt alongside them every time.
+        askObserver = asks.$pending.sink { [weak self] pending in
+            self?.registerCategories(for: pending)
+            self?.postAskNotifications(pending)
+        }
 
         popover.behavior = .transient
         popover.animates = true
@@ -115,6 +133,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @objc private func screenParametersChanged() { showWindowIfStatusItemUnplaced() }
 
+    /// Authorization is otherwise read once, at launch. The notice's own button
+    /// sends you to System Settings to change it, so leaving the read at launch
+    /// means the notice goes on claiming notifications are off for the rest of
+    /// the session -- on the one path the notice itself creates. Coming back to
+    /// the app is the moment that read is worth taking again.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        asks.refreshAuthorization()
+    }
+
     /// The status item's window frame and the frame of the screen holding it.
     /// `nil` when either is missing, which the caller reads as unplaced.
     private var statusItemFrames: (item: CGRect, screen: CGRect)? {
@@ -150,8 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             NSApp.setActivationPolicy(.regular)
         }
         if mainWindow == nil {
-            feed.setPanelWidth(Constants.fittedPanelWidth(
-                visibleWidth: NSScreen.main?.visibleFrame.width))
+
             // Built from a bare NSHostingView rather than a contentViewController.
             // The controller path could not do both halves of "resizable": its
             // default sizingOptions publish the content's size as the window's min
@@ -168,7 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // No outer `.frame(maxWidth/maxHeight: .infinity)`: `fillsWidth` already
             // frees the width inside the panel, and asking for infinity here is what
             // made AppKit open the window at the size of the screen.
-            let hosting = NSHostingView(rootView: MenuContentView(feed: feed, fillsWidth: true))
+            let hosting = NSHostingView(rootView: WindowContentView(feed: feed))
             hosting.autoresizingMask = [.width, .height]
             // The hosting view goes inside a plain container. NSHostingView drives
             // the window's size through its own constraints whichever way its
@@ -176,45 +202,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // A bare NSView has no intrinsic size and no constraints, so the window
             // is free and the hosting view just follows it via the autoresize mask.
             let container = NSView(frame: NSRect(x: 0, y: 0,
-                                                 width: Constants.panelWidth, height: Constants.panelDefaultHeight))
+                                                 width: Constants.windowDefaultWidth,
+                                                 height: Constants.windowDefaultHeight))
             hosting.frame = container.bounds
             container.addSubview(hosting)
 
             let w = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: Constants.panelWidth, height: Constants.panelDefaultHeight),
+                contentRect: NSRect(x: 0, y: 0,
+                                    width: Constants.windowDefaultWidth,
+                                    height: Constants.windowDefaultHeight),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered, defer: false)
             w.contentView = container
             // Width has a floor because `RowLayout.columns` subtracts fixed slots
             // from it without a `max(0)` guard, relying on the caller never handing
             // it less than `panelMinWidth`.
-            w.contentMinSize = NSSize(width: Constants.panelMinWidth, height: 160)
+            w.contentMinSize = NSSize(width: Constants.windowMinWidth,
+                                      height: Constants.windowMinHeight)
             // `setFrameAutosaveName` restores a saved frame the instant it is called,
             // so it goes before the default size and the default is applied only when
             // there was nothing to restore. Checking UserDefaults directly is the only
             // way to tell: the call reports whether the NAME was set, not whether a
             // frame came back. Without the explicit size a first run opens at
             // 1904x1050 — the content can fill, so AppKit gives it the screen.
-            let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerPanel") != nil
-            w.setFrameAutosaveName("SpinnerPanel")
+            // Deliberately not "SpinnerPanel". That frame was saved when this
+            // window hosted the popover panel and is sized for a dropdown --
+            // restoring it opens the sidebar-and-detail layout at 360pt wide.
+            // A new name lets the window take its own default once, and keeps
+            // the old key untouched in case the panel ever wants it back.
+            let remembered = UserDefaults.standard.string(forKey: "NSWindow Frame SpinnerWindow") != nil
+            w.setFrameAutosaveName("SpinnerWindow")
             if !remembered {
-                w.setContentSize(NSSize(width: Constants.panelWidth, height: Constants.panelDefaultHeight))
+                w.setContentSize(NSSize(width: Constants.windowDefaultWidth,
+                                        height: Constants.windowDefaultHeight))
                 w.center()
-            } else if let contentSize = w.contentView?.bounds.size,
-                      contentSize.width > Constants.panelWidth || contentSize.height > Constants.panelDefaultHeight {
-                // A remembered size wider/taller than the content's own fit just
-                // opens dead space (rows cap their name column at
-                // RowLayout.maxNameWidth; there's nothing below the footer at
-                // all) -- shrink back to fit on whichever axis overran, keeping
-                // the remembered position.
-                var frame = w.frame
-                if contentSize.width > Constants.panelWidth {
-                    frame.size.width -= contentSize.width - Constants.panelWidth
-                }
-                if contentSize.height > Constants.panelDefaultHeight {
-                    frame.size.height -= contentSize.height - Constants.panelDefaultHeight
-                }
-                w.setFrame(frame, display: false)
             }
             w.isReleasedWhenClosed = false
             w.delegate = self
@@ -222,6 +243,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             startWindowTitleUpdates()
         }
         mainWindow?.makeKeyAndOrderFront(nil)
+        // Nothing is focused on open. Left to AppKit the key loop hands first
+        // responder to the first view that accepts it — the reply field — so
+        // keystrokes aimed anywhere else queue up in a box whose Send types into
+        // a live session.
+        mainWindow?.makeFirstResponder(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -234,9 +260,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// ceiling would silently ignore a window the user dragged wider. The floor is
     /// upheld by `contentMinSize` instead.
     func windowDidResize(_ notification: Notification) {
-        guard (notification.object as AnyObject?) === mainWindow,
-              let width = mainWindow?.contentView?.bounds.width else { return }
-        feed.setPanelWidth(max(Constants.panelMinWidth, width))
+        // Nothing to do. This used to write the dragged width into
+        // `feed.panelWidth`, because the window hosted the popover panel and the
+        // panel pins itself to that value. The window now hosts its own view,
+        // and the popover still needs its own fixed width -- so resizing the
+        // window must no longer reflow the menu-bar dropdown.
     }
 
     /// Closing the window hands the Dock icon back -- but only when there is a
@@ -400,6 +428,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         liveUsage.state = feed.usagePollingEnabled ? .on : .off
         menu.addItem(liveUsage)
 
+        // Off by default: every turn of every session ends, so this is the noisy
+        // one. Attention alerts fire whether or not it's on.
+        let doneAlert = NSMenuItem(title: "Notify when a turn finishes",
+                                   action: #selector(toggleNotifyOnDone), keyEquivalent: "")
+        doneAlert.target = self
+        doneAlert.state = feed.notifyOnDone ? .on : .off
+        menu.addItem(doneAlert)
+
         let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshFeed), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
@@ -428,17 +464,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @objc private func quitApp() { NSApplication.shared.terminate(nil) }
     @objc private func setModeActivity() { feed.menuBarMode = .activity }
     @objc private func setModeUsage() { feed.menuBarMode = .usage }
+    @objc private func toggleNotifyOnDone() { feed.notifyOnDone.toggle() }
     @objc private func setSurfaceMenuBar() { feed.surface = .menuBar }
     @objc private func setSurfaceWindow() { feed.surface = .window }
 
     /// Quit and reopen. A short-lived helper reopens after this instance exits, so
     /// the single-instance guard doesn't reject the new copy.
+    /// The static "Focus session" category plus one per live ask.
+    private func registerCategories(for pending: [AskRequest]) {
+        let focus = UNNotificationAction(identifier: NotificationConfig.focusAction,
+                                         title: "Focus session", options: [.foreground])
+        let attention = UNNotificationCategory(identifier: NotificationConfig.attentionCategory,
+                                               actions: [focus], intentIdentifiers: [], options: [])
+        UNUserNotificationCenter.current()
+            .setNotificationCategories(Set([attention] + AskInbox.categories(for: pending)))
+    }
+
+    /// One banner per pending ask. The request id is the notification id, so a
+    /// rescan that sees the same file again replaces the banner rather than
+    /// stacking a second copy of the same question.
+    private func postAskNotifications(_ pending: [AskRequest]) {
+        for req in pending {
+            let text = AskInbox.notificationText(req)
+            let content = UNMutableNotificationContent()
+            content.title = text.title
+            content.body = text.body
+            content.sound = .default
+            content.categoryIdentifier = AskInbox.categoryID(req.req)
+            // There is a process blocked on this one, on a deadline. That is
+            // what .timeSensitive is for, and it is the difference between an
+            // answer and a five-minute stall behind a Focus filter.
+            content.interruptionLevel = .timeSensitive
+            content.userInfo = ["req": req.req, "cwd": req.cwd, "sessionId": req.sessionId]
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: AskInbox.notificationID(req.req),
+                                      content: content, trigger: nil)
+            ) { error in
+                // A refused authorization makes add() fail silently, which looks
+                // identical to a banner the user simply didn't see. Say which.
+                if let error {
+                    NSLog("claude spinner: ask banner not posted — \(error.localizedDescription)")
+                } else {
+                    NSLog("claude spinner: ask banner posted for \(req.req)")
+                }
+            }
+        }
+        requestAttention()
+    }
+
+    /// Bounce the Dock icon. Only the `window` surface has one to bounce -- the
+    /// app is `LSUIElement` and sits at `.accessory` behind the menu bar, where
+    /// there is no Dock tile and this is deliberately a no-op.
+    private func requestAttention() {
+        guard NSApp.activationPolicy() == .regular else { return }
+        NSApp.requestUserAttention(.criticalRequest)
+    }
+
+    /// A tap on one of an ask's option buttons. Nothing here can assume the hook
+    /// is still listening: it may have hit its deadline while the banner sat on
+    /// screen, in which case `answer` reports false and Claude Code is already
+    /// showing its own prompt in the terminal.
+    private func handleAskResponse(_ response: UNNotificationResponse) -> Bool {
+        guard let parsed = AskInbox.parseAction(response.actionIdentifier),
+              let req = asks.pending.first(where: { $0.req == parsed.req })
+        else { return false }
+
+        if parsed.choice == "focus" {
+            // Going to the session is itself an answer: it says "I'll deal with
+            // this in the terminal", so release the hook instead of leaving it
+            // blocked until the deadline.
+            asks.answer(req, with: .passthrough)
+            SessionLauncher.focus(host: "", pid: nil, cwd: req.cwd)
+            return true
+        }
+        guard let answer = AskInbox.answer(for: parsed.choice, in: req) else { return false }
+        if !asks.answer(req, with: answer) {
+            NSLog("claude spinner: ask \(req.req) expired before it was answered")
+        }
+        asks.rescan()
+        return true
+    }
+
     /// Handle a tap on the attention notification (or its "Focus session" button):
     /// bring the session's host window to the front. Both the default tap and the
     /// explicit action focus — the button just makes the affordance visible.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        if handleAskResponse(response) {
+            completionHandler()
+            return
+        }
         if response.actionIdentifier == NotificationConfig.focusAction
             || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             let host = response.notification.request.content.userInfo["host"] as? String ?? ""
