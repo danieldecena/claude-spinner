@@ -26,22 +26,7 @@ struct MenuContentView: View {
             // Denied authorization makes every banner a no-op that still reports
             // success, so the panel has to say it out loud. macOS has no API to
             // grant this — only System Settings can.
-            if asks.notificationsAllowed == false {
-                HStack(spacing: 6) {
-                    Text("Notifications are off — questions can't reach you.")
-                        .font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 4)
-                    Button("Open Settings") {
-                        if let url = URL(string:
-                            "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                    .font(.claudeMono(11))
-                }
-                .padding(.horizontal, 10).padding(.vertical, 6)
-            }
+            NotificationsNotice()
 
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {

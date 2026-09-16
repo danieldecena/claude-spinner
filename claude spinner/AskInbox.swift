@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import UserNotifications
+import os.log
 
 /// One question option as `ask.sh` copied it out of the tool input.
 struct AskOption: Decodable, Equatable {
@@ -162,10 +163,17 @@ final class AskInbox: ObservableObject {
     }
 
     /// Re-read whether macOS will actually present what we post.
+    ///
+    /// Logged because while the answer stays `false` the re-read changes nothing
+    /// on screen, so a refresh that never runs and one that runs and finds the
+    /// same denial are the same picture. The log line is the only thing that
+    /// separates them.
     func refreshAuthorization() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             let allowed = settings.authorizationStatus == .authorized
                 || settings.authorizationStatus == .provisional
+            os_log("claude spinner: authorization re-read status=%{public}d allowed=%{public}d",
+                   settings.authorizationStatus.rawValue, allowed ? 1 : 0)
             Task { @MainActor [weak self] in self?.notificationsAllowed = allowed }
         }
     }

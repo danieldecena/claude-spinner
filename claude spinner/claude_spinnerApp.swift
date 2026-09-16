@@ -133,6 +133,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @objc private func screenParametersChanged() { showWindowIfStatusItemUnplaced() }
 
+    /// Authorization is otherwise read once, at launch. The notice's own button
+    /// sends you to System Settings to change it, so leaving the read at launch
+    /// means the notice goes on claiming notifications are off for the rest of
+    /// the session -- on the one path the notice itself creates. Coming back to
+    /// the app is the moment that read is worth taking again.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        asks.refreshAuthorization()
+    }
+
     /// The status item's window frame and the frame of the screen holding it.
     /// `nil` when either is missing, which the caller reads as unplaced.
     private var statusItemFrames: (item: CGRect, screen: CGRect)? {

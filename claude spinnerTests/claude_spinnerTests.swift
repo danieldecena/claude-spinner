@@ -166,6 +166,26 @@ final class claude_spinnerTests: XCTestCase {
                        "exit 2 reads as a deny on PreToolUse — the fallback must be exit 0")
     }
 
+    /// Both surfaces must draw the shared notices, and neither is reachable from
+    /// the other: the panel needs a status item, the window needs `surface =
+    /// window`. `SetupBanner` was already stranded in the panel once and
+    /// `NotificationsNotice` after it, so this asserts the source of each view
+    /// names both rather than waiting for the third time.
+    func testBothSurfacesDrawTheSharedNotices() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()               // claude spinnerTests/
+            .deletingLastPathComponent()                // repo root
+            .appendingPathComponent("claude spinner")
+        for surface in ["MenuContentView.swift", "WindowContentView.swift"] {
+            let source = try String(contentsOf: root.appendingPathComponent(surface), encoding: .utf8)
+            XCTAssertTrue(source.contains("NotificationsNotice()"),
+                          "\(surface) never says notifications are off — on that surface "
+                          + "every banner is a silent no-op with nothing on screen to say so")
+            XCTAssertTrue(source.contains("SetupBanner("),
+                          "\(surface) offers no way to install the hooks")
+        }
+    }
+
     func testHookEventsIncludeSubagentLifecycle() {
         XCTAssertTrue(SetupInstaller.hookEvents.contains("SubagentStart"))
         XCTAssertTrue(SetupInstaller.hookEvents.contains("SubagentStop"))

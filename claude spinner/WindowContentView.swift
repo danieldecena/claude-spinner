@@ -50,6 +50,9 @@ struct WindowContentView: View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 OverviewStrip(overview: feed.overview, history: feed.usageHistory)
+                // Same reason the panel carries it: without this the window
+                // surface answers questions fine and silently never rings.
+                NotificationsNotice()
                 if !feed.isSetupInstalled {
                     Divider()
                     SetupBanner(feed: feed, install: install)
