@@ -10,9 +10,10 @@
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
 
-- [ ] [you] Confirm the context CHART renders -- the meter was observed 2026-09-15
-  (10%, 103,685 tokens); the chart below it was not, and needs a session with
-  several samples to tell "flat" from "not drawing"
+- [ ] [you] Confirm a SLOPED context line renders -- every session on this machine
+  is Opus 1M and none has passed ~18%, so the flat-crawl case is the only one ever
+  drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
+  session) to see the line climb on screen
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
@@ -21,6 +22,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Confirm the context CHART renders -- observed 2026-09-15, no commit (hand-check)
 - [x] Add FeedWatcher.projectSections with stable, non-ticking ordering -- fa8d2b0
 - [x] Group the window sidebar by project -- fa8d2b0
 - [x] Group the menu-bar panel by project -- fa8d2b0

@@ -16,7 +16,14 @@
   they mean the same thing: how close this session is to needing a compact, and
   how fast it got there. Behind them is the app's first per-session time series
   -- `contextHistory`, sampled on each rescan, only when the count actually
-  moves, capped at 240 points and dropped when the session goes away.
+  moves, capped at 240 points and dropped when the session goes away. Both
+  observed on screen 2026-09-15 against `fix-dock-passwords-icon` (24 samples,
+  98,834 -> 160,939 on a 1M window): the meter fills ~16% and the chart draws a
+  1.5pt line with its tinted area fill, flat along the floor. Flat is correct
+  there, not a failure -- 0.099 to 0.157 of a 1M window is a 1.6pt rise inside a
+  28pt frame. What separates "flat" from "not drawing" is the *absence* of the
+  `no context history yet` fallback text, which is what `ContextTrend` renders
+  when `unitPoints` returns nil.
 - Six session actions under the reply field: Interrupt, Compact and Clear
   through the tmux pane, Reveal folder / Open transcript / Copy session id
   locally. Each is enabled or carries a stated reason.
@@ -139,6 +146,28 @@ unobserved and are named in the decision log: the unreadable-remote rendering
 from the Git work, and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-15 (context chart observed; two surfacing gaps)
+- Observed: the context chart draws. Window surface, `fix-dock-passwords-icon`,
+  24 persisted samples reloaded from `UserDefaults` at launch. Line and area
+  both present; shape is a flat crawl along the floor.
+- Decided: read the chart's liveness off the fallback, not the slope. Every
+  session on this machine is Opus 1M and none has passed ~18%, so a correct
+  chart and a dead one both look flat. `ContextTrend` renders the literal text
+  `no context history yet` when `ContextChart.unitPoints` returns nil, so that
+  string's absence is the observation; the slope is not. A visibly climbing line
+  stays unobserved and needs a session past ~50% of its window.
+- Found: two things are only reachable from a surface you may not be on. The
+  notifications-denied notice lives in `MenuContentView` alone, so in Window
+  mode (the current setting) there is no readout of the very state that is the
+  top open task. Same shape for the placed-status-item round-trip, which cannot
+  start until `Show in` is flipped back to Menu bar -- `lsappinfo` reads
+  `type="Foreground"` in Window mode because no status item is ever created.
+- Found: `showMainWindow()` opens the window at launch but does not raise it. A
+  relaunch left the window behind a full-screen-ish terminal, and
+  `tell application id ... to activate` did not bring it forward; only
+  `System Events` + `AXRaise` did. Mistook that for "the window never opened"
+  until the AX window list showed it at 816,55 all along.
 
 ### 2026-09-15 (CI had never run; project grouping; icon)
 - Found: PR #3's red check was never a test failure. `gh api
