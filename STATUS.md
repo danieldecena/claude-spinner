@@ -51,8 +51,16 @@
   2026-08-12.
 - First-run one-click installer (Install hooks button) writes the scripts and
   back-up-then-merges the hooks/statusLine into settings.json.
-- CI: 193 unit tests green; runs on a self-hosted runner (project is Xcode 27
-  format 110, which GitHub-hosted runners can't open).
+- CI actually runs now: 221 unit tests green on a self-hosted macOS runner
+  registered 2026-09-15 (`~/Tools/actions-runner`, kept alive by the LaunchAgent
+  `svc.sh install` wrote). Before that no runner had ever been registered, so
+  every run queued until GitHub cancelled it at the 24h await-runner limit.
+  GitHub-hosted images are not an option on this account: they refuse jobs
+  outright over a billing block. See the 2026-09-15 decision log.
+- Both session lists group by project, with anything blocked on a person pinned
+  above. Section headers carry the session count and the section's context
+  added up (untinted -- separate windows, so a summed 210k is not one session's
+  210k). Sidebar observed on screen 2026-09-15.
 - Which surface the app presents is a choice, not luck. `Show in` (Menu bar /
   Window, persisted, default Menu bar) sits in the settings menu; Window creates
   no status item at all, Menu bar keeps the automatic window fallback.
@@ -122,14 +130,56 @@
 
 ## Next Up
 
-All three `[code]` gaps the 2026-09-04 runtime verification found are closed,
-and so is the Git card rework below. What is left is two hand-checks, both
-`[you]` in `TASKS.md`: allowing notifications in System Settings, and the
-placed-status-item policy round-trip (not scriptable — see the 2026-08-12
-decision log). One runtime case from the Git work also stayed unobserved: the
-unreadable-remote rendering, noted in the decision log.
+CI runs for real now and the session lists group by project. What is left is
+three hand-checks, all `[you]` in `TASKS.md`: allowing notifications in System
+Settings, the placed-status-item policy round-trip (not scriptable — see the
+2026-08-12 decision log), and the context chart against a session with several
+samples (the meter was seen; the chart was not). Two runtime cases stayed
+unobserved and are named in the decision log: the unreadable-remote rendering
+from the Git work, and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
+
+### 2026-09-15 (CI had never run; project grouping; icon)
+- Found: PR #3's red check was never a test failure. `gh api
+  .../actions/runners` returned `total_count: 0` -- the workflow had required
+  `[self-hosted, macOS]` since it was written and no runner was ever registered.
+  Five runs on this branch each sat in the queue and were cancelled at exactly
+  `24h0m`, annotated "exceeded the maximum execution time while awaiting a
+  runner". The suite was green the whole time, locally.
+- Decided: check the workflow's own premise before acting on it. Its header
+  claimed hosted images ship Xcode 26.x and cannot open this project's
+  `objectVersion 110`. A throwaway probe on macos-latest/26/15 could not test
+  that at all: every hosted job failed in ~6s with zero steps and the annotation
+  "The job was not started because recent account payments have failed or your
+  spending limit needs to be increased." So the Xcode-format claim stays
+  **unverified**, and the header now says so rather than asserting it.
+- The probe's useful output was the contrast, not the answer it was after: a
+  hosted job is refused in 6s while a self-hosted job in the same repo queues
+  normally for 24h. That places the billing block on hosted minutes alone, which
+  is what made registering a runner viable without touching billing.
+- Noted: the workflow header omitted the binding constraint. Every configuration
+  sets `MACOSX_DEPLOYMENT_TARGET = 27.0` and the tests are hosted in the app, so
+  a runner needs macOS 27 at RUNTIME, not merely Xcode 27 installed. Recorded in
+  the workflow now.
+- Found: the sidebar's row order was not a bad sort but no sort. `rescan`
+  publishes `sessions = Array(byId.values)` and Swift leaves dictionary
+  iteration order undefined, so rows re-shuffled on every scan.
+- Decided: `projectSections` keys only on values that do not tick -- project
+  name, session name, id. Sorting on tokens or `updated` would have replaced an
+  arbitrary order with a slower-moving one, which is the same bug with a longer
+  period.
+- Decided: a blocked session is listed under "Needs you" only, not also under
+  its project. The sidebar tags rows with the session id for `List` selection
+  and two rows sharing a tag is undefined. Section counts follow the rows each
+  section actually lists.
+- Proved the churn test can fail before trusting it: with the sort removed it
+  reports `["c","a"]` against `["a","c"]` -- the dictionary order leaking
+  through, which is the bug's own signature. Restored after.
+- Unobserved, deliberately not claimed: the panel's project sections were never
+  seen on screen. The panel needs the menu-bar surface (this machine is set to
+  `window`), and repeated capture attempts were defeated by other live sessions
+  stealing focus and Spaces. Covered by tests and a clean build only.
 
 ### 2026-09-04 (per-session context history)
 - Asked for more graphs and data points; scoped to the detail pane and to

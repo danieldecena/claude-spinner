@@ -10,8 +10,9 @@
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
 
-- [ ] [you] Confirm the context meter and chart render -- open the window, look at
-  a session's Context section (blocked here by a phantom virtual display)
+- [ ] [you] Confirm the context CHART renders -- the meter was observed 2026-09-15
+  (10%, 103,685 tokens); the chart below it was not, and needs a session with
+  several samples to tell "flat" from "not drawing"
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
@@ -19,6 +20,15 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 ## Completed
+
+- [x] Add FeedWatcher.projectSections with stable, non-ticking ordering -- fa8d2b0
+- [x] Group the window sidebar by project -- fa8d2b0
+- [x] Group the menu-bar panel by project -- fa8d2b0
+- [x] Test projectSections, including the input-order regression -- fa8d2b0
+- [x] Recolour the app icon to the Claude burst on red -- 9857727
+
+- [x] Probe whether GitHub-hosted macOS images can build this project -- a8c68e1
+- [x] Install and register a self-hosted Actions runner on this Mac -- a8c68e1
 
 - [x] Scope the context-history feature in docs -- 1ebd230
 - [x] Sample per-session context tokens into a history buffer -- 1ebd230
@@ -150,7 +160,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-04 16:21.
+Plan approved 2026-09-15 21:10.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -159,7 +169,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 816e0dbf-2a41-4e23-81c6-9e961a904927
+    claude --resume fbee8952-e05f-4097-b430-6125c0a8f05d
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
