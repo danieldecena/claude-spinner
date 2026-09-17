@@ -17,7 +17,7 @@ struct SetupBanner: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Setup needed", systemImage: NoticeKind.warning.symbol)
-                .font(.claudeMono(compact ? 12 : 11)).fontWeight(.semibold)
+                .font(.claudeMono(compact ? 13 : 11)).fontWeight(.semibold)
                 .foregroundStyle(NoticeKind.warning.tint)
             Text(explanation)
                 .font(.claudeMono(compact ? 11 : 10)).foregroundStyle(Color.secondary)

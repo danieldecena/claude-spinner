@@ -31,7 +31,7 @@ struct MenuContentView: View {
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
-                        .font(.claudeMono(12)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
@@ -144,7 +144,7 @@ struct UsageHeader: View {
                                             "5-hour limit resets at \(clock)\(rel.isEmpty ? "" : ", in \(rel)")")
                                 }
                             }
-                            .font(.claudeMono(10.5))
+                            .font(.claudeMono(10))
                             .lineLimit(1)
                             .textCase(.lowercase)
                             // Only the account numbers go stale; the total below is
@@ -158,7 +158,7 @@ struct UsageHeader: View {
                         // single row can show.
                         if let total = feed.totalContextTokens {
                             Text("\(FeedWatcher.formatTokens(total)) total")
-                                .font(.claudeMono(10.5))
+                                .font(.claudeMono(10))
                                 .monospacedDigit()
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .lineLimit(1)

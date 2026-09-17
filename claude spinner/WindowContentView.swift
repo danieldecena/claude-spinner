@@ -117,15 +117,15 @@ private struct SessionSidebar: View {
                             if session.isWorking {
                                 TimelineView(.periodic(from: .now, by: 1 / Constants.spinnerFPS)) { context in
                                     Text(Spinner.frame(at: context.date))
-                                        .font(.claudeMono(12)).foregroundStyle(tint(session))
+                                        .font(.claudeMono(11)).foregroundStyle(tint(session))
                                 }
                             } else {
                                 Text(Spinner.idle)
-                                    .font(.claudeMono(12)).foregroundStyle(tint(session))
+                                    .font(.claudeMono(11)).foregroundStyle(tint(session))
                             }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(session.distinctName)
-                                    .font(.claudeMono(12)).lineLimit(1)
+                                    .font(.claudeMono(11)).lineLimit(1)
                                 // Under a project heading the project name is already
                                 // overhead; only the pinned section needs it spelled out.
                                 if section.id == "needs-you" {
@@ -332,7 +332,7 @@ private struct AskCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(ask.kind == .permission ? "Permission needed" : (ask.question?.header ?? "Question"))
                 .font(.claudeMono(11)).foregroundStyle(Color.attention)
-            Text(prompt).font(.claudeMono(13)).fixedSize(horizontal: false, vertical: true)
+            Text(prompt).font(.claudeMono(13)).fontWeight(.semibold).fixedSize(horizontal: false, vertical: true)
 
             // What the tool would actually do. Without this the card asks you to
             // approve a command it never shows, which is the one place this
@@ -357,7 +357,7 @@ private struct AskCard: View {
                     ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
                         Button { answer(choice.answer, label: choice.label) } label: {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(choice.label).font(.claudeMono(12))
+                                Text(choice.label).font(.claudeMono(11))
                                 if let detail = choice.detail {
                                     Text(detail).font(.claudeMono(10))
                                         .foregroundStyle(Color.claudeDim)
@@ -417,7 +417,7 @@ private struct ReplyBox: View {
             HStack(spacing: 8) {
                 TextField("Reply to this session…", text: $text)
                     .textFieldStyle(.roundedBorder)
-                    .font(.claudeMono(12))
+                    .font(.claudeMono(11))
                     .onSubmit(send)
                 Button(sending ? "Sending…" : "Send", action: send)
                     .font(.claudeMono(11))
@@ -563,7 +563,7 @@ private struct OverviewStrip: View {
             // is a proxy for burn and is never charged.
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(fiveHour.map { "\($0)%" } ?? "—")
-                    .font(.claudeMono(20)).fontWeight(.semibold)
+                    .font(.claudeMono(18)).fontWeight(.semibold)
                     .foregroundStyle(Color.usageTint(fiveHour ?? 0))
                 Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
                 if let sevenDay {
@@ -658,7 +658,7 @@ struct Sparkline: View {
                 line.stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no usage history yet")
-                    .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
             }
         }
     }
@@ -748,7 +748,7 @@ private struct ContextTrend: View {
                 line.stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no context history yet")
-                    .font(.claudeMono(9)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
             }
         }
         .frame(height: 28)
