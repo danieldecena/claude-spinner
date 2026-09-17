@@ -955,11 +955,12 @@ private struct GitCard: View {
     @State private var running = false
 
     var body: some View {
-        Group {
+        // A VStack, not a Group: a Group hands its modifiers to each member, so
+        // the task still re-ran on every branch swap, reset the snapshot, and
+        // swapped back -- the section flickered and was caught blank on screen.
+        VStack(alignment: .leading, spacing: 0) {
             content
         }
-        // On the wrapper, not on each branch: the first read swaps the branch,
-        // and a task on the branch would restart, reset, and swap it back.
         .task(id: cwd) { await poll() }
     }
 
