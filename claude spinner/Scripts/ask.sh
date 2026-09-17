@@ -39,10 +39,17 @@ req="$sid-$now-$$"
 f="$dir/$req.ask.json"
 answer="$dir/$req.answer.json"
 
+tmp="$f.tmp.$$"
+# Claude Code stops this hook when the prompt is answered in the terminal, and
+# without the trap the ask file outlived it: the app kept a card for a request
+# nothing was waiting on. SIGKILL can't be trapped, so the app also drops any
+# request whose pid (the last field of $req) is gone.
+trap 'rm -f "$f" "$answer" "$tmp"' EXIT
+trap 'exit 0' HUP INT TERM
+
 cwd=$(printf '%s' "$input" | jq -r '.cwd // .workspace.current_dir // empty')
 host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"
 
-tmp="$f.tmp.$$"
 printf '%s' "$input" | jq -c \
     --arg req "$req" --arg kind "$mode" --arg cwd "$cwd" \
     --arg host "$host" --arg now "$now" \

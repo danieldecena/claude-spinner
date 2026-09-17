@@ -152,6 +152,9 @@ final class AskInbox: ObservableObject {
     private var dirFD: Int32 = -1
     /// Requests already put on screen, so a rescan doesn't re-post a live banner.
     private var notified: Set<String> = []
+    /// A killed hook changes nothing in the directory, so no event would ever
+    /// notice its request is dead. This rescan is what does.
+    private var pruneTimer: Timer?
 
     init(dir: URL? = nil) {
         self.dir = dir ?? FileManager.default.homeDirectoryForCurrentUser
@@ -160,6 +163,9 @@ final class AskInbox: ObservableObject {
         rescan()
         startWatching()
         refreshAuthorization()
+        pruneTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.rescan() }
+        }
     }
 
     /// Re-read whether macOS will actually present what we post.
@@ -178,7 +184,7 @@ final class AskInbox: ObservableObject {
         }
     }
 
-    deinit { source?.cancel() }
+    deinit { source?.cancel(); pruneTimer?.invalidate() }
 
     // MARK: - Reading
 
@@ -199,7 +205,12 @@ final class AskInbox: ObservableObject {
     }
 
     func rescan() {
-        let found = Self.read(from: dir)
+        var found = Self.read(from: dir)
+        let orphans = Set(Self.orphaned(found, isAlive: Self.isAlive).map(\.req))
+        for req in orphans {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(req).ask.json"))
+        }
+        found.removeAll { orphans.contains($0.req) }
         let live = Set(found.map(\.req))
 
         // A request whose file vanished timed out; pull its banner so a tap can't
@@ -225,6 +236,29 @@ final class AskInbox: ObservableObject {
                 return try? decoder.decode(AskRequest.self, from: data)
             }
             .sorted { $0.created < $1.created }
+    }
+
+    /// The pid of the `ask.sh` that wrote a request: the last field of
+    /// `<session-uuid>-<epoch>-<pid>`. Nil for an id not in that shape.
+    nonisolated static func hookPID(_ req: String) -> pid_t? {
+        guard let last = req.split(separator: "-").last, let pid = pid_t(last), pid > 0
+        else { return nil }
+        return pid
+    }
+
+    /// EPERM means the process exists and belongs to someone else, so it counts.
+    nonisolated static func isAlive(_ pid: pid_t) -> Bool {
+        kill(pid, 0) == 0 || errno == EPERM
+    }
+
+    /// Requests whose hook has exited without removing its file. An id with no
+    /// readable pid is kept: not knowing is not the same as dead.
+    nonisolated static func orphaned(_ found: [AskRequest],
+                                     isAlive: (pid_t) -> Bool) -> [AskRequest] {
+        found.filter { request in
+            guard let pid = hookPID(request.req) else { return false }
+            return !isAlive(pid)
+        }
     }
 
     // MARK: - Answering

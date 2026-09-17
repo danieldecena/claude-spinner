@@ -151,6 +151,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(contents.contains("pgrep -x \"claude spinner\""),
                       "ask.sh must not write an ask file with no app to answer it")
         XCTAssertTrue(contents.contains("passthrough"))
+        XCTAssertTrue(contents.contains("trap "),
+                      "ask.sh must remove its ask file when stopped, or the card goes stale")
         XCTAssertTrue(contents.contains("multiSelect"),
                       "ask.sh must pass multiSelect questions through to the terminal")
         XCTAssertTrue(contents.contains("tool_input:"),
@@ -1787,6 +1789,82 @@ final class claude_spinnerTests: XCTestCase {
     func testChoiceOutOfRangeResolvesToNoAnswer() {
         XCTAssertNil(AskInbox.answer(for: "opt9", in: makeAsk()))
         XCTAssertNil(AskInbox.answer(for: "nonsense", in: makeAsk()))
+    }
+
+    // MARK: - Stale asks
+
+    func testHookPIDIsTheLastFieldOfTheRequestID() {
+        XCTAssertEqual(AskInbox.hookPID("3f2a-9c1e-1726500000-4242"), 4242)
+        XCTAssertNil(AskInbox.hookPID("no-pid-here"))
+        XCTAssertNil(AskInbox.hookPID(""))
+    }
+
+    /// Both halves: a request whose hook is gone is dropped, one whose hook is
+    /// alive is kept, and one with no readable pid is kept rather than guessed dead.
+    func testOrphanedDropsOnlyRequestsWhoseHookIsGone() {
+        let live = makeAsk(req: "sid-1-100")
+        let dead = makeAsk(req: "sid-1-200")
+        let unknown = makeAsk(req: "sid-1-x")
+        let orphans = AskInbox.orphaned([live, dead, unknown], isAlive: { $0 == 100 })
+        XCTAssertEqual(orphans.map(\.req), ["sid-1-200"])
+    }
+
+    func testIsAliveSeparatesThisProcessFromAReapedOne() throws {
+        XCTAssertTrue(AskInbox.isAlive(getpid()))
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: "/usr/bin/true")
+        try child.run()
+        child.waitUntilExit()
+        XCTAssertFalse(AskInbox.isAlive(child.processIdentifier))
+    }
+
+    /// The trap itself, run for real: ask.sh is stopped while it waits, the way
+    /// Claude Code stops it when the prompt is answered in the terminal, and must
+    /// take its ask file with it. Asserts the file appeared first, or a script
+    /// that bailed at the pgrep gate would pass this without reaching the wait.
+    func testAskScriptRemovesItsFileWhenStopped() throws {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        try withTempDir { home in
+            let asks = home.appendingPathComponent(".claude/spinnerfeed/asks")
+            // The pgrep gate is not what this tests, and the test host is not
+            // reliably visible to pgrep, so a stub stands in for "the app is up".
+            let bin = home.appendingPathComponent("bin")
+            try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+            let pgrep = bin.appendingPathComponent("pgrep")
+            try Data("#!/bin/sh\nexit 0\n".utf8).write(to: pgrep)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: pgrep.path)
+            let hook = Process()
+            hook.executableURL = URL(fileURLWithPath: "/bin/sh")
+            hook.arguments = ["-x", script.path, "permission"]
+            let trace = Pipe()
+            hook.standardError = trace
+            hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin",
+                                "SPINNER_ASK_TIMEOUT": "30"]
+            let stdin = Pipe()
+            hook.standardInput = stdin
+            try hook.run()
+            stdin.fileHandleForWriting.write(Data(#"{"session_id":"sid","tool_name":"Bash"}"#.utf8))
+            try stdin.fileHandleForWriting.close()
+
+            func askFiles() -> [String] {
+                ((try? FileManager.default.contentsOfDirectory(atPath: asks.path)) ?? [])
+                    .filter { $0.hasSuffix(".ask.json") }
+            }
+            let deadline = Date().addingTimeInterval(5)
+            while askFiles().isEmpty && Date() < deadline { usleep(50_000) }
+            if askFiles().count != 1 {
+                hook.terminate(); hook.waitUntilExit()
+                let err = String(data: trace.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                XCTFail("precondition: ask.sh reached its wait\n\(err)")
+                return
+            }
+
+            hook.terminate()
+            hook.waitUntilExit()
+            XCTAssertEqual(askFiles(), [], "a stopped hook must not leave its ask behind")
+        }
     }
 
     // MARK: - What the permission is actually for
