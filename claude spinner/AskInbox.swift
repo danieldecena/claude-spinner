@@ -211,6 +211,12 @@ final class AskInbox: ObservableObject {
             try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(req).ask.json"))
         }
         found.removeAll { orphans.contains($0.req) }
+        // An answer written after its hook died has no reader either, and it
+        // outlived its ask forever: nothing else ever deletes an answer file.
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for name in Self.orphanedAnswers(names, isAlive: Self.isAlive) {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
+        }
         let live = Set(found.map(\.req))
 
         // A request whose file vanished timed out; pull its banner so a tap can't
@@ -257,6 +263,18 @@ final class AskInbox: ObservableObject {
                                      isAlive: (pid_t) -> Bool) -> [AskRequest] {
         found.filter { request in
             guard let pid = hookPID(request.req) else { return false }
+            return !isAlive(pid)
+        }
+    }
+
+    /// Answer files whose hook has exited, by name. Same rule as `orphaned`: an
+    /// unreadable pid is kept.
+    nonisolated static func orphanedAnswers(_ names: [String],
+                                            isAlive: (pid_t) -> Bool) -> [String] {
+        let suffix = ".answer.json"
+        return names.filter { name in
+            guard name.hasSuffix(suffix),
+                  let pid = hookPID(String(name.dropLast(suffix.count))) else { return false }
             return !isAlive(pid)
         }
     }

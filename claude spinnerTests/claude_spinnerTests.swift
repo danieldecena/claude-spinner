@@ -1809,6 +1809,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(orphans.map(\.req), ["sid-1-200"])
     }
 
+    /// An answer the app wrote after its hook died has no reader; one whose hook
+    /// is alive is about to be read and must stay.
+    func testOrphanedAnswersDropOnlyDeadHooksAnswers() {
+        let names = ["sid-1-100.answer.json", "sid-1-200.answer.json",
+                     "sid-1-200.ask.json", "sid-1-x.answer.json", ".sid-1-200.answer.tmp-u"]
+        XCTAssertEqual(AskInbox.orphanedAnswers(names, isAlive: { $0 == 100 }),
+                       ["sid-1-200.answer.json"])
+    }
+
     func testIsAliveSeparatesThisProcessFromAReapedOne() throws {
         XCTAssertTrue(AskInbox.isAlive(getpid()))
         let child = Process()
