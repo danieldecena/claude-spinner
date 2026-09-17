@@ -209,18 +209,18 @@ enum GitActions {
     static func perform(_ action: GitAction,
                         snapshot: GitSnapshot,
                         cwd: String,
-                        completion: @escaping (String) -> Void) {
+                        completion: @escaping (NoticeMessage) -> Void) {
         if action == .openPR {
             guard let url = snapshot.pr.url, let link = URL(string: url) else {
-                completion("That PR has no URL.")
+                completion(.init(kind: .error, text: "That PR has no URL."))
                 return
             }
             NSWorkspace.shared.open(link)
-            completion("Opened \(snapshot.pr.label ?? "the PR") in your browser.")
+            completion(.init(kind: .info, text: "Opened \(snapshot.pr.label ?? "the PR") in your browser."))
             return
         }
         guard let cmd = command(action, snapshot: snapshot) else {
-            completion("Nothing to run.")
+            completion(.init(kind: .info, text: "Nothing to run."))
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -231,14 +231,14 @@ enum GitActions {
             // says ahead 3 after a push" symptom this was meant to prevent.
             DispatchQueue.main.async {
                 guard let result else {
-                    completion("\(action.title) didn't finish within the timeout.")
+                    completion(.init(kind: .error, text: "\(action.title) didn't finish within the timeout."))
                     return
                 }
                 guard result.status == 0 else {
-                    completion(firstLine(result.err) ?? "\(action.title) failed (exit \(result.status)).")
+                    completion(.init(kind: .error, text: firstLine(result.err) ?? "\(action.title) failed (exit \(result.status))."))
                     return
                 }
-                completion(firstLine(result.out) ?? firstLine(result.err) ?? "\(action.title) done.")
+                completion(.init(kind: .info, text: firstLine(result.out) ?? firstLine(result.err) ?? "\(action.title) done."))
             }
         }
     }

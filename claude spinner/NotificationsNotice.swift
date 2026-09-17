@@ -16,18 +16,14 @@ struct NotificationsNotice: View {
         // nil is "not read yet", which is not the same as allowed -- neither
         // draws, but only `false` is a finding.
         if asks.notificationsAllowed == false {
-            HStack(spacing: 6) {
-                Text("Notifications are off — questions can't reach you.")
-                    .font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
+            Notice(kind: .warning, text: "Notifications are off — questions can't reach you.",
+                   size: 11) {
                 Button("Open Settings") {
                     if let url = URL(string:
                         "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
                         NSWorkspace.shared.open(url)
                     }
                 }
-                .font(.claudeMono(11))
             }
             .padding(.horizontal, 10).padding(.vertical, 6)
         }

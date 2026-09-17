@@ -16,16 +16,14 @@ struct SetupBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Setup needed")
+            Label("Setup needed", systemImage: NoticeKind.warning.symbol)
                 .font(.claudeMono(compact ? 12 : 11)).fontWeight(.semibold)
-                .foregroundStyle(Color.usageTint(95))
+                .foregroundStyle(NoticeKind.warning.tint)
             Text(explanation)
                 .font(.claudeMono(compact ? 11 : 10)).foregroundStyle(Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let message = install.message {
-                Text(message)
-                    .font(.claudeMono(compact ? 11 : 10)).foregroundStyle(Color.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Notice(message, size: compact ? 11 : 10)
             }
             Button(install.installing ? "Installing…" : "Install hooks") { run() }
                 .font(.claudeMono(11))
@@ -57,9 +55,9 @@ struct SetupBanner: View {
                     // Claude Code reads hooks once, at session start. Saying
                     // "installed" without this reads as "working now", and the
                     // session in front of you would still have no buttons.
-                    install.message = "Installed. Sessions already running keep their old hooks until you restart them."
+                    install.message = .init(kind: .info, text: "Installed. Sessions already running keep their old hooks until you restart them.")
                 case .failure(let error):
-                    install.message = "Couldn't install: \(error.localizedDescription)"
+                    install.message = .init(kind: .error, text: "Couldn't install: \(error.localizedDescription)")
                 }
             }
         }

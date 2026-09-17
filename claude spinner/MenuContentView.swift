@@ -128,8 +128,8 @@ struct UsageHeader: View {
                         if hasUsageLine {
                             Group {
                                 if let notice = feed.usageNotice {
-                                    Text("\(Image(systemName: "exclamationmark.triangle")) \(notice)")
-                                        .foregroundStyle(Color.usageTint(95))
+                                    Text("\(Image(systemName: NoticeKind.error.symbol)) \(notice)")
+                                        .foregroundStyle(NoticeKind.error.tint)
                                         .help(feed.usageNoticeDetail)
                                         .accessibilityLabel("Usage warning: \(notice)")
                                 } else {
@@ -946,5 +946,5 @@ class HoverState: ObservableObject {
 /// @State so the swiftc dev-loop build keeps working).
 class InstallState: ObservableObject {
     @Published var installing = false
-    @Published var message: String?
+    @Published var message: NoticeMessage?
 }

@@ -392,7 +392,7 @@ private struct ReplyBox: View {
     let feedDir: URL
     @State private var text = ""
     @State private var sending = false
-    @State private var notice: String?
+    @State private var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -406,8 +406,7 @@ private struct ReplyBox: View {
                     .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             if let notice {
-                Text(notice).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                    .fixedSize(horizontal: false, vertical: true)
+                Notice(notice)
             }
         }
     }
@@ -422,9 +421,9 @@ private struct ReplyBox: View {
             switch result {
             case .success:
                 text = ""
-                notice = "Sent — the session started a turn."
+                notice = .init(kind: .info, text: "Sent — the session started a turn.")
             case .failure(let error):
-                notice = error.errorDescription
+                notice = error.errorDescription.map { .init(kind: .error, text: $0) }
             }
         }
     }
@@ -826,7 +825,7 @@ private struct ActionBar: View {
     let session: SessionFeed
     let feedDir: URL
     @State private var hasPane = false
-    @State private var notice: String?
+    @State private var notice: NoticeMessage?
     @State private var confirming: SessionAction?
 
     var body: some View {
@@ -844,8 +843,7 @@ private struct ActionBar: View {
                 Spacer(minLength: 0)
             }
             if let notice {
-                Text(notice).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                    .fixedSize(horizontal: false, vertical: true)
+                Notice(notice)
             }
         }
         .task(id: session.id) {
@@ -880,7 +878,7 @@ private struct ActionBar: View {
     private func perform(_ action: SessionAction) {
         if !action.needsPane {
             notice = SessionActions.runLocal(action, session: session)
-                ? nil : "Couldn't do that."
+                ? nil : .init(kind: .error, text: "Couldn't do that.")
             return
         }
         if action == .interrupt {
@@ -896,10 +894,10 @@ private struct ActionBar: View {
     }
 
     private func describe(_ result: Result<Void, SessionReplier.Failure>,
-                          sent: String) -> String? {
+                          sent: String) -> NoticeMessage? {
         switch result {
-        case .success: return sent
-        case .failure(let error): return error.errorDescription
+        case .success: return .init(kind: .info, text: sent)
+        case .failure(let error): return error.errorDescription.map { .init(kind: .error, text: $0) }
         }
     }
 }
@@ -914,7 +912,7 @@ private struct ActionBar: View {
 private struct GitCard: View {
     let cwd: String
     @State private var snapshot: GitSnapshot?
-    @State private var notice: String?
+    @State private var notice: NoticeMessage?
     @State private var confirming: GitAction?
     @State private var running = false
 
@@ -936,9 +934,7 @@ private struct GitCard: View {
                 ], refresh: reload)
                 actions(snap)
                 if let notice {
-                    Text(notice)
-                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Notice(notice)
                 }
             }
             .task(id: cwd) { await poll() }
