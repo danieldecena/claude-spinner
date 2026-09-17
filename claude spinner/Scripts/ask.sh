@@ -21,7 +21,13 @@ sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
 # Nobody to answer means nobody to wait for. Without this every tool call would
 # stall for the whole deadline whenever the app happens to be closed, which is
 # the worst version of this feature.
-pgrep -x "claude spinner" >/dev/null 2>&1 || exit 0
+# $2 exists so the test can point this at a process it starts itself: the guard
+# is only trustworthy if the same pgrep call is run once with its condition known
+# true and once known false. Deliberately an argument and not an environment
+# variable -- settings.json passes exactly one argument, so nothing inherited
+# from a parent shell can redirect the guard at a process that is always running
+# and turn "app closed, exit fast" into a 300s block on every permission request.
+pgrep -x "${2:-claude spinner}" >/dev/null 2>&1 || exit 0
 
 # A banner has one tap. Fall through to the terminal for the shapes it cannot
 # express: several questions at once, or a question that takes several answers.

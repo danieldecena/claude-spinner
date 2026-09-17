@@ -148,7 +148,7 @@ final class claude_spinnerTests: XCTestCase {
             .deletingLastPathComponent()                // repo root
             .appendingPathComponent("claude spinner/Scripts/ask.sh")
         let contents = try String(contentsOf: scriptURL, encoding: .utf8)
-        XCTAssertTrue(contents.contains("pgrep -x \"claude spinner\""),
+        XCTAssertTrue(contents.contains("pgrep -x \"${2:-claude spinner}\""),
                       "ask.sh must not write an ask file with no app to answer it")
         XCTAssertTrue(contents.contains("passthrough"))
         XCTAssertTrue(contents.contains("trap "),
