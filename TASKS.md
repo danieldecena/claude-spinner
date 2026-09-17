@@ -11,7 +11,7 @@
 - [x] Add dark-mode frames and the conflict log page -- figma, no commit
 - [ ] Fix dark-copy text still bound to Light colors
 - [x] Record Figma URL and next Swift fix slices
-- [ ] Unify state colors across panel and window
+- [x] Unify state colors across panel and window
 - [ ] Add one Notice style for info, warning and error
 - [ ] Label sidebar status and the sparkline
 - [ ] Cut the type scale to the five spec styles

@@ -128,7 +128,7 @@ private struct SessionSidebar: View {
                             Spacer(minLength: 0)
                             if asksFor(session) {
                                 Image(systemName: "questionmark.circle.fill")
-                                    .foregroundStyle(Color.usageTint(95))
+                                    .foregroundStyle(Color.attention)
                             }
                         }
                         .tag(session.id)
@@ -142,8 +142,8 @@ private struct SessionSidebar: View {
     }
 
     private func tint(_ session: SessionFeed) -> Color {
-        if session.isBlockedOnYou || asksFor(session) { return Color.usageTint(95) }
-        return session.isWorking ? .accentColor : Color.claudeDim
+        if session.isBlockedOnYou || asksFor(session) { return .attention }
+        return session.isWorking ? .claude : .secondary
     }
 }
 
@@ -224,11 +224,11 @@ private struct SessionDetail: View {
                 Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
             }
             if let summary = session.attentionSummary {
-                // Orange only when something is genuinely blocked. A finished
+                // Blue only when something is genuinely blocked. A finished
                 // session that simply hasn't been typed at is not an alarm.
                 Text(summary)
                     .font(.claudeMono(11))
-                    .foregroundStyle(session.isBlockedOnYou ? Color.usageTint(95) : Color.claudeDim)
+                    .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.claudeDim)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -313,7 +313,7 @@ private struct AskCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(ask.kind == .permission ? "Permission needed" : (ask.question?.header ?? "Question"))
-                .font(.claudeMono(11)).foregroundStyle(Color.usageTint(95))
+                .font(.claudeMono(11)).foregroundStyle(Color.attention)
             Text(prompt).font(.claudeMono(13)).fixedSize(horizontal: false, vertical: true)
 
             // What the tool would actually do. Without this the card asks you to
@@ -354,7 +354,7 @@ private struct AskCard: View {
             }
         }
         .padding(12)
-        .background(Color.usageTint(95).opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.attention.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var prompt: String {
