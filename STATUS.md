@@ -146,6 +146,22 @@ and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-16 (Swift aligned to the spec; stale ask cards fixed)
+- Decided: the five Swift slices follow the palette and type scale in
+  `~/.claude/plans/iridescent-tinkering-frog.md`, since the Figma file itself was
+  unreadable (the Starter cap still refused the first call this session). State
+  colors cc96705, one Notice style 30e2514, sidebar glyph plus spoken status
+  e0313c4, type scale 63b3383, git/stat empty states 741259c. All 223+ tests pass
+  after each one; none of the new visuals has been looked at on screen yet.
+- Decided: stale ask cards get two fixes (64752a0). ask.sh traps EXIT/HUP/INT/TERM,
+  and the inbox drops asks whose hook pid is gone, rescanning every 5s because a
+  killed process makes no directory event. The script test fails with the traps
+  stripped and passes with them.
+- Found: the installed `~/.claude/spinnerfeed/ask.sh` had a `$2` pgrep override
+  (2026-09-15) that was in no commit. Daniel chose to merge it: ported to the repo
+  (8aeb629), installed, synced in `~/.claude` (72c98ab). XCTest cannot see
+  processes through pgrep, so that gate was checked from a shell both ways.
+
 ### 2026-09-16 (UI review; unified Figma spec, cut short by the Starter limit)
 - Decided: Figma is the spec the Swift UI gets fixed to, not a mirror of it. A
   review found the panel and window disagree on every state color (needs-you blue
