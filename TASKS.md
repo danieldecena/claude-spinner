@@ -2,6 +2,16 @@
 
 ## Tasks
 
+- [ ] Authenticate Figma and create the UI spec file
+- [ ] Check Figma has a mono font (Menlo or SF Mono)
+- [ ] Build unified tokens page (state, usage, menubar)
+- [ ] Build components page from SwiftUI views
+- [ ] Build the panel popover screen
+- [ ] Build the window screen
+- [ ] Add dark-mode frames and the conflict log page
+- [ ] Record Figma URL and next Swift fix slices
+- [ ] Fix stale ask cards (ask.sh exit trap, prune dead pids)
+
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
@@ -166,7 +176,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-15 21:10.
+Plan approved 2026-09-16 18:57.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -175,7 +185,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume fbee8952-e05f-4097-b430-6125c0a8f05d
+    claude --resume 8b19d522-2c5c-4b00-aa39-478491bc9d2b
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
