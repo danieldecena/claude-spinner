@@ -146,6 +146,35 @@ and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-16 (UI review; unified Figma spec, cut short by the Starter limit)
+- Decided: Figma is the spec the Swift UI gets fixed to, not a mirror of it. A
+  review found the panel and window disagree on every state color (needs-you blue
+  vs red, working orange vs system accent, idle grey vs dim orange), one red
+  covering rate limits, setup, notifications-off and asks, nine Menlo sizes, about
+  26 hardcoded RGBs with duplicates, color-only sidebar status, and blank
+  loading and error states. The spec fixes each; the file's "Code vs spec" table
+  lists them with file:line.
+- Decided: color only for state and usage. Model names go plain, host chips go
+  neutral, the spinner glyph replaces the sidebar dot, every detail group is a
+  card, and errors get their own notice style.
+- File: https://www.figma.com/design/atOtbz9apX1vGrBVOARRMs (Personal drafts).
+  Pages Tokens, Components, Screens. Light and Dark variable collections, 16
+  component sets, panel (sessions, empty, setup) and window in light, dark copies,
+  conflict log.
+- Starter plan limits hit, each costing a call: no Menlo or SF Mono in Figma's
+  cloud renderer (JetBrains Mono stands in; Swift keeps Menlo), 3 pages per file,
+  1 mode per collection (so Light and Dark are separate collections, and dark
+  screens are copies rebound by name), and SF Symbols render 0pt wide (plain
+  glyphs stand in). The MCP refused call 11: the cap arrived after 10 calls,
+  not the documented "up to 20".
+- Known broken in the file: the dark copies still show near-black text on some
+  labels inside component instances (row names, ask prompt, notice text, stat
+  values). The swap reported 68 swapped / 0 missed, so the unswapped fills
+  likely sit in per-range text fills it never read. Unverified; the fix script
+  was the refused call.
+- Also found: a stale ask card persists when ask.sh is killed before its own
+  cleanup (no exit trap; the app never checks the pid). Tracked in TASKS.md.
+
 ### 2026-09-15 (notifications granted; the feature rings for the first time)
 - Daniel allowed notifications in System Settings. The on-activation re-read
   then logged `authorization re-read status=2 allowed=1` -- the known-GOOD input

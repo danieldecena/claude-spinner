@@ -2,14 +2,20 @@
 
 ## Tasks
 
-- [ ] Authenticate Figma and create the UI spec file
-- [ ] Check Figma has a mono font (Menlo or SF Mono)
-- [ ] Build unified tokens page (state, usage, menubar)
-- [ ] Build components page from SwiftUI views
-- [ ] Build the panel popover screen
-- [ ] Build the window screen
-- [ ] Add dark-mode frames and the conflict log page
-- [ ] Record Figma URL and next Swift fix slices
+- [x] Authenticate Figma and create the UI spec file -- figma, no commit
+- [x] Check Figma has a mono font (Menlo or SF Mono) -- figma, no commit
+- [x] Build unified tokens page (state, usage, menubar) -- figma, no commit
+- [x] Build components page from SwiftUI views -- figma, no commit
+- [x] Build the panel popover screen -- figma, no commit
+- [x] Build the window screen -- figma, no commit
+- [x] Add dark-mode frames and the conflict log page -- figma, no commit
+- [ ] Fix dark-copy text still bound to Light colors
+- [x] Record Figma URL and next Swift fix slices
+- [ ] Unify state colors across panel and window
+- [ ] Add one Notice style for info, warning and error
+- [ ] Label sidebar status and the sparkline
+- [ ] Cut the type scale to the five spec styles
+- [ ] Give git loading and empty stats visible states
 - [ ] Fix stale ask cards (ask.sh exit trap, prune dead pids)
 
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
