@@ -460,30 +460,37 @@ private struct StatSection: View {
     let rows: [(String, String?, String?)]
     /// Drawn beside the title when the section can be re-read on demand.
     var refresh: (() -> Void)?
+    /// Said in place of the rows when none has a value. A section that vanished
+    /// instead read the same as one that was never there to look at.
+    var empty = "nothing reported yet"
 
     init(_ title: String, rows: [(String, String?)]) {
         self.title = title
         self.rows = rows.map { ($0.0, $0.1, nil) }
     }
 
-    init(_ title: String, rows: [(String, String?, String?)], refresh: (() -> Void)? = nil) {
+    init(_ title: String, rows: [(String, String?, String?)] = [], refresh: (() -> Void)? = nil,
+         empty: String = "nothing reported yet") {
         self.title = title
         self.rows = rows
         self.refresh = refresh
+        self.empty = empty
     }
 
     var body: some View {
         let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
-        if !present.isEmpty {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 10) {
-                    Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
-                        .textCase(.uppercase)
-                    if let refresh {
-                        Button("Refresh", action: refresh)
-                            .font(.claudeMono(10)).buttonStyle(.link)
-                    }
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
+                Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .textCase(.uppercase)
+                if let refresh {
+                    Button("Refresh", action: refresh)
+                        .font(.claudeMono(10)).buttonStyle(.link)
                 }
+            }
+            if present.isEmpty {
+                Text(empty).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+            } else {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
                     ForEach(present, id: \.0) { key, value, note in
                         GridRow {
@@ -940,11 +947,23 @@ private struct ActionBar: View {
 private struct GitCard: View {
     let cwd: String
     @State private var snapshot: GitSnapshot?
+    /// Whether `snapshot` has been read for this `cwd` yet. A nil snapshot is
+    /// either "still reading" or "not a repository", and only this tells them apart.
+    @State private var read = false
     @State private var notice: NoticeMessage?
     @State private var confirming: GitAction?
     @State private var running = false
 
     var body: some View {
+        Group {
+            content
+        }
+        // On the wrapper, not on each branch: the first read swaps the branch,
+        // and a task on the branch would restart, reset, and swap it back.
+        .task(id: cwd) { await poll() }
+    }
+
+    @ViewBuilder private var content: some View {
         if let snap = snapshot {
             // Two clocks, so two ages. `remote` and `pr` are network reads on a
             // 90-second cycle sitting next to local facts read every five, and
@@ -965,7 +984,6 @@ private struct GitCard: View {
                     Notice(notice)
                 }
             }
-            .task(id: cwd) { await poll() }
             .confirmationDialog(confirming?.confirmation ?? "",
                                 isPresented: Binding(get: { confirming != nil },
                                                      set: { if !$0 { confirming = nil } }),
@@ -979,7 +997,7 @@ private struct GitCard: View {
                 Button("Cancel", role: .cancel) { confirming = nil }
             }
         } else {
-            Color.clear.frame(height: 0).task(id: cwd) { await poll() }
+            StatSection("Git", empty: read ? "not a git repository" : "reading…")
         }
     }
 
@@ -1069,8 +1087,12 @@ private struct GitCard: View {
     /// Re-reads on the probe's own local TTL. The probe caches, so this loop
     /// costs a dictionary lookup on most passes and a `git status` on the rest.
     private func poll() async {
+        // A new cwd must not show the last directory's branch while it reads.
+        snapshot = nil
+        read = false
         while !Task.isCancelled {
             snapshot = await GitProbe.shared.snapshot(for: cwd)
+            read = true
             try? await Task.sleep(for: .seconds(5))
         }
     }

@@ -15,7 +15,7 @@
 - [x] Add one Notice style for info, warning and error
 - [x] Label sidebar status and the sparkline
 - [x] Cut the type scale to the five spec styles
-- [ ] Give git loading and empty stats visible states
+- [x] Give git loading and empty stats visible states
 - [ ] Fix stale ask cards (ask.sh exit trap, prune dead pids)
 
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
