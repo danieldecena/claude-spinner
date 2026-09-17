@@ -111,9 +111,18 @@ private struct SessionSidebar: View {
                     ForEach(section.items) { item in
                         let session = item.session
                         HStack(spacing: 6) {
-                            Circle()
-                                .fill(tint(session))
-                                .frame(width: 6, height: 6)
+                            // The glyph, not a dot: a dot said which state only by
+                            // hue. Motion now says "working" and the row's spoken
+                            // label says the rest.
+                            if session.isWorking {
+                                TimelineView(.periodic(from: .now, by: 1 / Constants.spinnerFPS)) { context in
+                                    Text(Spinner.frame(at: context.date))
+                                        .font(.claudeMono(12)).foregroundStyle(tint(session))
+                                }
+                            } else {
+                                Text(Spinner.idle)
+                                    .font(.claudeMono(12)).foregroundStyle(tint(session))
+                            }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(session.distinctName)
                                     .font(.claudeMono(12)).lineLimit(1)
@@ -131,6 +140,9 @@ private struct SessionSidebar: View {
                                     .foregroundStyle(Color.attention)
                             }
                         }
+                        .help(session.statusLabel)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(rowLabel(session))
                         .tag(session.id)
                     }
                 } header: {
@@ -139,6 +151,12 @@ private struct SessionSidebar: View {
             }
         }
         .listStyle(.sidebar)
+    }
+
+    private func rowLabel(_ session: SessionFeed) -> String {
+        var parts = [session.distinctName, session.statusLabel]
+        if asksFor(session) { parts.append("has a question for you") }
+        return parts.joined(separator: ", ")
     }
 
     private func tint(_ session: SessionFeed) -> Color {
@@ -576,6 +594,9 @@ private struct OverviewStrip: View {
             Sparkline(samples: history)
                 .frame(height: 22)
                 .padding(.top, 2)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("5-hour usage over time")
+                .accessibilityValue(Sparkline.spokenValue(history))
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -598,8 +619,15 @@ private struct OverviewStrip: View {
 ///
 /// Scaled 0-100 rather than to its own min/max: this is a percentage of a rate
 /// limit, so a flat 4% and a flat 90% must not draw the same line.
-private struct Sparkline: View {
+struct Sparkline: View {
     let samples: [UsageSample]
+
+    /// What the line shows, said in words: where it started and where it is now.
+    static func spokenValue(_ samples: [UsageSample]) -> String {
+        guard let last = samples.last else { return "no usage history yet" }
+        guard samples.count >= 2, let first = samples.first else { return "\(last.pct) percent" }
+        return "\(last.pct) percent now, from \(first.pct) percent"
+    }
 
     var body: some View {
         GeometryReader { geo in

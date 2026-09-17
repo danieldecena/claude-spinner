@@ -13,7 +13,7 @@
 - [x] Record Figma URL and next Swift fix slices
 - [x] Unify state colors across panel and window
 - [x] Add one Notice style for info, warning and error
-- [ ] Label sidebar status and the sparkline
+- [x] Label sidebar status and the sparkline
 - [ ] Cut the type scale to the five spec styles
 - [ ] Give git loading and empty stats visible states
 - [ ] Fix stale ask cards (ask.sh exit trap, prune dead pids)

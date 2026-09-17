@@ -2294,6 +2294,17 @@ final class claude_spinnerTests: XCTestCase {
                        original)
     }
 
+    // MARK: - Sparkline spoken value
+
+    /// VoiceOver hears the line's endpoints, since the shape itself says nothing.
+    func testTheSparklineSpeaksItsStartAndNow() {
+        let history = [UsageSample(pct: 12, at: 0), UsageSample(pct: 30, at: 60),
+                       UsageSample(pct: 41, at: 120)]
+        XCTAssertEqual(Sparkline.spokenValue(history), "41 percent now, from 12 percent")
+        XCTAssertEqual(Sparkline.spokenValue([UsageSample(pct: 7, at: 0)]), "7 percent")
+        XCTAssertEqual(Sparkline.spokenValue([]), "no usage history yet")
+    }
+
     // MARK: - Context chart geometry
 
     func testContextPointsAreScaledByTimeNotByIndex() {
