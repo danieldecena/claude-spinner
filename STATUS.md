@@ -146,6 +146,49 @@ and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-20 (UI pass slice 2: the two contradicting sentences)
+
+Branch `design-system-pass-2026-09-20`, off `main` at 6895886. The branch named
+in the request did not exist -- the ten Figma-pass commits all went to `main`
+directly -- so it was created rather than assumed.
+
+- Decided: the overview strip's `— of 5h` becomes `no current 5h reading`
+  (c5d615a). The dash was not only a broken sentence: it was tinted
+  `usageTint(fiveHour ?? 0)`, so a window that had never reported drew in the
+  green of untouched headroom. `StatFormat.usagePercent` now separates unknown
+  from a real zero, mirroring `lines(added:removed:)` beside it.
+- Found on screen, and it changed the copy: this machine has no live 5h reading,
+  so the empty branch actually drew -- and the first wording, `no usage data yet`
+  (chosen to match the panel), sat directly above a sparkline plotting 240
+  retained samples peaking at 37%. That is the same fault the slice exists to
+  remove, made worse: the old dash was ambiguous, an explicit sentence is a
+  claim. The string is scoped to the live window instead. The panel keeps its own
+  wording, where no history is drawn beside it.
+- Decided: the Git card's `Nothing to do here right now.` becomes
+  `no actions available`. The condition is `offered.isEmpty` -- the action-button
+  list -- which never consults the rows above, so five populated rows could sit
+  under a sentence saying there was nothing here. The condition is untouched;
+  only the scope and wording were wrong. It was also the app's only
+  sentence-cased empty state.
+- Observed 2026-09-20 05:39, both against the running build: the `home` session
+  (main, clean, in sync, 47 untracked, no PR -- the state that settles every
+  action) draws `no actions available` under four populated rows, and the
+  overview strip draws `no current 5h reading` above the sparkline. Neither was
+  taken from a build log; the build's own `Build Succeeded` line is the wrapper's
+  word, so the product was confirmed by mtime and the rendering by screenshot.
+- Verified the new test can fail: `usagePercent` mutated to reject zero fails at
+  the `a real reading of zero` assertion (rc=65), and passes once reverted. The
+  nil case alone would have been satisfied by a formatter returning nil for
+  everything. 229 tests, 0 failures.
+
+- Found, not fixed -- for slice 5: `OverviewStrip` derives its percentages from
+  `FeedWatcher.Overview`, which reads live session feeds only, while
+  `usageFiveHourPct` / `usageSevenDayPct` resolve poll -> session -> cache. The
+  cache currently holds 7d = 8.05% that the window therefore cannot show, so the
+  menu bar and the window can disagree about the same account-wide number. Slice
+  5 already owns the window's rate-limit panels and reset times (`Overview`
+  carries no reset at all), so it belongs there rather than widening this slice.
+
 ### 2026-09-16 (Swift aligned to the spec; stale ask cards fixed)
 - Decided: the five Swift slices follow the palette and type scale in
   `~/.claude/plans/iridescent-tinkering-frog.md`, since the Figma file itself was
