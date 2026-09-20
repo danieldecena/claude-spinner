@@ -1574,10 +1574,13 @@ final class claude_spinnerTests: XCTestCase {
     /// An unreported rate limit and a rate limit of zero are different facts. The
     /// zero case is the one that matters: a formatter returning nil for everything
     /// would satisfy the nil assertion on its own.
-    func testUsagePercentSeparatesUnknownFromZero() {
-        XCTAssertNil(StatFormat.usagePercent(nil), "no window has reported")
-        XCTAssertEqual(StatFormat.usagePercent(0), "0%", "a real reading of zero")
-        XCTAssertEqual(StatFormat.usagePercent(93), "93%")
+    func testUsageHeadlineSeparatesUnknownFromZero() {
+        XCTAssertNil(StatFormat.usageHeadline(nil), "no window has reported")
+        XCTAssertEqual(StatFormat.usageHeadline(0)?.text, "0%", "a real reading of zero")
+        XCTAssertEqual(StatFormat.usageHeadline(93)?.text, "93%")
+        // The level is what the caller tints by, so it has to track the reading
+        // rather than defaulting -- tinting 93% by 0 is the original bug.
+        XCTAssertEqual(StatFormat.usageHeadline(93)?.level, 93)
     }
 
     /// A ratio against a missing or zero denominator is a made-up number.
