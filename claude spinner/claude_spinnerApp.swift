@@ -678,8 +678,59 @@ extension Color {
         })
     }
 
+    /// The raw sRGB triples behind the palette, named so the tests can assert their
+    /// contrast instead of the ratios living only in a design doc. A status colour
+    /// is a graphical mark and owes 3:1 against its ground; `label` carries text at
+    /// 10-11px and owes 4.5:1.
+    ///
+    /// `ground` is measured from the running app rather than assumed: the detail
+    /// pane renders #ffffff in light and #1e1f20 in dark. Both surfaces are
+    /// translucent material over the desktop, so the light figures are the
+    /// optimistic ones -- over a mid-tone wallpaper the true ratio is lower.
+    enum Ink {
+        static let groundLight = (1.0, 1.0, 1.0)
+        static let groundDark = (0.118, 0.122, 0.125)
+
+        static let claudeLight = (0.76, 0.42, 0.24)
+        static let claudeDark = (0.93, 0.58, 0.36)
+        static let attentionLight = (0.30, 0.58, 0.92)
+        static let attentionDark = (0.45, 0.70, 1.0)
+
+        // The light halves of the ramp were re-derived on 2026-09-20 against a
+        // white ground, hue and saturation held. The old values measured 2.49,
+        // 1.97 and 2.42 -- all below the 3:1 a mark needs, because the light
+        // theme had been built by nudging the dark values down rather than
+        // deriving them for a light surface. Red already passed at 4.02.
+        static let usageRedLight = (0.85, 0.32, 0.28)
+        static let usageRedDark = (1.0, 0.48, 0.44)
+        static let usageAmberLight = (0.855, 0.494, 0.11)
+        static let usageAmberDark = (1.0, 0.70, 0.36)
+        static let usageYellowLight = (0.671, 0.576, 0.173)
+        static let usageYellowDark = (0.94, 0.85, 0.42)
+        static let usageGreenLight = (0.353, 0.647, 0.353)
+        static let usageGreenDark = (0.55, 0.85, 0.55)
+
+        /// Quiet ink for a row label. Not an accent: `claude` measures 3.84:1 on
+        /// white, which is fine for a mark and short of the 4.5:1 that text at
+        /// this size needs, and it was carrying every label in the app.
+        static let labelLight = (0.463, 0.463, 0.463)
+        static let labelDark = (0.6, 0.6, 0.6)
+
+        /// Every triple that is drawn as a status mark, with the ground it sits on.
+        static let marks: [(name: String, light: (Double, Double, Double), dark: (Double, Double, Double))] = [
+            ("claude", claudeLight, claudeDark),
+            ("attention", attentionLight, attentionDark),
+            ("usageRed", usageRedLight, usageRedDark),
+            ("usageAmber", usageAmberLight, usageAmberDark),
+            ("usageYellow", usageYellowLight, usageYellowDark),
+            ("usageGreen", usageGreenLight, usageGreenDark),
+        ]
+    }
+
     /// Claude's burnt-orange accent, matching the terminal spinner.
-    static let claude = dynamic(light: (0.76, 0.42, 0.24), dark: (0.93, 0.58, 0.36))
+    static let claude = dynamic(light: Ink.claudeLight, dark: Ink.claudeDark)
+    /// Quiet ink for row labels, which `claude` is too low-contrast to carry.
+    static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// Muted variant for the idle/done line — colored, but quieter than active.
     static let claudeDim = claude.opacity(0.65)
     /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
@@ -689,17 +740,17 @@ extension Color {
     static let menuIdle = Color(white: 0.60)
     /// Blue "needs you" accent — deliberately unlike the busy orange, so an
     /// attention session reads as a different state, not just a louder one.
-    static let attention = dynamic(light: (0.30, 0.58, 0.92), dark: (0.45, 0.70, 1.0))
+    static let attention = dynamic(light: Ink.attentionLight, dark: Ink.attentionDark)
     /// Brighter attention blue for menu-bar-label legibility over any wallpaper.
     static let attentionBright = Color(red: 0.40, green: 0.66, blue: 1.0)
 
     // The urgency bands, built once rather than per call: every `dynamic` call mints a
     // fresh NSColor, and SwiftUI compares Color by that underlying instance — so
     // building them on the fly would make two same-band tints compare unequal.
-    static let usageRed = dynamic(light: (0.85, 0.32, 0.28), dark: (1.0, 0.48, 0.44))
-    static let usageAmber = dynamic(light: (0.90, 0.58, 0.24), dark: (1.0, 0.70, 0.36))
-    static let usageYellow = dynamic(light: (0.82, 0.72, 0.30), dark: (0.94, 0.85, 0.42))
-    static let usageGreen = dynamic(light: (0.45, 0.70, 0.45), dark: (0.55, 0.85, 0.55))
+    static let usageRed = dynamic(light: Ink.usageRedLight, dark: Ink.usageRedDark)
+    static let usageAmber = dynamic(light: Ink.usageAmberLight, dark: Ink.usageAmberDark)
+    static let usageYellow = dynamic(light: Ink.usageYellowLight, dark: Ink.usageYellowDark)
+    static let usageGreen = dynamic(light: Ink.usageGreenLight, dark: Ink.usageGreenDark)
 
     /// Urgency gradient for a 0–100 usage percentage: green (headroom) → yellow →
     /// amber → red (near limit), so a rate limit reads at a glance.
