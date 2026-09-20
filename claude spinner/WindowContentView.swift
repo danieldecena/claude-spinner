@@ -551,6 +551,13 @@ enum StatFormat {
         guard added != nil || removed != nil else { return nil }
         return "+\(added ?? 0) −\(removed ?? 0)"
     }
+
+    /// nil when no window has reported. 0% is a real reading and must print; a
+    /// missing one must not fall back to it -- the old `?? "—"` was tinted
+    /// `usageTint(0)`, so "unknown" drew in the green of "nothing used".
+    static func usagePercent(_ pct: Int?) -> String? {
+        pct.map { "\($0)%" }
+    }
 }
 
 
@@ -569,12 +576,29 @@ private struct OverviewStrip: View {
             // these are the only numbers that can actually stop you; the money
             // is a proxy for burn and is never charged.
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(fiveHour.map { "\($0)%" } ?? "—")
-                    .font(.claudeMono(18)).fontWeight(.semibold)
-                    .foregroundStyle(Color.usageTint(fiveHour ?? 0))
-                Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                // No reading is not a reading of zero. The old `?? "—"` printed a
+                // dash tinted `usageTint(0)`, so a window that had never reported
+                // drew in the green of untouched headroom.
+                if let fiveHour, let pct = StatFormat.usagePercent(fiveHour) {
+                    Text(pct)
+                        .font(.claudeMono(18)).fontWeight(.semibold)
+                        .foregroundStyle(Color.usageTint(fiveHour))
+                    Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                } else {
+                    // Scoped to the live window, not to usage in general: the
+                    // sparkline below is drawing retained history, and "no usage
+                    // data yet" over a plotted line is the same fault this slice
+                    // exists to remove.
+                    Text("no current 5h reading")
+                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                }
+                // Outside the branch: the two percentages are filled by separate
+                // `compactMap`s, so 7d can be known while 5h is not.
                 if let sevenDay {
-                    Text("· \(sevenDay)% of 7d")
+                    // The separator belongs to the 5h reading, so it goes when
+                    // that reading does -- "no usage data yet · 40% of 7d" would
+                    // contradict itself in the same breath.
+                    Text("\(fiveHour == nil ? "" : "· ")\(sevenDay)% of 7d")
                         .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
                 }
                 Spacer(minLength: 0)
@@ -1021,7 +1045,7 @@ private struct GitCard: View {
             .filter { $0.block?.settled != true }
         VStack(alignment: .leading, spacing: 5) {
             if offered.isEmpty {
-                Text("Nothing to do here right now.")
+                Text("no actions available")
                     .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
             } else {
                 HStack(spacing: 6) {

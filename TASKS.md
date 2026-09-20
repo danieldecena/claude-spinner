@@ -17,6 +17,9 @@
 - [x] Cut the type scale to the five spec styles
 - [x] Give git loading and empty stats visible states
 - [x] Fix stale ask cards (ask.sh exit trap, prune dead pids)
+- [ ] Say "no usage data yet" instead of "— of 5h" in the window overview
+- [ ] Rescope the Git actions empty state to "no actions available"
+- [ ] Test StatFormat.usagePercent for nil, zero and a real reading
 
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
@@ -182,7 +185,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-16 18:57.
+Plan approved 2026-09-20 05:28.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -191,7 +194,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 8b19d522-2c5c-4b00-aa39-478491bc9d2b
+    claude --resume f1c4f381-a5cb-4c4e-9867-b72c73801deb
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
