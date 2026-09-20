@@ -710,11 +710,16 @@ extension Color {
         static let usageGreenLight = (0.353, 0.647, 0.353)
         static let usageGreenDark = (0.55, 0.85, 0.55)
 
-        /// Quiet ink for a row label. Not an accent: `claude` measures 3.84:1 on
-        /// white, which is fine for a mark and short of the 4.5:1 that text at
-        /// this size needs, and it was carrying every label in the app.
-        static let labelLight = (0.463, 0.463, 0.463)
-        static let labelDark = (0.6, 0.6, 0.6)
+        /// Ink for a row label: the same burnt orange, darkened until it clears
+        /// 4.5:1 rather than replaced by a grey. Labels were drawn in `claudeDim`
+        /// -- the accent at 65% -- which composites to 2.29:1 on white and 3.76:1
+        /// on the dark ground, so half the window's text was below the threshold,
+        /// not just the 3.84:1 of the accent itself. A neutral grey would have
+        /// passed too and cost the app its warmth; darkening the hue keeps the
+        /// label/value pair that makes the mono columns scannable.
+        /// Dark needs no change: the lifted accent is already 7.07:1 there.
+        static let labelLight = (0.694, 0.380, 0.220)
+        static let labelDark = claudeDark
 
         /// Every triple that is drawn as a status mark, with the ground it sits on.
         static let marks: [(name: String, light: (Double, Double, Double), dark: (Double, Double, Double))] = [
