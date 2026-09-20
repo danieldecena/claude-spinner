@@ -146,6 +146,35 @@ and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-20 (dark appearance looked at; slice 3 is smaller than written)
+
+- Found: the unchecked `Fix dark-copy text still bound to Light colors` is a
+  **Figma** fault, not a Swift one. It sits inside the Figma task block, and the
+  2026-09-16 entry below already records it: the dark screen copies show
+  near-black text on labels inside component instances, the rebind having missed
+  per-range text fills. Every colour in `claude_spinnerApp.swift:672-745` goes
+  through `dynamic(light:dark:)`. So slice 3 is not blocked on Swift colour
+  bindings, as the plan's open question assumed. The real consequence is
+  narrower: the Figma dark frames cannot serve as slice 3's dark reference, so
+  that slice is checked on screen instead of against the spec.
+- Observed 2026-09-20 06:01 in dark: no near-black text anywhere in the app --
+  labels, values, Git rows, empty states and both slice 2 strings all read
+  correctly. Two per-app appearance overrides were tried first and both silently
+  failed (`AppleInterfaceStyle` in the app's domain, then in the argument
+  domain); the first screenshots were still light. Caught by sampling the
+  background rather than trusting the override -- RGB(255,255,255) against the
+  RGB(30,31,32) of the real dark run. The system appearance was toggled with
+  permission and restored, both confirmed by reading the setting back.
+- Found, and it shrinks slice 3: the plan's problem 5 says "Reveal and Copy carry
+  borders; Interrupt, Compact, Clear and Open transcript do not" -- six buttons
+  in two treatments. On this build all six carry the same capsule, and what
+  separates them is the enabled/disabled fill, which is already the
+  one-class-two-states outcome slice 3 was written to produce. The plan was
+  written from a screenshot and that reading does not survive the running app.
+  What is real is the truncation: `Reveal fol…`, `Open trans…` and `Copy sessi…`
+  all clip on a window with spare width. Treat the remaining claim -- "disabled
+  is signalled by text colour alone" -- as unverified until looked at.
+
 ### 2026-09-20 (UI pass slice 2: the two contradicting sentences)
 
 Branch `design-system-pass-2026-09-20`, off `main` at 6895886. The branch named
