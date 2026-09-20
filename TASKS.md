@@ -17,9 +17,9 @@
 - [x] Cut the type scale to the five spec styles
 - [x] Give git loading and empty stats visible states
 - [x] Fix stale ask cards (ask.sh exit trap, prune dead pids)
-- [ ] Say "no usage data yet" instead of "— of 5h" in the window overview
-- [ ] Rescope the Git actions empty state to "no actions available"
-- [ ] Test StatFormat.usagePercent for nil, zero and a real reading
+- [x] Say "no current 5h reading" instead of "— of 5h" in the window overview
+- [x] Rescope the Git actions empty state to "no actions available"
+- [x] Test StatFormat.usagePercent for nil, zero and a real reading
 
 - [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
