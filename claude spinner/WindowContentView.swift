@@ -552,11 +552,13 @@ enum StatFormat {
         return "+\(added ?? 0) −\(removed ?? 0)"
     }
 
-    /// nil when no window has reported. 0% is a real reading and must print; a
-    /// missing one must not fall back to it -- the old `?? "—"` was tinted
-    /// `usageTint(0)`, so "unknown" drew in the green of "nothing used".
-    static func usagePercent(_ pct: Int?) -> String? {
-        pct.map { "\($0)%" }
+    /// The headline text and the level to tint it by, or nil when no window has
+    /// reported. Both come back together so the caller cannot print a reading
+    /// and tint it by a different number -- the old code printed `?? "—"` and
+    /// tinted `usageTint(fiveHour ?? 0)`, so "unknown" drew in the green of
+    /// "nothing used". 0% is a real reading and must still print.
+    static func usageHeadline(_ pct: Int?) -> (text: String, level: Int)? {
+        pct.map { ("\($0)%", $0) }
     }
 }
 
@@ -579,16 +581,17 @@ private struct OverviewStrip: View {
                 // No reading is not a reading of zero. The old `?? "—"` printed a
                 // dash tinted `usageTint(0)`, so a window that had never reported
                 // drew in the green of untouched headroom.
-                if let fiveHour, let pct = StatFormat.usagePercent(fiveHour) {
-                    Text(pct)
+                if let headline = StatFormat.usageHeadline(fiveHour) {
+                    Text(headline.text)
                         .font(.claudeMono(18)).fontWeight(.semibold)
-                        .foregroundStyle(Color.usageTint(fiveHour))
+                        .foregroundStyle(Color.usageTint(headline.level))
                     Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
                 } else {
-                    // Scoped to the live window, not to usage in general: the
-                    // sparkline below is drawing retained history, and "no usage
-                    // data yet" over a plotted line is the same fault this slice
-                    // exists to remove.
+                    // Scoped to the live window, not to usage in general. The
+                    // rejected wording here was the panel's own phrase about
+                    // having no usage data, which over the sparkline below --
+                    // drawing retained history -- would have been the same fault
+                    // this slice exists to remove.
                     Text("no current 5h reading")
                         .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
                 }
@@ -596,8 +599,8 @@ private struct OverviewStrip: View {
                 // `compactMap`s, so 7d can be known while 5h is not.
                 if let sevenDay {
                     // The separator belongs to the 5h reading, so it goes when
-                    // that reading does -- "no usage data yet · 40% of 7d" would
-                    // contradict itself in the same breath.
+                    // that reading does -- "no current 5h reading · 40% of 7d"
+                    // would contradict itself in the same breath.
                     Text("\(fiveHour == nil ? "" : "· ")\(sevenDay)% of 7d")
                         .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
                 }
