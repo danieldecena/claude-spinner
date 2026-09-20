@@ -1574,6 +1574,62 @@ final class claude_spinnerTests: XCTestCase {
     /// An unreported rate limit and a rate limit of zero are different facts. The
     /// zero case is the one that matters: a formatter returning nil for everything
     /// would satisfy the nil assertion on its own.
+    // MARK: - Palette contrast
+
+    /// WCAG 2.1 relative luminance and contrast ratio, on the sRGB triples the app
+    /// actually draws. Kept in the tests rather than the app: nothing at runtime
+    /// needs to measure a colour, and shipping maths only a test calls is dead
+    /// weight in the binary.
+    private func relativeLuminance(_ c: (Double, Double, Double)) -> Double {
+        func channel(_ v: Double) -> Double {
+            v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(c.0) + 0.7152 * channel(c.1) + 0.0722 * channel(c.2)
+    }
+
+    private func contrastRatio(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Double {
+        let (la, lb) = (relativeLuminance(a), relativeLuminance(b))
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+    }
+
+    /// The ratio maths itself, against pairs whose answer is fixed by the spec.
+    /// Without this the two assertions below could both pass on a function that
+    /// returned 21 for everything.
+    func testContrastRatioAgreesWithKnownPairs() {
+        let white = (1.0, 1.0, 1.0), black = (0.0, 0.0, 0.0)
+        XCTAssertEqual(contrastRatio(white, black), 21.0, accuracy: 0.01, "the maximum")
+        XCTAssertEqual(contrastRatio(white, white), 1.0, accuracy: 0.001, "a colour on itself")
+        // #767676 on white is the canonical 4.5:1 boundary value.
+        XCTAssertEqual(contrastRatio((0.463, 0.463, 0.463), white), 4.5, accuracy: 0.1)
+    }
+
+    /// Every status colour is drawn as a mark -- a gauge fill, a dot, a sparkline --
+    /// so each owes 3:1 against the surface it sits on, in both appearances.
+    /// Measured 2026-09-20: the light halves of green, yellow and amber were at
+    /// 2.49, 1.97 and 2.42 because the light theme had been derived from the dark
+    /// one rather than for a light ground.
+    func testEveryStatusMarkClearsThreeToOne() {
+        for mark in Color.Ink.marks {
+            let light = contrastRatio(mark.light, Color.Ink.groundLight)
+            let dark = contrastRatio(mark.dark, Color.Ink.groundDark)
+            XCTAssertGreaterThanOrEqual(light, 3.0, "\(mark.name) light is \(light)")
+            XCTAssertGreaterThanOrEqual(dark, 3.0, "\(mark.name) dark is \(dark)")
+        }
+    }
+
+    /// The label ink carries body text at 10-11px, so it owes 4.5:1, not 3:1.
+    /// `claude` is deliberately not used here -- it measures 3.84:1 on white,
+    /// which is why the labels moved off it.
+    func testLabelInkClearsBodyTextContrast() {
+        XCTAssertGreaterThanOrEqual(
+            contrastRatio(Color.Ink.labelLight, Color.Ink.groundLight), 4.5)
+        XCTAssertGreaterThanOrEqual(
+            contrastRatio(Color.Ink.labelDark, Color.Ink.groundDark), 4.5)
+        XCTAssertLessThan(
+            contrastRatio(Color.Ink.claudeLight, Color.Ink.groundLight), 4.5,
+            "if the accent ever clears 4.5:1 this guard is obsolete, not passing")
+    }
+
     func testUsageHeadlineSeparatesUnknownFromZero() {
         XCTAssertNil(StatFormat.usageHeadline(nil), "no window has reported")
         XCTAssertEqual(StatFormat.usageHeadline(0)?.text, "0%", "a real reading of zero")
