@@ -1618,16 +1618,19 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     /// The label ink carries body text at 10-11px, so it owes 4.5:1, not 3:1.
-    /// `claude` is deliberately not used here -- it measures 3.84:1 on white,
-    /// which is why the labels moved off it.
+    /// The accent now clears it too (clay, about 5.2:1 on white), which retired
+    /// the guard that asserted it did not; it is held to the same floor instead,
+    /// so a later re-tint back toward #C26B3D (3.84:1) fails here.
     func testLabelInkClearsBodyTextContrast() {
         XCTAssertGreaterThanOrEqual(
             contrastRatio(Color.Ink.labelLight, Color.Ink.groundLight), 4.5)
         XCTAssertGreaterThanOrEqual(
             contrastRatio(Color.Ink.labelDark, Color.Ink.groundDark), 4.5)
+        XCTAssertGreaterThanOrEqual(
+            contrastRatio(Color.Ink.claudeLight, Color.Ink.groundLight), 4.5)
         XCTAssertLessThan(
-            contrastRatio(Color.Ink.claudeLight, Color.Ink.groundLight), 4.5,
-            "if the accent ever clears 4.5:1 this guard is obsolete, not passing")
+            contrastRatio((0.76, 0.42, 0.24), Color.Ink.groundLight), 4.5,
+            "the old accent is the known-bad input; if it passes, the check measures nothing")
     }
 
     func testUsageHeadlineSeparatesUnknownFromZero() {

@@ -691,23 +691,27 @@ extension Color {
         static let groundLight = (1.0, 1.0, 1.0)
         static let groundDark = (0.118, 0.122, 0.125)
 
-        static let claudeLight = (0.76, 0.42, 0.24)
-        static let claudeDark = (0.93, 0.58, 0.36)
-        static let attentionLight = (0.30, 0.58, 0.92)
-        static let attentionDark = (0.45, 0.70, 1.0)
+        // Accent and attention are the Decena Apps design system's `clay` and
+        // `signal` (claude.ai/artifact/Vd5LAqkkX2HHeAFMSB556u), shared with
+        // wa-fish-map and the footage library. Clay is darker than the old
+        // #C26B3D and clears 4.5:1 on white where that measured 3.84.
+        static let claudeLight = (0.682, 0.318, 0.200)   // #AE5133
+        static let claudeDark = (0.878, 0.533, 0.361)    // #E0885C
+        static let attentionLight = (0.165, 0.392, 0.784) // #2A64C8
+        static let attentionDark = (0.451, 0.698, 1.0)    // #73B2FF
 
-        // The light halves of the ramp were re-derived on 2026-09-20 against a
-        // white ground, hue and saturation held. The old values measured 2.49,
-        // 1.97 and 2.42 -- all below the 3:1 a mark needs, because the light
-        // theme had been built by nudging the dark values down rather than
-        // deriving them for a light surface. Red already passed at 4.02.
-        static let usageRedLight = (0.85, 0.32, 0.28)
+        // The ramp is the design system's `heat-1`..`heat-4`, which was taken
+        // from this app. The dark halves are unchanged. The light halves were
+        // re-derived for a white ground on 2026-09-20 and sat just over 3:1;
+        // the system darkened them again so they also clear 3:1 on its warmer
+        // off-white panels, and now measure 3.9 to 4.6 here.
+        static let usageRedLight = (0.788, 0.275, 0.231)    // #C9463B
         static let usageRedDark = (1.0, 0.48, 0.44)
-        static let usageAmberLight = (0.855, 0.494, 0.11)
+        static let usageAmberLight = (0.753, 0.416, 0.071)  // #C06A12
         static let usageAmberDark = (1.0, 0.70, 0.36)
-        static let usageYellowLight = (0.671, 0.576, 0.173)
+        static let usageYellowLight = (0.561, 0.478, 0.110) // #8F7A1C
         static let usageYellowDark = (0.94, 0.85, 0.42)
-        static let usageGreenLight = (0.353, 0.647, 0.353)
+        static let usageGreenLight = (0.247, 0.561, 0.278)  // #3F8F47
         static let usageGreenDark = (0.55, 0.85, 0.55)
 
         /// Ink for a row label: the same burnt orange, darkened until it clears
@@ -718,7 +722,9 @@ extension Color {
         /// passed too and cost the app its warmth; darkening the hue keeps the
         /// label/value pair that makes the mono columns scannable.
         /// Dark needs no change: the lifted accent is already 7.07:1 there.
-        static let labelLight = (0.694, 0.380, 0.220)
+        /// Light is the system's `clay-ink`, one step darker than the accent, so
+        /// a label still sits quieter than the value beside it.
+        static let labelLight = (0.604, 0.267, 0.161)  // #9A4429
         static let labelDark = claudeDark
 
         /// Every triple that is drawn as a status mark, with the ground it sits on.
@@ -732,9 +738,10 @@ extension Color {
         ]
     }
 
-    /// Claude's burnt-orange accent, matching the terminal spinner.
+    /// Claude's burnt-orange accent: the design system's clay, close to the
+    /// terminal spinner's orange but dark enough to carry text.
     static let claude = dynamic(light: Ink.claudeLight, dark: Ink.claudeDark)
-    /// Quiet ink for row labels, which `claude` is too low-contrast to carry.
+    /// Quiet ink for row labels, a step darker than `claude`.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// Muted variant for the idle/done line — colored, but quieter than active.
     static let claudeDim = claude.opacity(0.65)
