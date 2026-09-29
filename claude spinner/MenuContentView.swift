@@ -219,6 +219,23 @@ struct UsageFooter: View {
 
                         Spacer(minLength: 4)
                     }
+                    // The shape behind the trend gauge's one number: where the 5h
+                    // window has been over the retained samples, on the same fixed
+                    // 0-100 axis as the gauge beside it.
+                    if feed.hasUsage {
+                        HStack(spacing: 6) {
+                            Text("5h history")
+                                .font(.claudeMono(10))
+                                .foregroundStyle(Color.label)
+                                .fixedSize()
+                            Sparkline(samples: feed.usageHistory)
+                                .frame(height: 14)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("5-hour usage over time")
+                                .accessibilityValue(Sparkline.spokenValue(feed.usageHistory))
+                        }
+                        .opacity(feed.usageIsStale ? 0.5 : 1)
+                    }
                     Text(feed.usageTotals == nil ? feed.usageTotalsStatus
                          : feed.usageTotalsRows.prefix(2).map { "\($0.label) \($0.value)" }
                              .joined(separator: "   "))

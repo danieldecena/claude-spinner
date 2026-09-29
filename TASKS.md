@@ -42,7 +42,7 @@
 - [x] Relabel footer chg gauge as trend
 - [x] Draw subagent connector glyph
 - [x] Add per-row context sparkline to panel
-- [ ] Add 5h usage history sparkline to footer
+- [x] Add 5h usage history sparkline to footer
 - [ ] Add larger context and usage charts to window
 - [ ] Draw session tree diagram in window
 - [ ] Add status and model breakdown bar to panel
