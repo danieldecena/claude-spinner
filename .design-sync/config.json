@@ -1,5 +1,18 @@
 {
   "projectId": "b8a4236f-6815-40de-a370-97833274388d",
-  "shape": "tokens-only",
+  "shape": "package",
+  "pkg": "app-kit",
+  "globalName": "AppKit",
+  "buildCmd": "node .design-sync/prep-appkit.mjs .ds-sync/node_modules",
+  "cssEntry": "appkit.css",
+  "tokensPkg": "app-kit",
+  "tokensGlob": "tokens/*.css",
+  "docsDir": "component-docs",
+  "guidelinesGlob": ["guides/*.md"],
+  "overrides": {
+    "BarChart": { "cardMode": "column" },
+    "Button": { "cardMode": "column" },
+    "Highlight": { "cardMode": "column" }
+  },
   "readmeHeader": ".design-sync/conventions.md"
 }

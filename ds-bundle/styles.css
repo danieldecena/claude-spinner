@@ -1,20 +1,2 @@
-@import "tokens/colors.css";
-@import "tokens/type.css";
-
-body {
-  background: var(--cs-ground);
-  color: var(--cs-text);
-  font: var(--cs-size-ui)/1.35 var(--cs-font-ui);
-  -webkit-font-smoothing: antialiased;
-}
-
-.cs-mono { font-family: var(--cs-font-mono); font-size: var(--cs-size-body); font-variant-numeric: tabular-nums; }
-.cs-label { color: var(--cs-label); }
-.cs-value { color: var(--cs-text); }
-.cs-muted { color: var(--cs-text-secondary); }
-.cs-separator { height: 1px; background: var(--cs-separator); border: 0; opacity: 0.5; }
-.cs-chip {
-  font: var(--cs-size-micro) var(--cs-font-mono);
-  padding: 1px var(--cs-space-2);
-  border-radius: var(--cs-radius-chip);
-}
+@import "./tokens/tokens.css";
+@import "./_ds_bundle.css";

@@ -30,3 +30,10 @@ buildServer.json
 
 # gh CLI machine-local state
 .local/
+
+# design-sync: staged converter and build output (regenerable)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
