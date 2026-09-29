@@ -40,7 +40,7 @@
 - [x] Opaque panel ground and blue Needs you header
 - [x] Collapse idle rows to one line
 - [x] Relabel footer chg gauge as trend
-- [ ] Draw subagent connector glyph
+- [x] Draw subagent connector glyph
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

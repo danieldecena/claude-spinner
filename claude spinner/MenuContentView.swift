@@ -571,8 +571,18 @@ struct SessionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // One line: [glyph] project-name ×N  model  status…  ctx%  time  [chip]
+            // Line 1: [└] [glyph] name ×N  model  time  [chip]
             HStack(spacing: 5) {
+                // A subagent's indent carries a connector to its parent, sized so
+                // connector + gap is exactly `indent` and every column after it
+                // lands where the plain indent put it.
+                if item.depth > 0 {
+                    Text("└")
+                        .font(.claudeMono(11))
+                        .foregroundStyle(Color.secondary)
+                        .frame(width: indent - 5, alignment: .trailing)
+                }
+
                 Text(glyph)
                     .font(.claudeMono(13))
                     .foregroundStyle(tint)
@@ -704,10 +714,9 @@ struct SessionRow: View {
                         contextMeter
                     }
                 }
-                .padding(.leading, 20)  // aligns under the name column, past the glyph
+                .padding(.leading, 20 + indent)  // aligns under the name column, past the glyph
             }
         }
-        .padding(.leading, indent)
         // Everything in a row renders lowercase — including hook-supplied text like
         // the attention message and tool names — for one consistent visual voice.
         .textCase(.lowercase)
