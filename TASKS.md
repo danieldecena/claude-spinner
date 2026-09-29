@@ -13,6 +13,9 @@ via `run.sh`.
 - [x] Match installed hooks on script path, not substring
 - [x] Delete merged branch design-system-pass-2026-09-20
 - [x] Block Merge on uncommitted changes
+- [x] Draw detail-pane sections as cards
+- [x] Hold the transcript card at one height
+- [x] Pin a glass toolbar above the detail pane
 
 ## Completed
 

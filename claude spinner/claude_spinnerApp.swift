@@ -689,6 +689,12 @@ extension Color {
         static let groundDark = (0.118, 0.122, 0.125)
         /// The panel's own light ground, a touch warmer than the white window.
         static let panelGroundLight = (0.980, 0.976, 0.969)  // #FAF9F7
+        /// The detail pane's cards: one step off the pane in each appearance, the
+        /// way the footage library separates its panels -- by surface, not shadow.
+        /// Darker than the pane in light, lighter in dark, so the card reads as
+        /// raised in both; text on it is re-measured in the tests.
+        static let cardLight = (0.961, 0.961, 0.969)  // #F5F5F7
+        static let cardDark = (0.165, 0.165, 0.173)   // #2A2A2C
 
         // Accent and attention are the Decena Apps design system's `clay` and
         // `signal` (claude.ai/artifact/Vd5LAqkkX2HHeAFMSB556u), shared with
@@ -771,6 +777,8 @@ extension Color {
     /// The popover's opaque ground: the design system's warm off-white, and the
     /// measured dark ground the contrast tests already assume.
     static let panelGround = dynamic(light: Ink.panelGroundLight, dark: Ink.groundDark)
+    /// The fill behind each section card in the window's detail pane.
+    static let card = dynamic(light: Ink.cardLight, dark: Ink.cardDark)
     /// Quiet neutral ink for row labels; orange is left to `claude` alone.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a

@@ -1648,6 +1648,22 @@ final class claude_spinnerTests: XCTestCase {
             "the old accent is the known-bad input")
     }
 
+    /// The detail pane's section cards sit a step off the pane in both appearances,
+    /// and every row label and header is drawn on them, so the text inks are
+    /// re-measured on the card rather than the pane.
+    func testTextInksClearBodyTextContrastOnTheCard() {
+        for (name, light, dark) in [("label", Color.Ink.labelLight, Color.Ink.labelDark),
+                                    ("claude", Color.Ink.claudeLight, Color.Ink.claudeDark)] {
+            let l = contrastRatio(light, Color.Ink.cardLight)
+            let d = contrastRatio(dark, Color.Ink.cardDark)
+            XCTAssertGreaterThanOrEqual(l, 4.5, "\(name) on the light card is \(l)")
+            XCTAssertGreaterThanOrEqual(d, 4.5, "\(name) on the dark card is \(d)")
+        }
+        XCTAssertLessThan(
+            contrastRatio((0.76, 0.42, 0.24), Color.Ink.cardLight), 4.5,
+            "the old accent is the known-bad input")
+    }
+
     /// Orange means working and nothing else, so the label ink must not read as
     /// the accent. The old clay label (#9A4429) is the known-bad input.
     func testLabelInkIsNotTheAccent() {

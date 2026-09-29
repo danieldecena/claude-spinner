@@ -29,6 +29,19 @@ enum SessionAction: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The toolbar draws these as icons; the title rides along as the tooltip
+    /// and the accessibility label.
+    var symbol: String {
+        switch self {
+        case .interrupt: return "stop.circle"
+        case .compact: return "arrow.down.right.and.arrow.up.left"
+        case .clear: return "eraser"
+        case .revealCWD: return "folder"
+        case .openTranscript: return "doc.text"
+        case .copySessionID: return "doc.on.doc"
+        }
+    }
+
     /// Needs a tmux pane to type into.
     var needsPane: Bool {
         switch self {

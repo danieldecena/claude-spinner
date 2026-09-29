@@ -206,6 +206,7 @@ private struct SessionDetail: View {
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
+    @State private var cardHeight: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -218,18 +219,31 @@ private struct SessionDetail: View {
 
                 TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
 
-                ReplyBox(session: session, feedDir: feedDir)
-                ActionBar(session: session, feedDir: feedDir)
-                GitCard(cwd: session.cwd)
-
-                stats
+                // Side by side where the pane is wide enough, one column where it
+                // isn't, and every card the height of the tallest so the grid
+                // reads as a set of equal tiles rather than a ragged row.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 12,
+                                             alignment: .top)],
+                          alignment: .leading, spacing: 12) {
+                    GitCard(cwd: session.cwd)
+                    stats
+                }
+                .environment(\.cardHeight, cardHeight)
+                .onPreferenceChange(CardHeightKey.self) { cardHeight = $0 }
 
                 if !children.isEmpty {
                     SubagentTree(parent: session, children: children)
+                        .detailCard()
                 }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        // Pinned above the scroll rather than inside it, after the footage
+        // library: replying and acting on the session stay in reach however far
+        // down the cards you are, and the cards pass underneath the glass.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SessionToolbar(session: session, feedDir: feedDir)
         }
     }
 
@@ -266,6 +280,7 @@ private struct SessionDetail: View {
             ("pid", session.pid.map(String.init)),
             ("repo", st.repo),
         ])
+        .detailCard()
 
         StatSection("Cost", rows: [
             ("spend", st.costUSD.map(StatFormat.money)),
@@ -274,6 +289,7 @@ private struct SessionDetail: View {
             ("api share", st.apiShare.map(StatFormat.percent)),
             ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
         ])
+        .detailCard()
 
         VStack(alignment: .leading, spacing: 8) {
             StatSection("Context", rows: [
@@ -292,6 +308,7 @@ private struct SessionDetail: View {
                 ContextTrend(samples: history, window: window, tokens: tokens)
             }
         }
+        .detailCard()
 
         StatSection("Prompt cache", rows: [
             ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
@@ -300,6 +317,7 @@ private struct SessionDetail: View {
             ("requests", st.cacheRequests.map(String.init)),
             ("misses", st.cacheMisses.map(String.init)),
         ])
+        .detailCard()
 
         StatSection("Config", rows: [
             ("model", session.model),
@@ -309,6 +327,7 @@ private struct SessionDetail: View {
             ("style", st.outputStyle),
             ("claude", st.claudeVersion),
         ])
+        .detailCard()
     }
 
     private func label(for session: SessionFeed) -> String {
@@ -479,28 +498,54 @@ private struct AskCard: View {
 
 // MARK: - Free-text reply
 
-private struct ReplyBox: View {
+/// The detail pane's one-row toolbar: the reply field and the session actions
+/// on glass, with the last outcome from either said underneath.
+///
+/// The notice is the one thing allowed to add a line, and only after you did
+/// something: it answers the click, so it should not wait in the scroll.
+private struct SessionToolbar: View {
     let session: SessionFeed
     let feedDir: URL
-    @State private var text = ""
-    @State private var sending = false
     @State private var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                TextField("Reply to this session…", text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.claudeMono(11))
-                    .onSubmit(send)
-                Button(sending ? "Sending…" : "Send", action: send)
-                    .font(.claudeMono(11))
-                    .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+                    ActionBar(session: session, feedDir: feedDir, notice: $notice)
+                }
             }
             if let notice {
                 Notice(notice)
+                    .background(Color.card, in: RoundedRectangle(cornerRadius: 6))
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+    }
+}
+
+private struct ReplyBox: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @Binding var notice: NoticeMessage?
+    @State private var text = ""
+    @State private var sending = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            TextField("Reply to this session…", text: $text)
+                .textFieldStyle(.plain)
+                .font(.claudeMono(11))
+                .onSubmit(send)
+            Button(sending ? "Sending…" : "Send", action: send)
+                .font(.claudeMono(11))
+                .buttonStyle(.borderless)
+                .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(.leading, 14).padding(.trailing, 10).padding(.vertical, 8)
+        .glassEffect(.regular, in: Capsule())
     }
 
     private func send() {
@@ -523,6 +568,42 @@ private struct ReplyBox: View {
 
 
 // MARK: - Stat rendering
+
+private extension View {
+    /// One section of the detail pane as a card, after the footage library's:
+    /// the design system's radius-lg on a surface one step off the pane, with no
+    /// border or shadow. Fills its grid column so neighbours line up at the edges.
+    func detailCard() -> some View { modifier(DetailCard()) }
+}
+
+/// The tallest card's natural height, shared so every card in the grid can take it.
+private struct CardHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private extension EnvironmentValues {
+    /// Zero outside the stat grid, so a full-width card keeps its own height.
+    @Entry var cardHeight: CGFloat = 0
+}
+
+private struct DetailCard: ViewModifier {
+    @Environment(\.cardHeight) private var height
+
+    func body(content: Content) -> some View {
+        content
+            .padding(16)
+            // Measured before the shared height is applied: reading it after would
+            // report the tallest card back to itself, and the grid could only grow.
+            .background(GeometryReader { proxy in
+                Color.clear.preference(key: CardHeightKey.self, value: proxy.size.height)
+            })
+            .frame(maxWidth: .infinity, minHeight: height, alignment: .topLeading)
+            .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
 
 /// A titled group of key/value rows. A nil value drops its row entirely rather
 /// than drawing an em dash: a section of eight dashes says nothing except that
@@ -553,10 +634,10 @@ private struct StatSection: View {
 
     var body: some View {
         let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Text(title).font(.claudeMono(10)).foregroundStyle(Color.label)
-                    .textCase(.uppercase)
+                    .textCase(.uppercase).tracking(0.8)
                 if let refresh {
                     Button("Refresh", action: refresh)
                         .font(.claudeMono(10)).buttonStyle(.link)
@@ -565,13 +646,19 @@ private struct StatSection: View {
             if present.isEmpty {
                 Text(empty).font(.claudeMono(11)).foregroundStyle(Color.label)
             } else {
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
                     ForEach(present, id: \.0) { key, value, note in
                         GridRow {
-                            Text(key).font(.claudeMono(11)).foregroundStyle(Color.label)
+                            // Proportional labels against monospaced values, so the
+                            // eye separates the two columns by face as well as by gap.
+                            Text(key).font(.system(size: 11)).foregroundStyle(Color.label)
                                 .gridColumnAlignment(.leading)
                             HStack(spacing: 8) {
+                                // Cut in the middle, not wrapped: in a card-width
+                                // column a bundle id broke mid-word onto a second
+                                // line. Both ends of an id or path carry meaning.
                                 Text(value).font(.claudeMono(11)).textSelection(.enabled)
+                                    .lineLimit(1).truncationMode(.middle).help(value)
                                 if let note {
                                     Text(note).font(.claudeMono(10))
                                         .foregroundStyle(Color.label)
@@ -1011,31 +1098,21 @@ private struct TranscriptCard: View {
     @State private var expanded = false
 
     var body: some View {
-        Group {
-            if !snapshot.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    if let prompt = snapshot.lastPrompt {
-                        Labelled("you asked", prompt, limit: expanded ? nil : 3)
-                    }
-                    if let said = snapshot.lastAssistantText {
-                        Labelled("claude said", said, limit: expanded ? nil : 6)
-                    }
-                    if !snapshot.recentTools.isEmpty {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("just ran").font(.claudeMono(10))
-                                .foregroundStyle(Color.label).textCase(.uppercase)
-                            Text(snapshot.recentTools.joined(separator: " · "))
-                                .font(.claudeMono(11))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
-                        .font(.claudeMono(10)).buttonStyle(.link)
-                }
-                .padding(12)
-                .background(Color.claudeDim.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-            }
+        // Collapsed, every block is always present and reserves its full clamp,
+        // so the card is one fixed height: it used to grow and shrink with each
+        // reply and jolt the grid below it every few seconds. Expanded is the
+        // one state allowed to size to its text, because you asked for that.
+        VStack(alignment: .leading, spacing: 10) {
+            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 3)
+            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 6)
+            Labelled("just ran",
+                     snapshot.recentTools.isEmpty
+                         ? nil : snapshot.recentTools.joined(separator: " · "),
+                     limit: expanded ? nil : 1)
+            Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
+                .font(.claudeMono(10)).buttonStyle(.link)
         }
+        .detailCard()
         .task(id: sessionID) { await refresh() }
         // Re-read on the same cadence the rows already tick at. The read is a
         // bounded tail, not the whole file, so this stays cheap.
@@ -1055,13 +1132,14 @@ private struct TranscriptCard: View {
     }
 }
 
-/// A titled block of transcript prose, clamped unless expanded.
+/// A titled block of transcript prose, clamped unless expanded. A clamped block
+/// holds its full line count even when the text is shorter or missing.
 private struct Labelled: View {
     let title: String
-    let body_: String
+    let body_: String?
     let limit: Int?
 
-    init(_ title: String, _ body: String, limit: Int?) {
+    init(_ title: String, _ body: String?, limit: Int?) {
         self.title = title
         self.body_ = body
         self.limit = limit
@@ -1071,9 +1149,10 @@ private struct Labelled: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.claudeMono(10))
                 .foregroundStyle(Color.label).textCase(.uppercase)
-            Text(body_)
+            Text(body_ ?? "not recorded")
                 .font(.claudeMono(11))
-                .lineLimit(limit)
+                .foregroundStyle(body_ == nil ? Color.label : Color.primary)
+                .lineLimit(limit ?? Int.max, reservesSpace: limit != nil)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1092,26 +1171,23 @@ private struct Labelled: View {
 private struct ActionBar: View {
     let session: SessionFeed
     let feedDir: URL
+    @Binding var notice: NoticeMessage?
     @State private var hasPane = false
-    @State private var notice: NoticeMessage?
     @State private var confirming: SessionAction?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                ForEach(SessionAction.allCases) { action in
-                    let reason = SessionActions.unavailableReason(action,
-                                                                  session: session,
-                                                                  hasPane: hasPane)
-                    Button(action.title) { start(action) }
-                        .font(.claudeMono(10))
-                        .disabled(reason != nil)
-                        .help(reason ?? action.title)
+        HStack(spacing: 6) {
+            ForEach(SessionAction.allCases) { action in
+                let reason = SessionActions.unavailableReason(action,
+                                                              session: session,
+                                                              hasPane: hasPane)
+                Button { start(action) } label: {
+                    Image(systemName: action.symbol).frame(width: 18, height: 18)
                 }
-                Spacer(minLength: 0)
-            }
-            if let notice {
-                Notice(notice)
+                .buttonStyle(.glass)
+                .disabled(reason != nil)
+                .help(reason ?? action.title)
+                .accessibilityLabel(action.title)
             }
         }
         .task(id: session.id) {
@@ -1194,6 +1270,7 @@ private struct GitCard: View {
         VStack(alignment: .leading, spacing: 0) {
             content
         }
+        .detailCard()
         .task(id: cwd) { await poll() }
     }
 
