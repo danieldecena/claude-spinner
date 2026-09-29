@@ -723,7 +723,7 @@ final class UsagePoller {
     func refreshNow() { poll(force: true) }
 
     /// Seconds since the last user input, across the whole session (keyboard/mouse).
-    private static var userIdleSeconds: Double {
+    static var userIdleSeconds: Double {
         CGEventSource.secondsSinceLastEventType(.combinedSessionState,
                                                 eventType: CGEventType(rawValue: ~0)!)
     }
@@ -820,6 +820,158 @@ final class UsagePoller {
     }
 }
 
+/// Today's, this week's and the active 5h block's token/spend totals, read from
+/// `ccusage` (which scans every transcript, ended sessions included). Spend is
+/// api-equivalent, not billed on Max.
+///
+/// ccusage's price lookup is intermittent: observed 2026-09-29, the same query
+/// a minute apart returned $154 and $1.84, the low run pricing only haiku and
+/// every opus/sonnet row at $0.00. So cost is nil (unknown) whenever a model
+/// with tokens came back at zero, and the block carries tokens only -- its JSON
+/// has no per-model breakdown to check its dollar figure against.
+final class UsageTotalsPoller {
+    struct Block {
+        var tokens: Int
+        var projectedTokens: Int?
+        var remainingMinutes: Int?
+    }
+    struct Result {
+        var todayTokens: Int
+        var todayCost: Double?
+        var weekTokens: Int
+        var weekCost: Double?
+        var block: Block?
+        var fetchedAt: Date
+    }
+
+    /// Long: a daily scan costs ~11s wall and ~90s CPU across every transcript.
+    static let pollInterval: TimeInterval = 10 * 60
+    static let executable = "/opt/homebrew/bin/ccusage"
+
+    private let onUpdate: (Result) -> Void
+    private let onError: (String) -> Void
+    private var timer: Timer?
+    /// A slow scan must not stack a second one behind it. Main-thread only.
+    private var inFlight = false
+
+    init(onUpdate: @escaping (Result) -> Void, onError: @escaping (String) -> Void) {
+        self.onUpdate = onUpdate
+        self.onError = onError
+    }
+
+    func start() {
+        stop()
+        poll(force: true)
+        timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) {
+            [weak self] _ in self?.poll(force: false)
+        }
+    }
+
+    func stop() { timer?.invalidate(); timer = nil }
+
+    func refreshNow() { poll(force: true) }
+
+    /// Pure JSON→Result parse. Nil means the output wasn't the shape ccusage
+    /// documents, never "no usage": an empty `daily` is an observed zero.
+    static func parse(daily: Data, blocks: Data, today: String, now: Date) -> Result? {
+        func num(_ v: Any?) -> Double? { (v as? NSNumber)?.doubleValue }
+        guard let d = try? JSONSerialization.jsonObject(with: daily) as? [String: Any],
+              let rows = d["daily"] as? [[String: Any]],
+              let b = try? JSONSerialization.jsonObject(with: blocks) as? [String: Any],
+              let blockRows = b["blocks"] as? [[String: Any]] else { return nil }
+        var result = Result(todayTokens: 0, todayCost: 0, weekTokens: 0, weekCost: 0,
+                            block: nil, fetchedAt: now)
+        for row in rows {
+            guard let period = row["period"] as? String,
+                  let tokens = num(row["totalTokens"]),
+                  let cost = num(row["totalCost"]) else { return nil }
+            let priced = isPriced(row)
+            result.weekTokens += Int(tokens)
+            result.weekCost = priced ? result.weekCost.map { $0 + cost } : nil
+            if period == today {
+                result.todayTokens += Int(tokens)
+                result.todayCost = priced ? result.todayCost.map { $0 + cost } : nil
+            }
+        }
+        if let row = blockRows.first(where: { $0["isActive"] as? Bool == true }) {
+            guard let tokens = num(row["totalTokens"]) else { return nil }
+            let projection = row["projection"] as? [String: Any]
+            result.block = Block(tokens: Int(tokens),
+                                 projectedTokens: num(projection?["totalTokens"]).map { Int($0) },
+                                 remainingMinutes: num(projection?["remainingMinutes"]).map { Int($0) })
+        }
+        return result
+    }
+
+    /// A day's cost is trustworthy only if every model that used tokens got a
+    /// price. No breakdown at all means there is nothing to check it against.
+    static func isPriced(_ row: [String: Any]) -> Bool {
+        guard let models = row["modelBreakdowns"] as? [[String: Any]] else { return false }
+        return models.allSatisfy { m in
+            let used = ["inputTokens", "outputTokens", "cacheCreationTokens", "cacheReadTokens"]
+                .contains { ((m[$0] as? NSNumber)?.intValue ?? 0) > 0 }
+            return !used || ((m["cost"] as? NSNumber)?.doubleValue ?? 0) > 0
+        }
+    }
+
+    /// Runs ccusage and returns stdout, or an error message. No `--offline`: its
+    /// cached price table predates current models and prices them at $0.00.
+    private static func run(_ args: [String]) -> (Data?, String?) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: executable)
+        task.arguments = args
+        // ccusage is `#!/usr/bin/env node`; a GUI app's PATH has no node on it.
+        task.environment = ProcessInfo.processInfo.environment.merging(
+            ["PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"]) { $1 }
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return (nil, "ccusage not found") }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return (nil, "ccusage exit \(task.terminationStatus)") }
+        return (data, nil)
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private func poll(force: Bool) {
+        if inFlight { return }
+        if !force && UsagePoller.userIdleSeconds > UsagePoller.pauseAfterIdle { return }
+        inFlight = true
+        let now = Date()
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = .current
+        let weekStart = cal.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let since = Self.dayFormatter.string(from: weekStart).replacingOccurrences(of: "-", with: "")
+        let today = Self.dayFormatter.string(from: now)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            func attempt() -> (Result?, String?) {
+                let (daily, err1) = Self.run(["daily", "--json", "--since", since])
+                let (blocks, err2) = daily == nil ? (nil, nil) : Self.run(["blocks", "--active", "--json"])
+                let r = daily.flatMap { d in blocks.flatMap { Self.parse(daily: d, blocks: $0, today: today, now: Date()) } }
+                return (r, err1 ?? err2)
+            }
+            var (result, err) = attempt()
+            // An unpriced run is usually the flaky price lookup; one retry often lands.
+            if result != nil, result?.weekCost == nil, let again = attempt().0, again.weekCost != nil {
+                result = again
+            }
+            if result == nil { err = err ?? "unreadable output" }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.inFlight = false
+                if let result { self.onUpdate(result) } else { self.onError(err ?? "unreadable output") }
+            }
+        }
+    }
+}
+
 final class FeedWatcher: ObservableObject {
     @Published private(set) var sessions: [SessionFeed] = [] {
         // Recompute the usage-bearing session once per publish, not on every footer
@@ -900,11 +1052,17 @@ final class FeedWatcher: ObservableObject {
     /// turned off (a notice about polling failing is meaningless once it's off).
     @Published private(set) var usageFailure: UsageFailure?
     private var poller: UsagePoller?
+    /// Today/week/block totals from ccusage. On failure the last good value stays
+    /// (dimmed once stale) and `usageTotalsError` says why; it never becomes zero.
+    @Published private(set) var usageTotals: UsageTotalsPoller.Result?
+    @Published private(set) var usageTotalsError: String?
+    private var totalsPoller: UsageTotalsPoller?
     /// Whether to poll the API for live usage; persisted, on by default.
     @Published var usagePollingEnabled: Bool {
         didSet {
             UserDefaults.standard.set(usagePollingEnabled, forKey: "usagePollingEnabled")
             usagePollingEnabled ? poller?.start() : stopPolling()
+            usagePollingEnabled ? totalsPoller?.start() : totalsPoller?.stop()
         }
     }
     /// All disk reads/parses and file pruning happen here, off the main thread.
@@ -936,6 +1094,10 @@ final class FeedWatcher: ObservableObject {
             onAuthExpired: { [weak self] in self?.usageFailure = .authExpired },
             onError: { [weak self] message in self?.usageFailure = .transient(message) })
         if usagePollingEnabled { poller?.start() }
+        totalsPoller = UsageTotalsPoller(
+            onUpdate: { [weak self] result in self?.usageTotals = result; self?.usageTotalsError = nil },
+            onError: { [weak self] message in self?.usageTotalsError = message })
+        if usagePollingEnabled { totalsPoller?.start() }
         // Safety re-scan: catches any directory event the vnode source misses
         // and prunes sessions that ended without firing SessionEnd.
         timer = Timer.scheduledTimer(withTimeInterval: Constants.safetyRescanInterval,
@@ -961,6 +1123,7 @@ final class FeedWatcher: ObservableObject {
         animTimer?.invalidate()
         countdownTimer?.invalidate()
         poller?.stop()
+        totalsPoller?.stop()
     }
 
     private func stopPolling() {
@@ -972,7 +1135,7 @@ final class FeedWatcher: ObservableObject {
     }
 
     /// Force an immediate usage poll (right-click → Refresh).
-    func refreshUsage() { poller?.refreshNow() }
+    func refreshUsage() { poller?.refreshNow(); totalsPoller?.refreshNow() }
 
     /// Store a fresh poll result and persist it to the usage cache so it survives
     /// relaunch and Clear All. Runs on main.
@@ -1751,6 +1914,45 @@ final class FeedWatcher: ObservableObject {
     var usageAsOfString: String {
         guard let t = usageUpdatedAt else { return "No usage data yet" }
         return "Usage as of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)"
+    }
+
+    /// One totals row: a label and its value, e.g. `today` / `329M  $154`.
+    struct TotalsRow: Hashable { let label: String; let value: String }
+
+    /// ccusage totals as rows: today, week, then the active block (tokens only).
+    /// Empty until the first scan lands; `usageTotalsStatus` covers that gap.
+    var usageTotalsRows: [TotalsRow] {
+        guard let t = usageTotals else { return [] }
+        // "$?" not "$0": an unpriced run is a failed read, never a zero spend.
+        func cost(_ c: Double?) -> String { c.map(StatFormat.money) ?? "$?" }
+        var rows = [TotalsRow(label: "today", value: "\(Self.formatTokens(t.todayTokens))  \(cost(t.todayCost))"),
+                    TotalsRow(label: "week", value: "\(Self.formatTokens(t.weekTokens))  \(cost(t.weekCost))")]
+        if let b = t.block {
+            var value = Self.formatTokens(b.tokens)
+            if let p = b.projectedTokens { value += " → \(Self.formatTokens(p))" }
+            if let m = b.remainingMinutes { value += " · \(m / 60)h\(m % 60)m left" }
+            rows.append(TotalsRow(label: "block", value: value))
+        }
+        return rows
+    }
+    /// Shown in place of the rows before the first scan or after a failed one.
+    var usageTotalsStatus: String {
+        usageTotalsError.map { "usage totals unavailable (\($0))" } ?? "usage totals loading"
+    }
+    var usageTotalsIsStale: Bool {
+        guard let t = usageTotals?.fetchedAt else { return false }
+        return Date().timeIntervalSince(t) > Constants.usageStaleAfter + UsageTotalsPoller.pollInterval
+    }
+    var usageTotalsTooltip: String {
+        var s = "ccusage totals, api-equivalent spend (not billed on Max)."
+        if let t = usageTotals?.fetchedAt {
+            s += " As of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)."
+        }
+        if usageTotals != nil && usageTotals?.weekCost == nil {
+            s += " $? = ccusage couldn't price every model on this run."
+        }
+        if let e = usageTotalsError { s += " Last refresh failed: \(e)." }
+        return s
     }
 
     /// Genuinely blocked: a window is maxed out AND the account can't buy overage.

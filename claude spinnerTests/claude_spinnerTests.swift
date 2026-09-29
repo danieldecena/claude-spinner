@@ -2910,4 +2910,72 @@ final class claude_spinnerTests: XCTestCase {
                        "idle 2m 0s")
     }
 
+    // MARK: - UsageTotalsPoller.parse (ccusage JSON -> Result)
+
+    private let activeBlock = Data("""
+        {"blocks":[{"isActive":true,"totalTokens":5000,"projection":{"totalTokens":9000,"remainingMinutes":104}}]}
+        """.utf8)
+    private let noBlock = Data(#"{"blocks":[]}"#.utf8)
+
+    /// Known-good: today is the matching period row, week sums every row.
+    func testTotalsParseSumsWeekAndPicksToday() {
+        let daily = Data("""
+            {"daily":[{"period":"2026-09-28","totalTokens":1000,"totalCost":3.25,
+                       "modelBreakdowns":[{"outputTokens":1000,"cost":3.25}]},
+                      {"period":"2026-09-29","totalTokens":500,"totalCost":1.5,
+                       "modelBreakdowns":[{"outputTokens":500,"cost":1.5},{"outputTokens":0,"cost":0}]}]}
+            """.utf8)
+        let r = UsageTotalsPoller.parse(daily: daily, blocks: activeBlock, today: "2026-09-29", now: Date())
+        XCTAssertEqual(r?.todayTokens, 500)
+        XCTAssertEqual(r?.todayCost, 1.5)
+        XCTAssertEqual(r?.weekTokens, 1500)
+        XCTAssertEqual(r?.weekCost, 4.75)
+        XCTAssertEqual(r?.block?.tokens, 5000)
+        XCTAssertEqual(r?.block?.projectedTokens, 9000)
+        XCTAssertEqual(r?.block?.remainingMinutes, 104)
+    }
+
+    /// The 2026-09-29 flake: a model with tokens but $0 means ccusage failed to
+    /// price it, so that day's and the week's cost are unknown, not low. Tokens
+    /// stay, and a clean day in the same week keeps no cost of its own either.
+    func testTotalsParseUnpricedModelMakesCostUnknown() {
+        let daily = Data("""
+            {"daily":[{"period":"a","totalTokens":10,"totalCost":1.84,
+                       "modelBreakdowns":[{"outputTokens":5,"cost":1.84},{"cacheReadTokens":5,"cost":0}]},
+                      {"period":"b","totalTokens":4,"totalCost":2,
+                       "modelBreakdowns":[{"outputTokens":4,"cost":2}]}]}
+            """.utf8)
+        let r = UsageTotalsPoller.parse(daily: daily, blocks: noBlock, today: "b", now: Date())
+        XCTAssertNil(r?.weekCost)
+        XCTAssertEqual(r?.todayCost, 2)
+        XCTAssertEqual(r?.weekTokens, 14)
+        let unpricedToday = UsageTotalsPoller.parse(daily: daily, blocks: noBlock, today: "a", now: Date())
+        XCTAssertNil(unpricedToday?.todayCost)
+    }
+
+    /// Output that isn't ccusage's shape is a failure, never a zero.
+    func testTotalsParseRejectsMalformed() {
+        let good = Data(#"{"daily":[]}"#.utf8)
+        XCTAssertNil(UsageTotalsPoller.parse(daily: Data("not json".utf8), blocks: noBlock, today: "x", now: Date()))
+        XCTAssertNil(UsageTotalsPoller.parse(daily: good, blocks: Data("{}".utf8), today: "x", now: Date()))
+        XCTAssertNil(UsageTotalsPoller.parse(daily: Data(#"{"daily":[{"period":"x"}]}"#.utf8),
+                                             blocks: noBlock, today: "x", now: Date()))
+    }
+
+    /// An empty week is an observed zero, distinct from a failed parse.
+    func testTotalsParseEmptyDailyIsZero() {
+        let r = UsageTotalsPoller.parse(daily: Data(#"{"daily":[]}"#.utf8), blocks: noBlock, today: "x", now: Date())
+        XCTAssertNotNil(r)
+        XCTAssertEqual(r?.todayTokens, 0)
+        XCTAssertEqual(r?.weekCost, 0)
+    }
+
+    /// No active block leaves the block nil while day/week survive.
+    func testTotalsParseNoActiveBlock() {
+        let daily = Data(#"{"daily":[{"period":"d","totalTokens":7,"totalCost":0.5,"modelBreakdowns":[{"outputTokens":7,"cost":0.5}]}]}"#.utf8)
+        let r = UsageTotalsPoller.parse(daily: daily, blocks: noBlock, today: "d", now: Date())
+        XCTAssertEqual(r?.todayTokens, 7)
+        XCTAssertNil(r?.block)
+    }
+
 }

@@ -49,7 +49,11 @@ struct WindowContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                OverviewStrip(overview: feed.overview, history: feed.usageHistory)
+                OverviewStrip(overview: feed.overview, history: feed.usageHistory,
+                              totals: feed.usageTotalsRows,
+                              totalsStatus: feed.usageTotalsStatus,
+                              totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
+                              totalsHelp: feed.usageTotalsTooltip)
                 // Same reason the panel carries it: without this the window
                 // surface answers questions fine and silently never rings.
                 NotificationsNotice()
@@ -571,6 +575,12 @@ enum StatFormat {
 private struct OverviewStrip: View {
     let overview: FeedWatcher.Overview
     let history: [UsageSample]
+    /// ccusage totals across every session, ended ones included -- the lines
+    /// above add up only the sessions that are live right now.
+    let totals: [FeedWatcher.TotalsRow]
+    let totalsStatus: String
+    let totalsDimmed: Bool
+    let totalsHelp: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -624,6 +634,14 @@ private struct OverviewStrip: View {
                                            removed: overview.linesRemoved) {
                 Text("\(diff) lines").font(.claudeMono(10)).foregroundStyle(Color.label)
             }
+
+            // Headed, because every figure above counts live sessions only and
+            // these count every transcript -- same words, different population.
+            StatSection("All sessions", rows: totals.map { ($0.label, $0.value, nil) },
+                        empty: totalsStatus)
+                .padding(.top, 4)
+                .opacity(totalsDimmed ? 0.6 : 1)
+                .help(totalsHelp)
 
             Sparkline(samples: history)
                 .frame(height: 22)

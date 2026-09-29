@@ -186,31 +186,42 @@ struct UsageFooter: View {
             Divider().opacity(0.5)
             // 1s clock keeps the reset countdown live-ticking.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 0) {
-                    if feed.hasUsage {
-                        HStack(spacing: 12) {
-                            if let h5 = feed.usageFiveHourPct {
-                                UsageGauge(label: "5h", pct: h5)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 0) {
+                        if feed.hasUsage {
+                            HStack(spacing: 12) {
+                                if let h5 = feed.usageFiveHourPct {
+                                    UsageGauge(label: "5h", pct: h5)
+                                }
+                                if let d7 = feed.usageSevenDayPct {
+                                    UsageGauge(label: "7d", pct: d7)
+                                }
+                                // Recent 5h change, once there are ≥2 poll samples.
+                                if let trend = feed.usageFiveHourTrend {
+                                    TrendGauge(delta: trend)
+                                }
                             }
-                            if let d7 = feed.usageSevenDayPct {
-                                UsageGauge(label: "7d", pct: d7)
-                            }
-                            // Recent 5h change, once there are ≥2 poll samples.
-                            if let trend = feed.usageFiveHourTrend {
-                                TrendGauge(delta: trend)
-                            }
+                            // Dim when stale so a frozen snapshot doesn't read as live;
+                            // the "as of" time and age live in the hover tooltip.
+                            .opacity(feed.usageIsStale ? 0.5 : 1)
+                            .help(feed.usageAsOfString)
+                        } else {
+                            Text("no usage data yet")
+                                .font(.claudeMono(11))
+                                .foregroundStyle(Color.secondary.opacity(0.6))
                         }
-                        // Dim when stale so a frozen snapshot doesn't read as live;
-                        // the "as of" time and age live in the hover tooltip.
-                        .opacity(feed.usageIsStale ? 0.5 : 1)
-                        .help(feed.usageAsOfString)
-                    } else {
-                        Text("no usage data yet")
-                            .font(.claudeMono(11))
-                            .foregroundStyle(Color.secondary.opacity(0.6))
-                    }
 
-                    Spacer(minLength: 4)
+                        Spacer(minLength: 4)
+                    }
+                    Text(feed.usageTotals == nil ? feed.usageTotalsStatus
+                         : feed.usageTotalsRows.prefix(2).map { "\($0.label) \($0.value)" }
+                             .joined(separator: "   "))
+                        .font(.claudeMono(11))
+                        .foregroundStyle(Color.label)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .opacity(feed.usageTotals == nil || feed.usageTotalsIsStale ? 0.6 : 1)
+                        .help(feed.usageTotalsTooltip)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
@@ -808,7 +819,7 @@ struct SessionRow: View {
         let t = min(max((age - Constants.idleFadeStart) / Constants.idleFadeSpan, 0), 1)
         return 1.0 - (1.0 - Constants.idleMinOpacity) * t
     }
-    
+
     /// Bring the session's host app (and its existing window) to the front —
     /// never a new window. See `SessionLauncher.focus`.
     private func openSession() {

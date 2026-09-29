@@ -10,6 +10,10 @@
 - [x] Build the window screen -- figma, no commit
 - [x] Add dark-mode frames and the conflict log page -- figma, no commit
 - [ ] Fix dark-copy text still bound to Light colors
+- [x] Add ccusage poller for today/week/block totals
+- [x] Show usage totals line in the menu footer
+- [x] Test ccusage parse (good, malformed, empty, no block)
+- [ ] [you] Look at the window's All sessions totals section
 - [x] Record Figma URL and next Swift fix slices
 - [x] Unify state colors across panel and window
 - [x] Add one Notice style for info, warning and error
@@ -185,7 +189,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-20 05:28.
+Plan approved 2026-09-29 10:17.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -194,7 +198,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume f1c4f381-a5cb-4c4e-9867-b72c73801deb
+    claude --resume 682ebba9-8126-44b5-837b-dc5c69aa75f7
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

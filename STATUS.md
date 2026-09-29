@@ -150,6 +150,24 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (usage totals from ccusage; the Dock bounce)
+
+- Decided: today / week / active-block totals come from `ccusage`, polled every
+  10 min (a daily scan costs ~11s wall, ~90s CPU), shown as one line in the
+  panel footer (today + week) and as an "All sessions" `StatSection` in the
+  window overview (today, week, block). They count every transcript, ended
+  sessions included, which nothing else in the app does.
+- Decided: never `--offline`, and cost is `$?` whenever any model with tokens
+  came back at $0.00. ccusage's price lookup is intermittent: the same query a
+  minute apart returned $154 and $1.84, the low run pricing only haiku. The
+  block shows tokens only; its JSON has no per-model breakdown to check its
+  dollar figure against. A poll that comes back unpriced retries once.
+- Decided: the ask Dock bounce is `.informationalRequest` (one bounce), not
+  `.criticalRequest` (bounces until activated). Asked for 2026-09-29.
+- Not observed on screen: the window's "All sessions" section. This machine's
+  window sat in Stage Manager's strip, and raising it by script captured the
+  thumbnail twice. Tests pin the parse (239, 0 failures); the rendering is unseen.
+
 ### 2026-09-28 (the palette work, and both appearances looked at)
 
 - The light theme was a tinted dark theme. Measured against the app's real
