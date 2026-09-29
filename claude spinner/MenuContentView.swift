@@ -304,7 +304,7 @@ struct TrendGauge: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Text("chg")
+            Text("trend")
                 .font(.claudeMono(11))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()

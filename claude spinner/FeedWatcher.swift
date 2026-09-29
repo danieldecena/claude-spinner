@@ -103,7 +103,7 @@ enum Constants {
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
     static let rowTrailingSlot: CGFloat = 29
-    /// Shared track width for every footer gauge (5h / 7d / chg) so the bars are
+    /// Shared track width for every footer gauge (5h / 7d / trend) so the bars are
     /// identical in size, kept short enough that all three fit within the panel
     /// without clipping.
     static let usageTrackWidth: CGFloat = 45
@@ -117,7 +117,7 @@ enum Constants {
     static let doneFlashDuration: TimeInterval = 5
     /// At/over this 5h utilization, the menu-bar usage % pulses red as a warning.
     static let usageAlarmPct = 90
-    /// How far back the "chg" trend gauge looks; older samples are trimmed.
+    /// How far back the "trend" gauge looks; older samples are trimmed.
     static let usageTrendWindow: TimeInterval = 3 * 3600
     /// Collapse samples closer together than this so mashing manual Refresh can't
     /// flood the trend window with near-duplicate points.
@@ -635,7 +635,7 @@ struct ContextSample: Codable, Equatable {
     var at: Double  // epoch seconds
 }
 
-/// One timestamped 5h-utilization poll result, kept for the "chg" trend gauge.
+/// One timestamped 5h-utilization poll result, kept for the footer "trend" gauge.
 struct UsageSample: Codable {
     var pct: Int
     var at: Double  // epoch seconds
@@ -1052,7 +1052,7 @@ final class FeedWatcher: ObservableObject {
     /// Last-known usage, so it survives Clear All / statusLine-less sessions.
     private var cachedUsage: UsageSnapshot?
     /// Recent 5h utilization samples (oldest→newest), each stamped with when it
-    /// was polled, backing the footer's "chg" trend gauge. Persisted so the trend
+    /// was polled, backing the footer's "trend" gauge. Persisted so the trend
     /// survives relaunch; trimmed to `Constants.usageTrendWindow`.
     @Published private(set) var usageHistory: [UsageSample] = []
     /// Context size over time, per session id. The app's first per-session time
@@ -1169,7 +1169,7 @@ final class FeedWatcher: ObservableObject {
         recordUsageSample(result.fiveHourPct, at: result.fetchedAt)
     }
 
-    /// Append a timestamped 5h sample for the "chg" trend gauge and persist it.
+    /// Append a timestamped 5h sample for the "trend" gauge and persist it.
     /// Collapses samples less than `usageSampleMinGap` apart (mashing manual
     /// Refresh can't flood the trend window with near-duplicate points), and
     /// trims anything older than `usageTrendWindow` so the buffer reflects an
