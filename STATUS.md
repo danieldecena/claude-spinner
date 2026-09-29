@@ -138,8 +138,8 @@
 ## Next Up
 
 The palette is the current work, and the identity colours closed its last
-gap. What is left is one hand-check, `[you]` in `TASKS.md`: a context line
-with a visible slope (the policy round-trip closed 2026-09-29). Two runtime cases stay
+gap. No open tasks: the sloped context line was observed 2026-09-29 against a
+seeded session, closing the last hand-check. Two runtime cases stay
 unobserved and are named in the decision log: the unreadable-remote rendering
 from the Git work, and three of the four identity hues -- every session on this
 machine is Opus in a desktop app, so only purple has been seen. The panel's
@@ -148,6 +148,22 @@ project sections were observed on screen 2026-09-28 and are no longer open.
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-29 (sloped context line observed, seeded)
+- Observed: the detail chart draws a climbing line. A fake session (feed files
+  under a throwaway id, 200k window, 151,294 tokens) plus a seeded
+  `contextHistory` of 20 samples rising 20k -> 143.5k over 40 min: the Window
+  surface's CONTEXT block read `75%` and the chart rose left to right from
+  `41m ago` to `1m ago`, top label `150k`. Screenshot 14:31.
+- Decided: a seeded session is a valid input for this check. The open question
+  was the rendering path (does a slope draw), not whether real sessions climb;
+  the app appended its own live sample (151,294) on top of the seed, so the read
+  path was the real one.
+- Cleanup observed: deleting the fake feed files made the next rescan drop the
+  id from `contextHistory` (3 keys -> 2, id absent), confirming
+  `recordContextSamples` prunes departed sessions.
+- Same technique would reach the three unseen identity hues (fake sessions with
+  a Sonnet / Haiku model id); not done.
 
 ### 2026-09-29 (policy round-trip observed; the surface precondition)
 

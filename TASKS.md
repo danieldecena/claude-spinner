@@ -30,7 +30,7 @@
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
 
-- [ ] [you] Confirm a SLOPED context line renders -- every session on this machine
+- [x] Confirm a SLOPED context line renders -- every session on this machine
   is Opus 1M and none has passed ~18%, so the flat-crawl case is the only one ever
   drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
   session) to see the line climb on screen
