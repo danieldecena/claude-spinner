@@ -97,6 +97,12 @@ struct MenuContentView: View {
         .frame(maxWidth: fillsWidth ? .infinity : nil,
                maxHeight: fillsWidth ? .infinity : nil,
                alignment: .top)
+        // An opaque ground in the popover. Over the default vibrant material the
+        // row text took on the wallpaper behind it, and every contrast figure in
+        // `Color.Ink` assumes a solid ground. The window keeps its own background.
+        .background {
+            if !fillsWidth { Color.panelGround.ignoresSafeArea() }
+        }
         // No visible Quit button; ⌘Q still terminates while the panel is open.
         // `.allowsHitTesting(false)` keeps this invisible button from swallowing a
         // row click as a quit while its ⌘Q keyboard shortcut still fires.
@@ -519,22 +525,27 @@ enum RowLayout {
 /// The total is untinted on purpose, matching `FeedWatcher.totalContextTokens` —
 /// summed context across separate windows is not the same "heavy" a single
 /// session's `contextTint` band means.
+///
+/// Uppercase and bold so a heading cannot be read as a row. "Needs you" alone
+/// takes the attention blue: it is the one heading that is a state, not a place.
 private struct PanelSectionHeader: View {
     let section: ProjectSection
+
+    private var ink: Color { section.id == "needs-you" ? .attention : .label }
 
     var body: some View {
         HStack(spacing: 6) {
             Text(section.title)
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1)
             Spacer(minLength: 4)
             Text("\(section.sessionCount)")
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
             if let total = section.contextTotal {
                 Text(FeedWatcher.formatTokens(total))
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
+        .font(.claudeMono(10)).fontWeight(.bold)
+        .textCase(.uppercase)
+        .foregroundStyle(ink)
         .padding(.horizontal, 10)
         .padding(.top, 8).padding(.bottom, 3)
     }

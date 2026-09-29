@@ -1622,6 +1622,20 @@ final class claude_spinnerTests: XCTestCase {
             "the old accent is the known-bad input; if it passes, the check measures nothing")
     }
 
+    /// The popover draws its own off-white ground, a shade darker than the white
+    /// every other figure here is measured on, so the text inks are re-measured on
+    /// it. Attention is text there too: the "Needs you" heading.
+    func testTextInksClearBodyTextContrastOnThePanelGround() {
+        for (name, ink) in [("label", Color.Ink.labelLight), ("attention", Color.Ink.attentionLight),
+                            ("claude", Color.Ink.claudeLight)] {
+            let ratio = contrastRatio(ink, Color.Ink.panelGroundLight)
+            XCTAssertGreaterThanOrEqual(ratio, 4.5, "\(name) on the panel ground is \(ratio)")
+        }
+        XCTAssertLessThan(
+            contrastRatio((0.76, 0.42, 0.24), Color.Ink.panelGroundLight), 4.5,
+            "the old accent is the known-bad input")
+    }
+
     /// Orange means working and nothing else, so the label ink must not read as
     /// the accent. The old clay label (#9A4429) is the known-bad input.
     func testLabelInkIsNotTheAccent() {

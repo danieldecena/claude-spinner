@@ -683,6 +683,8 @@ extension Color {
     enum Ink {
         static let groundLight = (1.0, 1.0, 1.0)
         static let groundDark = (0.118, 0.122, 0.125)
+        /// The panel's own light ground, a touch warmer than the white window.
+        static let panelGroundLight = (0.980, 0.976, 0.969)  // #FAF9F7
 
         // Accent and attention are the Decena Apps design system's `clay` and
         // `signal` (claude.ai/artifact/Vd5LAqkkX2HHeAFMSB556u), shared with
@@ -762,6 +764,9 @@ extension Color {
     /// Claude's burnt-orange accent: the design system's clay, close to the
     /// terminal spinner's orange but dark enough to carry text.
     static let claude = dynamic(light: Ink.claudeLight, dark: Ink.claudeDark)
+    /// The popover's opaque ground: the design system's warm off-white, and the
+    /// measured dark ground the contrast tests already assume.
+    static let panelGround = dynamic(light: Ink.panelGroundLight, dark: Ink.groundDark)
     /// Quiet neutral ink for row labels; orange is left to `claude` alone.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a
