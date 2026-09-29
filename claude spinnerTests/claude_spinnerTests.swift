@@ -2265,6 +2265,23 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(emitCommands(merged, "Stop").count, 1)          // added
     }
 
+    func testAnUnrelatedEmitScriptDoesNotCountAsInstalled() {
+        // Another tool's emit.sh on Stop, and ours spelled as an absolute path
+        // on SessionStart. Only the second is ours.
+        let existing: [String: Any] = [
+            "hooks": [
+                "Stop": [["matcher": "", "hooks": [["type": "command",
+                          "command": "~/bin/emit.sh Stop"]]]],
+                "SessionStart": [["matcher": "", "hooks": [["type": "command",
+                                  "command": NSHomeDirectory() + "/.claude/spinnerfeed/emit.sh SessionStart"]]]],
+            ]
+        ]
+        let merged = SetupInstaller.mergeSpinnerHooks(into: existing)
+        XCTAssertEqual(commands(merged, "Stop", "spinnerfeed/emit.sh").count, 1)          // added
+        XCTAssertEqual(commands(merged, "Stop", "~/bin/emit.sh").count, 1)                // left alone
+        XCTAssertEqual(commands(merged, "SessionStart", "spinnerfeed/emit.sh").count, 1)  // not duplicated
+    }
+
     /// Commands on one event whose text mentions `script`, whatever the matcher.
     private func commands(_ settings: [String: Any], _ event: String, _ script: String) -> [String] {
         guard let hooks = settings["hooks"] as? [String: Any],

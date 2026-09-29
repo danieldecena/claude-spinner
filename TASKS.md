@@ -10,7 +10,7 @@ via `run.sh`.
 - [x] Stop Clear/Compact reporting failure when they worked
 - [x] Keep tmux/ps calls off the main thread with a timeout
 - [x] Pin the merge to the PR number that was confirmed
-- [ ] Match installed hooks on script path, not substring
+- [x] Match installed hooks on script path, not substring
 - [ ] Delete merged branch design-system-pass-2026-09-20
 
 ## Completed

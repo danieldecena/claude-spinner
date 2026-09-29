@@ -30,7 +30,9 @@ enum SetupInstaller {
     /// One hook entry to merge. `script` is the idempotency key, not the whole
     /// command: two handlers on the same event point at different scripts, so
     /// "is anything of ours already wired here" would see emit.sh and wrongly
-    /// conclude ask.sh was installed too.
+    /// conclude ask.sh was installed too. It is the full path, matched against
+    /// the command's executable: a bare "emit.sh" substring also matched some
+    /// other tool's `~/bin/emit.sh`, and the real hook was then never added.
     struct HookHandler {
         let event: String
         let matcher: String
@@ -44,12 +46,12 @@ enum SetupInstaller {
 
     static let handlers: [HookHandler] =
         hookEvents.map {
-            HookHandler(event: $0, matcher: "", script: "emit.sh",
+            HookHandler(event: $0, matcher: "", script: emitCommandPath,
                         command: "\(emitCommandPath) \($0)", timeout: nil)
         } + [
-            HookHandler(event: "PreToolUse", matcher: "AskUserQuestion", script: "ask.sh",
+            HookHandler(event: "PreToolUse", matcher: "AskUserQuestion", script: askCommandPath,
                         command: "\(askCommandPath) question", timeout: 600),
-            HookHandler(event: "PermissionRequest", matcher: "", script: "ask.sh",
+            HookHandler(event: "PermissionRequest", matcher: "", script: askCommandPath,
                         command: "\(askCommandPath) permission", timeout: 600),
         ]
 
@@ -65,7 +67,12 @@ enum SetupInstaller {
                 guard (group["matcher"] as? String ?? "") == handler.matcher else { return false }
                 let entries = (group["hooks"] as? [[String: Any]]) ?? []
                 return entries.contains {
-                    ($0["command"] as? String)?.contains(handler.script) == true
+                    // Tilde-expanded both sides: a hand-edited settings.json may
+                    // spell the same script as an absolute path.
+                    let exe = ($0["command"] as? String)?
+                        .split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+                    return (exe as NSString).expandingTildeInPath
+                        == (handler.script as NSString).expandingTildeInPath
                 }
             }
             if !alreadyWired {
