@@ -1592,6 +1592,13 @@ final class claude_spinnerTests: XCTestCase {
         return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     }
 
+    /// A host tag's ground: its own hue at `chipTint` over the pane, which is what
+    /// MenuContentView fills the chip with.
+    private func chip(_ c: (Double, Double, Double), on ground: (Double, Double, Double)) -> (Double, Double, Double) {
+        let a = Color.Ink.chipTint
+        return (c.0 * a + ground.0 * (1 - a), c.1 * a + ground.1 * (1 - a), c.2 * a + ground.2 * (1 - a))
+    }
+
     /// The ratio maths itself, against pairs whose answer is fixed by the spec.
     /// Without this the two assertions below could both pass on a function that
     /// returned 21 for everything.
@@ -1631,6 +1638,51 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertLessThan(
             contrastRatio((0.76, 0.42, 0.24), Color.Ink.groundLight), 4.5,
             "the old accent is the known-bad input; if it passes, the check measures nothing")
+    }
+
+    /// The model word and the host tag are text, and the tag sits on a `chipTint`
+    /// fill of its own hue -- a lighter ground in light and a lighter one in dark
+    /// than the pane, so the composite is the stricter surface and the one measured.
+    /// Every identity colour owes 4.5:1 against it. The values these replaced
+    /// measured 2.04 to 2.88 there, which is why the old ones are the known-bad
+    /// input below rather than a comment.
+    func testEveryIdentityColourClearsBodyTextContrastOnItsChip() {
+        for hue in Color.Ink.identity {
+            let light = contrastRatio(hue.light, chip(hue.light, on: Color.Ink.groundLight))
+            let dark = contrastRatio(hue.dark, chip(hue.dark, on: Color.Ink.groundDark))
+            XCTAssertGreaterThanOrEqual(light, 4.5, "\(hue.name) light is \(light)")
+            XCTAssertGreaterThanOrEqual(dark, 4.5, "\(hue.name) dark is \(dark)")
+        }
+        // Haiku's old green, the worst of the eight. A check that cannot fail is
+        // not a check: if this passes, the loop above is measuring nothing.
+        let old = (0.45, 0.72, 0.45)
+        XCTAssertLessThan(
+            contrastRatio(old, chip(old, on: Color.Ink.groundLight)), 4.5,
+            "the old identity green is the known-bad input")
+    }
+
+    /// A status colour is reserved: it says how urgent something is, and no identity
+    /// colour may be near it, or a tinted word cannot be read without already
+    /// knowing which question it answers. Darkening the old hues for a white ground
+    /// put Haiku 12/255 from usageGreen and the VS Code blue 17 from attention, so
+    /// contrast alone is not the whole constraint -- this is the other half.
+    func testNoIdentityColourSitsOnAStatusColour() {
+        func separation(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Double {
+            let d = (a.0 - b.0, a.1 - b.1, a.2 - b.2)
+            return (d.0 * d.0 + d.1 * d.1 + d.2 * d.2).squareRoot() * 255
+        }
+        for hue in Color.Ink.identity {
+            for mark in Color.Ink.marks + [("label", Color.Ink.labelLight, Color.Ink.labelDark)] {
+                let light = separation(hue.light, mark.light)
+                let dark = separation(hue.dark, mark.dark)
+                XCTAssertGreaterThan(light, 40, "\(hue.name) light sits on \(mark.name)")
+                XCTAssertGreaterThan(dark, 40, "\(hue.name) dark sits on \(mark.name)")
+            }
+        }
+        // The pair that made this rule: Haiku darkened at its old hue.
+        XCTAssertLessThan(
+            separation((0.263, 0.518, 0.263), Color.Ink.usageGreenLight), 40,
+            "the colliding green is the known-bad input")
     }
 
     func testUsageHeadlineSeparatesUnknownFromZero() {
