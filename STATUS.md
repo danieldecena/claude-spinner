@@ -146,6 +146,37 @@ and the panel's new project sections.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
+### 2026-09-28 (the palette work, and both appearances looked at)
+
+- The light theme was a tinted dark theme. Measured against the app's real
+  grounds -- `#ffffff` light and `#1e1f20` dark, sampled from the running app
+  rather than assumed -- all 18 colours fell short of the 4.5:1 body text needs
+  in light and 11 of 18 missed even the 3:1 a graphical mark needs, while dark
+  passed everywhere at 5.79 or better. The pattern is light values nudged down
+  from the dark ones instead of derived for a white surface.
+- The largest single fault was not the accent but `claudeDim`, the accent at
+  65%, which composited to 2.29:1 on white and carried about half the window's
+  text. A neutral grey would have passed and cost the app its warmth; the hue
+  was darkened instead, so the label/value pair the mono columns are built on
+  survives. Labels now draw in `label`; `claudeDim` is left for the two
+  translucent container fills, which owe nothing to the text threshold.
+- The accent then moved to the Decena Apps design system's clay, shared with
+  wa-fish-map and the footage library, which clears 4.5:1 where the old
+  `#C26B3D` measured 3.84.
+- Observed 2026-09-28 at 2088px, both appearances, by capturing the panel
+  window by id (`screencapture -o -l`) rather than by rect -- a rect capture
+  picked up another app's window sitting over it, and that was caught by
+  looking at the image, not by the exit code. Dark: labels, section heads and
+  both slice 2 strings read in clay against the values' white. Light: the same
+  pair separates, labels a dark clay on white. The appearance toggle itself was
+  confirmed by sampling the background (255,255,255 in light; 38,38,40 before
+  and after), not by trusting the `System Events` call -- two per-app overrides
+  failed silently on 2026-09-20 and the same class of mistake was available here.
+- Not verified on screen: the sole remaining check is numeric. The ratio maths
+  is pinned against pairs the WCAG spec fixes (21:1, 1:1, and `#767676`'s
+  canonical 4.5) so the threshold assertions cannot both pass on a function
+  returning 21 for everything, and each threshold test was mutation-verified.
+
 ### 2026-09-20 (dark appearance looked at; slice 3 is smaller than written)
 
 - Found: the unchecked `Fix dark-copy text still bound to Light colors` is a
