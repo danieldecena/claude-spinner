@@ -20,7 +20,7 @@ actor GitProbe {
     private static let remoteTTL: TimeInterval = 90
     /// No git or gh invocation may outlive this. A network partition otherwise
     /// leaves `ls-remote` blocked on connect and the entry never resolves.
-    private static let timeout: TimeInterval = 8
+    static let timeout: TimeInterval = 8
 
     private struct Entry {
         var snapshot: GitSnapshot
@@ -209,7 +209,8 @@ actor GitProbe {
 
     static func run(_ launchPath: String,
                     _ args: [String],
-                    in cwd: String) -> (out: String, err: String, status: Int32)? {
+                    in cwd: String,
+                    timeout: TimeInterval = GitProbe.timeout) -> (out: String, err: String, status: Int32)? {
         guard FileManager.default.isExecutableFile(atPath: launchPath) else { return nil }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: launchPath)

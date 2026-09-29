@@ -2769,6 +2769,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(GitAction.merge.confirmation?.contains("delete the branch") == true)
     }
 
+    func testRunHonoursItsTimeoutInBothDirections() {
+        // The same 1s child must be cut off under a short budget and allowed to
+        // finish under a long one -- one side alone can't tell a working timeout
+        // from one that always or never fires.
+        XCTAssertNil(GitProbe.run("/bin/sleep", ["1"], in: "/", timeout: 0.2))
+        XCTAssertEqual(GitProbe.run("/bin/sleep", ["1"], in: "/", timeout: 5)?.status, 0)
+        XCTAssertGreaterThan(GitActions.actionTimeout, GitProbe.timeout)
+    }
+
     func testMergeReadinessParsesGHsFieldsAndToleratesTheirAbsence() {
         let full = #"{"number":3,"state":"OPEN","isDraft":false,"url":"u","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":"APPROVED"}"#
         let r = GitParse.mergeReadiness(json: Data(full.utf8))

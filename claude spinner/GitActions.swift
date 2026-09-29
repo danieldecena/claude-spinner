@@ -46,6 +46,12 @@ enum GitAction: String, CaseIterable, Identifiable {
 }
 
 enum GitActions {
+    /// Not the probe's 8s. A push of large objects on a slow link, or a merge
+    /// that also fetches, checks out and deletes a branch, routinely outlives
+    /// it, and terminating a merge after GitHub has already merged leaves the
+    /// checkout half-transitioned under a message saying it never finished.
+    static let actionTimeout: TimeInterval = 120
+
     /// Why an action can't run, and whether that answer is final.
     ///
     /// `settled` is the whole point. "Already in sync with the remote" is a
@@ -224,14 +230,14 @@ enum GitActions {
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = GitProbe.run(cmd.tool, cmd.args, in: cwd)
+            let result = GitProbe.run(cmd.tool, cmd.args, in: cwd, timeout: actionTimeout)
             // The cache is invalidated by the caller, ordered ahead of its own
             // re-read. Doing it here was a second, unordered actor hop, and the
             // read could win and hand back the pre-action entry -- the "still
             // says ahead 3 after a push" symptom this was meant to prevent.
             DispatchQueue.main.async {
                 guard let result else {
-                    completion(.init(kind: .error, text: "\(action.title) didn't finish within the timeout."))
+                    completion(.init(kind: .error, text: "\(action.title) was stopped after 2 minutes and may have partly run. Check the repo."))
                     return
                 }
                 guard result.status == 0 else {
