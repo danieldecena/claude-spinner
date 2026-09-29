@@ -45,7 +45,7 @@
 - [x] Add 5h usage history sparkline to footer
 - [x] Add larger context and usage charts to window
 - [x] Draw session tree diagram in window
-- [ ] Add status and model breakdown bar to panel
+- [x] Add status and model breakdown bar to panel
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

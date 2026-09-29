@@ -2576,6 +2576,37 @@ final class claude_spinnerTests: XCTestCase {
     /// The ruled band lines must sit exactly where the tints change, no more and
     /// no fewer. Scanning the whole range catches a floor that was moved in one
     /// place and not the other, and one that was added to only one of them.
+    /// Known-bad: a busy subagent counted as its own working session, or the
+    /// counts not adding up to the top-level sessions. Known-good: one of each
+    /// status, most urgent first.
+    func testTheStatusBreakdownCountsTopLevelSessionsOnly() {
+        let sessions = [
+            mk("a", .attention), mk("b", .tool), mk("c", .idle),
+            mk("c1", .thinking, parentSessionId: "c"),
+        ]
+        let segments = SessionBreakdown.byStatus(sessions)
+        XCTAssertEqual(segments.map(\.label), ["needs you", "working", "idle"])
+        XCTAssertEqual(segments.map(\.count), [1, 1, 1])
+        XCTAssertEqual(segments.map(\.tint), [.attention, .claude, .label])
+        XCTAssertEqual(SessionBreakdown.byStatus([mk("a", .idle), mk("b", .idle)]).map(\.label), ["idle"],
+                       "an empty status is left out, not drawn as a zero-width segment")
+    }
+
+    /// A session with no model reading is a "?" segment, never dropped: the
+    /// model bar must cover the same sessions as the status bar.
+    func testTheModelBreakdownKeepsSessionsWithoutAModel() {
+        var a = mk("a", .idle); a.model = "Opus 5.5"
+        var b = mk("b", .idle); b.model = "Opus 5.5 (1M context)"
+        var c = mk("c", .idle); c.model = "Fable 5.1"
+        let d = mk("d", .idle)
+        let segments = SessionBreakdown.byModel([a, b, c, d], model: \.model)
+        XCTAssertEqual(segments.map(\.label), ["opus", "?", "fable"])
+        XCTAssertEqual(segments.map(\.count), [2, 1, 1])
+        XCTAssertEqual(segments.map(\.tint), [.modelTint("Opus"), .label, .modelTint("Fable")])
+        XCTAssertEqual(segments.map(\.count).reduce(0, +),
+                       SessionBreakdown.byStatus([a, b, c, d]).map(\.count).reduce(0, +))
+    }
+
     func testChartBandLinesAreWhereTheTintsChange() {
         var contextSteps: [Int] = []
         for tokens in stride(from: 1_000, through: 300_000, by: 1_000)

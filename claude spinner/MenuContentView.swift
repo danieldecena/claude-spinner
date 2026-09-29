@@ -23,6 +23,10 @@ struct MenuContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             UsageHeader(feed: feed)
 
+            if !feed.sessions.isEmpty {
+                SessionBreakdownBars(sessions: feed.sessions, model: feed.modelDisplay(for:))
+            }
+
             // Denied authorization makes every banner a no-op that still reports
             // success, so the panel has to say it out loud. macOS has no API to
             // grant this — only System Settings can.
@@ -177,6 +181,107 @@ struct UsageHeader: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 Divider().opacity(0.5)
+            }
+        }
+    }
+}
+
+/// One stacked bar's worth of sessions: a word, how many, and its colour.
+struct BreakdownSegment: Equatable {
+    let label: String
+    let count: Int
+    let tint: Color
+}
+
+enum SessionBreakdown {
+    /// Top-level sessions by what they need, most urgent first. Subagents are
+    /// left out: they are their parent's work, and counting them would let one
+    /// busy session outweigh three idle ones.
+    static func byStatus(_ sessions: [SessionFeed]) -> [BreakdownSegment] {
+        let roots = sessions.filter { $0.parentSessionId == nil }
+        let waiting = roots.filter { $0.status == .attention }.count
+        let working = roots.filter(\.isWorking).count
+        return [
+            BreakdownSegment(label: "needs you", count: waiting, tint: .attention),
+            BreakdownSegment(label: "working", count: working, tint: .claude),
+            BreakdownSegment(label: "idle", count: roots.count - waiting - working, tint: .label),
+        ].filter { $0.count > 0 }
+    }
+
+    /// Top-level sessions by model family, largest first. A session with no
+    /// model reading gets its own "?" segment rather than being dropped, so the
+    /// two bars always add up to the same number of sessions.
+    static func byModel(_ sessions: [SessionFeed], model: (SessionFeed) -> String?) -> [BreakdownSegment] {
+        let roots = sessions.filter { $0.parentSessionId == nil }
+        var counts: [String: Int] = [:]
+        for session in roots {
+            counts[model(session).map(FeedWatcher.modelFamily) ?? "?", default: 0] += 1
+        }
+        return counts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .map { name, count in
+                BreakdownSegment(label: name.lowercased(), count: count,
+                                 tint: name == "?" ? .label : .modelTint(name))
+            }
+    }
+}
+
+/// Two thin stacked bars under the header: every session by status, then by
+/// model. The rows answer "is anything waiting on me"; these answer "how is
+/// the whole fleet split" without counting rows.
+struct SessionBreakdownBars: View {
+    let sessions: [SessionFeed]
+    let model: (SessionFeed) -> String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            row("status", SessionBreakdown.byStatus(sessions))
+            row("models", SessionBreakdown.byModel(sessions, model: model))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .overlay(alignment: .bottom) { Divider().opacity(0.5) }
+    }
+
+    private func row(_ title: String, _ segments: [BreakdownSegment]) -> some View {
+        let spoken = segments.map { "\($0.count) \($0.label)" }.joined(separator: ", ")
+        return HStack(spacing: 6) {
+            Text(title)
+                .foregroundStyle(Color.label)
+                .frame(width: 44, alignment: .leading)
+            StackedBar(segments: segments)
+                .frame(height: 5)
+            HStack(spacing: 8) {
+                ForEach(segments, id: \.label) { segment in
+                    Text("\(segment.count) \(segment.label)").foregroundStyle(segment.tint)
+                }
+            }
+            .fixedSize()
+        }
+        .font(.claudeMono(10))
+        .lineLimit(1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sessions by \(title == "status" ? "status" : "model")")
+        .accessibilityValue(spoken)
+    }
+}
+
+/// Segments laid end to end, each as wide as its share of the total, with a
+/// 1pt gap so two same-coloured neighbours still read as two.
+struct StackedBar: View {
+    let segments: [BreakdownSegment]
+
+    var body: some View {
+        GeometryReader { geo in
+            let total = segments.reduce(0) { $0 + $1.count }
+            let gaps = CGFloat(max(segments.count - 1, 0))
+            let usable = max(geo.size.width - gaps, 0)
+            HStack(spacing: 1) {
+                ForEach(segments, id: \.label) { segment in
+                    Capsule()
+                        .fill(segment.tint)
+                        .frame(width: usable * CGFloat(segment.count) / CGFloat(max(total, 1)))
+                }
             }
         }
     }
