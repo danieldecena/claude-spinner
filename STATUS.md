@@ -160,7 +160,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   Pair observed beside live pid 40771: with the fix, two single-test runs exit
   0 and the live app survives; with it reverted, exit 65 with that error. Full
   suite 249/0. Something relaunches the app ~4s after `killall` (parent
-  launchd, no LaunchAgent or ~/bin script found); source unidentified.
+  launchd, no LaunchAgent or ~/bin script found); source unidentified. It did
+  not recur at 15:03: after the full suite's `killall` the app stayed down
+  over a minute. BTM shows the login item disabled, and nothing in hooks or
+  ~/bin opens the app, so a sibling `run.sh` is the likelier cause (unconfirmed).
 
 ### 2026-09-29 (unreadable-remote rendering observed, seeded)
 - Observed: the Git card's "couldn't tell" path. A throwaway repo on branch
