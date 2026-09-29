@@ -53,6 +53,7 @@
 - [x] Add status and model breakdown bar to panel
 - [x] Window strip reads the resolved 5h/7d usage
 - [x] Let the test host run beside the live app
+- [x] Drop the retired OpenWolf convention from HANDOFF
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

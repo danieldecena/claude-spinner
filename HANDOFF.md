@@ -79,7 +79,6 @@ The app (`FeedWatcher`) watches the directory with a `DispatchSource` vnode sour
 - **Host detection** uses `__CFBundleIdentifier` (fallback `TERM_PROGRAM`) captured
   by `emit.sh`; the row click routes to that host (VS Code/Ghostty/Terminal open the
   folder; iTerm2 + Claude desktop are just focused).
-- These are also logged in `.wolf/cerebrum.md` (Do-Not-Repeat) and `.wolf/buglog.json`.
 
 ---
 
@@ -118,6 +117,7 @@ Board is clear. One known limitation remains, deferred by design:
 - TDD for new behavior (red → green → refactor). Tests run with
   `xcodebuild -scheme "claude spinner" test` after `killall "claude spinner"`.
   The old agent-env `swiftc` harness is gone.
-- OpenWolf: update `.wolf/anatomy.md`, `.wolf/memory.md`, `.wolf/cerebrum.md`,
-  `.wolf/buglog.json`; check them before editing/creating.
+- State lives in `STATUS.md` (decision log for findings and reasoning) and
+  `TASKS.md` (titles only). `.wolf/` is frozen legacy from the retired OpenWolf
+  setup: do not read or update it.
 - Commits: imperative subject, `Co-Authored-By: Claude <noreply@anthropic.com>`.
