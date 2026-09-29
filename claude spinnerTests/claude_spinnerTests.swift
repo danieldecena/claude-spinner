@@ -455,6 +455,16 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.modelDisplay(for: sibling, among: [sibling, child], cached: "Sonnet"), "Opus")
     }
 
+    func testABorrowedModelTagIsMarkedAsAGuess() {
+        var reporting = mk("a", .thinking)
+        reporting.model = "Haiku 4.5"
+        let silent = mk("b", .idle)
+        XCTAssertEqual(FeedWatcher.modelTag(for: reporting, among: [reporting, silent], cached: nil), "Haiku")
+        XCTAssertEqual(FeedWatcher.modelTag(for: silent, among: [reporting, silent], cached: nil), "Haiku?")
+        XCTAssertEqual(FeedWatcher.modelTag(for: silent, among: [silent], cached: "Opus 5.5"), "Opus?")
+        XCTAssertNil(FeedWatcher.modelTag(for: silent, among: [silent], cached: nil))
+    }
+
     // MARK: - menuBarState transitions
 
     func testMenuBarStateTransitions() {

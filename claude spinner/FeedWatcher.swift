@@ -2087,6 +2087,19 @@ final class FeedWatcher: ObservableObject {
         Self.modelDisplay(for: session, among: sessions, cached: cachedUsage?.model)
     }
 
+    /// The family word a row draws, with a trailing "?" when the model was
+    /// borrowed from another session or the cache rather than reported by this
+    /// one. Desktop sessions never write a statusLine, so on a mixed fleet the
+    /// borrowed word is a guess and must not read like a fact.
+    static func modelTag(for session: SessionFeed, among sessions: [SessionFeed], cached: String?) -> String? {
+        guard let raw = modelDisplay(for: session, among: sessions, cached: cached) else { return nil }
+        return modelFamily(raw) + (session.model == nil ? "?" : "")
+    }
+
+    func modelTag(for session: SessionFeed) -> String? {
+        Self.modelTag(for: session, among: sessions, cached: cachedUsage?.model)
+    }
+
     // MARK: - Actions
 
     /// Clear every session backing a row (one session, or a collapsed group).

@@ -58,7 +58,7 @@ struct MenuContentView: View {
                     let rows = sections.flatMap(\.items)
                     let columns = RowLayout.columns(
                         statusLabels: rows.map(\.session.statusLabel),
-                        models: rows.map { feed.modelDisplay(for: $0.session).map(FeedWatcher.modelFamily) ?? "" },
+                        models: rows.map { feed.modelTag(for: $0.session) ?? "" },
                         panelWidth: feed.panelWidth)
                     let list = VStack(spacing: 0) {
                         ForEach(sections) { section in
@@ -772,10 +772,10 @@ struct SessionRow: View {
 
                 // Column 2: Model, sized to the family word it actually holds.
                 Group {
-                    if let rawModel = feed.modelDisplay(for: session) {
-                        Text(FeedWatcher.modelFamily(rawModel))
+                    if let tag = feed.modelTag(for: session) {
+                        Text(tag)
                             .font(.claudeMono(11)).fontWeight(.semibold)
-                            .foregroundStyle(Color.modelTint(rawModel))
+                            .foregroundStyle(Color.modelTint(tag).opacity(tag.hasSuffix("?") ? 0.55 : 1))
                             .lineLimit(1)
                     } else {
                         Text("")

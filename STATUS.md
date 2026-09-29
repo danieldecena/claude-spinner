@@ -174,6 +174,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   in). With the Haiku fake newest, the idle claude-in-safari desktop row flipped
   from `opus` to `haiku`. On a one-model machine this never shows; in a mixed
   fleet the borrowed tag is a guess drawn like a fact.
+- Decided (Daniel): mark the borrowed tag as a guess rather than blank it.
+  `FeedWatcher.modelTag` appends `?` when `session.model` is nil and the row
+  draws it at 0.55 opacity. Observed after relaunch: both claude-in-safari
+  desktop rows read `opus?` in a lighter purple, the Ghostty session `opus`
+  solid. The header's models bar still counts borrowed models as real; not
+  changed.
 
 ### 2026-09-29 (policy round-trip observed; the surface precondition)
 

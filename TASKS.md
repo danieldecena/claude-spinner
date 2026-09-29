@@ -37,6 +37,8 @@
 
 - [x] Observe the cyan, jade and indigo identity hues on screen
 
+- [x] Mark a borrowed model tag as a guess
+
 - [x] Neutral ink-label so orange means working only
 - [x] Replace todo bar with labelled ctx meter
 - [x] Opaque panel ground and blue Needs you header
