@@ -146,6 +146,22 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (window 5h/7d unified; test host exempt from single-instance)
+- Decided: the window's overview strip reads `feed.usageFiveHourPct` /
+  `usageSevenDayPct` (poll -> freshest session -> cached snapshot), the same
+  chain as the menu bar, instead of its own freshest-session pick. Observed
+  after `run.sh`: strip `45% of 5h · 47% of 7d`, matching the cached snapshot
+  (45/47). The fallback leg (no live session carrying rate limits) is reasoned
+  from the shared chain, not observed.
+- Fixed: `-only-testing` runs failed at bootstrap ("test runner exited with
+  code 0 before establishing connection", exit 65) whenever the installed app
+  was running: the test host is a second copy, and the single-instance guard
+  `exit(0)`s it. The guard now skips when `XCTestConfigurationFilePath` is set.
+  Pair observed beside live pid 40771: with the fix, two single-test runs exit
+  0 and the live app survives; with it reverted, exit 65 with that error. Full
+  suite 249/0. Something relaunches the app ~4s after `killall` (parent
+  launchd, no LaunchAgent or ~/bin script found); source unidentified.
+
 ### 2026-09-29 (unreadable-remote rendering observed, seeded)
 - Observed: the Git card's "couldn't tell" path. A throwaway repo on branch
   `feature`, upstream `origin/feature`, origin `file:///nonexistent/...`

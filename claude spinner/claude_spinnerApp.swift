@@ -50,8 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var askObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Single instance: a second copy exits immediately.
-        if let bundleID = Bundle.main.bundleIdentifier,
+        // Single instance: a second copy exits immediately. Except the test host,
+        // which is a second copy by design: exiting here is what xcodebuild
+        // reports as "test runner exited with code 0 before establishing
+        // connection" whenever the installed app is running.
+        let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        if !isTestHost, let bundleID = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).count > 1 {
             exit(0)
         }
