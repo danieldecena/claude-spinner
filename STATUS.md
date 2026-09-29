@@ -138,15 +138,29 @@
 ## Next Up
 
 The palette is the current work, and the identity colours closed its last
-gap. No open tasks: the sloped context line was observed 2026-09-29 against a
-seeded session, closing the last hand-check. The four identity hues were seen
-the same day, also seeded. One runtime case stays unobserved and is named in
-the decision log: the unreadable-remote rendering from the Git work. The panel's
-project sections were observed on screen 2026-09-28 and are no longer open.
+gap. No open tasks and no unobserved runtime cases: the last one, the Git
+card's unreadable-remote rendering, was seen on screen 2026-09-29 against a
+seeded session.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-29 (unreadable-remote rendering observed, seeded)
+- Observed: the Git card's "couldn't tell" path. A throwaway repo on branch
+  `feature`, upstream `origin/feature`, origin `file:///nonexistent/...`
+  (`ls-remote` exit 128; `gh pr view` exit 1, "no known GitHub host"), plus a
+  fake feed session with that cwd. The card read `remote unknown`, `pr unknown`
+  and kept all five actions on screen greyed, each reason printed underneath
+  (push: "The remote couldn't be read, so there is nothing to compare
+  against."). Screenshot 14:54. The real repo's card in the same window read
+  `in sync` / `none` / "no actions available", the settled control.
+- Cleanup observed: deleting the fake feed file dropped the row on the next
+  rescan (14:54:29 capture).
+- Found: the gh failure here was not a network one, yet the card says "GitHub
+  couldn't be reached". `prFailure` maps every non-"no PR" stderr to `.unknown`,
+  so a non-GitHub remote reads as an outage forever. Harmless on this machine
+  (every remote is GitHub); noted, not fixed.
 
 ### 2026-09-29 (sloped context line observed, seeded)
 - Observed: the detail chart draws a climbing line. A fake session (feed files
