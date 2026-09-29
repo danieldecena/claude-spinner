@@ -157,6 +157,14 @@ enum GitActions {
             n = x
         }
 
+        // Checked here and not left to gh: `--delete-branch` switches this
+        // checkout off the branch only after GitHub has merged, so tracked
+        // changes fail that switch with the merge already done.
+        if snapshot.isDirty {
+            return Block("There are uncommitted changes, and merging switches this checkout off the branch. Commit or stash them first.",
+                         settled: true)
+        }
+
         switch snapshot.merge.mergeable {
         case "MERGEABLE":   break
         case "CONFLICTING": return Block("PR #\(n) conflicts with its base branch.", settled: true)

@@ -12,6 +12,7 @@ via `run.sh`.
 - [x] Pin the merge to the PR number that was confirmed
 - [x] Match installed hooks on script path, not substring
 - [x] Delete merged branch design-system-pass-2026-09-20
+- [x] Block Merge on uncommitted changes
 
 ## Completed
 

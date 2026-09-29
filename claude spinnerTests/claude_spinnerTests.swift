@@ -2835,6 +2835,16 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(GitAction.merge.confirmation?.contains("delete the branch") == true)
     }
 
+    func testMergeRefusesADirtyCheckout() {
+        let ready = MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "APPROVED")
+        let pr = PRState.open(number: 3, url: "u", draft: false)
+        // Tracked changes, modified or staged, would fail gh's post-merge checkout.
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: snap(dirty: 1, pr: pr, merge: ready))?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.merge, snapshot: snap(staged: 1, pr: pr, merge: ready))?.settled, true)
+        // Untracked files don't block a checkout, so they don't block the merge.
+        XCTAssertNil(GitActions.unavailableReason(.merge, snapshot: snap(untracked: 2, pr: pr, merge: ready)))
+    }
+
     func testMergeIsPinnedToTheConfirmedPR() {
         // Unpinned, gh picks the PR from the branch checked out when it runs,
         // not the one the button was confirmed against.
