@@ -1890,6 +1890,23 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    /// End to end through the real runner: a pane made here resolves to its
+    /// own id, and a pid in no pane resolves to nil rather than a guess.
+    func testPaneIDResolvesALivePaneThroughTheRunner() throws {
+        guard let tmux = SessionReplier.tmuxPaths.first(where: {
+            FileManager.default.isExecutableFile(atPath: $0)
+        }) else { throw XCTSkip("no tmux on this machine") }
+        let made = try XCTUnwrap(GitProbe.run(tmux, ["new-session", "-d", "-P", "-F", "#{pane_id} #{pane_pid}",
+                                                    "-s", "spinner-test-\(UUID().uuidString.prefix(8))",
+                                                    "sleep 30"], in: "/"))
+        let fields = made.out.split(separator: " ").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        XCTAssertEqual(fields.count, 2)
+        defer { _ = GitProbe.run(tmux, ["kill-pane", "-t", fields[0]], in: "/") }
+
+        XCTAssertEqual(SessionReplier.paneID(forPID: try XCTUnwrap(Int(fields[1]))), fields[0])
+        XCTAssertNil(SessionReplier.paneID(forPID: Int(ProcessInfo.processInfo.processIdentifier)))
+    }
+
     func testLandingIsChosenByWhatWasTyped() {
         XCTAssertEqual(SessionReplier.Landing(typed: "/clear"), .cleared)
         XCTAssertEqual(SessionReplier.Landing(typed: "/compact"), .compacted)

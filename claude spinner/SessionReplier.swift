@@ -115,9 +115,9 @@ enum SessionReplier {
         let done: (Result<Void, Failure>) -> Void = { result in
             DispatchQueue.main.async { completion(result) }
         }
-        guard let pid = session.pid, let tmux = tmuxPath,
-              let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
         DispatchQueue.global(qos: .userInitiated).async {
+            guard let pid = session.pid, let tmux = tmuxPath,
+                  let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
             done(run(tmux, ["send-keys", "-t", pane, "Escape"]) == nil
                  ? .failure(.sendFailed) : .success(()))
         }
@@ -140,12 +140,13 @@ enum SessionReplier {
         // mid-turn land in whatever Claude is doing -- but `.attention` IS at
         // the prompt, so this asks whether it is working, not whether it is idle.
         guard session.isAtPrompt else { return done(.failure(.busy)) }
-        guard let pid = session.pid, let tmux = tmuxPath,
-              let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
-
         let landing = Landing(typed: text)
         let file = stateFile(sessionID: session.id, feedDir: feedDir)
         DispatchQueue.global(qos: .userInitiated).async {
+            // Resolving the pane shells out to ps and tmux, so it stays off the
+            // main thread with the sends.
+            guard let pid = session.pid, let tmux = tmuxPath,
+                  let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
             // Read before sending: /clear and /compact are only visible as a
             // change from this.
             let baseline = try? Data(contentsOf: file)
@@ -218,19 +219,12 @@ enum SessionReplier {
 
     // MARK: - Process
 
-    /// Run a command and return stdout, or nil if it failed to launch or exited
-    /// non-zero. nil is a distinct outcome from empty output on purpose.
+    /// Run a command and return stdout, or nil if it failed to launch, exited
+    /// non-zero or ran past 3s. nil is a distinct outcome from empty output on
+    /// purpose. GitProbe's runner, for its timeout: a wedged tmux server
+    /// otherwise blocks `list-panes` forever and the action never answers.
     private static func run(_ path: String, _ args: [String]) -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: path)
-        task.arguments = args
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        guard task.terminationStatus == 0 else { return nil }
-        return String(data: data, encoding: .utf8)
+        guard let r = GitProbe.run(path, args, in: "/", timeout: 3), r.status == 0 else { return nil }
+        return r.out
     }
 }
