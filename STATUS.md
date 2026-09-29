@@ -167,6 +167,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 - Not observed on screen: the window's "All sessions" section. This machine's
   window sat in Stage Manager's strip, and raising it by script captured the
   thumbnail twice. Tests pin the parse (239, 0 failures); the rendering is unseen.
+- Fixed: the Figma dark copies' near-black text. The 2026-09-16 guess was right:
+  100 of 122 text runs in the three dark frames had per-range fills bound to
+  **Light** variables, which a whole-node swap never reads. Rebound each run to
+  the same-named Dark variable, plus 23 Light-bound shape fills/strokes; a
+  recount found 0 Light-bound runs left. Panel · Dark screenshot looked at
+  (light text on dark ground); Window · Dark rests on the recount only. Two
+  Figma calls, under the Starter cap.
 
 ### 2026-09-28 (the palette work, and both appearances looked at)
 

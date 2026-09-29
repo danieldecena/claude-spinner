@@ -9,7 +9,7 @@
 - [x] Build the panel popover screen -- figma, no commit
 - [x] Build the window screen -- figma, no commit
 - [x] Add dark-mode frames and the conflict log page -- figma, no commit
-- [ ] Fix dark-copy text still bound to Light colors
+- [x] Fix dark-copy text still bound to Light colors
 - [x] Add ccusage poller for today/week/block totals
 - [x] Show usage totals line in the menu footer
 - [x] Test ccusage parse (good, malformed, empty, no block)
