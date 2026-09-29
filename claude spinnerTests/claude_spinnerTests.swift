@@ -78,11 +78,9 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(s.todoDone)
     }
 
-    // MARK: - End-to-end join: real state JSON -> SessionFeed.todoProgress -> TodoProgressBar
+    // MARK: - End-to-end join: real state JSON -> SessionFeed.todoProgress -> todoSummary
 
-    /// The real call site is `TodoProgressBar(total: session.todoProgress.total,
-    /// done: session.todoProgress.done)` in `SessionRow`. Task 2's tests stop at
-    /// `SessionFeed.todoTotal`/`todoDone`; Task 3's tests start from bare `Int`s.
+    /// The real call site is `session.todoSummary` on `SessionRow`'s second line.
     /// This is the one test that walks the whole path a real feed file takes.
     func testTodoProgressEndToEndFromDecodedStateJSON() throws {
         var s = SessionFeed(id: "x")
@@ -92,20 +90,18 @@ final class claude_spinnerTests: XCTestCase {
         let progress = s.todoProgress
         XCTAssertEqual(progress.total, 3)
         XCTAssertEqual(progress.done, 1)
-        XCTAssertEqual(TodoProgressBar.percent(total: progress.total, done: progress.done), 33)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: progress.total, done: progress.done), 3)
+        XCTAssertEqual(s.todoSummary, "todos 1/3")
     }
 
     /// A session with no todos yet decodes to nil counts, which `todoProgress`
-    /// coalesces to `(0, 0)` — the bar draws empty, not a crash or a misleading 0%.
+    /// coalesces to `(0, 0)` — and the row draws no todo text at all, not `0/0`.
     func testTodoProgressEndToEndWithNoTodosYet() throws {
         var s = SessionFeed(id: "x")
         try s.applyStateJSONForTest("{}")
         let progress = s.todoProgress
         XCTAssertEqual(progress.total, 0)
         XCTAssertEqual(progress.done, 0)
-        XCTAssertEqual(TodoProgressBar.percent(total: progress.total, done: progress.done), 0)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: progress.total, done: progress.done), 0)
+        XCTAssertNil(s.todoSummary)
     }
 
     // MARK: - Bundled Scripts/emit.sh stays in sync with the live spinnerfeed copy
@@ -228,28 +224,14 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(FeedWatcher.formatTokens(12_000_000), "12M")
     }
 
-    func testTodoProgressBarMath() {
-        XCTAssertEqual(TodoProgressBar.percent(total: 0, done: 0), 0)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 0, done: 0), 0)
-
-        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 1), 33)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 1), 3)  // round(10/3) = 3
-
-        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 3), 100)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 3), 10)
-    }
-
     /// `done` can come from a state file written by a different process/repo, so
-    /// the Swift layer can't assume it's ever validated against `total`. Before the
-    /// clamp, `done > total` sent `filled` past `boxCount` and
-    /// `String(repeating:count:)` trapped on the resulting negative count — a
-    /// state-file value from another process could crash the whole app.
-    func testTodoProgressBarMathClampsOutOfRangeDone() {
-        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: 5), 100)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: 5), 10)
-
-        XCTAssertEqual(TodoProgressBar.percent(total: 3, done: -2), 0)
-        XCTAssertEqual(TodoProgressBar.filledBoxes(total: 3, done: -2), 0)
+    /// it is never trusted to sit inside `0...total`.
+    func testTodoSummaryClampsOutOfRangeDone() throws {
+        var s = SessionFeed(id: "x")
+        try s.applyStateJSONForTest(#"{"todo_total":3,"todo_done":5}"#)
+        XCTAssertEqual(s.todoSummary, "todos 3/3")
+        try s.applyStateJSONForTest(#"{"todo_total":3,"todo_done":-2}"#)
+        XCTAssertEqual(s.todoSummary, "todos 0/3")
     }
 
     func testCompactAge() {
@@ -688,7 +670,7 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     /// Spare width lands on the name *up to the cap*. Status no longer competes
-    /// for it at all post-fix-2 — it moved to line 2 with the todo bar — so a
+    /// for it at all post-fix-2 — it moved to line 2 with the context meter — so a
     /// longer status label leaves line 1's name/model split completely untouched;
     /// only the model word still takes from the name, and only below the cap.
     func testSpareWidthGoesToTheNameUpToTheCap() {
@@ -703,7 +685,7 @@ final class claude_spinnerTests: XCTestCase {
 
         // Below the cap, a wider model word still takes from the name — this is
         // narrow enough that neither model saturates the cap.
-        let narrow: CGFloat = 300
+        let narrow: CGFloat = 260
         let opusName = RowLayout.columns(statusLabels: ["done"], models: ["opus"], panelWidth: narrow).name
         let sonnetName = RowLayout.columns(statusLabels: ["done"], models: ["sonnet"], panelWidth: narrow).name
         XCTAssertLessThan(opusName, RowLayout.maxNameWidth, "test width chosen to sit below the cap")
@@ -726,7 +708,7 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     /// Line 1's columns must never exceed its own budget (`rowFixedColumns`
-    /// doesn't include status or the todo bar — those live on line 2 now).
+    /// doesn't include status or the context meter — those live on line 2 now).
     func testLine1ColumnsNeverOverrunTheirBudget() {
         let budget = Constants.panelWidth - Constants.rowFixedColumns
         for model in ["opus", "sonnet", "haiku", "", "m" + String(repeating: "x", count: 200)] {
@@ -742,13 +724,13 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     /// Line 2's status must never exceed what that line actually has, once the
-    /// todo bar, the gap, the working-dots slot, and the child indent (charged
+    /// context meter, the gaps, the working-dots slot, and the child indent (charged
     /// on every row so a depth-1 status cannot overflow) are accounted for.
     func testLine2StatusNeverOverrunsItsBudget() {
         let line2Budget = Constants.panelWidth - 2 * RowLayout.rowHorizontalPadding
             - RowLayout.secondRowLeadingInset - Constants.childRowIndent
-            - TodoProgressBar.width
-            - RowLayout.todoStatusGap - RowLayout.dotsSlot
+            - RowLayout.contextSlot
+            - 3 * RowLayout.lineTwoGap - RowLayout.dotsSlot
         for label in ["done", "needs input", "running bash", "running TodoWrite",
                       "running " + String(repeating: "x", count: 200)] {
             let c = RowLayout.columns(statusLabels: [label], models: ["opus"], panelWidth: Constants.panelWidth)
@@ -952,8 +934,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(c.name, RowLayout.maxNameWidth, "model is short, so name saturates the cap")
         let line2Budget = Constants.panelMinWidth - 2 * RowLayout.rowHorizontalPadding
             - RowLayout.secondRowLeadingInset - Constants.childRowIndent
-            - TodoProgressBar.width
-            - RowLayout.todoStatusGap - RowLayout.dotsSlot
+            - RowLayout.contextSlot
+            - 3 * RowLayout.lineTwoGap - RowLayout.dotsSlot
             - RowLayout.evidenceSlot
         XCTAssertEqual(c.status, max(0, line2Budget), accuracy: 0.01)
     }

@@ -325,71 +325,6 @@ struct TrendGauge: View {
     }
 }
 
-/// Ten-box task-completion bar shown on a second line under a session row:
-/// filled boxes track a session's current TodoWrite list, held at an empty
-/// 0% before any TodoWrite call rather than being hidden — so the row's
-/// height never changes once a session starts writing todos.
-///
-/// Deliberately not `Color.usageTint` — that gradient reads high-percentage
-/// as *dangerous* (rate-limit/context consumption), which is backwards for
-/// task completion, where 100% is the good outcome. One flat "in progress"
-/// tint instead, matching the row's own working color.
-struct TodoProgressBar: View {
-    let total: Int
-    let done: Int
-
-    static let boxCount = 10
-    /// Width of the percent text's fixed frame, in characters — "100%" is the
-    /// widest value the column ever has to hold.
-    private static let pctChars: CGFloat = 4
-
-    /// Rendered width of the whole bar (boxes + gap + percent), used by
-    /// `RowLayout` to budget line 2's status column against it. Mirrors the
-    /// view's own layout below: `boxCount` monospaced box glyphs, the 6pt gap,
-    /// and the percent text's own fixed-width frame.
-    static let width: CGFloat = CGFloat(boxCount) * RowLayout.monoAdvance + 6 + pctChars * RowLayout.monoAdvance
-
-    static func percent(total: Int, done: Int) -> Int {
-        guard total > 0 else { return 0 }
-        return min(100, max(0, Int((Double(done) / Double(total) * 100).rounded())))
-    }
-
-    static func filledBoxes(total: Int, done: Int) -> Int {
-        guard total > 0 else { return 0 }
-        return min(boxCount, max(0, Int((Double(done) / Double(total) * Double(boxCount)).rounded())))
-    }
-
-    private var pct: Int { Self.percent(total: total, done: done) }
-    private var filled: Int { Self.filledBoxes(total: total, done: done) }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            HStack(spacing: 0) {
-                Text(String(repeating: "■", count: filled))
-                    .foregroundStyle(Color.claude)
-                Text(String(repeating: "□", count: Self.boxCount - filled))
-                    .foregroundStyle(Color.secondary.opacity(0.4))
-            }
-            .font(.claudeMono(11))
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: filled)
-
-            // Fixed width, trailing-aligned: "0%" and "100%" are 2-4 characters,
-            // and without a pinned frame that swing shifts the status text that
-            // follows it on line 2 every time a session's todos progress.
-            Text("\(pct)%")
-                .font(.claudeMono(11)).monospacedDigit()
-                .foregroundStyle(total > 0 ? Color.claude : Color.secondary)
-                .frame(width: Self.pctChars * RowLayout.monoAdvance, alignment: .trailing)
-        }
-        .help(total > 0 ? "Task progress: \(done) of \(total) done" : "No task list yet")
-        // No accessibility modifiers here: SessionRow wraps the whole row in
-        // `.accessibilityElement(children: .ignore)`, which collapses this
-        // subtree into the row's own single element and its own
-        // `.accessibilityLabel` — anything set here would never reach VoiceOver.
-        // Task progress is folded into that label instead (see SessionRow).
-    }
-}
-
 extension SessionFeed {
     /// The status word the row draws. Lives here rather than in SessionRow because
     /// the panel measures every row's label to size the shared columns, so the
@@ -402,15 +337,25 @@ extension SessionFeed {
         case .idle:      return lastDuration != nil ? "done" : "idle"
         }
     }
+
+    /// The todo list as text, or nil when the session has none. The ten-box bar
+    /// this replaced was drawn on every row, so a session with no list showed an
+    /// orange-framed `0%` that read as its context; text that appears only when
+    /// there is something to count cannot be mistaken for a gauge.
+    var todoSummary: String? {
+        let p = todoProgress
+        guard p.total > 0 else { return nil }
+        return "todos \(min(max(p.done, 0), p.total))/\(p.total)"
+    }
 }
 
 /// How a row divides its width across two lines: line 1's name/model columns,
-/// and line 2's status column (beside the fixed-width `TodoProgressBar`).
+/// and line 2's status column (beside the fixed-width context meter).
 ///
 /// Name and model were once fixed (105 / 46), so the split was a guess made once
 /// for every row. Model is the measurable one — a known vocabulary, monospaced
 /// font, always ASCII — so it takes what it needs and the name, unbounded prose,
-/// gets the rest of line 1. Status moved to line 2 alongside the todo bar and is
+/// gets the rest of line 1. Status moved to line 2 alongside the context meter and is
 /// budgeted separately, against what that line actually has available, rather
 /// than sharing line 1's space the way it used to — see `columns(...)` below.
 enum RowLayout {
@@ -438,11 +383,17 @@ enum RowLayout {
     /// own padding, charged twice when budgeting line 2's available width.
     static let rowHorizontalPadding: CGFloat = 10
     /// Mirrors `SessionRow`'s second line `.padding(.leading, 20)`, which aligns
-    /// the todo bar and status text under the name column, past the glyph.
+    /// the status text under the name column, past the glyph.
     static let secondRowLeadingInset: CGFloat = 20
-    /// The `HStack(spacing: 8)` gap between the todo bar and the status text on
-    /// line 2.
-    static let todoStatusGap: CGFloat = 8
+    /// Line 2's `HStack(spacing: 8)` gap. Charged three times: status | spacer |
+    /// evidence | context meter each sit a gap apart.
+    static let lineTwoGap: CGFloat = 8
+    /// Line 2's context meter: the `ctx` word, the track, and the token count,
+    /// 4pt apart. The track is the footer gauges' width so every bar in the panel
+    /// is the same size.
+    static let contextLabelWidth: CGFloat = 20
+    static let contextValueWidth: CGFloat = 34
+    static let contextSlot: CGFloat = contextLabelWidth + 4 + Constants.usageTrackWidth + 4 + contextValueWidth
 
     /// One character's advance in the row font. Menlo is monospaced, so a string's
     /// width is its count times this — no per-string measurement per render, and
@@ -533,9 +484,9 @@ enum RowLayout {
     /// subtractions below never need a `max(0)` guard.
     ///
     /// Name/model (line 1) and status (line 2) are budgeted independently now that
-    /// status renders on its own line beside the todo bar, not beside the name —
-    /// a long status label no longer eats into the name column, and neither
-    /// `dotsSlot` nor the todo bar's width belong to line 1's budget at all.
+    /// status renders on its own line beside the context meter, not beside the
+    /// name — a long status label no longer eats into the name column, and neither
+    /// `dotsSlot` nor the meter's width belong to line 1's budget at all.
     static func columns(statusLabels: [String], models: [String], panelWidth: CGFloat) -> Columns {
         var model = models.map(width(for:)).max() ?? 0
         var status = statusLabels.map(width(for:)).max() ?? 0
@@ -548,13 +499,13 @@ enum RowLayout {
         model = min(model, modelCap)
         let name = min(panelWidth - Constants.rowFixedColumns - model, maxNameWidth)
 
-        // Line 2: status shares its budget with the todo bar, sized against what
-        // that line actually has — the row's own horizontal padding (charged on
-        // both sides), the second row's leading inset, the bar's rendered width,
-        // the gap between the bar and the status text, and the working-dots slot.
+        // Line 2: status shares its budget with the context meter, sized against
+        // what that line actually has — the row's own horizontal padding (charged
+        // on both sides), the second row's leading inset, the meter, the evidence
+        // slot, the three gaps between them, and the working-dots slot.
         let line2Width = panelWidth - 2 * rowHorizontalPadding - secondRowLeadingInset
             - Constants.childRowIndent
-        let statusBudget = max(0, line2Width - TodoProgressBar.width - todoStatusGap
+        let statusBudget = max(0, line2Width - contextSlot - 3 * lineTwoGap
                                 - dotsSlot - evidenceSlot)
         status = min(status, statusBudget)
 
@@ -663,16 +614,6 @@ struct SessionRow: View {
                 // Time + host chip travel together as one right-flush unit with a tight
                 // gap, so the time stays near the right edge with the tag just after it.
                 HStack(spacing: 4) {
-                    // This session's own context tokens, tinted by how full its window
-                    // is — the percentage still drives the color, it just isn't the
-                    // number shown. The slot is held even when a session has no
-                    // context_window yet, so the times below it stay aligned.
-                    Text(contextTokens)
-                        .font(.claudeMono(11))
-                        .monospacedDigit()
-                        .foregroundStyle(contextColor)
-                        .frame(width: 30, alignment: .trailing)
-
                     // Elapsed / waiting / done time in a fixed-width column so the times
                     // line up down the panel regardless of label.
                     Text(timeText)
@@ -711,12 +652,9 @@ struct SessionRow: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                TodoProgressBar(total: session.todoProgress.total, done: session.todoProgress.done)
-
-                // Status / Activity, moved down from the first row so the bar's line
-                // carries both task progress and the session's current activity, with
-                // the working-dots attached to the word they belong to.
+            HStack(spacing: RowLayout.lineTwoGap) {
+                // Status / Activity, with the working-dots attached to the word
+                // they belong to.
                 HStack(spacing: 0) {
                     Text(displayStatus)
                         .lineLimit(1)
@@ -732,17 +670,22 @@ struct SessionRow: View {
                 .font(.claudeMono(11))
                 .foregroundStyle(statusColor)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 0)
 
-                // What the feed saw about a session that is sitting still. Todos
-                // are left out here because the bar at the head of this same line
-                // already draws them.
-                if let evidence = session.restingEvidence(now: now, includeTodos: false) {
+                // What the feed saw about a session that is sitting still, else its
+                // todo count; nothing at all when there is neither.
+                if let evidence = session.restingEvidence(now: now, includeTodos: false)
+                    ?? session.todoSummary {
                     Text(evidence)
                         .font(.claudeMono(10))
                         .foregroundStyle(Color.label)
                         .lineLimit(1)
                         .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
+                }
+
+                // A subagent shares its parent's window, so it has no meter of its own.
+                if !session.isChild {
+                    contextMeter
                 }
             }
             .padding(.leading, 20)  // aligns under the name column, past the glyph
@@ -861,6 +804,33 @@ struct SessionRow: View {
         session.contextTokens.map(FeedWatcher.formatTokens) ?? ""
     }
 
+    /// `ctx`, a track scaled to the session's own window, and the token count.
+    /// With no window or no reading the track is not drawn: an empty track is a
+    /// reading of zero, and a missing reading is not one. The count says `n/a`.
+    private var contextMeter: some View {
+        HStack(spacing: 4) {
+            Text("ctx")
+                .font(.claudeMono(10))
+                .foregroundStyle(Color.label)
+                .frame(width: RowLayout.contextLabelWidth, alignment: .leading)
+            Group {
+                if let tokens = session.contextTokens,
+                   let window = session.stats.contextWindowSize, window > 0 {
+                    ContextMeter(tokens: tokens, window: window)
+                        .opacity(session.status == .idle ? 0.5 : 1)
+                } else {
+                    Color.clear.frame(height: 5)
+                }
+            }
+            .frame(width: Constants.usageTrackWidth)
+            Text(contextTokens.isEmpty ? "n/a" : contextTokens)
+                .font(.claudeMono(11))
+                .monospacedDigit()
+                .foregroundStyle(contextColor)
+                .frame(width: RowLayout.contextValueWidth, alignment: .trailing)
+        }
+    }
+
     private var statusColor: Color {
         switch session.status {
         case .attention: return .attention
@@ -926,8 +896,7 @@ struct SessionRow: View {
 
     /// The row collapses to one VoiceOver element (`accessibilityElement(children:
     /// .ignore)` above), so this is the only place task-progress info can reach an
-    /// assistive user — `TodoProgressBar`'s own accessibility modifiers are inert
-    /// inside this row and don't contribute here.
+    /// assistive user.
     private var accessibilityLabelText: String {
         if session.isChild {
             var text = "subagent \(session.displayName), \(statusLabel) \(timeText)"

@@ -745,7 +745,7 @@ enum ContextChart {
 ///
 /// The `used` row above already prints the percentage; this is the same number
 /// as a length, which is the form a ratio-against-a-limit actually wants.
-private struct ContextMeter: View {
+struct ContextMeter: View {
     let tokens: Int
     let window: Int
 

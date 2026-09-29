@@ -48,7 +48,7 @@ enum Constants {
     static let windowMinWidth: CGFloat = 620
     static let windowMinHeight: CGFloat = 360
     /// Floor the clamp never drops below. Line 1's row budget goes negative under
-    /// ~240 (`rowFixedColumns` 170 + `RowLayout.minNameWidth` 70) and the footer's
+    /// ~206 (`rowFixedColumns` 136 + `RowLayout.minNameWidth` 70) and the footer's
     /// fixed-size gauges want ~340; 360 keeps `columns()` arithmetic positive
     /// without a defensive clamp, and no real display's `visibleFrame` is this
     /// narrow, so the floor is never actually reached.
@@ -95,9 +95,10 @@ enum Constants {
         abs(itemFrame.maxY - screenFrame.maxY) > statusItemPlacementSlack
     }
     /// The genuinely fixed part of a row: padding 20 + glyph 15 + four 5pt gaps
-    /// + trailing 115 (ctx 30, time 48, chip 29, two 4pt gaps). Every figure here
-    /// is derived from the 11pt row font, so changing that means rederiving them.
-    static let rowFixedColumns: CGFloat = 170
+    /// + trailing 81 (time 48, chip 29, one 4pt gap). Context moved to line 2's
+    /// meter. Every figure here is derived from the 11pt row font, so changing
+    /// that means rederiving them.
+    static let rowFixedColumns: CGFloat = 136
     /// Fixed width of a row's trailing slot — the host chip at rest, the ✕ clear
     /// button on hover. Shared so the footer can right-align its countdown to the
     /// same column as the row times above it.
@@ -540,8 +541,8 @@ struct SessionFeed: Identifiable {
     /// "safe to clear" above three open todos would be the same defect as a
     /// cost figure that reads as a bill.
     ///
-    /// `includeTodos` is false in the panel, where `TodoProgressBar` already
-    /// draws that same fact one column to the left.
+    /// `includeTodos` is false on the panel's second line, which falls back to
+    /// `todoSummary` in the same slot when there is no resting evidence.
     func restingEvidence(now: Date, includeTodos: Bool = true) -> String? {
         guard !isWorking, !isBlockedOnYou else { return nil }
         var parts: [String] = []
@@ -595,7 +596,7 @@ struct SessionFeed: Identifiable {
         return (contextInputTokens ?? 0) + (contextOutputTokens ?? 0)
     }
 
-    /// The `(total, done)` pair `TodoProgressBar` actually draws, coalesced from
+    /// The `(total, done)` pair `todoSummary` actually draws, coalesced from
     /// the optional decoded counts. The real call site (`SessionRow`) and its
     /// tests should both go through this rather than each inlining `?? 0` —
     /// the value the bar renders and the value tested must be the same one.

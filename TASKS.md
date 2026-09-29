@@ -36,7 +36,7 @@
   session) to see the line climb on screen
 
 - [x] Neutral ink-label so orange means working only
-- [ ] Replace todo bar with labelled ctx meter
+- [x] Replace todo bar with labelled ctx meter
 - [ ] Opaque panel ground and blue Needs you header
 - [ ] Collapse idle rows to one line
 - [ ] Relabel footer chg gauge as trend
