@@ -6,6 +6,12 @@ Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
+- [ ] Give push/pull/merge a longer timeout than status probes
+- [ ] Stop Clear/Compact reporting failure when they worked
+- [ ] Keep tmux/ps calls off the main thread with a timeout
+- [ ] Pin the merge to the PR number that was confirmed
+- [ ] Match installed hooks on script path, not substring
+
 ## Completed
 
 - [x] Authenticate Figma and create the UI spec file -- figma, no commit
