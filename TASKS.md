@@ -9,7 +9,7 @@ via `run.sh`.
 - [x] Give push/pull/merge a longer timeout than status probes
 - [x] Stop Clear/Compact reporting failure when they worked
 - [x] Keep tmux/ps calls off the main thread with a timeout
-- [ ] Pin the merge to the PR number that was confirmed
+- [x] Pin the merge to the PR number that was confirmed
 - [ ] Match installed hooks on script path, not substring
 - [ ] Delete merged branch design-system-pass-2026-09-20
 

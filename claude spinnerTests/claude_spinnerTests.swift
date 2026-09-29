@@ -2814,8 +2814,18 @@ final class claude_spinnerTests: XCTestCase {
         // `gh pr merge` with no method prompts, and a subprocess with no
         // terminal would sit there until the timeout.
         XCTAssertEqual(GitActions.command(.merge, snapshot: mergeable())?.args,
-                       ["pr", "merge", "--squash", "--delete-branch"])
+                       ["pr", "merge", "3", "--squash", "--delete-branch"])
         XCTAssertTrue(GitAction.merge.confirmation?.contains("delete the branch") == true)
+    }
+
+    func testMergeIsPinnedToTheConfirmedPR() {
+        // Unpinned, gh picks the PR from the branch checked out when it runs,
+        // not the one the button was confirmed against.
+        XCTAssertEqual(GitActions.command(.merge, snapshot: mergeable(41))?.args.prefix(3),
+                       ["pr", "merge", "41"])
+        // No open PR in the snapshot means nothing to pin to, so nothing runs.
+        XCTAssertNil(GitActions.command(.merge, snapshot: snap(pr: .none)))
+        XCTAssertNil(GitActions.command(.merge, snapshot: snap(pr: .merged(number: 41, url: "u"))))
     }
 
     func testRunHonoursItsTimeoutInBothDirections() {

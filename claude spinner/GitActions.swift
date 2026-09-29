@@ -201,9 +201,13 @@ enum GitActions {
             // that quietly rebases someone's afternoon.
             return ("/usr/bin/git", ["pull", "--ff-only"])
         case .merge:
+            // The number is the PR the gate and the confirmation were about.
+            // Without it gh resolves the PR from whatever branch is checked out
+            // at run time, which a session may have switched in the meantime.
+            guard case .open(let n, _, _) = snapshot.pr else { return nil }
             // A method has to be named. `gh pr merge` with none prompts, and a
             // subprocess with no terminal would sit there until the timeout.
-            return (GitProbe.ghPath ?? "", ["pr", "merge", "--squash", "--delete-branch"])
+            return (GitProbe.ghPath ?? "", ["pr", "merge", String(n), "--squash", "--delete-branch"])
         }
     }
 
