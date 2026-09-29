@@ -13,7 +13,7 @@
 - [x] Add ccusage poller for today/week/block totals
 - [x] Show usage totals line in the menu footer
 - [x] Test ccusage parse (good, malformed, empty, no block)
-- [ ] [you] Look at the window's All sessions totals section
+- [x] [you] Look at the window's All sessions totals section
 - [x] Record Figma URL and next Swift fix slices
 - [x] Unify state colors across panel and window
 - [x] Add one Notice style for info, warning and error
