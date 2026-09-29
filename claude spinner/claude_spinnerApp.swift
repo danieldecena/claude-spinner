@@ -704,7 +704,7 @@ extension Color {
         // from this app. The dark halves are unchanged. The light halves were
         // re-derived for a white ground on 2026-09-20 and sat just over 3:1;
         // the system darkened them again so they also clear 3:1 on its warmer
-        // off-white panels, and now measure 3.9 to 4.6 here.
+        // off-white panels, and now measure 3.95 to 4.75 here.
         static let usageRedLight = (0.788, 0.275, 0.231)    // #C9463B
         static let usageRedDark = (1.0, 0.48, 0.44)
         static let usageAmberLight = (0.753, 0.416, 0.071)  // #C06A12
@@ -716,14 +716,15 @@ extension Color {
 
         /// Ink for a row label: the same burnt orange, darkened until it clears
         /// 4.5:1 rather than replaced by a grey. Labels were drawn in `claudeDim`
-        /// -- the accent at 65% -- which composites to 2.29:1 on white and 3.76:1
-        /// on the dark ground, so half the window's text was below the threshold,
-        /// not just the 3.84:1 of the accent itself. A neutral grey would have
-        /// passed too and cost the app its warmth; darkening the hue keeps the
-        /// label/value pair that makes the mono columns scannable.
-        /// Dark needs no change: the lifted accent is already 7.07:1 there.
+        /// -- the accent at 65% -- which under the accent of the day composited to
+        /// 2.29:1 on white and 3.76:1 on the dark ground, so half the window's text
+        /// was below the threshold, not just the 3.84:1 of that accent itself. A
+        /// neutral grey would have passed too and cost the app its warmth;
+        /// darkening the hue keeps the label/value pair that makes the mono
+        /// columns scannable.
+        /// Dark needs no change: the lifted accent measures 6.16:1 there.
         /// Light is the system's `clay-ink`, one step darker than the accent, so
-        /// a label still sits quieter than the value beside it.
+        /// a label still sits quieter than the value beside it, at 6.49:1.
         static let labelLight = (0.604, 0.267, 0.161)  // #9A4429
         static let labelDark = claudeDark
 
@@ -744,7 +745,7 @@ extension Color {
     /// Quiet ink for row labels, a step darker than `claude`.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a
-    /// container. Not for text: it composites to 2.29:1 on white, which is why
+    /// container. Not for text: it composites to 2.74:1 on white, which is why
     /// the labels it used to draw moved to `label`.
     static let claudeDim = claude.opacity(0.65)
     /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
