@@ -25,7 +25,7 @@
 - [x] Rescope the Git actions empty state to "no actions available"
 - [x] Test StatFormat.usagePercent for nil, zero and a real reading
 
-- [ ] [you] Confirm the policy round-trip by hand — right-click the icon while it is
+- [x] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)

@@ -138,9 +138,8 @@
 ## Next Up
 
 The palette is the current work, and the identity colours closed its last
-gap. What is left is two hand-checks, both `[you]` in `TASKS.md`: the
-placed-status-item policy round-trip (not scriptable, see the 2026-08-12
-decision log), and a context line with a visible slope. Two runtime cases stay
+gap. What is left is one hand-check, `[you]` in `TASKS.md`: a context line
+with a visible slope (the policy round-trip closed 2026-09-29). Two runtime cases stay
 unobserved and are named in the decision log: the unreadable-remote rendering
 from the Git work, and three of the four identity hues -- every session on this
 machine is Opus in a desktop app, so only purple has been seen. The panel's
@@ -149,6 +148,20 @@ project sections were observed on screen 2026-09-28 and are no longer open.
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-29 (policy round-trip observed; the surface precondition)
+
+- Decided: the placed-status-item policy round-trip is closed. On the menuBar
+  surface a window open reads `type="Foreground"` and after closing it reads
+  `type="UIElement"`, with 0 windows remaining (12:47).
+- The first attempt read Foreground after the close, which looked like a bug.
+  The cause was the persisted `surface` default, which was `window`: that
+  surface creates no status item, so `windowWillClose` treats it as unplaced and
+  keeps the Dock icon by design. Any check of this path has to confirm
+  `defaults read decenad.claude-spinner surface` is `menuBar` first. It was
+  switched to `menuBar` for the test and left there.
+- In this shell `log` is a zsh function, so `log show` silently runs something
+  else and returns nothing. Use `/usr/bin/log`.
 
 ### 2026-09-29 (usage totals from ccusage; the Dock bounce)
 
