@@ -1020,11 +1020,15 @@ enum SessionLauncher {
     }
 
     private static func focusTerminalByTitle(_ title: String) -> Bool {
+        // A folder name is user data inside an AppleScript string literal: a
+        // quote in it broke the script and the click fell back to a new window.
+        let quoted = title.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "Terminal"
             repeat with w in windows
                 repeat with t in tabs of w
-                    if name of t contains "\(title)" or custom title of t contains "\(title)" then
+                    if name of t contains "\(quoted)" or custom title of t contains "\(quoted)" then
                         activate
                         set index of w to 1
                         set selected of t to true
@@ -1061,12 +1065,16 @@ enum SessionLauncher {
     }
 
     private static func focusITermByTitle(_ title: String) -> Bool {
+        // A folder name is user data inside an AppleScript string literal: a
+        // quote in it broke the script and the click fell back to a new window.
+        let quoted = title.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "iTerm"
             repeat with w in windows
                 repeat with t in tabs of w
                     repeat with s in sessions of t
-                        if name of s contains "\(title)" then
+                        if name of s contains "\(quoted)" then
                             select s
                             select t
                             set index of w to 1
