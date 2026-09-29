@@ -2,6 +2,12 @@
 
 ## Tasks
 
+Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
+not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
+via `run.sh`.
+
+## Completed
+
 - [x] Authenticate Figma and create the UI spec file -- figma, no commit
 - [x] Check Figma has a mono font (Menlo or SF Mono) -- figma, no commit
 - [x] Build unified tokens page (state, usage, menubar) -- figma, no commit
@@ -24,22 +30,17 @@
 - [x] Say "no current 5h reading" instead of "— of 5h" in the window overview
 - [x] Rescope the Git actions empty state to "no actions available"
 - [x] Test StatFormat.usagePercent for nil, zero and a real reading
-
 - [x] [you] Confirm the policy round-trip by hand — right-click the icon while it is
   placed, Open Window, close it, expect `lsappinfo` to read `type="UIElement"`
   (not scriptable — status-item context menus aren't reliably reachable via
   AppleScript/System Events; needs a real click)
-
 - [x] Confirm a SLOPED context line renders -- every session on this machine
   is Opus 1M and none has passed ~18%, so the flat-crawl case is the only one ever
   drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
   session) to see the line climb on screen
-
 - [x] Observe the cyan, jade and indigo identity hues on screen
-
 - [x] Mark a borrowed model tag as a guess
 - [x] Keep borrowed models apart in the models bar
-
 - [x] Neutral ink-label so orange means working only
 - [x] Replace todo bar with labelled ctx meter
 - [x] Opaque panel ground and blue Needs you header
@@ -59,14 +60,6 @@
 - [x] Stamp usage cache with the session's own time
 - [x] Git probe returns nil when pipe reads time out
 - [x] Escape folder names in AppleScript focus
-
-
-Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
-not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
-via `run.sh`.
-
-## Completed
-
 - [x] Allow notifications for "claude spinner" -- granted 2026-09-15, banner
   answered end to end (hand-check)
 - [x] Show the notifications-denied notice on both surfaces -- f2cf7ee
