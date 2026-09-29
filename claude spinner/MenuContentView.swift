@@ -24,7 +24,7 @@ struct MenuContentView: View {
             UsageHeader(feed: feed)
 
             if !feed.sessions.isEmpty {
-                SessionBreakdownBars(sessions: feed.sessions, model: feed.modelDisplay(for:))
+                SessionBreakdownBars(sessions: feed.sessions, model: feed.modelTag(for:))
             }
 
             // Denied authorization makes every banner a no-op that still reports
@@ -210,7 +210,9 @@ enum SessionBreakdown {
 
     /// Top-level sessions by model family, largest first. A session with no
     /// model reading gets its own "?" segment rather than being dropped, so the
-    /// two bars always add up to the same number of sessions.
+    /// two bars always add up to the same number of sessions. A borrowed tag
+    /// ("opus?") is its own dimmer segment, as on the row, so a guess is never
+    /// counted as a reported model.
     static func byModel(_ sessions: [SessionFeed], model: (SessionFeed) -> String?) -> [BreakdownSegment] {
         let roots = sessions.filter { $0.parentSessionId == nil }
         var counts: [String: Int] = [:]
@@ -220,8 +222,9 @@ enum SessionBreakdown {
         return counts
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .map { name, count in
-                BreakdownSegment(label: name.lowercased(), count: count,
-                                 tint: name == "?" ? .label : .modelTint(name))
+                let tint: Color = name == "?" ? .label : .modelTint(name)
+                return BreakdownSegment(label: name.lowercased(), count: count,
+                                        tint: name.count > 1 && name.hasSuffix("?") ? tint.opacity(0.55) : tint)
             }
     }
 }

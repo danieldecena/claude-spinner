@@ -2617,6 +2617,21 @@ final class claude_spinnerTests: XCTestCase {
                        SessionBreakdown.byStatus([a, b, c, d]).map(\.count).reduce(0, +))
     }
 
+    /// A borrowed model is a guess: it gets its own dim "opus?" segment and is
+    /// never added to the sessions that reported opus themselves.
+    func testTheModelBreakdownKeepsBorrowedModelsApart() {
+        var a = mk("a", .idle); a.model = "Opus 5.5"; a.updated = Date()
+        let b = mk("b", .idle)
+        let c = mk("c", .idle)
+        let sessions = [a, b, c]
+        let segments = SessionBreakdown.byModel(sessions) {
+            FeedWatcher.modelTag(for: $0, among: sessions, cached: nil)
+        }
+        XCTAssertEqual(segments.map(\.label), ["opus?", "opus"])
+        XCTAssertEqual(segments.map(\.count), [2, 1])
+        XCTAssertEqual(segments.map(\.tint), [.modelTint("Opus").opacity(0.55), .modelTint("Opus")])
+    }
+
     func testChartBandLinesAreWhereTheTintsChange() {
         var contextSteps: [Int] = []
         for tokens in stride(from: 1_000, through: 300_000, by: 1_000)

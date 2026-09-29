@@ -178,8 +178,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   `FeedWatcher.modelTag` appends `?` when `session.model` is nil and the row
   draws it at 0.55 opacity. Observed after relaunch: both claude-in-safari
   desktop rows read `opus?` in a lighter purple, the Ghostty session `opus`
-  solid. The header's models bar still counts borrowed models as real; not
-  changed.
+  solid.
+- Decided (Daniel): the header's models bar keeps borrowed models apart too.
+  `SessionBreakdown.byModel` now takes `modelTag`, so a borrowed `opus?` is its
+  own segment at 0.55 opacity instead of adding to the real opus count.
+  Observed after relaunch (15:50, popover captured by window id): `2 opus
+  2 opus?`, the second segment lighter. 249 tests, 0 failures.
 
 ### 2026-09-29 (policy round-trip observed; the surface precondition)
 
