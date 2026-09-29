@@ -847,12 +847,19 @@ final class UsageTotalsPoller {
     /// Long: a daily scan costs ~11s wall and ~90s CPU across every transcript.
     static let pollInterval: TimeInterval = 10 * 60
     static let executable = "/opt/homebrew/bin/ccusage"
+    /// Without `--offline` a run waits on a network price fetch; a hung one
+    /// would hold `inFlight` forever and freeze the totals until relaunch.
+    /// Generous: a live scan under build load has taken over 2 min.
+    /// `terminate()` also takes down the native binary node spawns.
+    static let runTimeout: TimeInterval = 5 * 60
 
     private let onUpdate: (Result) -> Void
     private let onError: (String) -> Void
     private var timer: Timer?
     /// A slow scan must not stack a second one behind it. Main-thread only.
     private var inFlight = false
+    /// A forced poll that arrived mid-scan; run it once the scan lands.
+    private var pendingForce = false
 
     init(onUpdate: @escaping (Result) -> Void, onError: @escaping (String) -> Void) {
         self.onUpdate = onUpdate
@@ -867,7 +874,7 @@ final class UsageTotalsPoller {
         }
     }
 
-    func stop() { timer?.invalidate(); timer = nil }
+    func stop() { timer?.invalidate(); timer = nil; pendingForce = false }
 
     func refreshNow() { poll(force: true) }
 
@@ -927,8 +934,14 @@ final class UsageTotalsPoller {
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
         do { try task.run() } catch { return (nil, "ccusage not found") }
+        let kill = DispatchWorkItem { if task.isRunning { task.terminate() } }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + runTimeout, execute: kill)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         task.waitUntilExit()
+        kill.cancel()
+        if task.terminationReason == .uncaughtSignal && task.terminationStatus == SIGTERM {
+            return (nil, "ccusage timed out after \(Int(runTimeout))s")
+        }
         guard task.terminationStatus == 0 else { return (nil, "ccusage exit \(task.terminationStatus)") }
         return (data, nil)
     }
@@ -941,7 +954,7 @@ final class UsageTotalsPoller {
     }()
 
     private func poll(force: Bool) {
-        if inFlight { return }
+        if inFlight { pendingForce = pendingForce || force; return }
         if !force && UsagePoller.userIdleSeconds > UsagePoller.pauseAfterIdle { return }
         inFlight = true
         let now = Date()
@@ -967,6 +980,7 @@ final class UsageTotalsPoller {
                 guard let self else { return }
                 self.inFlight = false
                 if let result { self.onUpdate(result) } else { self.onError(err ?? "unreadable output") }
+                if self.pendingForce { self.pendingForce = false; self.poll(force: true) }
             }
         }
     }
