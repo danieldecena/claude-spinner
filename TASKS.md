@@ -56,7 +56,7 @@
 - [x] Drop the retired OpenWolf convention from HANDOFF
 - [x] Drop stale poll usage when polling stops
 - [x] Seed finished-turn set before first done banner
-- [x] Stamp usage cache with the session own time
+- [x] Stamp usage cache with the session's own time
 - [x] Git probe returns nil when pipe reads time out
 - [x] Escape folder names in AppleScript focus
 
