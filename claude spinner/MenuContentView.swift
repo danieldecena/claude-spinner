@@ -31,7 +31,7 @@ struct MenuContentView: View {
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
-                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(11)).foregroundStyle(Color.label)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
@@ -563,14 +563,14 @@ private struct PanelSectionHeader: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(section.title)
-                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1)
             Spacer(minLength: 4)
             Text("\(section.sessionCount)")
-                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
             if let total = section.contextTotal {
                 Text(FeedWatcher.formatTokens(total))
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
         .padding(.horizontal, 10)
@@ -729,7 +729,7 @@ struct SessionRow: View {
                 if let evidence = session.restingEvidence(now: now, includeTodos: false) {
                     Text(evidence)
                         .font(.claudeMono(10))
-                        .foregroundStyle(Color.claudeDim)
+                        .foregroundStyle(Color.label)
                         .lineLimit(1)
                         .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
                 }
