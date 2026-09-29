@@ -49,7 +49,12 @@ struct WindowContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                OverviewStrip(overview: feed.overview, history: feed.usageHistory,
+                OverviewStrip(overview: feed.overview,
+                              fiveHour: feed.usageFiveHourPct,
+                              sevenDay: feed.usageSevenDayPct,
+                              usageStale: feed.usageIsStale,
+                              usageHelp: feed.usageAsOfString,
+                              history: feed.usageHistory,
                               totals: feed.usageTotalsRows,
                               totalsStatus: feed.usageTotalsStatus,
                               totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
@@ -639,6 +644,13 @@ enum StatFormat {
 /// only means anything aggregated.
 private struct OverviewStrip: View {
     let overview: FeedWatcher.Overview
+    /// The menu bar's own resolution (poll, then a live session, then the
+    /// persisted snapshot), not the live feeds alone -- read from the feeds, the
+    /// window went blank or disagreed whenever only the poll or cache had it.
+    let fiveHour: Int?
+    let sevenDay: Int?
+    let usageStale: Bool
+    let usageHelp: String
     let history: [UsageSample]
     /// ccusage totals across every session, ended ones included -- the lines
     /// above add up only the sessions that are live right now.
@@ -681,6 +693,8 @@ private struct OverviewStrip: View {
                 }
                 Spacer(minLength: 0)
             }
+            .opacity(usageStale ? 0.5 : 1)
+            .help(usageHelp)
 
             // Labelled for what it is. "$93.62 today" under a dollar sign reads
             // as a bill, and on a subscription plan that is simply wrong.
@@ -717,11 +731,6 @@ private struct OverviewStrip: View {
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-
-    /// Every session reports the same account-wide window, so the first one that
-    /// has it is the answer -- averaging or summing them would be nonsense.
-    private var fiveHour: Int? { overview.fiveHourPct }
-    private var sevenDay: Int? { overview.sevenDayPct }
 
     private var counts: String {
         var parts = ["\(overview.sessions) session\(overview.sessions == 1 ? "" : "s")"]

@@ -1511,18 +1511,20 @@ final class claude_spinnerTests: XCTestCase {
     }
 
     /// The rate-limit windows are account-wide: every session reports the same
-    /// pair, so the overview takes the freshest reading. Summing them would
-    /// report 250% of a 5h window across three sessions.
+    /// pair, so the freshest reading is the answer. Summing them would report
+    /// 250% of a 5h window across three sessions. A newer session with no
+    /// statusLine must not shadow an older one that has the numbers.
     func testRateLimitsAreTakenFreshRatherThanSummed() {
         var old = root("old", updated: Date().addingTimeInterval(-600))
         old.fiveHourPct = 40
         old.sevenDayPct = 30
-        var new = root("new", updated: Date())
+        var new = root("new", updated: Date().addingTimeInterval(-60))
         new.fiveHourPct = 49
         new.sevenDayPct = 34
-        let out = FeedWatcher.overview(for: [old, new])
-        XCTAssertEqual(out.fiveHourPct, 49)
-        XCTAssertEqual(out.sevenDayPct, 34)
+        let bare = root("bare", updated: Date())
+        let out = FeedWatcher.pickUsageSession([old, new, bare])
+        XCTAssertEqual(out?.fiveHourPct, 49)
+        XCTAssertEqual(out?.sevenDayPct, 34)
     }
 
     /// Subagents share their parent's numbers; counting them would double the

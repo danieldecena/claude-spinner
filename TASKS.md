@@ -51,6 +51,7 @@
 - [x] Add larger context and usage charts to window
 - [x] Draw session tree diagram in window
 - [x] Add status and model breakdown bar to panel
+- [x] Window strip reads the resolved 5h/7d usage
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

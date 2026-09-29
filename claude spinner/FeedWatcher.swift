@@ -1491,9 +1491,6 @@ final class FeedWatcher: ObservableObject {
         var contextTokens: Int?
         var linesAdded: Int?
         var linesRemoved: Int?
-        /// Account-wide, so this is one session's reading rather than a total.
-        var fiveHourPct: Int?
-        var sevenDayPct: Int?
     }
 
     static func overview(for sessions: [SessionFeed]) -> Overview {
@@ -1513,12 +1510,6 @@ final class FeedWatcher: ObservableObject {
         out.contextTokens = total(roots.compactMap(\.contextTokens))
         out.linesAdded = total(roots.compactMap(\.stats.linesAdded))
         out.linesRemoved = total(roots.compactMap(\.stats.linesRemoved))
-        // The rate-limit windows belong to the account, not the session: every
-        // session reports the same pair, so take the freshest reading rather
-        // than summing or averaging identical values.
-        let freshest = roots.sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
-        out.fiveHourPct = freshest.compactMap(\.fiveHourPct).first
-        out.sevenDayPct = freshest.compactMap(\.sevenDayPct).first
         return out
     }
 
@@ -1841,7 +1832,7 @@ final class FeedWatcher: ObservableObject {
     /// The session whose status feed carries the account-wide rate-limit numbers
     /// (any recent session has them; they're not per-project). Cached in
     /// `usageSession` and refreshed only when `sessions` changes.
-    private static func pickUsageSession(_ sessions: [SessionFeed]) -> SessionFeed? {
+    static func pickUsageSession(_ sessions: [SessionFeed]) -> SessionFeed? {
         sessions
             .filter { $0.fiveHourPct != nil || $0.sevenDayPct != nil }
             .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }
