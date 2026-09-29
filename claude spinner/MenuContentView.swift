@@ -693,7 +693,7 @@ struct SessionRow: View {
                                 .padding(.horizontal, 4).padding(.vertical, 1)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .fill(tag.color.opacity(0.16))
+                                        .fill(tag.color.opacity(Color.Ink.chipTint))
                                 )
                         }
                     }

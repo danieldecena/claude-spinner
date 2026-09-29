@@ -728,6 +728,29 @@ extension Color {
         static let labelLight = (0.604, 0.267, 0.161)  // #9A4429
         static let labelDark = claudeDark
 
+        /// The four identity hues, each shared by one model and one host: purple for
+        /// Opus and a desktop app, cyan for Sonnet and the web, jade for Haiku and a
+        /// terminal, indigo for Fable and VS Code. Both surfaces draw them as text --
+        /// the model word at 11px, the host tag at 10px on a `chipTint` fill of the
+        /// same hue -- so each owes 4.5:1 against that composite, which is a stricter
+        /// ground than the pane. The old values measured 2.04 to 2.88 there.
+        ///
+        /// Hues are 275/198/163/244 rather than the greens and blues they replaced.
+        /// Darkening the old hues for a white ground put Haiku 12/255 from
+        /// `usageGreen` and the VS Code blue 17/255 from `attention`, which is the
+        /// collision the status palette is supposed to be free of. At these hues the
+        /// nearest identity-to-status pair is 48/255 apart (jade to usageGreen) and
+        /// the nearest identity pair 38 (purple to indigo, in dark).
+        static let chipTint = 0.16
+        static let identityPurpleLight = (0.561, 0.224, 0.804) // #8F39CD
+        static let identityPurpleDark = (0.725, 0.514, 0.878)  // #B983E0
+        static let identityCyanLight = (0.137, 0.431, 0.557)   // #236E8E
+        static let identityCyanDark = (0.243, 0.643, 0.812)    // #3EA4CF
+        static let identityJadeLight = (0.114, 0.455, 0.357)   // #1D745B
+        static let identityJadeDark = (0.169, 0.675, 0.533)    // #2BAC88
+        static let identityIndigoLight = (0.365, 0.329, 0.831) // #5D54D4
+        static let identityIndigoDark = (0.588, 0.569, 0.89)   // #9691E3
+
         /// Every triple that is drawn as a status mark, with the ground it sits on.
         static let marks: [(name: String, light: (Double, Double, Double), dark: (Double, Double, Double))] = [
             ("claude", claudeLight, claudeDark),
@@ -736,6 +759,15 @@ extension Color {
             ("usageAmber", usageAmberLight, usageAmberDark),
             ("usageYellow", usageYellowLight, usageYellowDark),
             ("usageGreen", usageGreenLight, usageGreenDark),
+        ]
+
+        /// Every triple that identifies a model or a host. Drawn as text on a chip
+        /// of itself, so the tests measure them against that composite.
+        static let identity: [(name: String, light: (Double, Double, Double), dark: (Double, Double, Double))] = [
+            ("purple", identityPurpleLight, identityPurpleDark),
+            ("cyan", identityCyanLight, identityCyanDark),
+            ("jade", identityJadeLight, identityJadeDark),
+            ("indigo", identityIndigoLight, identityIndigoDark),
         ]
     }
 
@@ -790,12 +822,26 @@ extension Color {
         }
     }
 
-    static let modelOpus = dynamic(light: (0.62, 0.47, 0.86), dark: (0.76, 0.63, 0.96))    // purple
-    static let modelSonnet = dynamic(light: (0.35, 0.68, 0.80), dark: (0.48, 0.82, 0.94))  // cyan
-    static let modelHaiku = dynamic(light: (0.45, 0.72, 0.45), dark: (0.55, 0.85, 0.55))   // green
-    static let modelFable = dynamic(light: (0.42, 0.56, 0.86), dark: (0.56, 0.70, 0.98))   // blue
+    // One hue per family, shared by the model word and the host tag that sit in the
+    // same row: the column and the word say which of the two a tint belongs to, so
+    // the colour does not have to. Jade replaced Haiku's green and indigo Fable's
+    // blue to keep identity off the hues the status ramp reserves -- see
+    // Ink.identity. Built once for the same reason as the bands below: SwiftUI
+    // compares Color by the underlying NSColor instance, so a second `dynamic`
+    // call on the same triple would not compare equal to the first.
+    static let identityPurple = dynamic(light: Ink.identityPurpleLight, dark: Ink.identityPurpleDark)
+    static let identityCyan = dynamic(light: Ink.identityCyanLight, dark: Ink.identityCyanDark)
+    static let identityJade = dynamic(light: Ink.identityJadeLight, dark: Ink.identityJadeDark)
+    static let identityIndigo = dynamic(light: Ink.identityIndigoLight, dark: Ink.identityIndigoDark)
 
-    /// Model-family accent, matching the statusLine's color language.
+    static let modelOpus = identityPurple
+    static let modelSonnet = identityCyan
+    static let modelHaiku = identityJade
+    static let modelFable = identityIndigo
+
+    /// Model-family accent. It no longer matches the statusLine's green for Haiku
+    /// or its blue for Fable: those hues belong to the status ramp and to
+    /// `attention`, and an identity colour cannot share one.
     static func modelTint(_ name: String?) -> Color {
         guard let n = name?.lowercased() else { return .label }
         if n.contains("opus")   { return modelOpus }
@@ -805,10 +851,10 @@ extension Color {
         return .label
     }
 
-    static let hostVsc = dynamic(light: (0.35, 0.60, 0.90), dark: (0.50, 0.74, 1.0))   // blue
-    static let hostTrm = dynamic(light: (0.45, 0.72, 0.45), dark: (0.55, 0.85, 0.55))  // green
-    static let hostWeb = dynamic(light: (0.35, 0.72, 0.78), dark: (0.48, 0.85, 0.92))  // cyan
-    static let hostApp = dynamic(light: (0.62, 0.47, 0.86), dark: (0.76, 0.63, 0.96))  // purple
+    static let hostVsc = identityIndigo
+    static let hostTrm = identityJade
+    static let hostWeb = identityCyan
+    static let hostApp = identityPurple
 }
 
 /// Identifiers for the attention notification's category and "Focus session"
@@ -1055,7 +1101,9 @@ enum HostTag {
         }
     }
 
-    /// Distinct hue per surface: editor blue, terminal green, web cyan, app purple.
+    /// Distinct hue per surface: editor indigo, terminal jade, web cyan, app purple.
+    /// Each is the same value as the model it shares a row with, which is why the
+    /// tag prints its three letters rather than relying on the colour alone.
     var color: Color {
         switch self {
         case .vsc: return .hostVsc
