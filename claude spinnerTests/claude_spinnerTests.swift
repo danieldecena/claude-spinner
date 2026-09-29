@@ -1890,6 +1890,38 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    func testLandingIsChosenByWhatWasTyped() {
+        XCTAssertEqual(SessionReplier.Landing(typed: "/clear"), .cleared)
+        XCTAssertEqual(SessionReplier.Landing(typed: "/compact"), .compacted)
+        XCTAssertEqual(SessionReplier.Landing(typed: "/compact keep the plan"), .compacted)
+        XCTAssertEqual(SessionReplier.Landing(typed: "/clearly not a command"), .turnStarted)
+        XCTAssertEqual(SessionReplier.Landing(typed: "please /clear the cache"), .turnStarted)
+    }
+
+    /// Shapes recorded from a live pane 2026-09-29: after a turn the file
+    /// carries last_seed; SessionStart rewrites it idle with both turn fields
+    /// null. Neither built-in ever passes through "thinking".
+    func testBuiltInCommandsLandOnTheirOwnSignalNotThinking() {
+        let afterTurn = Data(#"{"status":"idle","turn_start":null,"last_seed":1790720321,"updated":1790720329}"#.utf8)
+        let restarted = Data(#"{"status":"idle","turn_start":null,"last_seed":null,"updated":1790720340}"#.utf8)
+        let thinking = Data(#"{"status":"thinking","turn_start":1790720330,"last_seed":null}"#.utf8)
+
+        XCTAssertTrue(SessionReplier.landed(.cleared, baseline: afterTurn, current: nil))
+        XCTAssertFalse(SessionReplier.landed(.cleared, baseline: afterTurn, current: afterTurn))
+        // No baseline: a file that was never there is not a cleared session.
+        XCTAssertFalse(SessionReplier.landed(.cleared, baseline: nil, current: nil))
+
+        XCTAssertTrue(SessionReplier.landed(.compacted, baseline: afterTurn, current: restarted))
+        XCTAssertFalse(SessionReplier.landed(.compacted, baseline: afterTurn, current: afterTurn))
+        XCTAssertFalse(SessionReplier.landed(.compacted, baseline: afterTurn, current: thinking))
+        XCTAssertFalse(SessionReplier.landed(.compacted, baseline: afterTurn, current: nil))
+        XCTAssertFalse(SessionReplier.landed(.compacted, baseline: nil, current: restarted))
+
+        // The old check, which is what reported every working Clear as failed.
+        XCTAssertFalse(SessionReplier.landed(.turnStarted, baseline: afterTurn, current: restarted))
+        XCTAssertTrue(SessionReplier.landed(.turnStarted, baseline: nil, current: thinking))
+    }
+
     // MARK: - AskInbox (the notification round-trip)
 
     private func makeAsk(kind: String = "question",

@@ -7,7 +7,7 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
 - [x] Give push/pull/merge a longer timeout than status probes
-- [ ] Stop Clear/Compact reporting failure when they worked
+- [x] Stop Clear/Compact reporting failure when they worked
 - [ ] Keep tmux/ps calls off the main thread with a timeout
 - [ ] Pin the merge to the PR number that was confirmed
 - [ ] Match installed hooks on script path, not substring

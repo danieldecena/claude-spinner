@@ -146,6 +146,24 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (Clear/Compact landing observed live; git action timeout)
+- Observed against a throwaway `claude` in a detached tmux pane, keys sent
+  exactly as the app sends them: neither `/clear` nor `/compact` fires
+  UserPromptSubmit, so the file never reads "thinking" and every working Clear
+  or Compact was reported as "never started a turn". `/clear` deleted the old
+  sid's files about 0.9s after Enter and a new sid appeared idle; `/compact`
+  left the file idle until SessionStart rewrote it about 10s later with
+  `turn_start` and `last_seed` null.
+- Decided: key the landing check on what was typed (`SessionReplier.Landing`):
+  Clear = the pre-send file is gone (15s), Compact = the file changed from its
+  pre-send contents to that SessionStart shape (180s, since compaction is a
+  model call), anything else = thinking/tool (4s). No baseline means not
+  observed. The Swift path was unit-tested on the recorded shapes, not
+  re-run end to end through the app's button.
+- Fixed: push/pull/merge ran on the status probe's 8s timeout and were
+  terminated on expiry; a merge could be killed after GitHub had merged. They
+  now get 120s, and the timeout message says the action may have partly run.
+
 ### 2026-09-29 (five review fixes: usage chain, banners, probe, AppleScript)
 - A read-only bug hunt over FeedWatcher / app / GitProbe found five defects;
   each was re-read against its callers before fixing.

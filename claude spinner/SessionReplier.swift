@@ -30,7 +30,35 @@ enum SessionReplier {
             case .sendFailed:
                 return "tmux wouldn't take the keys."
             case .notObserved:
-                return "Sent, but the session never started a turn. Check it by hand."
+                return "Sent, but the session never showed it landing. Check it by hand."
+            }
+        }
+    }
+
+    /// What a delivered send looks like in the feed, which depends on what was
+    /// typed. Built-in commands fire no UserPromptSubmit, so neither ever reads
+    /// "thinking" -- observed 2026-09-29 against a live pane: `/clear` ends the
+    /// session id and SessionEnd deletes its files within a second, and
+    /// `/compact` ends in a SessionStart that rewrites the file idle with the
+    /// turn fields cleared, after however long compaction takes.
+    enum Landing: Equatable {
+        case turnStarted, cleared, compacted
+
+        init(typed text: String) {
+            switch text.split(whereSeparator: \.isWhitespace).first {
+            case "/clear": self = .cleared
+            case "/compact": self = .compacted
+            default: self = .turnStarted
+            }
+        }
+
+        var timeout: TimeInterval {
+            switch self {
+            case .turnStarted: return 4
+            case .cleared: return 15
+            // Compaction is a model call over the whole context; a large one
+            // runs well past a minute.
+            case .compacted: return 180
             }
         }
     }
@@ -115,7 +143,12 @@ enum SessionReplier {
         guard let pid = session.pid, let tmux = tmuxPath,
               let pane = paneID(forPID: pid) else { return done(.failure(.noPane)) }
 
+        let landing = Landing(typed: text)
+        let file = stateFile(sessionID: session.id, feedDir: feedDir)
         DispatchQueue.global(qos: .userInitiated).async {
+            // Read before sending: /clear and /compact are only visible as a
+            // change from this.
+            let baseline = try? Data(contentsOf: file)
             // Three calls, and `-l` is not optional: without it tmux reads words
             // like "Enter" or "Space" in the text as key names and sends
             // keypresses instead of characters.
@@ -127,7 +160,7 @@ enum SessionReplier {
             for args in steps where run(tmux, args) == nil {
                 return done(.failure(.sendFailed))
             }
-            done(observeTurnStarted(sessionID: session.id, feedDir: feedDir)
+            done(observe(landing, sessionID: session.id, feedDir: feedDir, baseline: baseline)
                  ? .success(()) : .failure(.notObserved))
         }
     }
@@ -139,18 +172,48 @@ enum SessionReplier {
                                    feedDir: URL,
                                    timeout: TimeInterval = 4,
                                    poll: TimeInterval = 0.15) -> Bool {
-        let file = feedDir.appendingPathComponent("\(sessionID).state.json")
-        let deadline = Date().addingTimeInterval(timeout)
+        observe(.turnStarted, sessionID: sessionID, feedDir: feedDir,
+                baseline: nil, timeout: timeout, poll: poll)
+    }
+
+    static func observe(_ landing: Landing,
+                        sessionID: String,
+                        feedDir: URL,
+                        baseline: Data?,
+                        timeout: TimeInterval? = nil,
+                        poll: TimeInterval = 0.15) -> Bool {
+        let file = stateFile(sessionID: sessionID, feedDir: feedDir)
+        let deadline = Date().addingTimeInterval(timeout ?? landing.timeout)
         while Date() < deadline {
-            if let data = try? Data(contentsOf: file),
-               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let status = obj["status"] as? String,
-               status == "thinking" || status == "tool" {
+            if landed(landing, baseline: baseline, current: try? Data(contentsOf: file)) {
                 return true
             }
             Thread.sleep(forTimeInterval: poll)
         }
         return false
+    }
+
+    /// Whether the state file now shows `landing`, given what it held before
+    /// the keys went in. With no baseline the two built-ins cannot be told
+    /// apart from a file that was never there, so they are not observed.
+    static func landed(_ landing: Landing, baseline: Data?, current: Data?) -> Bool {
+        let obj = current.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        switch landing {
+        case .turnStarted:
+            let status = obj?["status"] as? String
+            return status == "thinking" || status == "tool"
+        case .cleared:
+            return baseline != nil && current == nil
+        case .compacted:
+            guard baseline != nil, let obj, current != baseline else { return false }
+            return obj["status"] as? String == "idle"
+                && (obj["turn_start"] ?? NSNull()) is NSNull
+                && (obj["last_seed"] ?? NSNull()) is NSNull
+        }
+    }
+
+    private static func stateFile(sessionID: String, feedDir: URL) -> URL {
+        feedDir.appendingPathComponent("\(sessionID).state.json")
     }
 
     // MARK: - Process
