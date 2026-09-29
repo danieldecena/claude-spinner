@@ -2573,6 +2573,54 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNotEqual(Color.contextTint(ContextSpark.heavyFloor - 1), Color.usageRed)
     }
 
+    /// The ruled band lines must sit exactly where the tints change, no more and
+    /// no fewer. Scanning the whole range catches a floor that was moved in one
+    /// place and not the other, and one that was added to only one of them.
+    func testChartBandLinesAreWhereTheTintsChange() {
+        var contextSteps: [Int] = []
+        for tokens in stride(from: 1_000, through: 300_000, by: 1_000)
+        where Color.contextTint(tokens) != Color.contextTint(tokens - 1_000) {
+            contextSteps.append(tokens)
+        }
+        XCTAssertEqual(contextSteps, ContextChart.bandFloors)
+
+        let usageSteps = (1...100).filter { Color.usageTint($0) != Color.usageTint($0 - 1) }
+        XCTAssertEqual(usageSteps, UsageChart.bandFloors)
+    }
+
+    /// Headroom over the heavy band on a big window, the peak once past it, and
+    /// never above what the window holds.
+    func testTheDetailContextAxisIsAbsoluteAndCappedAtTheWindow() {
+        XCTAssertEqual(ContextChart.ceiling(window: 1_000_000, samples: samples([(20_000, 0), (40_000, 1)])),
+                       250_000, "a light session on 1M must not zoom to fill the box")
+        XCTAssertEqual(ContextChart.ceiling(window: 1_000_000, samples: samples([(20_000, 0), (600_000, 1)])),
+                       600_000)
+        XCTAssertEqual(ContextChart.ceiling(window: 200_000, samples: samples([(20_000, 0), (40_000, 1)])),
+                       200_000)
+    }
+
+    /// Old samples carry no 7d reading. The 7d line skips them rather than
+    /// drawing them at 0%, and still lands on the shared time axis.
+    func testTheSevenDayLineSkipsSamplesWithoutAReading() {
+        let history = [UsageSample(pct: 10, at: 0),
+                       UsageSample(pct: 20, at: 50, sevenDayPct: 40),
+                       UsageSample(pct: 30, at: 100, sevenDayPct: 60)]
+        let seven = UsageChart.unitPoints(history) { $0.sevenDayPct }!
+        XCTAssertEqual(seven.map(\.x), [0.5, 1])
+        XCTAssertEqual(seven[0].y, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(UsageChart.unitPoints(history) { $0.pct }!.count, 3)
+        XCTAssertNil(UsageChart.unitPoints(Array(history.prefix(2))) { $0.sevenDayPct },
+                     "one 7d reading is a dot, not a trend")
+    }
+
+    /// A buffer persisted before 7d was recorded must still load.
+    func testAUsageSampleWithoutSevenDayDecodes() throws {
+        let old = try JSONDecoder().decode([UsageSample].self,
+                                           from: Data(#"[{"pct":12,"at":5}]"#.utf8))
+        XCTAssertEqual(old.first?.pct, 12)
+        XCTAssertNil(old.first?.sevenDayPct)
+    }
+
     /// Samples that share a timestamp would divide by zero on the span.
     func testIdenticalTimestampsFallBackToEvenSpacing() {
         let points = ContextChart.unitPoints(samples([(0, 7), (50, 7), (100, 7)]), window: 100)!

@@ -639,6 +639,10 @@ struct ContextSample: Codable, Equatable {
 struct UsageSample: Codable {
     var pct: Int
     var at: Double  // epoch seconds
+    /// The 7d window at the same poll, for the window's history chart. Optional
+    /// because samples persisted before it was recorded decode without it, and
+    /// a missing reading must not draw as 0%.
+    var sevenDayPct: Int? = nil
 }
 
 /// One dropdown row — a single session, or a collapsed group of never-worked
@@ -1166,7 +1170,7 @@ final class FeedWatcher: ObservableObject {
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: "usageSnapshot")
         }
-        recordUsageSample(result.fiveHourPct, at: result.fetchedAt)
+        recordUsageSample(result.fiveHourPct, sevenDay: result.sevenDayPct, at: result.fetchedAt)
     }
 
     /// Append a timestamped 5h sample for the "trend" gauge and persist it.
@@ -1174,10 +1178,10 @@ final class FeedWatcher: ObservableObject {
     /// Refresh can't flood the trend window with near-duplicate points), and
     /// trims anything older than `usageTrendWindow` so the buffer reflects an
     /// actual recent span rather than an arbitrary poll count.
-    private func recordUsageSample(_ pct: Int, at: Date) {
+    private func recordUsageSample(_ pct: Int, sevenDay: Int, at: Date) {
         let now = at.timeIntervalSince1970
         if let last = usageHistory.last, now - last.at < Constants.usageSampleMinGap { return }
-        usageHistory.append(UsageSample(pct: pct, at: now))
+        usageHistory.append(UsageSample(pct: pct, at: now, sevenDayPct: sevenDay))
         usageHistory.removeAll { now - $0.at > Constants.usageTrendWindow }
         if let data = try? JSONEncoder().encode(usageHistory) {
             UserDefaults.standard.set(data, forKey: "usageHistory")

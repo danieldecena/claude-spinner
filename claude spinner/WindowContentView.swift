@@ -287,10 +287,10 @@ private struct SessionDetail: View {
                 ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
                 ("over 200k", st.exceeds200k.map { $0 ? "yes" : "no" }),
             ])
-            // Both are scaled to the window, so the bar's fill and the chart's
-            // height mean the same thing. Neither is drawn without a window to
-            // scale against: a chart with an invented denominator is worse than
-            // the four rows above on their own.
+            // The bar is share of the window; the chart is absolute tokens
+            // against the tint bands, capped at the window. Neither is drawn
+            // without a window to scale against: a chart with an invented
+            // denominator is worse than the four rows above on their own.
             if let window = st.contextWindowSize, window > 0,
                let tokens = session.contextTokens {
                 ContextMeter(tokens: tokens, window: window)
@@ -643,8 +643,7 @@ private struct OverviewStrip: View {
                 .opacity(totalsDimmed ? 0.6 : 1)
                 .help(totalsHelp)
 
-            Sparkline(samples: history)
-                .frame(height: 22)
+            UsageHistoryChart(samples: history)
                 .padding(.top, 2)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("5-hour usage over time")
@@ -708,6 +707,15 @@ struct Sparkline: View {
 /// its share of the window. Pure, so the degenerate cases are testable without
 /// laying out a view.
 enum ContextChart {
+    /// The token counts `Color.contextTint` changes colour at.
+    static let bandFloors = [100_000, 150_000, 200_000]
+
+    /// The detail chart's y-axis top: headroom above the heaviest band, or the
+    /// session's own peak past that, and never more than the window can hold.
+    static func ceiling(window: Int, samples: [ContextSample]) -> Int {
+        min(window, max(250_000, samples.map(\.tokens).max() ?? 0))
+    }
+
     /// nil when there is nothing honest to draw. Two points is the minimum that
     /// can be a trend, and without a window size there is no scale to plot
     /// against -- inventing one would make every session look equally full.
@@ -724,6 +732,80 @@ enum ContextChart {
                              : Double(index) / Double(samples.count - 1)
             let y = min(1, max(0, Double(sample.tokens) / Double(window)))
             return CGPoint(x: x, y: 1 - y)
+        }
+    }
+}
+
+/// Where each usage sample sits in a unit box, for one of its two readings.
+/// x spans the whole buffer's time range, so the 5h and 7d lines share an axis
+/// even when older samples carry no 7d reading.
+enum UsageChart {
+    /// The percentages `Color.usageTint` changes colour at.
+    static let bandFloors = [50, 75, 90]
+
+    static func unitPoints(_ samples: [UsageSample], _ value: (UsageSample) -> Int?) -> [CGPoint]? {
+        guard let first = samples.first, let last = samples.last else { return nil }
+        let span = last.at - first.at
+        let points = samples.enumerated().compactMap { index, sample -> CGPoint? in
+            guard let pct = value(sample) else { return nil }
+            let x = span > 0 ? (sample.at - first.at) / span
+                             : Double(index) / Double(max(1, samples.count - 1))
+            return CGPoint(x: x, y: 1 - min(1, max(0, Double(pct) / 100)))
+        }
+        return points.count >= 2 ? points : nil
+    }
+}
+
+/// The 5h and 7d windows over the retained samples, with the usage bands ruled
+/// in so a line's height reads against the levels its colour changes at.
+///
+/// Time-scaled, unlike the panel's `Sparkline`: at this size a gap between
+/// polls (the Mac asleep, the poller failing) is worth seeing as a gap.
+/// 7d is dashed and neutral -- it is the slower of the two and the one the
+/// tint is not about.
+struct UsageHistoryChart: View {
+    let samples: [UsageSample]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                ForEach(UsageChart.bandFloors, id: \.self) { band in
+                    let y = h * (1 - CGFloat(band) / 100)
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: w, y: y))
+                    }
+                    .stroke(Color.usageTint(band).opacity(0.4),
+                            style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                }
+                if let five = UsageChart.unitPoints(samples, { $0.pct }) {
+                    let points = five.map { CGPoint(x: $0.x * w, y: $0.y * h) }
+                    let tint = Color.usageTint(samples.last?.pct ?? 0)
+                    ChartPath.area(points, baseline: h).fill(tint.opacity(0.15))
+                    ChartPath.line(points).stroke(tint, lineWidth: 1.5)
+                } else {
+                    Text("no usage history yet")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
+                }
+                if let seven = UsageChart.unitPoints(samples, { $0.sevenDayPct }) {
+                    ChartPath.line(seven.map { CGPoint(x: $0.x * w, y: $0.y * h) })
+                        .stroke(Color.label, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                }
+            }
+            .frame(height: 56)
+
+            if let first = samples.first, let last = samples.last, samples.count >= 2 {
+                let now = Date()
+                HStack(spacing: 6) {
+                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
+                    Spacer(minLength: 0)
+                    Text("─ 5h  ┄ 7d")
+                    Spacer(minLength: 0)
+                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
+                }
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
+            }
         }
     }
 }
@@ -775,33 +857,67 @@ struct ContextMeter: View {
     }
 }
 
-/// Context over the session's life, scaled 0 to the window.
+/// Context over the session's life, on an absolute token axis.
 ///
-/// Scaled to the window rather than to the data on purpose. A 1M-window session
-/// holding 20k *should* draw as a flat crawl along the bottom; auto-zooming
-/// would make it look as full as a 190k session on a 200k window, which is the
-/// same failure `Sparkline`'s fixed 0-100 axis exists to avoid. A compaction
-/// shows as a cliff, and is not smoothed -- it is the most informative shape
-/// the chart has.
+/// Not auto-zoomed to the data: a 20k session must still draw as a crawl along
+/// the bottom, or it looks as full as a heavy one. But not the whole window
+/// either -- at 1M everything under 200k was a hairline in a box of empty
+/// space. The axis is `ContextChart.ceiling`, and the ruled band lines are the
+/// same absolute counts `contextTint` uses, so a line crossing one means what
+/// the colour means. Share of the window is the meter's job, drawn above.
+/// A compaction shows as a cliff, and is not smoothed -- it is the most
+/// informative shape the chart has.
 private struct ContextTrend: View {
     let samples: [ContextSample]
     let window: Int
     let tokens: Int
 
     var body: some View {
-        GeometryReader { geo in
-            if let unit = ContextChart.unitPoints(samples, window: window) {
-                let points = unit.map { CGPoint(x: $0.x * geo.size.width,
-                                                y: $0.y * geo.size.height) }
-                let tint = Color.contextTint(tokens)
-                ChartPath.area(points, baseline: geo.size.height).fill(tint.opacity(0.15))
-                ChartPath.line(points).stroke(tint, lineWidth: 1.5)
-            } else {
-                Text("no context history yet")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                // The bands `contextTint` switches at, where they fall inside the
+                // window. Only the highest is labelled: on a 1M window all three
+                // sit within a few points of each other and their labels would
+                // overprint. The rule colours say which is which.
+                let top = ContextChart.ceiling(window: window, samples: samples)
+                let bands = ContextChart.bandFloors.filter { $0 < top }
+                ForEach(bands, id: \.self) { band in
+                    let y = h * (1 - CGFloat(band) / CGFloat(top))
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: w, y: y))
+                    }
+                    .stroke(Color.contextTint(band).opacity(0.4),
+                            style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                    if band == bands.last {
+                        Text(StatFormat.compactCount(band))
+                            .font(.claudeMono(9)).foregroundStyle(Color.label)
+                            .position(x: w - 14, y: max(6, y - 6))
+                    }
+                }
+                if let unit = ContextChart.unitPoints(samples, window: top) {
+                    let points = unit.map { CGPoint(x: $0.x * w, y: $0.y * h) }
+                    let tint = Color.contextTint(tokens)
+                    ChartPath.area(points, baseline: h).fill(tint.opacity(0.15))
+                    ChartPath.line(points).stroke(tint, lineWidth: 1.5)
+                } else {
+                    Text("no context history yet")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
+                }
+            }
+            .frame(height: 64)
+
+            if let first = samples.first, let last = samples.last, samples.count >= 2 {
+                let now = Date()
+                HStack {
+                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
+                    Spacer(minLength: 0)
+                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
+                }
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
-        .frame(height: 28)
         .accessibilityLabel("Context over this session")
     }
 }
