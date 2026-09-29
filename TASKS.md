@@ -38,7 +38,7 @@
 - [x] Neutral ink-label so orange means working only
 - [x] Replace todo bar with labelled ctx meter
 - [x] Opaque panel ground and blue Needs you header
-- [ ] Collapse idle rows to one line
+- [x] Collapse idle rows to one line
 - [x] Relabel footer chg gauge as trend
 - [ ] Draw subagent connector glyph
 

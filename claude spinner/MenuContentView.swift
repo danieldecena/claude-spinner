@@ -626,13 +626,15 @@ struct SessionRow: View {
                 // gap, so the time stays near the right edge with the tag just after it.
                 HStack(spacing: 4) {
                     // Elapsed / waiting / done time in a fixed-width column so the times
-                    // line up down the panel regardless of label.
-                    Text(timeText)
+                    // line up down the panel regardless of label. A one-line resting
+                    // row puts its evidence ("idle 12m", open todos) here instead, and
+                    // may grow leftward into the spare width past the model.
+                    Text(isResting ? (session.restingEvidence(now: now) ?? timeText) : timeText)
                         .font(.claudeMono(11))
                         .monospacedDigit()
                         .lineLimit(1)
                         .foregroundStyle(Color.secondary)
-                        .frame(width: 48, alignment: .trailing)
+                        .frame(minWidth: 48, alignment: .trailing)
 
                     // The color-coded host chip (vsc/trm/web/app) at rest, which flips to
                     // an ✕ clear button on hover so a session can be dismissed in place.
@@ -663,43 +665,47 @@ struct SessionRow: View {
                 }
             }
 
-            HStack(spacing: RowLayout.lineTwoGap) {
-                // Status / Activity, with the working-dots attached to the word
-                // they belong to.
-                HStack(spacing: 0) {
-                    Text(displayStatus)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    // A fixed slot: the dots grow and shrink every 0.5s, and letting that
-                    // reflow the status text would make its truncation flicker in time
-                    // with them. Reserved even at rest so the column edge never moves —
-                    // height included, so the empty phase of the cycle can't shrink the
-                    // row (see `RowLayout.lineHeight`).
-                    Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
-                        .frame(width: RowLayout.dotsSlot, height: RowLayout.lineHeight, alignment: .leading)
-                }
-                .font(.claudeMono(11))
-                .foregroundStyle(statusColor)
+            // A resting session has nothing happening to report, so it takes one
+            // line: its age sits in the time column above and the rest recedes.
+            if !isResting {
+                HStack(spacing: RowLayout.lineTwoGap) {
+                    // Status / Activity, with the working-dots attached to the word
+                    // they belong to.
+                    HStack(spacing: 0) {
+                        Text(displayStatus)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        // A fixed slot: the dots grow and shrink every 0.5s, and letting that
+                        // reflow the status text would make its truncation flicker in time
+                        // with them. Reserved even at rest so the column edge never moves —
+                        // height included, so the empty phase of the cycle can't shrink the
+                        // row (see `RowLayout.lineHeight`).
+                        Text(isWorking ? FeedWatcher.workingDots(at: now) : "")
+                            .frame(width: RowLayout.dotsSlot, height: RowLayout.lineHeight, alignment: .leading)
+                    }
+                    .font(.claudeMono(11))
+                    .foregroundStyle(statusColor)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                // What the feed saw about a session that is sitting still, else its
-                // todo count; nothing at all when there is neither.
-                if let evidence = session.restingEvidence(now: now, includeTodos: false)
-                    ?? session.todoSummary {
-                    Text(evidence)
-                        .font(.claudeMono(10))
-                        .foregroundStyle(Color.label)
-                        .lineLimit(1)
-                        .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
-                }
+                    // What the feed saw about a session that is sitting still, else its
+                    // todo count; nothing at all when there is neither.
+                    if let evidence = session.restingEvidence(now: now, includeTodos: false)
+                        ?? session.todoSummary {
+                        Text(evidence)
+                            .font(.claudeMono(10))
+                            .foregroundStyle(Color.label)
+                            .lineLimit(1)
+                            .frame(width: RowLayout.evidenceSlot, alignment: .trailing)
+                    }
 
-                // A subagent shares its parent's window, so it has no meter of its own.
-                if !session.isChild {
-                    contextMeter
+                    // A subagent shares its parent's window, so it has no meter of its own.
+                    if !session.isChild {
+                        contextMeter
+                    }
                 }
+                .padding(.leading, 20)  // aligns under the name column, past the glyph
             }
-            .padding(.leading, 20)  // aligns under the name column, past the glyph
         }
         .padding(.leading, indent)
         // Everything in a row renders lowercase — including hook-supplied text like
@@ -828,7 +834,6 @@ struct SessionRow: View {
                 if let tokens = session.contextTokens,
                    let window = session.stats.contextWindowSize, window > 0 {
                     ContextMeter(tokens: tokens, window: window)
-                        .opacity(session.status == .idle ? 0.5 : 1)
                 } else {
                     Color.clear.frame(height: 5)
                 }
@@ -862,6 +867,9 @@ struct SessionRow: View {
     private var displayStatus: String {
         RowLayout.fit(statusLabel, toWidth: columns.status)
     }
+
+    /// An idle row, drawn on one line.
+    private var isResting: Bool { session.status == .idle }
 
     /// True while the row is mid-turn — the dots animate and the time counts up.
     private var isWorking: Bool { session.status == .tool || session.status == .thinking }
