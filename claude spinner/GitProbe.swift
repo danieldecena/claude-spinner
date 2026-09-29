@@ -249,7 +249,10 @@ actor GitProbe {
             _ = group.wait(timeout: .now() + 1)
             return nil
         }
-        _ = group.wait(timeout: .now() + 2)
+        // A grandchild (ssh ControlPersist, a credential helper) can hold the
+        // pipe open past git's exit. Reading the buffers then races the reader
+        // threads and hands back a partial answer as if it were whole.
+        guard group.wait(timeout: .now() + 2) == .success else { return nil }
         return (String(decoding: outData, as: UTF8.self),
                 String(decoding: errData, as: UTF8.self),
                 task.terminationStatus)
