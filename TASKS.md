@@ -41,6 +41,11 @@
 - [x] Collapse idle rows to one line
 - [x] Relabel footer chg gauge as trend
 - [x] Draw subagent connector glyph
+- [x] Add per-row context sparkline to panel
+- [ ] Add 5h usage history sparkline to footer
+- [ ] Add larger context and usage charts to window
+- [ ] Draw session tree diagram in window
+- [ ] Add status and model breakdown bar to panel
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

@@ -693,21 +693,8 @@ struct Sparkline: View {
                             y: h - (CGFloat(min(max(sample.pct, 0), 100)) / 100 * h))
                 }
                 let tint = Color.usageTint(samples.last?.pct ?? 0)
-                let line = Path { path in
-                    path.move(to: points[0])
-                    for point in points.dropFirst() { path.addLine(to: point) }
-                }
-                // The fill is the same line closed down to the baseline, built
-                // as its own path rather than reusing the stroked one.
-                let area = Path { path in
-                    path.move(to: CGPoint(x: 0, y: h))
-                    path.addLine(to: points[0])
-                    for point in points.dropFirst() { path.addLine(to: point) }
-                    path.addLine(to: CGPoint(x: w, y: h))
-                    path.closeSubpath()
-                }
-                area.fill(tint.opacity(0.15))
-                line.stroke(tint, lineWidth: 1.5)
+                ChartPath.area(points, baseline: h).fill(tint.opacity(0.15))
+                ChartPath.line(points).stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no usage history yet")
                     .font(.claudeMono(10)).foregroundStyle(Color.label)
@@ -737,6 +724,27 @@ enum ContextChart {
                              : Double(index) / Double(samples.count - 1)
             let y = min(1, max(0, Double(sample.tokens) / Double(window)))
             return CGPoint(x: x, y: 1 - y)
+        }
+    }
+}
+
+/// A trend line and its fill, shared by every chart that draws one. The fill is
+/// the same run of points closed down to the baseline, built as its own path
+/// rather than reusing the stroked one.
+enum ChartPath {
+    static func line(_ points: [CGPoint]) -> Path {
+        Path { path in
+            path.move(to: points[0])
+            for point in points.dropFirst() { path.addLine(to: point) }
+        }
+    }
+
+    static func area(_ points: [CGPoint], baseline: CGFloat) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: points[0].x, y: baseline))
+            for point in points { path.addLine(to: point) }
+            path.addLine(to: CGPoint(x: points[points.count - 1].x, y: baseline))
+            path.closeSubpath()
         }
     }
 }
@@ -786,18 +794,8 @@ private struct ContextTrend: View {
                 let points = unit.map { CGPoint(x: $0.x * geo.size.width,
                                                 y: $0.y * geo.size.height) }
                 let tint = Color.contextTint(tokens)
-                let line = Path { path in
-                    path.move(to: points[0])
-                    for point in points.dropFirst() { path.addLine(to: point) }
-                }
-                let area = Path { path in
-                    path.move(to: CGPoint(x: points[0].x, y: geo.size.height))
-                    for point in points { path.addLine(to: point) }
-                    path.addLine(to: CGPoint(x: points[points.count - 1].x, y: geo.size.height))
-                    path.closeSubpath()
-                }
-                area.fill(tint.opacity(0.15))
-                line.stroke(tint, lineWidth: 1.5)
+                ChartPath.area(points, baseline: geo.size.height).fill(tint.opacity(0.15))
+                ChartPath.line(points).stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no context history yet")
                     .font(.claudeMono(10)).foregroundStyle(Color.label)

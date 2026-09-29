@@ -355,6 +355,35 @@ extension SessionFeed {
     }
 }
 
+/// A row's context over its life, small enough to sit beside the meter.
+///
+/// Scaled to the heavy band's floor (200k, where `contextTint` turns red), or to
+/// the window if that is smaller, rather than to the window alone. The detail
+/// pane's `ContextTrend` has 28pt and can afford the window's scale; ten points
+/// cannot, and a 1M-window session under 200k would draw as a flat hairline no
+/// matter what it did. A line pinned to the top therefore means "heavy", the
+/// same thing the red tint says. Draws nothing without two samples.
+struct ContextSpark: View {
+    let samples: [ContextSample]
+    let window: Int
+    let tokens: Int
+
+    static let heavyFloor = 200_000
+
+    var body: some View {
+        GeometryReader { geo in
+            if let unit = ContextChart.unitPoints(samples, window: min(window, Self.heavyFloor)) {
+                let points = unit.map { CGPoint(x: $0.x * geo.size.width,
+                                                y: $0.y * geo.size.height) }
+                let tint = Color.contextTint(tokens)
+                ChartPath.area(points, baseline: geo.size.height).fill(tint.opacity(0.15))
+                ChartPath.line(points).stroke(tint, lineWidth: 1)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 /// How a row divides its width across two lines: line 1's name/model columns,
 /// and line 2's status column (beside the fixed-width context meter).
 ///
@@ -399,7 +428,11 @@ enum RowLayout {
     /// is the same size.
     static let contextLabelWidth: CGFloat = 20
     static let contextValueWidth: CGFloat = 34
-    static let contextSlot: CGFloat = contextLabelWidth + 4 + Constants.usageTrackWidth + 4 + contextValueWidth
+    /// The row's context history (`ContextSpark`), drawn between the label and
+    /// the meter so one `ctx` word heads both.
+    static let contextSparkWidth: CGFloat = 30
+    static let contextSlot: CGFloat = contextLabelWidth + 4 + contextSparkWidth + 4
+        + Constants.usageTrackWidth + 4 + contextValueWidth
 
     /// One character's advance in the row font. Menlo is monospaced, so a string's
     /// width is its count times this — no per-string measurement per render, and
@@ -839,15 +872,17 @@ struct SessionRow: View {
                 .font(.claudeMono(10))
                 .foregroundStyle(Color.label)
                 .frame(width: RowLayout.contextLabelWidth, alignment: .leading)
-            Group {
-                if let tokens = session.contextTokens,
-                   let window = session.stats.contextWindowSize, window > 0 {
-                    ContextMeter(tokens: tokens, window: window)
-                } else {
-                    Color.clear.frame(height: 5)
-                }
+            if let tokens = session.contextTokens,
+               let window = session.stats.contextWindowSize, window > 0 {
+                ContextSpark(samples: feed.contextHistory[session.id] ?? [],
+                             window: window, tokens: tokens)
+                    .frame(width: RowLayout.contextSparkWidth, height: 10)
+                ContextMeter(tokens: tokens, window: window)
+                    .frame(width: Constants.usageTrackWidth)
+            } else {
+                Color.clear.frame(width: RowLayout.contextSparkWidth + 4 + Constants.usageTrackWidth,
+                                  height: 5)
             }
-            .frame(width: Constants.usageTrackWidth)
             Text(contextTokens.isEmpty ? "n/a" : contextTokens)
                 .font(.claudeMono(11))
                 .monospacedDigit()

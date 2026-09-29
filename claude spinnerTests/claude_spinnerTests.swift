@@ -2566,6 +2566,13 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(ContextChart.unitPoints(samples([(1, 0), (2, 1)]), window: 0))
     }
 
+    /// The row spark's ceiling is the red band's floor, so "pinned to the top"
+    /// and "tinted red" mean the same thing. One token under must not be red.
+    func testTheRowSparkCeilingIsTheRedBandFloor() {
+        XCTAssertEqual(Color.contextTint(ContextSpark.heavyFloor), Color.usageRed)
+        XCTAssertNotEqual(Color.contextTint(ContextSpark.heavyFloor - 1), Color.usageRed)
+    }
+
     /// Samples that share a timestamp would divide by zero on the span.
     func testIdenticalTimestampsFallBackToEvenSpacing() {
         let points = ContextChart.unitPoints(samples([(0, 7), (50, 7), (100, 7)]), window: 100)!
