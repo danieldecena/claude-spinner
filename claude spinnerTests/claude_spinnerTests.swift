@@ -1640,6 +1640,22 @@ final class claude_spinnerTests: XCTestCase {
             "the old accent is the known-bad input; if it passes, the check measures nothing")
     }
 
+    /// Orange means working and nothing else, so the label ink must not read as
+    /// the accent. The old clay label (#9A4429) is the known-bad input.
+    func testLabelInkIsNotTheAccent() {
+        func separation(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Double {
+            let d = (a.0 - b.0, a.1 - b.1, a.2 - b.2)
+            return (d.0 * d.0 + d.1 * d.1 + d.2 * d.2).squareRoot() * 255
+        }
+        func chroma(_ c: (Double, Double, Double)) -> Double {
+            (max(c.0, c.1, c.2) - min(c.0, c.1, c.2)) * 255
+        }
+        XCTAssertLessThan(chroma(Color.Ink.labelLight), 20)
+        XCTAssertLessThan(chroma(Color.Ink.labelDark), 20)
+        XCTAssertGreaterThan(separation(Color.Ink.labelDark, Color.Ink.claudeDark), 40)
+        XCTAssertGreaterThan(chroma((0.604, 0.267, 0.161)), 20, "the old clay label is the known-bad input")
+    }
+
     /// The model word and the host tag are text, and the tag sits on a `chipTint`
     /// fill of its own hue -- a lighter ground in light and a lighter one in dark
     /// than the pane, so the composite is the stricter surface and the one measured.

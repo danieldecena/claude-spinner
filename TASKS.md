@@ -35,6 +35,13 @@
   drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
   session) to see the line climb on screen
 
+- [x] Neutral ink-label so orange means working only
+- [ ] Replace todo bar with labelled ctx meter
+- [ ] Opaque panel ground and blue Needs you header
+- [ ] Collapse idle rows to one line
+- [ ] Relabel footer chg gauge as trend
+- [ ] Draw subagent connector glyph
+
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`

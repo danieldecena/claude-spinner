@@ -707,19 +707,14 @@ extension Color {
         static let usageGreenLight = (0.247, 0.561, 0.278)  // #3F8F47
         static let usageGreenDark = (0.55, 0.85, 0.55)
 
-        /// Ink for a row label: the same burnt orange, darkened until it clears
-        /// 4.5:1 rather than replaced by a grey. Labels were drawn in `claudeDim`
-        /// -- the accent at 65% -- which under the accent of the day composited to
-        /// 2.29:1 on white and 3.76:1 on the dark ground, so half the window's text
-        /// was below the threshold, not just the 3.84:1 of that accent itself. A
-        /// neutral grey would have passed too and cost the app its warmth;
-        /// darkening the hue keeps the label/value pair that makes the mono
-        /// columns scannable.
-        /// Dark needs no change: the lifted accent measures 6.16:1 there.
-        /// Light is the system's `clay-ink`, one step darker than the accent, so
-        /// a label still sits quieter than the value beside it, at 6.49:1.
-        static let labelLight = (0.604, 0.267, 0.161)  // #9A4429
-        static let labelDark = claudeDark
+        /// Ink for a row label: a warm neutral, not the accent. Labels were a
+        /// darkened clay, which put orange on every section head, total and
+        /// resting age, so orange no longer meant "working" -- the one thing the
+        /// accent is reserved for. The panel critique of 2026-09-29 traced the
+        /// orange overload to this token. Both halves are the design system's
+        /// secondary ink and clear 4.5:1 (about 6.7 on white, 7.0 on the dark ground).
+        static let labelLight = (0.373, 0.357, 0.333)  // #5F5B55
+        static let labelDark = (0.659, 0.643, 0.616)   // #A8A49D
 
         /// The four identity hues, each shared by one model and one host: purple for
         /// Opus and a desktop app, cyan for Sonnet and the web, jade for Haiku and a
@@ -767,7 +762,7 @@ extension Color {
     /// Claude's burnt-orange accent: the design system's clay, close to the
     /// terminal spinner's orange but dark enough to carry text.
     static let claude = dynamic(light: Ink.claudeLight, dark: Ink.claudeDark)
-    /// Quiet ink for row labels, a step darker than `claude`.
+    /// Quiet neutral ink for row labels; orange is left to `claude` alone.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a
     /// container. Not for text: it composites to 2.74:1 on white, which is why
