@@ -177,6 +177,45 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   canonical 4.5) so the threshold assertions cannot both pass on a function
   returning 21 for everything, and each threshold test was mutation-verified.
 
+### 2026-09-28 (the identity colours, re-hued rather than darkened)
+
+- The eight `model-*` / `host-*` colours were the palette's last failures, 2.31:1
+  to 3.41:1 in light. They are text, and the host tag's real ground is its own
+  hue at 16% over the pane, not the pane -- a stricter surface, so that composite
+  is what both the derivation and the tests measure. The test reads the 16% from
+  `Ink.chipTint`, the same constant `MenuContentView` fills the chip with, so it
+  cannot measure a number the app does not draw.
+- Holding hue and darkening for a white ground was tried first and abandoned: it
+  put Haiku at `#438443`, 12/255 from the re-derived `usageGreen`, and VS Code at
+  `#1d66be`, 17/255 from `attention`. That is exactly the collision a status
+  palette exists to prevent, and no test would have caught it. Daniel chose the
+  re-hue.
+- Four hues now, each shared by a model and the host it sits beside: purple 275
+  (Opus / app), cyan 198 (Sonnet / web), jade 163 (Haiku / trm), indigo 244
+  (Fable / VS Code). The column and the printed word say which of the two a tint
+  belongs to, so the colour does not have to. Nearest identity-to-status pair is
+  48/255 (jade to `usageGreen`); nearest identity pair 38 (purple to indigo, in
+  dark). The model hues no longer match the statusLine's green and blue -- that
+  is the price, taken deliberately.
+- Both new tests were proved able to fail, with the mutation asserted applied
+  before each run and reverted after: the old green fails contrast at 2.10, and
+  the darkened old hue fails separation, naming "jade light sits on usageGreen"
+  at 12.3. 234 tests, 0 failures.
+- Observed on screen 2026-09-28 in both appearances. The panel is the surface
+  that draws these, and this machine runs `surface = window`, which creates no
+  status item at all -- so the preference was flipped to `menuBar`, the status
+  item pressed through `AXExtrasMenuBar`, the popover captured by window id, and
+  the preference put back to `window` afterwards. Sampled at the glyph core:
+  light `#9859D0` against `#8F39CD` pure, dark `#BE9BE1` against `#B983E0` --
+  both the antialiased blend of the intended value toward the ground, and the
+  two are plainly different values, which is what rules out one appearance's
+  branch being served to the other.
+- Not observed: only purple appeared. Every session on screen was Opus in a
+  desktop app, so cyan, jade and indigo are asserted numerically and drawn from
+  the same four constants, but have not been seen. The light ground was also not
+  white -- the popover is translucent material over the desktop and measured
+  mid-grey, so the 4.5:1 figures remain the optimistic ones, as the README says.
+
 ### 2026-09-20 (dark appearance looked at; slice 3 is smaller than written)
 
 - Found: the unchecked `Fix dark-copy text still bound to Light colors` is a
