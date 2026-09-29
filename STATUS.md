@@ -146,6 +146,31 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (five review fixes: usage chain, banners, probe, AppleScript)
+- A read-only bug hunt over FeedWatcher / app / GitProbe found five defects;
+  each was re-read against its callers before fixing.
+- Fixed: `pollUsage` heads the 5h/7d chain but was never cleared, so turning
+  polling off, a 401, or a missing Keychain token froze the last polled number
+  over live statusLine values. It is now cleared on stop and on auth expiry, and
+  a missing token reports as expired instead of returning silently. Reasoned,
+  not observed (toggling it needs the UI).
+- Fixed: `notifiedDone` started empty, so a relaunch with notify-on-done on
+  bannered every session already finished. The first scan now only seeds it.
+  Reasoned: the preference is off here and was left off.
+- Fixed: `updateUsageCache` stamped `savedAt` with the scan time every 2s, so
+  hours-old numbers read as fresh and overwrote newer poll snapshots. It now
+  uses the session's `updated` and never goes backwards. Observed: after
+  `run.sh` the snapshot carried the launch poll's fractional stamp, then an
+  integer session epoch 21s old, not a scan-time stamp.
+- Fixed: GitProbe read its pipe buffers even when the reader threads had not
+  finished (a grandchild holding the pipe), returning a partial answer as whole.
+  Now nil, which the card renders as unknown.
+- Fixed: folder names went raw into AppleScript string literals. Observed with
+  osacompile: `a"b` and `end\` fail raw and compile escaped; `plain-app`
+  compiles both ways. (The first run of that check compiled an empty file and
+  passed everything: the snippet lacked `import Foundation`.)
+- Full suite 249/0, run beside the live app.
+
 ### 2026-09-29 (window 5h/7d unified; test host exempt from single-instance)
 - Decided: the window's overview strip reads `feed.usageFiveHourPct` /
   `usageSevenDayPct` (poll -> freshest session -> cached snapshot), the same

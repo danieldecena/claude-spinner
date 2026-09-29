@@ -54,6 +54,11 @@
 - [x] Window strip reads the resolved 5h/7d usage
 - [x] Let the test host run beside the live app
 - [x] Drop the retired OpenWolf convention from HANDOFF
+- [x] Drop stale poll usage when polling stops
+- [x] Seed finished-turn set before first done banner
+- [x] Stamp usage cache with the session own time
+- [x] Git probe returns nil when pipe reads time out
+- [x] Escape folder names in AppleScript focus
 
 
 Notarization was dropped 2026-07-21 (needs a paid Developer Program account;

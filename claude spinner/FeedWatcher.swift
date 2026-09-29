@@ -778,7 +778,13 @@ final class UsagePoller {
         // or the launch poll always runs.
         if !force && Self.userIdleSeconds > Self.pauseAfterIdle { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            guard let self, let token = self.oauthToken() else { return }
+            guard let self else { return }
+            // No token reads the same as an expired one: both are fixed by
+            // signing in, and a silent return froze the last number on screen.
+            guard let token = self.oauthToken() else {
+                DispatchQueue.main.async { self.onAuthExpired() }
+                return
+            }
             var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
             req.httpMethod = "POST"
             req.setValue("Bearer \(token)", forHTTPHeaderField: "authorization")
@@ -1048,6 +1054,10 @@ final class FeedWatcher: ObservableObject {
     /// Same, for finished turns. Separate set: a session alternates between the
     /// two all day and one set would suppress the other.
     private var notifiedDone: Set<String> = []
+    /// False until the first scan lands. That scan only seeds `notifiedDone`:
+    /// every session on disk at launch finished its turn before we were
+    /// watching, and a relaunch used to banner each one.
+    private var doneSeeded = false
     /// Alert when a turn finishes, not only when Claude is stuck. Off by default
     /// -- every turn of every session ends, so this is the noisy one.
     @Published var notifyOnDone: Bool {
@@ -1110,7 +1120,7 @@ final class FeedWatcher: ObservableObject {
         startWatching()
         poller = UsagePoller(
             onUpdate: { [weak self] result in self?.applyPollResult(result) },
-            onAuthExpired: { [weak self] in self?.usageFailure = .authExpired },
+            onAuthExpired: { [weak self] in self?.usageFailure = .authExpired; self?.pollUsage = nil },
             onError: { [weak self] message in self?.usageFailure = .transient(message) })
         if usagePollingEnabled { poller?.start() }
         totalsPoller = UsageTotalsPoller(
@@ -1151,6 +1161,9 @@ final class FeedWatcher: ObservableObject {
         // and useless — and it would otherwise pin itself in the header forever,
         // since only a successful poll clears it.
         usageFailure = nil
+        // A result that will never refresh again must not outrank the live
+        // statusLine numbers, which it would forever as the head of the chain.
+        pollUsage = nil
     }
 
     /// Force an immediate usage poll (right-click → Refresh).
@@ -1349,9 +1362,14 @@ final class FeedWatcher: ObservableObject {
             .filter({ $0.fiveHourPct != nil || $0.sevenDayPct != nil })
             .max(by: { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) })
         else { return }
+        // Stamp with the session's own time, not the scan's: every 2s rescan
+        // re-saved an idle session's hours-old numbers as "just now", and
+        // overwrote a fresher poll snapshot with them.
+        let savedAt = (s.updated ?? Date()).timeIntervalSince1970
+        if let cached = cachedUsage, cached.savedAt >= savedAt { return }
         let snap = UsageSnapshot(fiveHourPct: s.fiveHourPct, fiveHourResetsAt: s.fiveHourResetsAt,
                                  sevenDayPct: s.sevenDayPct, model: s.model,
-                                 savedAt: Date().timeIntervalSince1970)
+                                 savedAt: savedAt)
         cachedUsage = snap
         if let data = try? JSONEncoder().encode(snap) {
             UserDefaults.standard.set(data, forKey: "usageSnapshot")
@@ -1459,8 +1477,8 @@ final class FeedWatcher: ObservableObject {
         let finished = Set(newSessions.filter {
             $0.parentSessionId == nil && $0.status == .idle && $0.lastDuration != nil
         }.map(\.id))
-        defer { notifiedDone = finished }
-        guard notifyOnDone else { return }
+        defer { notifiedDone = finished; doneSeeded = true }
+        guard notifyOnDone, doneSeeded else { return }
 
         let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         for session in newSessions where Self.shouldNotifyDone(session: session,
