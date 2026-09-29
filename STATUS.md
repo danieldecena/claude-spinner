@@ -139,10 +139,9 @@
 
 The palette is the current work, and the identity colours closed its last
 gap. No open tasks: the sloped context line was observed 2026-09-29 against a
-seeded session, closing the last hand-check. Two runtime cases stay
-unobserved and are named in the decision log: the unreadable-remote rendering
-from the Git work, and three of the four identity hues -- every session on this
-machine is Opus in a desktop app, so only purple has been seen. The panel's
+seeded session, closing the last hand-check. The four identity hues were seen
+the same day, also seeded. One runtime case stays unobserved and is named in
+the decision log: the unreadable-remote rendering from the Git work. The panel's
 project sections were observed on screen 2026-09-28 and are no longer open.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
@@ -162,8 +161,19 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 - Cleanup observed: deleting the fake feed files made the next rescan drop the
   id from `contextHistory` (3 keys -> 2, id absent), confirming
   `recordContextSamples` prunes departed sessions.
-- Same technique would reach the three unseen identity hues (fake sessions with
-  a Sonnet / Haiku model id); not done.
+- Observed, same technique: all four identity hues. Three fake sessions
+  (Sonnet + `web`, Haiku + Ghostty, Fable + `com.microsoft.VSCode`) put
+  `4 opus 1 fable 1 haiku 1 sonnet` in the header's models bar as four distinct
+  segments, and each row drew its model word and host pill in its own hue:
+  `fable`/`vsc` indigo, `sonnet`/`web` cyan, `haiku`/`trm` jade. Captured with
+  `screencapture -l <window id>`, which reads the panel even while another app
+  covers it; AX could not scroll the panel, so fakes were removed one at a time
+  to bring each row into view.
+- Found: a session with no statusLine of its own borrows the most recently
+  updated session's model (`modelDisplay`, by design since the fallback went
+  in). With the Haiku fake newest, the idle claude-in-safari desktop row flipped
+  from `opus` to `haiku`. On a one-model machine this never shows; in a mixed
+  fleet the borrowed tag is a guess drawn like a fact.
 
 ### 2026-09-29 (policy round-trip observed; the surface precondition)
 

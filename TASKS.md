@@ -35,6 +35,8 @@
   drawn here. Needs a session past ~50% of its window (500k on 1M, or any 200k
   session) to see the line climb on screen
 
+- [x] Observe the cyan, jade and indigo identity hues on screen
+
 - [x] Neutral ink-label so orange means working only
 - [x] Replace todo bar with labelled ctx meter
 - [x] Opaque panel ground and blue Needs you header
