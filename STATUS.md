@@ -174,6 +174,11 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   recount found 0 Light-bound runs left. Panel · Dark screenshot looked at
   (light text on dark ground); Window · Dark rests on the recount only. Two
   Figma calls, under the Starter cap.
+- Decided: no Dock bounce at all on an ask; one bounce was still too much. The
+  first fix never ran: the live app was the Sep 15 `/Applications` copy, which a
+  login item relaunched, because `run.sh` launched DerivedData and never
+  installed. `run.sh` now installs over `/Applications`. Observed: the installed
+  dylib has 0 `requestUserAttention` strings against 1 in the Sep 15 backup.
 
 ### 2026-09-28 (the palette work, and both appearances looked at)
 

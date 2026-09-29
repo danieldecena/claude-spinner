@@ -509,17 +509,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 }
             }
         }
-        requestAttention()
-    }
-
-    /// Bounce the Dock icon once. Only the `window` surface has one to bounce --
-    /// the app is `LSUIElement` and sits at `.accessory` behind the menu bar,
-    /// where there is no Dock tile and this is deliberately a no-op.
-    /// Informational, not critical: a critical request bounces until the app is
-    /// activated, and the time-sensitive banner already carries the urgency.
-    private func requestAttention() {
-        guard NSApp.activationPolicy() == .regular else { return }
-        NSApp.requestUserAttention(.informationalRequest)
+        // No Dock bounce: the banner and the panel row already carry the ask,
+        // and even a single bounce per ask was asked away (2026-09-29).
     }
 
     /// A tap on one of an ask's option buttons. Nothing here can assume the hook
