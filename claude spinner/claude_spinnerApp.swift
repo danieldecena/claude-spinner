@@ -743,7 +743,9 @@ extension Color {
     static let claude = dynamic(light: Ink.claudeLight, dark: Ink.claudeDark)
     /// Quiet ink for row labels, a step darker than `claude`.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
-    /// Muted variant for the idle/done line — colored, but quieter than active.
+    /// The accent as a translucent fill, for the tinted grounds behind a
+    /// container. Not for text: it composites to 2.29:1 on white, which is why
+    /// the labels it used to draw moved to `label`.
     static let claudeDim = claude.opacity(0.65)
     /// Brighter, higher-contrast accent for the menu-bar label so it stays legible
     /// against the translucent menu bar over any wallpaper.
@@ -794,12 +796,12 @@ extension Color {
 
     /// Model-family accent, matching the statusLine's color language.
     static func modelTint(_ name: String?) -> Color {
-        guard let n = name?.lowercased() else { return .claudeDim }
+        guard let n = name?.lowercased() else { return .label }
         if n.contains("opus")   { return modelOpus }
         if n.contains("sonnet") { return modelSonnet }
         if n.contains("haiku")  { return modelHaiku }
         if n.contains("fable")  { return modelFable }
-        return .claudeDim
+        return .label
     }
 
     static let hostVsc = dynamic(light: (0.35, 0.60, 0.90), dark: (0.50, 0.74, 1.0))   // blue

@@ -130,7 +130,7 @@ private struct SessionSidebar: View {
                                 // overhead; only the pinned section needs it spelled out.
                                 if section.id == "needs-you" {
                                     Text(session.projectName)
-                                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                                        .font(.claudeMono(10)).foregroundStyle(Color.label)
                                         .lineLimit(1)
                                 }
                             }
@@ -178,10 +178,10 @@ private struct SectionHeader: View {
             Text(section.title).lineLimit(1)
             Spacer(minLength: 4)
             Text("\(section.sessionCount)")
-                .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
             if let total = section.contextTotal {
                 Text(FeedWatcher.formatTokens(total))
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
     }
@@ -217,12 +217,12 @@ private struct SessionDetail: View {
 
                 if !children.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Subagents").font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                        Text("Subagents").font(.claudeMono(11)).foregroundStyle(Color.label)
                         ForEach(children) { child in
                             HStack(spacing: 8) {
                                 Text(child.agentType ?? "subagent").font(.claudeMono(11))
                                 Text(child.tool.isEmpty ? "—" : child.tool)
-                                    .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                                    .font(.claudeMono(11)).foregroundStyle(Color.label)
                                 Spacer()
                             }
                         }
@@ -237,16 +237,16 @@ private struct SessionDetail: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(session.distinctName).font(.claudeMono(18)).fontWeight(.semibold)
-            Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+            Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.label)
             if let evidence = session.restingEvidence(now: Date()) {
-                Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.label)
             }
             if let summary = session.attentionSummary {
                 // Blue only when something is genuinely blocked. A finished
                 // session that simply hasn't been typed at is not an alarm.
                 Text(summary)
                     .font(.claudeMono(11))
-                    .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.claudeDim)
+                    .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -349,7 +349,7 @@ private struct AskCard: View {
             }
 
             if let answered {
-                Text("Answered: \(answered)").font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                Text("Answered: \(answered)").font(.claudeMono(11)).foregroundStyle(Color.label)
             } else {
                 // Full labels *and* their descriptions — the reason this surface
                 // exists. A banner shows two buttons and no descriptions at all.
@@ -360,7 +360,7 @@ private struct AskCard: View {
                                 Text(choice.label).font(.claudeMono(11))
                                 if let detail = choice.detail {
                                     Text(detail).font(.claudeMono(10))
-                                        .foregroundStyle(Color.claudeDim)
+                                        .foregroundStyle(Color.label)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
@@ -481,7 +481,7 @@ private struct StatSection: View {
         let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 10) {
-                Text(title).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                Text(title).font(.claudeMono(10)).foregroundStyle(Color.label)
                     .textCase(.uppercase)
                 if let refresh {
                     Button("Refresh", action: refresh)
@@ -489,18 +489,18 @@ private struct StatSection: View {
                 }
             }
             if present.isEmpty {
-                Text(empty).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                Text(empty).font(.claudeMono(11)).foregroundStyle(Color.label)
             } else {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
                     ForEach(present, id: \.0) { key, value, note in
                         GridRow {
-                            Text(key).font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                            Text(key).font(.claudeMono(11)).foregroundStyle(Color.label)
                                 .gridColumnAlignment(.leading)
                             HStack(spacing: 8) {
                                 Text(value).font(.claudeMono(11)).textSelection(.enabled)
                                 if let note {
                                     Text(note).font(.claudeMono(10))
-                                        .foregroundStyle(Color.claudeDim)
+                                        .foregroundStyle(Color.label)
                                 }
                             }
                         }
@@ -585,7 +585,7 @@ private struct OverviewStrip: View {
                     Text(headline.text)
                         .font(.claudeMono(18)).fontWeight(.semibold)
                         .foregroundStyle(Color.usageTint(headline.level))
-                    Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.label)
                 } else {
                     // Scoped to the live window, not to usage in general. The
                     // rejected wording here was the panel's own phrase about
@@ -593,7 +593,7 @@ private struct OverviewStrip: View {
                     // drawing retained history -- would have been the same fault
                     // this slice exists to remove.
                     Text("no current 5h reading")
-                        .font(.claudeMono(11)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(11)).foregroundStyle(Color.label)
                 }
                 // Outside the branch: the two percentages are filled by separate
                 // `compactMap`s, so 7d can be known while 5h is not.
@@ -602,7 +602,7 @@ private struct OverviewStrip: View {
                     // that reading does -- "no current 5h reading · 40% of 7d"
                     // would contradict itself in the same breath.
                     Text("\(fiveHour == nil ? "" : "· ")\(sevenDay)% of 7d")
-                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
                 }
                 Spacer(minLength: 0)
             }
@@ -611,18 +611,18 @@ private struct OverviewStrip: View {
             // as a bill, and on a subscription plan that is simply wrong.
             if let spend = overview.spendUSD {
                 Text("\(StatFormat.money(spend)) api-equivalent, not billed")
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
 
-            Text(counts).font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+            Text(counts).font(.claudeMono(10)).foregroundStyle(Color.label)
 
             if let tokens = overview.contextTokens {
                 Text("\(StatFormat.compactCount(tokens)) context in play")
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
             if let diff = StatFormat.lines(added: overview.linesAdded,
                                            removed: overview.linesRemoved) {
-                Text("\(diff) lines").font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                Text("\(diff) lines").font(.claudeMono(10)).foregroundStyle(Color.label)
             }
 
             Sparkline(samples: history)
@@ -692,7 +692,7 @@ struct Sparkline: View {
                 line.stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no usage history yet")
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
     }
@@ -782,7 +782,7 @@ private struct ContextTrend: View {
                 line.stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no context history yet")
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
         }
         .frame(height: 28)
@@ -817,7 +817,7 @@ private struct TranscriptCard: View {
                     if !snapshot.recentTools.isEmpty {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("just ran").font(.claudeMono(10))
-                                .foregroundStyle(Color.claudeDim).textCase(.uppercase)
+                                .foregroundStyle(Color.label).textCase(.uppercase)
                             Text(snapshot.recentTools.joined(separator: " · "))
                                 .font(.claudeMono(11))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -864,7 +864,7 @@ private struct Labelled: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.claudeMono(10))
-                .foregroundStyle(Color.claudeDim).textCase(.uppercase)
+                .foregroundStyle(Color.label).textCase(.uppercase)
             Text(body_)
                 .font(.claudeMono(11))
                 .lineLimit(limit)
@@ -1049,7 +1049,7 @@ private struct GitCard: View {
         VStack(alignment: .leading, spacing: 5) {
             if offered.isEmpty {
                 Text("no actions available")
-                    .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
             } else {
                 HStack(spacing: 6) {
                     ForEach(offered) { item in
@@ -1062,7 +1062,7 @@ private struct GitCard: View {
                 }
                 ForEach(offered.filter { $0.block != nil }) { item in
                     Text("\(item.action.title.lowercased()): \(item.block?.reason ?? "")")
-                        .font(.claudeMono(10)).foregroundStyle(Color.claudeDim)
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
