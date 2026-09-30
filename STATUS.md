@@ -137,7 +137,15 @@
 
 ## Next Up
 
-No open tasks.
+1. [code] Ask boxes in the You asked card as well as the terminal: needs the terminal
+   box's answer keys confirmed first (tried a tmux probe; questions auto-answered
+   "Red" before a box drew, cause unexplained). Needs a live look at a real box.
+2. [you] Decide attention colour (kit warn vs Spinner blue) and whether the menu-bar
+   panel moves to App Kit type; both are palette calls.
+3. [you] Answer two offers: add /superpower:tdd, /superpower:review, /security-review,
+   /inbox, /roadmap chips; add Fact, Eyebrow and Toolbar to App Kit `conventions.md`.
+
+The rest is in `TASKS.md`.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
