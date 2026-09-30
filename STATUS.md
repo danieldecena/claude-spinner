@@ -152,6 +152,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the detail pane does not scroll. It is laid out at its natural height and
+  drawn smaller to fit the window (`fitScale`, floor 0.55), laid out at the window's
+  width divided by the scale so the cards use the room shrinking frees. Below the floor
+  the bottom is clipped, not scrolled. Seen at 1143x1068 (scale 1, everything visible)
+  and 1000x760 (scaled, everything visible). History is 360pt wide, not the row; Skills
+  is 380pt. The sidebar is not scaled.
 - Decided: the History and Git row is redesigned. Refs sit beside the SHA on the
   commit's own line (every graph row is one line; the stacked-refs rule from aaceb05 is
   reversed), and the Git card's four status rows are pills that wrap. Seen on screen.

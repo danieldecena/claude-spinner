@@ -456,9 +456,40 @@ private struct SessionDetail: View {
     /// the detail pane doesn't need the watcher.
     let usage: OverviewStrip
     @Binding var notice: NoticeMessage?
+    /// The pane's height at the width it is currently laid out at, read back from
+    /// the layout so the scale that fits it can be worked out.
+    @State private var naturalHeight: CGFloat = 0
 
     var body: some View {
-        ScrollView {
+        // No scrolling: the whole pane is laid out at its natural height and, when
+        // that is taller than the window, drawn smaller to fit. It is laid out at
+        // the window's width divided by the scale, not the window's width, so the
+        // cards use the room that shrinking frees instead of leaving a margin.
+        GeometryReader { geo in
+            let scale = fitScale(available: geo.size.height)
+            content
+                .frame(width: geo.size.width / scale, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    // Only a real change: a 1pt wobble would re-lay the pane out
+                    // at a new width and chase its own tail.
+                    if abs(height - naturalHeight) > 2 { naturalHeight = height }
+                }
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                .clipped()
+        }
+    }
+
+    /// How much of its natural size the pane is drawn at. Never above 1 (a tall
+    /// window does not blow the cards up) and never below the floor, under which
+    /// the text stops being readable and the pane should be scrolled instead.
+    private func fitScale(available: CGFloat) -> CGFloat {
+        guard naturalHeight > 0 else { return 1 }
+        return min(1, max(0.55, available / naturalHeight))
+    }
+
+    private var content: some View {
             VStack(alignment: .leading, spacing: 12) {
                 header
 
@@ -479,7 +510,7 @@ private struct SessionDetail: View {
                     HStack(alignment: .top, spacing: 12) {
                         ConversationCard(session: session, feedDir: feedDir, notice: $notice)
                         SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
-                            .frame(width: 320)
+                            .frame(width: 380)
                     }
                     .tileSpan(.max)
                     // One full-width tile for everything git, straight under the
@@ -489,14 +520,16 @@ private struct SessionDetail: View {
                     // so the state sits next to the history. The git commands
                     // themselves live in the Skills card.
                     HStack(alignment: .top, spacing: 12) {
+                        // As wide as a SHA, its refs and an age need, not the row: the
+                        // middle of a wider one was empty.
                         GitGraphCard(cwd: session.cwd)
+                            .frame(width: 360)
                         // The repo's state and the switches that act on it, one card.
                         VStack(alignment: .leading, spacing: 14) {
                             GitCard(cwd: session.cwd, framed: false)
                             AutomationToggles(session: session, feedDir: feedDir)
                         }
                         .detailCard()
-                        .frame(width: 300)
                     }
                     .tileSpan(.max)
                     // This session and the account, side by side: everything
@@ -512,7 +545,6 @@ private struct SessionDetail: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     /// No name or path: the selected sidebar row already names the session, and
