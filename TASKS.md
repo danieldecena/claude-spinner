@@ -6,15 +6,15 @@ Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
-- [ ] Stop a hung ccusage scan from freezing the totals poller
-- [ ] Retry only the daily ccusage call when unpriced
-- [ ] Count only blocked sessions as needs you in the fleet bar
-- [ ] Show context tokens on idle rows
-- [ ] Report a git action that did not report back honestly
-- [ ] Stop the reply notice claiming a turn for clear and compact
-- [ ] Show usage totals off when polling is disabled
-- [ ] Check the build exists before run-sh replaces the app
-- [ ] Untrack the regenerable ds-bundle files
+- [x] Stop a hung ccusage scan from freezing the totals poller -- 9387f19
+- [x] Retry only the daily ccusage call when unpriced -- 9387f19
+- [x] Count only blocked sessions as needs you in the fleet bar -- 5def87c
+- [x] Show context tokens on idle rows -- 4301061
+- [x] Report a git action that did not report back honestly -- 033feff
+- [x] Stop the reply notice claiming a turn for clear and compact -- 64d6b53
+- [x] Show usage totals off when polling is disabled -- 9fafa43
+- [x] Check the build exists before run-sh replaces the app -- 5147808
+- [x] Untrack the regenerable ds-bundle files -- 37a7512
 
 ## Completed
 
