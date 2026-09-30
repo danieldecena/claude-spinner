@@ -152,6 +152,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (cleanup 7-8): deleted the chart code the ring-only cards orphaned
+  (`Buckets`, `Columns`, `TrendColumns`, `WeekChart`, `SpendChart`, `UsageChart`,
+  `ContextChart.ceiling`, `UsageTotalsPoller.weekBars`, the detail pane's history and
+  spend inputs) and their 10 tests; 385 lines, 319 tests pass. Kept `Sparkline`,
+  `ContextChart.unitPoints`/`bandFloors` and `ContextMeter`, which the menu panel uses.
+  Left: `FeedWatcher.spendHistory` still records to UserDefaults with no reader (task).
 - Decided (fixes 4-6): the window's Usage card takes only what it draws (the ccusage
   poll stays; the menu panel shows its totals). Context colour follows share of the
   window wherever a window is known (`Color.contextTint(tokens:window:)`: window ring and

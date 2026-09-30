@@ -869,34 +869,6 @@ final class UsageTotalsPoller {
         var days: [Day] = []
     }
 
-    /// One bar of the week chart.
-    struct WeekBar: Equatable {
-        let label: String
-        /// nil for a day still ahead: not yet happened is not zero usage.
-        let tokens: Int?
-        let isToday: Bool
-    }
-
-    /// Monday to Sunday of the ISO week the poll scans, same calendar as `poll`.
-    /// A past day ccusage has no row for used nothing, so it is an observed 0;
-    /// a day still ahead is nil.
-    static func weekBars(days: [Day], now: Date) -> [WeekBar] {
-        var cal = Calendar(identifier: .iso8601)
-        cal.timeZone = .current
-        guard let start = cal.dateInterval(of: .weekOfYear, for: now)?.start else { return [] }
-        let byPeriod = Dictionary(days.map { ($0.period, $0.tokens) }, uniquingKeysWith: +)
-        let today = cal.startOfDay(for: now)
-        let weekday = DateFormatter()
-        weekday.calendar = cal
-        weekday.dateFormat = "EEEEE"
-        return (0..<7).compactMap { offset in
-            guard let day = cal.date(byAdding: .day, value: offset, to: start) else { return nil }
-            return WeekBar(label: weekday.string(from: day),
-                           tokens: day > today ? nil : byPeriod[dayFormatter.string(from: day)] ?? 0,
-                           isToday: day == today)
-        }
-    }
-
     /// Long: a daily scan costs ~11s wall and ~90s CPU across every transcript.
     static let pollInterval: TimeInterval = 10 * 60
     static let executable = "/opt/homebrew/bin/ccusage"
@@ -2028,9 +2000,6 @@ final class FeedWatcher: ObservableObject {
         return 1 - left / length
     }
 
-    var usageWeekBars: [UsageTotalsPoller.WeekBar] {
-        usageTotals.map { UsageTotalsPoller.weekBars(days: $0.days, now: Date()) } ?? []
-    }
     var usageSevenDayReset: String? { Self.formatResetDay(sevenDayResetsAt) }
 
     /// Tooltip for the footer countdown — both windows' reset clock times when

@@ -11,12 +11,13 @@ via `run.sh`.
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Explain why a probe session auto-answered AskUserQuestion
-- [ ] Delete dead chart code and close the hover task
+- [ ] Stop recording spend history nothing reads
 - [ ] Make overflow clickable and age out finished subagents
-- [ ] Check You asked shows full text on hover in the top row
 
 ## Completed
 
+- [x] Delete dead chart code and close the hover task
+- [x] Check You asked shows full text on hover (chevron covers it)
 - [x] Trim Usage params, unify context colour, scroll below fit floor
 - [x] Fix pace flag, simplify pick and missing Claude text
 - [x] Apply critique to Skills, History, sidebar, Git and toolbar

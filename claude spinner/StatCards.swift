@@ -7,54 +7,6 @@ import SwiftUI
 // per time slice puts a gap or a burst where the eye expects it. A tick on the
 // ring says how much of a limit window has gone by.
 
-// MARK: - Pure bucketing
-
-/// A time series cut into equal slices, for the column charts. Pure, so the
-/// degenerate cases are testable without laying out a view.
-enum Buckets {
-    /// Which slice a timestamp falls in, held inside the range: a sample stamped
-    /// before the first (a clock stepped back) joins the first slice instead of
-    /// indexing off the front.
-    private static func slice(_ at: Double, first: Double, span: Double, count: Int) -> Int {
-        let raw = (at - first) / span * Double(count)
-        return raw.isFinite ? min(count - 1, max(0, Int(raw))) : 0
-    }
-
-    /// `count` equal slices from the first sample to the last. A slice holds the
-    /// last level seen in it and carries the previous slice's level when it has
-    /// no sample, because a level (context, a percentage) does not vanish while
-    /// nothing is reported. nil when there is no span to slice: one sample is a
-    /// dot, not a history.
-    static func levels(_ samples: [(at: Double, value: Double)], count: Int) -> [Double]? {
-        guard count > 0, samples.count >= 2, let first = samples.first, let last = samples.last,
-              last.at > first.at else { return nil }
-        let span = last.at - first.at
-        var out = [Double?](repeating: nil, count: count)
-        for sample in samples {
-            out[slice(sample.at, first: first.at, span: span, count: count)] = sample.value
-        }
-        var carried = samples[0].value
-        return out.map { value in
-            carried = value ?? carried
-            return carried
-        }
-    }
-
-    /// What was added in each slice of a running total, so a heavy turn is a tall
-    /// column and an idle stretch is none. A total that went down (a reset) adds
-    /// nothing rather than a negative.
-    static func increases(_ samples: [(at: Double, value: Double)], count: Int) -> [Double]? {
-        guard count > 0, samples.count >= 2, let first = samples.first, let last = samples.last,
-              last.at > first.at else { return nil }
-        let span = last.at - first.at
-        var out = [Double](repeating: 0, count: count)
-        for (previous, sample) in zip(samples, samples.dropFirst()) {
-            out[slice(sample.at, first: first.at, span: span, count: count)] += max(0, sample.value - previous.value)
-        }
-        return out
-    }
-}
-
 // MARK: - Marks
 
 /// A share of a whole as a ring, with its reading in the middle. `pace` puts a
@@ -132,74 +84,6 @@ struct RingMetric: View {
     }
 }
 
-/// One column per time slice, each as tall as its share of the top. Grey with
-/// one highlight, after App Kit's chart rule: every column but the latest is
-/// `chartBase`, and the latest carries the colour, so a chart's alarm is where
-/// it ends. A nil slice is a fainter stub: "nothing yet" must not read as
-/// "used nothing".
-struct Columns: View {
-    let shares: [Double?]
-    let highlight: Color
-    var height: CGFloat = 44
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(Array(shares.enumerated()), id: \.offset) { index, share in
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                        .fill(share == nil ? Color.chartBase.opacity(0.5)
-                              : index == shares.count - 1 ? highlight : Color.chartBase)
-                        .frame(height: share.map { max($0 > 0 ? 2 : 0, height * CGFloat(min(1, $0))) } ?? 2)
-                }
-            }
-        }
-        .frame(height: height)
-    }
-}
-
-/// A captioned column chart: what it is and where it stands now above, how far
-/// back it reaches below.
-struct TrendColumns: View {
-    let title: String
-    let now: String
-    let shares: [Double]?
-    let highlight: Color
-    let first: Double?
-    let last: Double?
-    var empty = "no history yet"
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.ui(9)).fontWeight(.semibold)
-                    .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-                Spacer(minLength: 4)
-                Text(now).font(.ui(11)).fontWeight(.semibold).lineLimit(1)
-            }
-            if let shares {
-                Columns(shares: shares, highlight: highlight)
-                if let first, let last {
-                    let clock = Date()
-                    HStack {
-                        Text(StatFormat.age(Date(timeIntervalSince1970: first), now: clock) ?? "")
-                        Spacer(minLength: 0)
-                        Text(StatFormat.age(Date(timeIntervalSince1970: last), now: clock) ?? "")
-                    }
-                    .font(.ui(9)).foregroundStyle(Color.label)
-                }
-            } else {
-                Text(empty).font(.ui(10)).foregroundStyle(Color.label)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue(now)
-    }
-}
-
 // MARK: - This session
 
 /// Cost, prompt cache, context and the session's own facts as one card: three
@@ -207,10 +91,6 @@ struct TrendColumns: View {
 /// grown, and a line of the rest.
 struct SessionStatsCard: View {
     let session: SessionFeed
-    let history: [ContextSample]
-    let spend: [SpendSample]
-
-    private static let slices = 18
 
     var body: some View {
         let st = session.stats
@@ -270,33 +150,6 @@ struct SessionStatsCard: View {
         if let wall = st.wallSeconds { lines.append("\(StatFormat.duration(wall)) wall") }
         if let share = st.apiShare { lines.append("\(StatFormat.percent(share)) on the api") }
         return lines.joined(separator: "\n")
-    }
-
-    /// Context on the same absolute axis as before, ceiling and all: a 20k
-    /// session must still crawl along the bottom. Each column takes the colour
-    /// its level would tint the ring, so the bands the old chart ruled in are
-    /// carried by the columns themselves.
-    @ViewBuilder private var contextTrend: some View {
-        let st = session.stats
-        let pairs = history.map { (at: $0.at, value: Double($0.tokens)) }
-        let levels = Buckets.levels(pairs, count: Self.slices)
-        let top = Double(st.contextWindowSize.map { ContextChart.ceiling(window: $0, samples: history) } ?? 0)
-        TrendColumns(title: "context", now: session.contextTokens.map(StatFormat.compactCount) ?? "",
-                     shares: top > 0 ? levels?.map { $0 / top } : nil,
-                     highlight: .contextTint(session.contextTokens ?? 0),
-                     first: history.first?.at, last: history.last?.at,
-                     empty: "no context history yet")
-    }
-
-    @ViewBuilder private var spendTrend: some View {
-        let pairs = spend.map { (at: $0.at, value: $0.usd) }
-        let steps = Buckets.increases(pairs, count: Self.slices)
-        let peak = steps?.max() ?? 0
-        TrendColumns(title: "spend", now: session.stats.costUSD.map(StatFormat.money) ?? "",
-                     shares: peak > 0 ? steps?.map { $0 / peak } : nil,
-                     highlight: .series1,
-                     first: spend.first?.at, last: spend.last?.at,
-                     empty: "no spend history yet")
     }
 
     private var facts: String? {
@@ -366,58 +219,3 @@ struct OverviewStrip: View {
     }
 }
 
-/// Tokens per day, Monday to Sunday, from the ccusage daily rows.
-///
-/// Scaled to the week's own peak: the question is which day was heavy, and
-/// there is no limit to draw against. Days still ahead are faint stubs, not
-/// zero-height bars, so "hasn't happened" never reads as "used nothing".
-struct WeekChart: View {
-    let bars: [UsageTotalsPoller.WeekBar]
-
-    var body: some View {
-        let peak = max(1, bars.compactMap(\.tokens).max() ?? 0)
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("tokens by day").font(.ui(9)).fontWeight(.semibold)
-                    .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-                Spacer(minLength: 4)
-                if let today = bars.first(where: \.isToday)?.tokens {
-                    Text(FeedWatcher.formatTokens(today)).font(.ui(11)).fontWeight(.semibold)
-                }
-            }
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
-                    VStack(spacing: 3) {
-                        GeometryReader { geo in
-                            VStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                    .fill(fill(bar))
-                                    .frame(height: height(bar, peak: peak, box: geo.size.height))
-                            }
-                        }
-                        Text(bar.label).font(.ui(9))
-                            .foregroundStyle(bar.isToday ? Color.primary : Color.label)
-                    }
-                    .help(bar.tokens.map { "\(FeedWatcher.formatTokens($0)) tokens" } ?? "not yet")
-                }
-            }
-            .frame(height: 56)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Tokens by day this week")
-        .accessibilityValue(bars.compactMap { bar in
-            bar.tokens.map { "\(bar.label) \(FeedWatcher.formatTokens($0))" }
-        }.joined(separator: ", "))
-    }
-
-    private func fill(_ bar: UsageTotalsPoller.WeekBar) -> Color {
-        if bar.isToday { return .series1 }
-        return Color.chartBase.opacity(bar.tokens == nil ? 0.5 : 1)
-    }
-
-    private func height(_ bar: UsageTotalsPoller.WeekBar, peak: Int, box: CGFloat) -> CGFloat {
-        guard let tokens = bar.tokens else { return 2 }
-        return max(tokens > 0 ? 2 : 0, box * CGFloat(tokens) / CGFloat(peak))
-    }
-}

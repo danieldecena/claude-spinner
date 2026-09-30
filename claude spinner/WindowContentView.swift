@@ -170,8 +170,6 @@ struct WindowContentView: View {
                 SessionDetail(session: session,
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
-                              history: feed.contextHistory[session.id] ?? [],
-                              spend: feed.spendHistory[session.id] ?? [],
                               suggestion: suggestion,
                               skillPick: skillPick,
                               usage: usageCard,
@@ -476,11 +474,6 @@ private struct SessionDetail: View {
     let session: SessionFeed
     let asks: [AskRequest]
     let feedDir: URL
-    /// This session's context over time. Passed in rather than read from the
-    /// watcher, the way `OverviewStrip` already receives `usageHistory`.
-    let history: [ContextSample]
-    /// This session's spend over time, passed in the same way.
-    let spend: [SpendSample]
     /// Shown as a glow on the button it names, in whichever card owns it.
     let suggestion: Suggestion?
     /// The Skills card's own pick, outlined there and explained under it.
@@ -577,7 +570,7 @@ private struct SessionDetail: View {
                     // about how the session is doing, then everything about the
                     // limits it spends against.
                     HStack(alignment: .top, spacing: 12) {
-                        SessionStatsCard(session: session, history: history, spend: spend)
+                        SessionStatsCard(session: session)
                         usage
                     }
                     .tileSpan(.max)
@@ -1035,12 +1028,6 @@ enum ContextChart {
     /// The token counts `Color.contextTint` changes colour at.
     static let bandFloors = [100_000, 150_000, 200_000]
 
-    /// The detail chart's y-axis top: headroom above the heaviest band, or the
-    /// session's own peak past that, and never more than the window can hold.
-    static func ceiling(window: Int, samples: [ContextSample]) -> Int {
-        min(window, max(250_000, samples.map(\.tokens).max() ?? 0))
-    }
-
     /// nil when there is nothing honest to draw. Two points is the minimum that
     /// can be a trend, and without a window size there is no scale to plot
     /// against -- inventing one would make every session look equally full.
@@ -1058,43 +1045,6 @@ enum ContextChart {
             let y = min(1, max(0, Double(sample.tokens) / Double(window)))
             return CGPoint(x: x, y: 1 - y)
         }
-    }
-}
-
-/// Where each spend sample sits in a unit box.
-enum SpendChart {
-    /// Scaled 0 to the session's own peak, unlike context: spend has no window
-    /// to be a share of, and any fixed ceiling would be invented. The floor stays
-    /// at 0 so a line that barely moved still reads as barely moved.
-    static func unitPoints(_ samples: [SpendSample]) -> [CGPoint]? {
-        guard samples.count >= 2, let first = samples.first, let last = samples.last,
-              let peak = samples.map(\.usd).max(), peak > 0 else { return nil }
-        let span = last.at - first.at
-        return samples.enumerated().map { index, sample in
-            let x = span > 0 ? (sample.at - first.at) / span
-                             : Double(index) / Double(samples.count - 1)
-            return CGPoint(x: x, y: 1 - max(0, sample.usd / peak))
-        }
-    }
-}
-
-/// Where each usage sample sits in a unit box, for one of its two readings.
-/// x spans the whole buffer's time range, so the 5h and 7d lines share an axis
-/// even when older samples carry no 7d reading.
-enum UsageChart {
-    /// The percentages `Color.usageTint` changes colour at.
-    static let bandFloors = [50, 75, 90]
-
-    static func unitPoints(_ samples: [UsageSample], _ value: (UsageSample) -> Int?) -> [CGPoint]? {
-        guard let first = samples.first, let last = samples.last else { return nil }
-        let span = last.at - first.at
-        let points = samples.enumerated().compactMap { index, sample -> CGPoint? in
-            guard let pct = value(sample) else { return nil }
-            let x = span > 0 ? (sample.at - first.at) / span
-                             : Double(index) / Double(max(1, samples.count - 1))
-            return CGPoint(x: x, y: 1 - min(1, max(0, Double(pct) / 100)))
-        }
-        return points.count >= 2 ? points : nil
     }
 }
 

@@ -2798,22 +2798,6 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(buffer.first?.usd, 31, "the oldest points go, not the newest")
     }
 
-    /// y is scaled to the session's own peak with the floor at 0, so a small
-    /// rise stays small rather than being zoomed to fill the box.
-    func testSpendPointsAreScaledToThePeakFromZero() {
-        let points = SpendChart.unitPoints(spend([(3, 0), (4, 60), (4, 1_260)]))!
-        XCTAssertEqual(points[0].y, 0.25, accuracy: 0.0001, "$3 of a $4 peak, not the floor")
-        XCTAssertEqual(points[2].y, 0, accuracy: 0.0001)
-        XCTAssertEqual(points[1].x, 60.0 / 1_260.0, accuracy: 0.0001, "time-scaled")
-    }
-
-    func testASpendChartNeedsTwoPointsAndSomethingSpent() {
-        XCTAssertNotNil(SpendChart.unitPoints(spend([(0, 0), (0.01, 60)])), "the known-good case")
-        XCTAssertNil(SpendChart.unitPoints(spend([(1, 0)])), "one sample is a dot, not a trend")
-        XCTAssertNil(SpendChart.unitPoints([]))
-        XCTAssertNil(SpendChart.unitPoints(spend([(0, 0), (0, 60)])), "a zero peak has no scale")
-    }
-
     // MARK: - Sparkline spoken value
 
     /// VoiceOver hears the line's endpoints, since the shape itself says nothing.
@@ -2927,34 +2911,6 @@ final class claude_spinnerTests: XCTestCase {
             contextSteps.append(tokens)
         }
         XCTAssertEqual(contextSteps, ContextChart.bandFloors)
-
-        let usageSteps = (1...100).filter { Color.usageTint($0) != Color.usageTint($0 - 1) }
-        XCTAssertEqual(usageSteps, UsageChart.bandFloors)
-    }
-
-    /// Headroom over the heavy band on a big window, the peak once past it, and
-    /// never above what the window holds.
-    func testTheDetailContextAxisIsAbsoluteAndCappedAtTheWindow() {
-        XCTAssertEqual(ContextChart.ceiling(window: 1_000_000, samples: samples([(20_000, 0), (40_000, 1)])),
-                       250_000, "a light session on 1M must not zoom to fill the box")
-        XCTAssertEqual(ContextChart.ceiling(window: 1_000_000, samples: samples([(20_000, 0), (600_000, 1)])),
-                       600_000)
-        XCTAssertEqual(ContextChart.ceiling(window: 200_000, samples: samples([(20_000, 0), (40_000, 1)])),
-                       200_000)
-    }
-
-    /// Old samples carry no 7d reading. The 7d line skips them rather than
-    /// drawing them at 0%, and still lands on the shared time axis.
-    func testTheSevenDayLineSkipsSamplesWithoutAReading() {
-        let history = [UsageSample(pct: 10, at: 0),
-                       UsageSample(pct: 20, at: 50, sevenDayPct: 40),
-                       UsageSample(pct: 30, at: 100, sevenDayPct: 60)]
-        let seven = UsageChart.unitPoints(history) { $0.sevenDayPct }!
-        XCTAssertEqual(seven.map(\.x), [0.5, 1])
-        XCTAssertEqual(seven[0].y, 0.6, accuracy: 0.0001)
-        XCTAssertEqual(UsageChart.unitPoints(history) { $0.pct }!.count, 3)
-        XCTAssertNil(UsageChart.unitPoints(Array(history.prefix(2))) { $0.sevenDayPct },
-                     "one 7d reading is a dot, not a trend")
     }
 
     /// A buffer persisted before 7d was recorded must still load.
@@ -3619,41 +3575,6 @@ final class claude_spinnerTests: XCTestCase {
 
     // MARK: - Column buckets
 
-    private func series(_ points: [(Double, Double)]) -> [(at: Double, value: Double)] {
-        points.map { (at: $0.0, value: $0.1) }
-    }
-
-    /// A level carries across a slice with no sample, and a slice before the first stays out.
-    func testLevelBucketsCarryTheLastLevelForward() {
-        let out = Buckets.levels(series([(0, 10), (1, 30), (10, 20)]), count: 5)!
-        XCTAssertEqual(out.count, 5)
-        XCTAssertEqual(out.first, 30, "the first slice holds the last sample in it, not the first")
-        XCTAssertEqual(out[2], 30, "an empty slice carries the level before it")
-        XCTAssertEqual(out.last, 20)
-    }
-
-    func testIncreaseBucketsAddOnlyGrowth() {
-        let out = Buckets.increases(series([(0, 1), (5, 3), (10, 2)]), count: 2)!
-        XCTAssertEqual(out, [0, 2], "a total that went down adds nothing, never a negative")
-        XCTAssertEqual(Buckets.increases(series([(0, 1), (10, 4)]), count: 2)!, [0, 3])
-    }
-
-    func testBucketsNeedASpanToSlice() {
-        XCTAssertNil(Buckets.levels(series([(0, 1)]), count: 4), "one sample is a dot")
-        XCTAssertNil(Buckets.levels(series([(5, 1), (5, 2)]), count: 4), "no time between samples")
-        XCTAssertNil(Buckets.increases(series([]), count: 4))
-        XCTAssertNil(Buckets.levels(series([(0, 1), (1, 2)]), count: 0))
-    }
-
-    /// A sample stamped before the first (a clock stepped back) joins the first
-    /// slice; it used to index off the front and trap.
-    func testBucketsHoldAnOutOfOrderTimestampInsideTheRange() {
-        let early = series([(10, 1), (5, 2), (20, 3)])
-        XCTAssertEqual(Buckets.levels(early, count: 4)?.count, 4)
-        XCTAssertEqual(Buckets.increases(early, count: 4)?.count, 4)
-        XCTAssertNotNil(Buckets.levels(series([(0, 1), (.nan, 2), (10, 3)]), count: 4))
-    }
-
     // MARK: - Suggestion
 
     private func suggestionInput(_ configure: (inout Suggestion.Input) -> Void = { _ in }) -> Suggestion.Input {
@@ -4049,28 +3970,6 @@ final class claude_spinnerTests: XCTestCase {
         // Already reset: stale, not "100% through".
         XCTAssertNil(FeedWatcher.windowElapsed(resetsAt: 1_000_000 - 1, length: fiveHours, now: now))
         XCTAssertNil(FeedWatcher.windowElapsed(resetsAt: 1_000_000 + fiveHours + 60, length: fiveHours, now: now))
-    }
-
-    /// Tuesday 2026-09-29: Monday has a row, today has a row, the rest are ahead.
-    func testWeekBarsRunMondayToSundayWithFutureDaysNil() {
-        var cal = Calendar(identifier: .iso8601)
-        cal.timeZone = .current
-        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 12))!
-        let bars = UsageTotalsPoller.weekBars(days: [.init(period: "2026-09-28", tokens: 1000),
-                                                     .init(period: "2026-09-29", tokens: 500)],
-                                              now: now)
-        XCTAssertEqual(bars.count, 7)
-        XCTAssertEqual(bars.map(\.tokens), [1000, 500, nil, nil, nil, nil, nil])
-        XCTAssertEqual(bars.map(\.isToday), [false, true, false, false, false, false, false])
-    }
-
-    /// A past day with no ccusage row is an observed zero, not a gap.
-    func testWeekBarsCountAMissingPastDayAsZero() {
-        var cal = Calendar(identifier: .iso8601)
-        cal.timeZone = .current
-        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 12))!
-        let bars = UsageTotalsPoller.weekBars(days: [.init(period: "2026-09-30", tokens: 7)], now: now)
-        XCTAssertEqual(Array(bars.map(\.tokens).prefix(3)), [0, 0, 7])
     }
 
     // MARK: - UsageTotalsPoller.parse (ccusage JSON -> Result)
