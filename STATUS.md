@@ -144,6 +144,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the You asked card is the last exchange plus one row: You asked (2 lines),
+  Claude said (4 lines), a dim "ran ..." line, and the reply field with the model and
+  effort menus beside it; a chevron opens the text out. Dropped: the Show more button,
+  the divider, the thinking/style/version facts, and the reserved block heights that
+  left a hole under a short reply. History rows tightened from 20pt to 17pt. Seen on
+  screen. Daniel's screenshot for this request did not come through, so the target
+  was his answer "you asked card" plus the History card he pasted as too spaced.
 - Decided: skill, superpower, git and git-skill buttons are content-width chips that
   wrap (`ChipFlow`), not equal-width grid cells. Seen on screen.
 - Decided: Git status and Automation are one card (300pt wide) with the four

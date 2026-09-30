@@ -1080,10 +1080,12 @@ private struct ConversationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
-            ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+            // The answer and what runs it, on one line.
+            HStack(spacing: 8) {
+                ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+                ConfigCard(session: session, feedDir: feedDir, notice: $notice)
+            }
             if let notice { Notice(notice) }
-            Divider()
-            ConfigCard(session: session, feedDir: feedDir)
         }
         .detailCard()
         // A half-typed reply or its notice must never carry to the next session.
@@ -1101,19 +1103,18 @@ private struct TranscriptCard: View {
     @State private var expanded = false
 
     var body: some View {
-        // Collapsed, every block is always present and reserves its full clamp,
-        // so the card is one fixed height: it used to grow and shrink with each
-        // reply and jolt the grid below it every few seconds. Expanded is the
-        // one state allowed to size to its text, because you asked for that.
+        // Three things, no captions on the last: what you asked, what Claude said
+        // (either can open out), and a dim line of what it just ran. It used to
+        // reserve every block's full height so the card never moved, which left
+        // a hole under a short reply; the row is as tall as the Skills card
+        // beside it either way, so a card that resizes moves nothing.
         VStack(alignment: .leading, spacing: 10) {
-            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 1)
-            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 3)
-            Labelled("just ran",
-                     snapshot.recentTools.isEmpty
-                         ? nil : snapshot.recentTools.joined(separator: " · "),
-                     limit: expanded ? nil : 1)
-            Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
-                .font(.ui(10)).buttonStyle(.link)
+            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded)
+            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 4)
+            if !snapshot.recentTools.isEmpty {
+                Text("ran " + snapshot.recentTools.joined(separator: " · "))
+                    .font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
+            }
         }
         .task(id: sessionID) { await refresh() }
         // Re-read on the same cadence the rows already tick at. The read is a
@@ -1140,21 +1141,34 @@ private struct Labelled: View {
     let title: String
     let body_: String?
     let limit: Int?
+    /// When given, a chevron beside the title opens the block out.
+    var expanded: Binding<Bool>?
 
-    init(_ title: String, _ body: String?, limit: Int?) {
+    init(_ title: String, _ body: String?, limit: Int?, expanded: Binding<Bool>? = nil) {
         self.title = title
         self.body_ = body
         self.limit = limit
+        self.expanded = expanded
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.ui(10)).fontWeight(.semibold)
-                .foregroundStyle(Color.label).textCase(.uppercase)
+            HStack {
+                Text(title).font(.ui(10)).fontWeight(.semibold)
+                    .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+                Spacer(minLength: 4)
+                if let expanded {
+                    Button { expanded.wrappedValue.toggle() } label: {
+                        Image(systemName: expanded.wrappedValue ? "chevron.up" : "chevron.down")
+                    }
+                    .buttonStyle(.borderless).foregroundStyle(Color.label)
+                    .help(expanded.wrappedValue ? "Show less" : "Show the full text")
+                }
+            }
             Text(body_ ?? "not recorded")
                 .font(.claudeMono(11))
                 .foregroundStyle(body_ == nil ? Color.label : Color.primary)
-                .lineLimit(limit ?? Int.max, reservesSpace: limit != nil)
+                .lineLimit(limit ?? Int.max)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1279,74 +1293,57 @@ private struct ConfigCard: View {
     let feedDir: URL
     @State private var hasPane = false
     @State private var pending: (command: String, question: String)?
-    @State private var notice: NoticeMessage?
+    /// The conversation card's, so a reply and a model change report in one place.
+    @Binding var notice: NoticeMessage?
     @State private var sending = false
 
     var body: some View {
         let st = session.stats
         let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
-        VStack(alignment: .leading, spacing: 6) {
-            // The two settings you can change side by side as menus, the
-            // read-only facts on one line under them: a row per fact made the
-            // section taller than the exchange it sits under.
-            HStack(spacing: 6) {
-                Menu {
-                    ForEach(SessionConfig.models, id: \.alias) { model in
-                        Button {
-                            pending = (SessionConfig.modelCommand(model.alias),
-                                       SessionConfig.modelConfirmation(model.title))
-                        } label: {
-                            if SessionConfig.isCurrent(model.alias, model: session.model) {
-                                Label(model.title, systemImage: "checkmark")
-                            } else {
-                                Text(model.title)
-                            }
+        // Only the two settings you can change. Thinking, output style and the
+        // version were read-only and sat under them for nobody's decision.
+        HStack(spacing: 6) {
+            Menu {
+                ForEach(SessionConfig.models, id: \.alias) { model in
+                    Button {
+                        pending = (SessionConfig.modelCommand(model.alias),
+                                   SessionConfig.modelConfirmation(model.title))
+                    } label: {
+                        if SessionConfig.isCurrent(model.alias, model: session.model) {
+                            Label(model.title, systemImage: "checkmark")
+                        } else {
+                            Text(model.title)
                         }
                     }
-                } label: {
-                    // The id only when the display name is missing.
-                    Text(session.model ?? st.modelID ?? "unknown").font(.ui(10))
                 }
-                .fixedSize()
-                .disabled(reason != nil || sending)
-                .help(reason ?? "Switch model")
-                Menu {
-                    ForEach(SessionConfig.efforts, id: \.self) { level in
-                        Button {
-                            pending = (SessionConfig.effortCommand(level),
-                                       SessionConfig.effortConfirmation(level))
-                        } label: {
-                            if st.effort == level {
-                                Label(level, systemImage: "checkmark")
-                            } else {
-                                Text(level)
-                            }
+            } label: {
+                // The id only when the display name is missing.
+                Text(session.model ?? st.modelID ?? "unknown").font(.ui(10))
+            }
+            .fixedSize()
+            .disabled(reason != nil || sending)
+            .help(reason ?? "Switch model")
+            Menu {
+                ForEach(SessionConfig.efforts, id: \.self) { level in
+                    Button {
+                        pending = (SessionConfig.effortCommand(level),
+                                   SessionConfig.effortConfirmation(level))
+                    } label: {
+                        if st.effort == level {
+                            Label(level, systemImage: "checkmark")
+                        } else {
+                            Text(level)
                         }
                     }
-                } label: {
-                    Text(st.effort ?? "default").font(.ui(10))
                 }
-                .fixedSize()
-                .disabled(reason != nil || sending)
-                .help(reason ?? "Change effort")
+            } label: {
+                Text(st.effort ?? "default").font(.ui(10))
             }
-            .controlSize(.small)
-            // A nil drops its fact.
-            let facts = [("thinking", st.thinking.map { $0 ? "on" : "off" }),
-                         ("style", st.outputStyle),
-                         ("", st.claudeVersion.map { "v" + $0 })]
-                .compactMap { key, value in value.map { (key, $0) } }
-            if !facts.isEmpty {
-                facts.enumerated().reduce(Text("")) { line, item in
-                    line + Text(item.offset == 0 ? "" : " · ").foregroundStyle(Color.label)
-                        + Text(item.element.0.isEmpty ? "" : item.element.0 + " ")
-                            .foregroundStyle(Color.label)
-                        + Text(item.element.1)
-                }
-                .font(.ui(10)).lineLimit(1).minimumScaleFactor(0.8)
-            }
-            if let notice { Notice(notice) }
+            .fixedSize()
+            .disabled(reason != nil || sending)
+            .help(reason ?? "Change effort")
         }
+        .controlSize(.small)
         .task(id: session.id) {
             let pid = session.pid
             hasPane = await Task.detached(priority: .utility) {
@@ -1850,7 +1847,7 @@ private struct GitGraphCard: View {
     /// Read this many, then show only their landmarks (`GitGraph.condense`),
     /// so the card fits its rows instead of scrolling.
     private static let limit = 60
-    private static let rowHeight: CGFloat = 20
+    private static let rowHeight: CGFloat = 17
     private static let laneWidth: CGFloat = 12
     /// Beyond this many lanes the drawing is clipped rather than letting a
     /// repo full of stale remote branches push the text off the card.
