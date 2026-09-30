@@ -249,7 +249,7 @@ enum GitActions {
             // says ahead 3 after a push" symptom this was meant to prevent.
             DispatchQueue.main.async {
                 guard let result else {
-                    completion(.init(kind: .error, text: "\(action.title) was stopped after 2 minutes and may have partly run. Check the repo."))
+                    completion(.init(kind: .error, text: "\(action.title) did not report back (timed out, could not start, or its output was cut off). Check the repo."))
                     return
                 }
                 guard result.status == 0 else {
