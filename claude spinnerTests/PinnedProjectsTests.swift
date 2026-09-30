@@ -313,6 +313,36 @@ final class PinnedProjectsTests: XCTestCase {
         }
     }
 
+    /// Desktop's session record, in its real shape: the newest entry holding
+    /// the root gives the project's folders, root first.
+    func testLinkedFoldersComeFromTheNewestDesktopSessionHoldingTheRoot() {
+        withTempDir { root in
+            let spaces = "\(root)/remote-session-spaces.json"
+            write(#"""
+            {"entries": [
+              {"sessionId": "a", "folders": ["/p/job search"]},
+              {"sessionId": "b", "folders": ["/p/job search/Resume/artifact", "/p/job search"], "memoryEnabled": false},
+              {"sessionId": "c", "folders": ["/p/other"]}
+            ]}
+            """#, to: spaces)
+            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/job search", spacesFiles: [spaces]),
+                           ["/p/job search", "/p/job search/Resume/artifact"])
+            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/none", spacesFiles: [spaces]), ["/p/none"],
+                           "no record: just the root")
+            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/x", spacesFiles: ["\(root)/missing.json"]), ["/p/x"])
+        }
+    }
+
+    func testContextListsTheDocsPresentInTheRoot() {
+        withTempDir { root in
+            write("s", to: "\(root)/STATUS.md")
+            write("t", to: "\(root)/TASKS.md")
+            let about = ProjectDiscovery.about(root: root, projectsDir: "\(root)/projects")
+            XCTAssertEqual(about.context, ["\(root)/STATUS.md", "\(root)/TASKS.md"])
+            XCTAssertEqual(about.folders, [root])
+        }
+    }
+
     // MARK: - Scheduled
 
     func testScheduleWording() {

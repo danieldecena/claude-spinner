@@ -49,14 +49,15 @@ struct PinnedProjectDetail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .top], 20)
             ScrollView {
-                // A dashboard: the same tile grid as a session's pane, so the two
-                // read as one app. Launch and tasks share the top row, what ran and
-                // what can be run the next, and each artifact takes a full row.
+                // Desktop's project page: the work in a main column, and what the
+                // project is made of (instructions, context, folders, memory,
+                // schedules) in a rail beside it. The main column keeps the tile
+                // grid of a session's pane, so the two read as one app.
+                HStack(alignment: .top, spacing: 16) {
                 TileGrid(minimum: 220, spacing: 12) {
                     launchCard.tileSpan(1)
                     tasksCard.tileSpan(2)
                     recentCard.tileSpan(2)
-                    if let extras { aboutCard(extras.about).tileSpan(1) }
                     if let extras {
                         discoveryCard("Skills", extras.skills) { skills in
                             chips(skills) { skill in
@@ -71,17 +72,6 @@ struct PinnedProjectDetail: View {
                     }
                     if !live.isEmpty { liveCard.tileSpan(1) }
                     if let extras {
-                        discoveryCard("Scheduled", extras.scheduled) { jobs in
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
-                                        Text(job.schedule + (job.enabled == false ? " · off" : "") + " · " + job.source)
-                                            .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
-                                    }
-                                }
-                            }
-                        }
                         discoveryCard("Workflows", extras.workflows) { workflows in
                             chips(workflows) { workflow in
                                 chip(workflow.name, symbol: "point.3.connected.trianglepath.dotted",
@@ -103,8 +93,10 @@ struct PinnedProjectDetail: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                rail.frame(width: 280)
+                }
                 .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             // The strip above the header is the toolbar's; clip so nothing scrolls
             // up behind the title either.
@@ -175,33 +167,93 @@ struct PinnedProjectDetail: View {
         .detailCard()
     }
 
-    /// Desktop's project panel, from the files behind it.
-    private func aboutCard(_ about: ProjectAbout) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CardTitle("Project")
-            aboutRow("Instructions", symbol: "doc.text",
-                     detail: about.instructions.isEmpty ? "none"
-                        : about.instructions.map { ($0 as NSString).lastPathComponent }.joined(separator: ", "),
-                     open: about.instructions.first)
-            aboutRow("Memory", symbol: "brain",
-                     detail: about.memories.map { $0 == 1 ? "1 memory" : "\($0) memories" } ?? "couldn't read",
-                     open: about.memories.map { $0 > 0 ? about.memoryDir : nil } ?? nil)
-            aboutRow("Folder", symbol: "folder",
-                     detail: (project.path as NSString).lastPathComponent, open: project.path)
+    /// Desktop's right-hand panel, from the files behind it: one row per part
+    /// of the project, each with what it holds and a way to open it.
+    private var rail: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let extras {
+                let about = extras.about
+                railRow("Instructions", symbol: "doc.text",
+                        detail: about.instructions.isEmpty ? "none"
+                            : about.instructions.map(Self.name).joined(separator: ", "),
+                        action: about.instructions.first.map { ("Open", $0) })
+                railRow("Context", symbol: "doc.on.doc",
+                        detail: about.context.count == 1 ? "1 file" : "\(about.context.count) files",
+                        note: "Files uploaded in Claude Desktop stay there.") {
+                    ForEach(about.context, id: \.self) { railItem(Self.name($0), path: $0) }
+                }
+                railRow("Folder", symbol: "folder",
+                        detail: about.folders.count == 1 ? "1 folder" : "\(about.folders.count) folders") {
+                    ForEach(about.folders, id: \.self) { folder in
+                        railItem(folder == project.path ? Self.name(folder)
+                                    : String(folder.dropFirst(project.path.count + 1)),
+                                 path: folder)
+                    }
+                }
+                railRow("Memory", symbol: "brain",
+                        detail: about.memories.map { $0 == 1 ? "1 memory" : "\($0) memories" } ?? "couldn't read",
+                        action: about.memories.map { $0 > 0 ? ("View", about.memoryDir) : nil } ?? nil)
+                railRow("Scheduled", symbol: "clock",
+                        detail: extras.scheduled.items.first.map { $0.name } ?? "none") {
+                    ForEach(Array(extras.scheduled.items.enumerated()), id: \.offset) { _, job in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
+                            Text(job.schedule + (job.enabled == false ? " · off" : "") + " · " + job.source)
+                                .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+                        }
+                    }
+                    if !extras.scheduled.unreadable.isEmpty {
+                        Text("Couldn't read " + extras.scheduled.unreadable.joined(separator: ", "))
+                            .font(.ui(10)).foregroundStyle(Color.attention)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            } else {
+                Text("Reading the project…").font(.ui(10)).foregroundStyle(Color.label)
+                    .padding(.vertical, 12)
+            }
         }
+        .padding(.horizontal, 16).padding(.vertical, 4)
         .detailCard()
     }
 
-    private func aboutRow(_ title: String, symbol: String, detail: String, open path: String?) -> some View {
-        HStack(spacing: 6) {
-            Label(title, systemImage: symbol).font(.ui(11))
-            Text(detail).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 4)
-            if let path {
-                Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
-                    .buttonStyle(.link).font(.ui(10))
-                    .help("Open \(path)")
+    private static func name(_ path: String) -> String { (path as NSString).lastPathComponent }
+
+    /// A rail row: icon, title and a dim summary, an optional action at the
+    /// right, and the items under it. Rows are ruled apart as Desktop's are.
+    private func railRow<Items: View>(_ title: String, symbol: String, detail: String,
+                                      action: (label: String, path: String)? = nil, note: String? = nil,
+                                      @ViewBuilder items: () -> Items = { EmptyView() }) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).frame(width: 16).foregroundStyle(Color.label)
+                Text(title).font(.ui(12))
+                Text(detail).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 4)
+                if let action {
+                    Button(action.label) { NSWorkspace.shared.open(URL(fileURLWithPath: action.path)) }
+                        .buttonStyle(.link).font(.ui(11))
+                        .help("Open \(action.path)")
+                }
             }
+            VStack(alignment: .leading, spacing: 4) { items() }
+                .padding(.leading, 24)
+            if let note {
+                Text(note).font(.ui(10)).foregroundStyle(Color.label).padding(.leading, 24)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func railItem(_ label: String, path: String) -> some View {
+        HStack(spacing: 6) {
+            Text(label).font(.ui(11)).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 4)
+            Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+                .buttonStyle(.link).font(.ui(10))
+                .help("Open \(path)")
         }
     }
 

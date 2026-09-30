@@ -163,6 +163,12 @@ nonisolated struct ProjectAbout: Equatable {
     /// Memory files, not counting the MEMORY.md index. nil when the folder
     /// exists but can't be listed; 0 when there is none.
     var memories: Int? = 0
+    /// The folders Desktop gives this project's sessions: the root first, then
+    /// any others linked beside it. Just the root when Desktop has no record.
+    var folders: [String] = []
+    /// Docs in the root that sessions read for context. Desktop's uploaded
+    /// project files are not on this Mac, so they are not counted here.
+    var context: [String] = []
 }
 
 /// Everything the pinned tab reads from disk. Pure over the paths it is given,
@@ -605,8 +611,32 @@ nonisolated enum ProjectDiscovery {
 
     static let instructionFiles = ["CLAUDE.md", "PROJECT-INSTRUCTIONS.md"]
 
-    static func about(root: String, projectsDir: String) -> ProjectAbout {
+    static let contextFiles = ["AGENTS.md", "STATUS.md", "TASKS.md", "README.md"]
+
+    /// Desktop keeps no local list of a project's linked folders, but it records
+    /// the folders each session was given. The newest record holding the root is
+    /// the project's current set (2026-09-30: job search + job search/Resume/artifact,
+    /// matching the project page's "2 folders").
+    static func desktopFolders(root: String, spacesFiles: [String]) -> [String] {
+        var newest: [String]?
+        for file in spacesFiles {
+            guard let data = FileManager.default.contents(atPath: file),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let entries = obj["entries"] as? [[String: Any]] else { continue }
+            // Appended as sessions start, so the last match is the newest.
+            if let last = entries.last(where: { ($0["folders"] as? [String])?.contains(root) == true }) {
+                newest = last["folders"] as? [String]
+            }
+        }
+        guard let folders = newest else { return [root] }
+        return [root] + folders.filter { $0 != root }
+    }
+
+    static func about(root: String, projectsDir: String, spacesFiles: [String] = []) -> ProjectAbout {
         var about = ProjectAbout()
+        about.folders = desktopFolders(root: root, spacesFiles: spacesFiles)
+        about.context = contextFiles.map { root + "/" + $0 }
+            .filter { FileManager.default.fileExists(atPath: $0) }
         about.instructions = instructionFiles.map { root + "/" + $0 }
             .filter { FileManager.default.fileExists(atPath: $0) }
         about.memoryDir = projectsDir + "/" + transcriptSlug(root) + "/memory"
@@ -627,7 +657,11 @@ nonisolated enum ProjectDiscovery {
                                topic: topic)
         extras.workflows = workflows(projectRoot: root, userDir: home + "/.claude/workflows", topic: topic)
         extras.artifacts = artifacts(root: root)
-        extras.about = about(root: root, projectsDir: home + "/.claude/projects")
+        let sessionsBase = home + "/Library/Application Support/Claude/local-agent-mode-sessions"
+        let spaces = (listing(sessionsBase) ?? []).flatMap { account in
+            (listing(sessionsBase + "/" + account) ?? []).map { sessionsBase + "/" + account + "/" + $0 + "/remote-session-spaces.json" }
+        }
+        extras.about = about(root: root, projectsDir: home + "/.claude/projects", spacesFiles: spaces)
         var scheduled = launchdJobs(agentsDir: home + "/Library/LaunchAgents", folder: root, topic: topic)
         if let crontab = readCrontab() {
             scheduled.items += cronJobs(crontab: crontab, folder: root, topic: topic).items

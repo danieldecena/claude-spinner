@@ -888,7 +888,11 @@ struct TileGrid: Layout {
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.replacingUnspecifiedDimensions().width
+        var width = proposal.replacingUnspecifiedDimensions().width
+        // A stack probing for its widest proposes infinity, and a column count
+        // from that traps converting to Int: the Job Search rail's HStack crashed
+        // the app on open (2026-09-30). Answer with the widest useful grid.
+        if !width.isFinite { width = CGFloat(maxColumns) * (minimum + spacing) - spacing }
         let heights = rows(width: width, subviews: subviews).map(\.height)
         return CGSize(width: width,
                       height: heights.reduce(0, +) + spacing * CGFloat(max(heights.count - 1, 0)))

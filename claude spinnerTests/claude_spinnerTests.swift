@@ -3007,6 +3007,27 @@ final class claude_spinnerTests: XCTestCase {
                        original)
     }
 
+    // MARK: - Tile grid
+
+    /// Beside a sibling in an HStack, the stack probes the grid with an infinite
+    /// width; converting that to a column count trapped and took the app down
+    /// when the Job Search tab opened (2026-09-30).
+    @MainActor func testATileGridBesideASiblingLaysOutWithoutTrapping() {
+        let view = HStack(alignment: .top, spacing: 16) {
+            TileGrid(minimum: 220, spacing: 12) {
+                Color.red.frame(height: 40)
+                Color.blue.frame(height: 40)
+            }
+            .frame(maxWidth: .infinity)
+            Color.green.frame(width: 280, height: 40)
+        }
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertTrue(host.fittingSize.width.isFinite)
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
+    }
+
     // MARK: - Sparkline spoken value
 
     /// VoiceOver hears the line's endpoints, since the shape itself says nothing.
