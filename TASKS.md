@@ -10,6 +10,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Merge You asked, reply and Config into one card
 - [x] Style the sidebar as a card like the detail pane
 - [x] Move the usage block into a detail card -- 8c7eb4a
 - [x] Fill the History card to its height -- aaceb05

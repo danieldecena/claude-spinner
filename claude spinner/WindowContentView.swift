@@ -400,7 +400,7 @@ private struct SessionDetail: View {
                     // it, in one row: the prose and the task titles split the
                     // width, the skill chips keep a fixed column.
                     HStack(alignment: .top, spacing: 10) {
-                        TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
+                        ConversationCard(session: session, feedDir: feedDir)
                         TasksCard(session: session, feedDir: feedDir, text: tasksText, root: tasksRoot,
                                   suggestion: suggestion)
                         SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
@@ -425,7 +425,6 @@ private struct SessionDetail: View {
                     sessionCard
                     contextCard.tileSpan(2)
                     usage
-                    ConfigCard(session: session, feedDir: feedDir)
                 }
 
                 if !children.isEmpty {
@@ -725,9 +724,10 @@ private struct AskCard: View {
 
 // MARK: - Free-text reply
 
-/// The window's one-row toolbar, edge to edge: the sidebar toggle, the reply
-/// field and the session actions on glass, with the last outcome from any of
-/// them said underneath. Git actions live in the Git commands card.
+/// The window's one-row toolbar, edge to edge: the sidebar toggle and the
+/// session actions on glass, with the last outcome from any of them said
+/// underneath. Git actions live in the Git commands card, the reply field in
+/// the conversation card.
 ///
 /// Pinned above the scroll rather than inside it, after the footage library:
 /// replying and acting on the session stay in reach however far down the cards
@@ -750,12 +750,10 @@ private struct WindowToolbar: View {
                     .buttonStyle(.glass)
                     .help(sidebarVisible ? "Hide sidebar" : "Show sidebar")
                     .accessibilityLabel(sidebarVisible ? "Hide sidebar" : "Show sidebar")
+                    Spacer(minLength: 0)
                     if let session {
-                        ReplyBox(session: session, feedDir: feedDir, notice: $notice)
                         ActionBar(session: session, feedDir: feedDir, notice: $notice,
                                   suggestion: suggestion)
-                    } else {
-                        Spacer(minLength: 0)
                     }
                 }
             }
@@ -787,8 +785,8 @@ private struct ReplyBox: View {
                 .buttonStyle(.borderless)
                 .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(.leading, 14).padding(.trailing, 10).padding(.vertical, 8)
-        .glassEffect(.regular, in: Capsule())
+        .padding(.leading, 12).padding(.trailing, 10).padding(.vertical, 7)
+        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private func send() {
@@ -1652,6 +1650,27 @@ private struct SpendTrend: View {
 
 /// The last thing Claude said, what you last asked, and what it just ran.
 ///
+/// Everything said to and by the session in one card: the last exchange, a
+/// field to answer it, and the model and effort the next turn runs on.
+private struct ConversationCard: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @State private var notice: NoticeMessage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
+            ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+            if let notice { Notice(notice) }
+            Divider()
+            ConfigCard(session: session, feedDir: feedDir)
+        }
+        .detailCard()
+        // A half-typed reply or its notice must never carry to the next session.
+        .id(session.id)
+    }
+}
+
 /// Answers the question the rest of the pane cannot: a row saying "needs input"
 /// tells you something is waiting, not what it wants or how to reply. This is
 /// read from the session's own transcript, which no feed file carries.
@@ -1676,7 +1695,6 @@ private struct TranscriptCard: View {
             Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
                 .font(.claudeMono(10)).buttonStyle(.link)
         }
-        .detailCard()
         .task(id: sessionID) { await refresh() }
         // Re-read on the same cadence the rows already tick at. The read is a
         // bounded tail, not the whole file, so this stays cheap.
@@ -1909,7 +1927,6 @@ private struct ConfigCard: View {
             }
             if let notice { Notice(notice) }
         }
-        .detailCard()
         .task(id: session.id) {
             let pid = session.pid
             hasPane = await Task.detached(priority: .utility) {

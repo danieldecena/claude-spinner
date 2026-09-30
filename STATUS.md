@@ -144,6 +144,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: You asked, the reply field and Config are one card in the top row
+  (exchange, reply, then a Config subsection). The toolbar keeps only the
+  sidebar toggle and session actions; a reply's notice shows in the card.
+  Seen on screen.
 - Decided: the sidebar is a card (`Color.card`, radius 14, the detail pane's
   14pt inset, mono project headings) instead of a clear glass panel. The glass
   took the desktop's tint and matched none of the cards beside it. Seen on screen.
