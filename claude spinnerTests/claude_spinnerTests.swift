@@ -1350,6 +1350,72 @@ final class claude_spinnerTests: XCTestCase {
         #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#,
     ]}
 
+    private func lastPrompt(_ lines: [String]) -> String? {
+        TranscriptReader.parse(lines.joined(separator: "\n"), droppingFirstLine: false).lastPrompt
+    }
+
+    /// Shapes from the 2026-09-30 transcript where the card read "/compact" through
+    /// a later /goal and three mid-turn questions: the stale record came last.
+    func testATypedSlashCommandBeatsAStaleLastPromptRecord() {
+        XCTAssertEqual(lastPrompt([
+            #"{"type":"user","message":{"role":"user","content":"<command-message>goal</command-message>\n<command-name>/goal</command-name>\n<command-args>120</command-args>"}}"#,
+            #"{"type":"user","isMeta":true,"message":{"role":"user","content":"You are operating in FULL AUTONOMOUS mode."}}"#,
+            #"{"type":"last-prompt","lastPrompt":"/compact"}"#,
+        ]), "/goal 120")
+    }
+
+    func testAPromptTypedMidTurnIsTheLastPrompt() {
+        XCTAssertEqual(lastPrompt([
+            #"{"type":"user","message":{"role":"user","content":"<command-name>/goal</command-name>"}}"#,
+            #"{"type":"attachment","attachment":{"type":"queued_command","prompt":"wheres goal indicator","origin":{"kind":"human"}}}"#,
+            #"{"type":"attachment","attachment":{"type":"queued_command","prompt":"<task-notification>done</task-notification>","origin":{"kind":"task-notification"}}}"#,
+            #"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}"#,
+            #"{"type":"last-prompt","lastPrompt":"/compact"}"#,
+        ]), "wheres goal indicator")
+    }
+
+    private func transcriptFile(_ lines: [String]) -> String {
+        let path = NSTemporaryDirectory() + "prompt-\(UUID().uuidString).jsonl"
+        FileManager.default.createFile(atPath: path, contents: Data((lines.joined(separator: "\n") + "\n").utf8))
+        addTeardownBlock { try? FileManager.default.removeItem(atPath: path) }
+        return path
+    }
+
+    private func append(_ text: String, to path: String) {
+        let h = FileHandle(forWritingAtPath: path)!
+        h.seekToEndOfFile(); h.write(Data(text.utf8)); h.closeFile()
+    }
+
+    /// Screenshots pushed the real prompt 2 MB back while the stale record kept
+    /// landing inside the tail; the tail alone read "/compact".
+    func testATypedPromptBehindTheTailStillWins() {
+        let filler = #"{"type":"assistant","message":{"content":[{"type":"text","text":""# + String(repeating: "x", count: 4000) + #""}]}}"#
+        let path = transcriptFile(
+            [#"{"type":"user","message":{"role":"user","content":"<command-name>/goal</command-name>\n<command-args>120</command-args>"}}"#]
+            + Array(repeating: filler, count: 10)
+            + [#"{"type":"last-prompt","lastPrompt":"/compact"}"#])
+        XCTAssertEqual(TranscriptReader.read(path: path, tailBytes: 2048).lastPrompt, "/goal 120")
+    }
+
+    func testAPromptAppendedLaterIsPickedUpAndAHalfWrittenOneWaits() {
+        let path = transcriptFile([#"{"type":"user","message":{"role":"user","content":"first"}}"#])
+        XCTAssertEqual(TranscriptReader.read(path: path).lastPrompt, "first")
+        let record = #"{"type":"attachment","attachment":{"type":"queued_command","prompt":"second","origin":{"kind":"human"}}}"#
+        append(String(record.prefix(30)), to: path)
+        XCTAssertEqual(TranscriptReader.read(path: path).lastPrompt, "first", "half a record is not read yet")
+        append(String(record.dropFirst(30)) + "\n", to: path)
+        XCTAssertEqual(TranscriptReader.read(path: path).lastPrompt, "second")
+    }
+
+    func testHarnessUserRecordsAreNotPrompts() {
+        XCTAssertEqual(lastPrompt([
+            #"{"type":"last-prompt","lastPrompt":"fix the chart"}"#,
+            #"{"type":"user","message":{"role":"user","content":"[Request interrupted by user]"}}"#,
+            #"{"type":"user","message":{"role":"user","content":"<local-command-stdout>Compacted</local-command-stdout>"}}"#,
+            #"{"type":"user","isCompactSummary":true,"message":{"role":"user","content":"This session is being continued"}}"#,
+        ]), "fix the chart", "with no typed prompt in the tail, the record is the fallback")
+    }
+
     func testTranscriptParsePullsOutWhatTheSessionIsDoing() {
         let snap = TranscriptReader.parse(transcriptLines.joined(separator: "\n"),
                                           droppingFirstLine: false)
@@ -2886,35 +2952,6 @@ final class claude_spinnerTests: XCTestCase {
         let data = try! JSONEncoder().encode(original)
         XCTAssertEqual(try! JSONDecoder().decode([String: [ContextSample]].self, from: data),
                        original)
-    }
-
-    // MARK: - Per-session spend history
-
-    private func spend(_ pairs: [(Double, Double)]) -> [SpendSample] {
-        pairs.map { SpendSample(usd: $0.0, at: $0.1) }
-    }
-
-    func testASpendSampleIsAppendedWhenTheTotalMovesAfterTheGap() {
-        let out = FeedWatcher.appending(usd: 1.5, at: 100, to: spend([(1, 0)]))
-        XCTAssertEqual(out, spend([(1, 0), (1.5, 100)]))
-    }
-
-    func testAnUnchangedSpendAppendsNothing() {
-        let existing = spend([(1, 0)])
-        XCTAssertEqual(FeedWatcher.appending(usd: 1, at: 9_999, to: existing), existing)
-    }
-
-    func testASpendChangeInsideTheGapCorrectsTheLastPointInPlace() {
-        XCTAssertEqual(FeedWatcher.appending(usd: 2, at: 5, to: spend([(1, 0)])), spend([(2, 0)]))
-    }
-
-    func testTheSpendBufferIsCappedAndDropsTheOldestFirst() {
-        var buffer: [SpendSample] = []
-        for i in 0..<(Constants.contextHistoryMax + 30) {
-            buffer = FeedWatcher.appending(usd: Double(i + 1), at: Double(i) * 60, to: buffer)
-        }
-        XCTAssertEqual(buffer.count, Constants.contextHistoryMax)
-        XCTAssertEqual(buffer.first?.usd, 31, "the oldest points go, not the newest")
     }
 
     // MARK: - Sparkline spoken value

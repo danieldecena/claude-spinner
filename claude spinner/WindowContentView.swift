@@ -1254,7 +1254,8 @@ private struct TranscriptCard: View {
 
     /// Re-reads the goal's deadline file each time its label can change, about
     /// once a minute. A session with no pane, or no file, shows no sign: that is
-    /// unknown, and the sign is never drawn from a guess.
+    /// unknown, and the sign is never drawn from a guess. With no file yet it
+    /// looks again in 10s, so a `/goal` started mid-view shows within seconds.
     private func trackGoal() async {
         goal = nil
         while !Task.isCancelled {
@@ -1267,7 +1268,7 @@ private struct TranscriptCard: View {
                 }.value
                 let clock = GoalClock.parse(text, now: Date())
                 if clock != goal { goal = clock }
-                wait = clock?.secondsUntilLabelChanges ?? 60
+                wait = clock?.secondsUntilLabelChanges ?? 10
             } else if goal != nil {
                 goal = nil
             }
@@ -1316,10 +1317,14 @@ private struct Labelled: View {
                 Text(title).font(.ui(10)).fontWeight(.semibold)
                     .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
                 if let goal {
-                    Text(goal.label).font(.ui(10))
-                        .foregroundStyle(goal.isLanding || goal.isOverrun ? Color.attention : Color.label)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                    // Tinted, not grey: in the label grey it read as part of the
+                    // caption and was missed (asked "where is it" twice, 2026-09-30).
+                    let tint = goal.isLanding || goal.isOverrun ? Color.attention : Color.series1
+                    Label(goal.label, systemImage: "flag.checkered")
+                        .font(.ui(11)).fontWeight(.semibold)
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(tint.opacity(0.16), in: Capsule())
                         .fixedSize()
                         .help("Time left on this session's /goal run")
                 }

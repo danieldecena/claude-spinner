@@ -142,12 +142,32 @@
 
 1. [code] Watch the Career Hub pop-out open (floating mini window, frame remembered). Not
    seen yet: the embed rendered, but Daniel was mid claude.ai sign-in inside it.
-2. [you] Click the Plans and Job Search tabs: Plans pin and plugin skill chips not seen yet.
-3. [you] Keep or drop `FeedWatcher.spendHistory`; attention colour; menu-bar panel type.
+2. [code] Menu panel lists `AGENT-<id>` sections with 0 sessions (seen in an offscreen
+   render 2026-09-30); find where subagent feeds become project groups.
 
 The rest is in `TASKS.md`.
 
 ## Decision log
+
+### 2026-09-30 (goal chip, real last prompt, panel type, spend history dropped)
+- Decided: the goal chip is tinted (`series1`, attention when landing) with a flag; in
+  label grey Daniel asked where it was twice. A missing deadline file is re-read in
+  10s, not 60s. Seen on screen: "GOAL 113 min left".
+- Decided: "you asked" prefers the newest typed prompt (a non-meta user record, a
+  `/cmd args` command, or a human `queued_command` attachment) over Claude Code's
+  `last-prompt` record, which kept re-appending "/compact" after `/goal 120` and three
+  questions. Screenshots put the real prompt 2 MB back, so `PromptTracker` walks back
+  once (1 MB chunks, 16 MB cap) and then reads only appended bytes, stopping at a
+  newline. Four new tests, each mutation-checked.
+- Decided: attention stays Spinner blue (the audit's reason: kit warn blurs with clay).
+  The menu panel moves to kit type the window's way: chrome on `Font.ui`, gauge figures
+  on `Font.figure`, session rows stay Menlo because their columns are measured in it.
+  Seen in an offscreen render of `MenuContentView`.
+- Decided: `spendHistory` dropped (no reader since the Cost chart went); the app clears
+  the stale defaults key on launch.
+- Decided: the pinned dashboard's title sits above its ScrollView; inside it, the
+  title slid under the toolbar strip and drew cut off. Seen fixed on screen.
+- Observed: Plans pin and the plugin skill chips on screen (Job Search tab, 08:32).
 
 ### 2026-09-30 (notarized)
 - Decided: `./notarize.sh` ships a Developer ID signed, notarized, stapled copy to

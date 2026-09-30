@@ -3,14 +3,16 @@
 ## Tasks
 
 - [ ] Watch auto-merge switch itself on for a real open PR
-- [ ] Decide attention colour: kit warn or Spinner blue
-- [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Watch the Career Hub pop-out open after sign-in
-- [ ] See the Plans tab and plugin skill chips on screen
-- [ ] Stop recording spend history nothing reads
 
 ## Completed
 
+- [x] Decide attention colour: kit warn or Spinner blue
+- [x] Bring the menu-bar panel onto App Kit type
+- [x] See the Plans tab and plugin skill chips on screen
+- [x] Stop recording spend history nothing reads
+- [x] Show the real last prompt in the You asked card
+- [x] Keep the pinned dashboard title clear of the toolbar
 - [x] Notarize the app with the Developer account
 - [x] Embed Career Hub in Job Search with a pop-out window -- b6bc623
 - [x] Show ask boxes in the You asked card and the terminal
