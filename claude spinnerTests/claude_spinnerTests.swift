@@ -3175,6 +3175,35 @@ final class claude_spinnerTests: XCTestCase {
                        "idle 2m 0s")
     }
 
+    // MARK: - Git tones
+
+    func testGitTonesReadSettledPendingAndBroken() {
+        XCTAssertEqual(SyncState.inSync.tone, .good)
+        XCTAssertEqual(SyncState.ahead(2).tone, .pending)
+        XCTAssertEqual(SyncState.diverged.tone, .bad)
+        // Not reachable is not in sync.
+        XCTAssertEqual(SyncState.unknown.tone, .neutral)
+        XCTAssertEqual(PRState.none.tone, .neutral)
+        XCTAssertEqual(PRState.open(number: 3, url: "u", draft: false).tone, .good)
+    }
+
+    /// The worst verdict wins: passing checks don't hide a conflict.
+    func testMergeToneTakesTheWorstVerdict() {
+        XCTAssertEqual(MergeReadiness(mergeable: "CONFLICTING", state: "CLEAN", review: "APPROVED").tone, .bad)
+        XCTAssertEqual(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "REVIEW_REQUIRED").tone, .warn)
+        XCTAssertEqual(MergeReadiness(mergeable: "MERGEABLE", state: "CLEAN", review: "").tone, .good)
+        XCTAssertEqual(MergeReadiness().tone, .neutral)
+    }
+
+    func testUntrackedAloneDoesNotReadAsPendingWork() {
+        var snap = GitSnapshot()
+        XCTAssertEqual(snap.changesTone, .good)
+        snap.untracked = 4
+        XCTAssertEqual(snap.changesTone, .neutral)
+        snap.dirty = 1
+        XCTAssertEqual(snap.changesTone, .pending)
+    }
+
     // MARK: - Skill shortcuts
 
     /// Built-ins always show; a skill or command shows only when its file exists.

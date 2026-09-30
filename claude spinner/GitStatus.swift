@@ -33,6 +33,63 @@ enum SyncState: Equatable {
     }
 }
 
+/// How a git fact should read at a glance: settled, waiting on you, worth a
+/// look, broken, or not known. The card tints each row's icon by it.
+enum GitTone: Equatable { case good, pending, warn, bad, neutral }
+
+extension SyncState {
+    var tone: GitTone {
+        switch self {
+        case .inSync: return .good
+        case .ahead: return .pending
+        case .remoteAhead: return .warn
+        case .diverged: return .bad
+        case .noUpstream, .unknown: return .neutral
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .inSync: return "checkmark.circle"
+        case .ahead: return "arrow.up.circle"
+        case .remoteAhead: return "arrow.down.circle"
+        case .diverged: return "arrow.triangle.branch"
+        case .noUpstream: return "icloud.slash"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+}
+
+extension PRState {
+    /// No PR is neutral, not bad: most branches never need one.
+    var tone: GitTone {
+        switch self {
+        case .open(_, _, let draft): return draft ? .neutral : .good
+        case .merged: return .good
+        case .closed, .none, .unknown: return .neutral
+        }
+    }
+}
+
+extension MergeReadiness {
+    /// The worst thing GitHub said, since any one of them can stop a merge.
+    var tone: GitTone {
+        if state == "DIRTY" || mergeable == "CONFLICTING" || review == "CHANGES_REQUESTED" { return .bad }
+        if ["UNSTABLE", "BEHIND", "BLOCKED"].contains(state) || review == "REVIEW_REQUIRED" { return .warn }
+        if state == "CLEAN" || state == "HAS_HOOKS" { return .good }
+        return .neutral
+    }
+}
+
+extension GitSnapshot {
+    /// Uncommitted work is pending; untracked files alone are neutral, for the
+    /// same reason `dirty` excludes them.
+    var changesTone: GitTone {
+        if isDirty { return .pending }
+        return untracked > 0 ? .neutral : .good
+    }
+}
+
 /// Whether this branch has a pull request.
 ///
 /// Three cases, not two. `gh pr view` exits non-zero both when there is no PR

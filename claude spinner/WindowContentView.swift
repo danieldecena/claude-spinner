@@ -1734,6 +1734,45 @@ private struct ShortcutChips: View {
 
 // MARK: - Git
 
+/// One git fact: a tinted icon saying how it reads, a label, the value.
+private struct GitStatusRow: View {
+    let label: String
+    let value: String
+    let symbol: String
+    let tone: GitTone
+
+    init(_ label: String, _ value: String, symbol: String, tone: GitTone) {
+        self.label = label
+        self.value = value
+        self.symbol = symbol
+        self.tone = tone
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol).font(.system(size: 11))
+                .foregroundStyle(tint).frame(width: 14)
+            Text(label).font(.system(size: 11)).foregroundStyle(Color.label)
+                .frame(width: 46, alignment: .leading)
+            Text(value).font(.claudeMono(11))
+                .foregroundStyle(tone == .neutral ? Color.label : Color.primary)
+                .lineLimit(1).truncationMode(.middle).help(value)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value)")
+    }
+
+    private var tint: Color {
+        switch tone {
+        case .good: return .usageGreen
+        case .pending: return .claude
+        case .warn: return .usageAmber
+        case .bad: return .usageRed
+        case .neutral: return .label
+        }
+    }
+}
+
 /// Branch, working-tree and remote state for the selected session's directory.
 /// The actions that act on it live in the Git commands card (`GitButtons`);
 /// what stays here is the sentence for any of them that couldn't be worked out.
@@ -1764,20 +1803,55 @@ private struct GitCard: View {
             // 90-second cycle sitting next to local facts read every five, and
             // one age for the section would misreport whichever half it wasn't.
             let now = Date()
-            let local = StatFormat.age(snap.readAt, now: now)
-            let remote = StatFormat.age(snap.remoteReadAt, now: now)
+            let local = snap.readAt == .distantPast ? nil
+                : FeedWatcher.compactAge(since: snap.readAt, now: now)
+            let remote = snap.remoteReadAt == .distantPast ? nil
+                : FeedWatcher.compactAge(since: snap.remoteReadAt, now: now)
             VStack(alignment: .leading, spacing: 8) {
-                StatSection("Git", rows: [
-                    ("branch", snap.branchLabel, local),
-                    ("changes", changesLabel(snap), local),
-                    ("remote", snap.sync.label, remote),
-                    ("pr", snap.pr.label, remote),
-                    ("checks", checksLabel(snap), remote),
-                ], refresh: reload)
+                header
+                HStack(spacing: 6) {
+                    Image(systemName: snap.detached ? "exclamationmark.triangle" : "arrow.triangle.branch")
+                        .foregroundStyle(snap.detached ? Color.usageAmber : Color.label)
+                    Text(snap.branchLabel).font(.claudeMono(12)).fontWeight(.semibold)
+                        .lineLimit(1).truncationMode(.middle)
+                    if snap.isDefaultBranch {
+                        Text("default").font(.claudeMono(9)).foregroundStyle(Color.label)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.18), in: Capsule())
+                    }
+                }
+                .help(snap.upstream.map { "tracks \($0)" } ?? "no upstream")
+                VStack(alignment: .leading, spacing: 5) {
+                    GitStatusRow("tree", changesLabel(snap) ?? "clean",
+                                 symbol: snap.isDirty ? "pencil" : "checkmark.circle",
+                                 tone: snap.changesTone)
+                    GitStatusRow("remote", snap.sync.label, symbol: snap.sync.symbol, tone: snap.sync.tone)
+                    GitStatusRow("pr", snap.pr.label ?? "unknown",
+                                 symbol: "arrow.triangle.pull", tone: snap.pr.tone)
+                    if let checks = checksLabel(snap) {
+                        GitStatusRow("checks", checks, symbol: "checklist", tone: snap.merge.tone)
+                    }
+                }
                 blockedReasons(snap)
+                // Two clocks, said once each, under everything they date.
+                Text([local.map { "local read \($0) ago" }, remote.map { "remote \($0) ago" }]
+                        .compactMap { $0 }.joined(separator: " · "))
+                    .font(.claudeMono(9)).foregroundStyle(Color.label)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         } else {
             StatSection("Git", empty: read ? "not a git repository" : "reading…")
+        }
+    }
+
+    /// The title and Refresh. The read ages sit once at the foot of the card:
+    /// a local age and a remote age on every row was five timestamps saying two
+    /// things, and on the title line they were cut off at card width.
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text("Git").font(.claudeMono(10)).fontWeight(.semibold)
+                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+            Button("Refresh", action: reload).font(.claudeMono(10)).buttonStyle(.link)
         }
     }
 
