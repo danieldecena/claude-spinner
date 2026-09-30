@@ -294,22 +294,37 @@ private struct SessionDetail: View {
         let st = session.stats
         let progress = session.todoProgress
 
-        StatSection("Session", rows: [
-            ("status", label(for: session)),
-            ("todos", progress.total == 0 ? nil : "\(progress.done)/\(progress.total)"),
-            ("host", session.host.isEmpty ? nil : session.host),
-            ("pid", session.pid.map(String.init)),
-            ("repo", st.repo),
-        ])
+        VStack(alignment: .leading, spacing: 8) {
+            StatSection("Session", rows: [
+                ("status", label(for: session)),
+                ("todos", progress.total == 0 ? nil : "\(progress.done)/\(progress.total)"),
+                ("host", session.host.isEmpty ? nil : session.host),
+                ("pid", session.pid.map(String.init)),
+                ("repo", st.repo),
+            ])
+            if progress.total > 0 {
+                ShareBar(caption: "todos done",
+                         ratio: Double(progress.done) / Double(progress.total),
+                         tint: .usageGreen)
+            }
+        }
         .detailCard()
 
-        StatSection("Cost", rows: [
-            ("spend", st.costUSD.map(StatFormat.money)),
-            ("wall", st.wallSeconds.map(StatFormat.duration)),
-            ("api", st.apiSeconds.map(StatFormat.duration)),
-            ("api share", st.apiShare.map(StatFormat.percent)),
-            ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
-        ])
+        VStack(alignment: .leading, spacing: 8) {
+            StatSection("Cost", rows: [
+                ("spend", st.costUSD.map(StatFormat.money)),
+                ("wall", st.wallSeconds.map(StatFormat.duration)),
+                ("api", st.apiSeconds.map(StatFormat.duration)),
+                ("api share", st.apiShare.map(StatFormat.percent)),
+                ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
+            ])
+            if let share = st.apiShare {
+                ShareBar(caption: "time waiting on the api", ratio: share, tint: .claude)
+            }
+            if let added = st.linesAdded, let removed = st.linesRemoved, added + removed > 0 {
+                LinesBar(added: added, removed: removed)
+            }
+        }
         .detailCard()
 
         VStack(alignment: .leading, spacing: 8) {
@@ -331,13 +346,19 @@ private struct SessionDetail: View {
         }
         .detailCard()
 
-        StatSection("Prompt cache", rows: [
-            ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
-            ("state", st.cacheWarm.map { $0 ? "warm" : "cold" }),
-            ("ttl", st.cacheTTL),
-            ("requests", st.cacheRequests.map(String.init)),
-            ("misses", st.cacheMisses.map(String.init)),
-        ])
+        HStack(alignment: .top, spacing: 12) {
+            StatSection("Prompt cache", rows: [
+                ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
+                ("state", st.cacheWarm.map { $0 ? "warm" : "cold" }),
+                ("ttl", st.cacheTTL),
+                ("requests", st.cacheRequests.map(String.init)),
+                ("misses", st.cacheMisses.map(String.init)),
+            ])
+            if let ratio = st.cacheHitRatio {
+                Spacer(minLength: 0)
+                CacheRing(ratio: ratio)
+            }
+        }
         .detailCard()
 
         StatSection("Config", rows: [
@@ -1078,6 +1099,89 @@ struct ContextMeter: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Context used")
         .accessibilityValue("\(Int((ratio * 100).rounded())) percent of the window")
+    }
+}
+
+/// A captioned share-of-a-whole bar, in the meter's capsule language: the row
+/// above prints the number, this draws it as a length.
+struct ShareBar: View {
+    let caption: String
+    let ratio: Double
+    let tint: Color
+
+    var body: some View {
+        let clamped = min(1, max(0, ratio))
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.22))
+                    Capsule().fill(tint)
+                        .frame(width: max(clamped > 0 ? 3 : 0, geo.size.width * clamped))
+                }
+            }
+            .frame(height: 5)
+            Text(caption).font(.claudeMono(10)).foregroundStyle(Color.label)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(caption)
+        .accessibilityValue("\(Int((clamped * 100).rounded())) percent")
+    }
+}
+
+/// Lines added against lines removed, one bar split at their proportion, so a
+/// session that mostly deleted reads differently from one that mostly wrote.
+struct LinesBar: View {
+    let added: Int
+    let removed: Int
+
+    var body: some View {
+        let share = Double(added) / Double(added + removed)
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                HStack(spacing: 2) {
+                    if added > 0 {
+                        Capsule().fill(Color.usageGreen)
+                            .frame(width: max(3, (geo.size.width - 2) * share))
+                    }
+                    if removed > 0 {
+                        Capsule().fill(Color.usageRed)
+                    }
+                }
+            }
+            .frame(height: 5)
+            HStack {
+                Text("+\(added) added")
+                Spacer(minLength: 0)
+                Text("-\(removed) removed")
+            }
+            .font(.claudeMono(10)).foregroundStyle(Color.label)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Lines changed")
+        .accessibilityValue("\(added) added, \(removed) removed")
+    }
+}
+
+/// The cache hit ratio as a ring beside the rows, the one number in the card
+/// worth reading at a glance.
+struct CacheRing: View {
+    let ratio: Double
+
+    var body: some View {
+        let clamped = min(1, max(0, ratio))
+        ZStack {
+            Circle().stroke(Color.secondary.opacity(0.22), lineWidth: 6)
+            Circle().trim(from: 0, to: clamped)
+                .stroke(Color.usageGreen, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(Int((clamped * 100).rounded()))%")
+                .font(.claudeMono(11)).fontWeight(.semibold)
+        }
+        .frame(width: 56, height: 56)
+        .padding(.top, 18)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Cache hit ratio")
+        .accessibilityValue("\(Int((clamped * 100).rounded())) percent")
     }
 }
 
