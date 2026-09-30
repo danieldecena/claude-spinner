@@ -146,6 +146,21 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (spend history and the Cost trend chart)
+- Decided: spend gets its own per-session series (`spendHistory`,
+  `SpendSample`) beside `contextHistory`, recorded on the same rescan with the
+  same rules: unchanged total appends nothing, a change inside the 15s gap
+  rewrites the last point, 240-point cap, dropped with the session.
+- Decided: the chart's y-axis runs 0 to the session's own peak. Unlike context
+  there is no window to be a share of, so any fixed ceiling would be invented;
+  the floor stays at 0 so a small rise draws small. The peak is printed at the
+  top because the axis differs per session.
+- Observed: recording, not rendering. `spendHistory` in the app's defaults held
+  two samples for this session ($1.061 -> $1.109, 35s apart) within 40s of
+  relaunch. The chart itself is unobserved: `screencapture -l` of the window
+  returned a blank frame twice (window parked on another Space). Tests and a
+  clean build only for the drawing.
+
 ### 2026-09-29 (detail tiles equal per row, not across the grid)
 - Decided: the stat grid equalises card heights per row with a custom
   `TileGrid` Layout, replacing the grid-wide tallest-card PreferenceKey. The

@@ -635,6 +635,14 @@ struct ContextSample: Codable, Equatable {
     var at: Double  // epoch seconds
 }
 
+/// One session's cumulative spend at a moment. Same lifetime and sampling rules
+/// as `ContextSample`; kept a separate type because the value is money, not a
+/// count, and the two charts scale it differently.
+struct SpendSample: Codable, Equatable {
+    var usd: Double
+    var at: Double  // epoch seconds
+}
+
 /// One timestamped 5h-utilization poll result, kept for the footer "trend" gauge.
 struct UsageSample: Codable {
     var pct: Int
@@ -1097,6 +1105,8 @@ final class FeedWatcher: ObservableObject {
     /// Context size over time, per session id. The app's first per-session time
     /// series -- every other number in the detail pane is latest-value only.
     @Published private(set) var contextHistory: [String: [ContextSample]] = [:]
+    /// Spend over time, per session id. `costUSD` alone is latest-value only.
+    @Published private(set) var spendHistory: [String: [SpendSample]] = [:]
 
     /// Live account usage from the API poller (preferred over the statusLine feed
     /// because it refreshes in any session, not just an interactive TUI one).
@@ -1134,6 +1144,8 @@ final class FeedWatcher: ObservableObject {
             .flatMap { try? JSONDecoder().decode([UsageSample].self, from: $0) } ?? []
         contextHistory = UserDefaults.standard.data(forKey: "contextHistory")
             .flatMap { try? JSONDecoder().decode([String: [ContextSample]].self, from: $0) } ?? [:]
+        spendHistory = UserDefaults.standard.data(forKey: "spendHistory")
+            .flatMap { try? JSONDecoder().decode([String: [SpendSample]].self, from: $0) } ?? [:]
         // Default on; the key is absent on first launch, so read with a default.
         usagePollingEnabled = (UserDefaults.standard.object(forKey: "usagePollingEnabled") as? Bool) ?? true
         notifyOnDone = (UserDefaults.standard.object(forKey: "notifyOnDone") as? Bool) ?? false
@@ -1329,6 +1341,7 @@ final class FeedWatcher: ObservableObject {
             self?.notifyDone(result)
             self?.updateUsageCache(result)
             self?.recordContextSamples(result)
+            self?.recordSpendSamples(result)
             self?.sessions = result
         }
     }
@@ -1446,6 +1459,43 @@ final class FeedWatcher: ObservableObject {
         }
         var out = samples
         out.append(ContextSample(tokens: tokens, at: now))
+        if out.count > Constants.contextHistoryMax {
+            out.removeFirst(out.count - Constants.contextHistoryMax)
+        }
+        return out
+    }
+
+    /// The spend twin of `recordContextSamples`: same lifetime, same rules, and
+    /// the same gap and cap, since both arrive on the same statusLine write.
+    private func recordSpendSamples(_ newSessions: [SessionFeed]) {
+        let now = Date().timeIntervalSince1970
+        var history = spendHistory
+        let liveIds = Set(newSessions.map(\.id))
+        history = history.filter { liveIds.contains($0.key) }
+        for session in newSessions {
+            guard let usd = session.stats.costUSD else { continue }
+            history[session.id] = Self.appending(usd: usd, at: now,
+                                                 to: history[session.id] ?? [])
+        }
+        guard history != spendHistory else { return }
+        spendHistory = history
+        if let data = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(data, forKey: "spendHistory")
+        }
+    }
+
+    static func appending(usd: Double, at now: Double,
+                          to samples: [SpendSample]) -> [SpendSample] {
+        if let last = samples.last {
+            if last.usd == usd { return samples }
+            if now - last.at < Constants.contextSampleMinGap {
+                var out = samples
+                out[out.count - 1] = SpendSample(usd: usd, at: last.at)
+                return out
+            }
+        }
+        var out = samples
+        out.append(SpendSample(usd: usd, at: now))
         if out.count > Constants.contextHistoryMax {
             out.removeFirst(out.count - Constants.contextHistoryMax)
         }

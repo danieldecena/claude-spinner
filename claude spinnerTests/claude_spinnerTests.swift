@@ -2646,6 +2646,51 @@ final class claude_spinnerTests: XCTestCase {
                        original)
     }
 
+    // MARK: - Per-session spend history
+
+    private func spend(_ pairs: [(Double, Double)]) -> [SpendSample] {
+        pairs.map { SpendSample(usd: $0.0, at: $0.1) }
+    }
+
+    func testASpendSampleIsAppendedWhenTheTotalMovesAfterTheGap() {
+        let out = FeedWatcher.appending(usd: 1.5, at: 100, to: spend([(1, 0)]))
+        XCTAssertEqual(out, spend([(1, 0), (1.5, 100)]))
+    }
+
+    func testAnUnchangedSpendAppendsNothing() {
+        let existing = spend([(1, 0)])
+        XCTAssertEqual(FeedWatcher.appending(usd: 1, at: 9_999, to: existing), existing)
+    }
+
+    func testASpendChangeInsideTheGapCorrectsTheLastPointInPlace() {
+        XCTAssertEqual(FeedWatcher.appending(usd: 2, at: 5, to: spend([(1, 0)])), spend([(2, 0)]))
+    }
+
+    func testTheSpendBufferIsCappedAndDropsTheOldestFirst() {
+        var buffer: [SpendSample] = []
+        for i in 0..<(Constants.contextHistoryMax + 30) {
+            buffer = FeedWatcher.appending(usd: Double(i + 1), at: Double(i) * 60, to: buffer)
+        }
+        XCTAssertEqual(buffer.count, Constants.contextHistoryMax)
+        XCTAssertEqual(buffer.first?.usd, 31, "the oldest points go, not the newest")
+    }
+
+    /// y is scaled to the session's own peak with the floor at 0, so a small
+    /// rise stays small rather than being zoomed to fill the box.
+    func testSpendPointsAreScaledToThePeakFromZero() {
+        let points = SpendChart.unitPoints(spend([(3, 0), (4, 60), (4, 1_260)]))!
+        XCTAssertEqual(points[0].y, 0.25, accuracy: 0.0001, "$3 of a $4 peak, not the floor")
+        XCTAssertEqual(points[2].y, 0, accuracy: 0.0001)
+        XCTAssertEqual(points[1].x, 60.0 / 1_260.0, accuracy: 0.0001, "time-scaled")
+    }
+
+    func testASpendChartNeedsTwoPointsAndSomethingSpent() {
+        XCTAssertNotNil(SpendChart.unitPoints(spend([(0, 0), (0.01, 60)])), "the known-good case")
+        XCTAssertNil(SpendChart.unitPoints(spend([(1, 0)])), "one sample is a dot, not a trend")
+        XCTAssertNil(SpendChart.unitPoints([]))
+        XCTAssertNil(SpendChart.unitPoints(spend([(0, 0), (0, 60)])), "a zero peak has no scale")
+    }
+
     // MARK: - Sparkline spoken value
 
     /// VoiceOver hears the line's endpoints, since the shape itself says nothing.

@@ -144,6 +144,7 @@ struct WindowContentView: View {
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [],
+                              spend: feed.spendHistory[session.id] ?? [],
                               suggestion: suggestion)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
@@ -275,6 +276,8 @@ private struct SessionDetail: View {
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
+    /// This session's spend over time, passed in the same way.
+    let spend: [SpendSample]
     /// Shown as a glow on the button it names, in whichever card owns it.
     let suggestion: Suggestion?
 
@@ -391,6 +394,9 @@ private struct SessionDetail: View {
                 ("lines", showsLinesBar ? nil
                     : StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
             ])
+            if st.costUSD != nil {
+                SpendTrend(samples: spend)
+            }
             if let share = st.apiShare {
                 ShareBar(caption: "time waiting on the api", ratio: share, tint: .claude)
             }
@@ -1206,6 +1212,23 @@ enum ContextChart {
     }
 }
 
+/// Where each spend sample sits in a unit box.
+enum SpendChart {
+    /// Scaled 0 to the session's own peak, unlike context: spend has no window
+    /// to be a share of, and any fixed ceiling would be invented. The floor stays
+    /// at 0 so a line that barely moved still reads as barely moved.
+    static func unitPoints(_ samples: [SpendSample]) -> [CGPoint]? {
+        guard samples.count >= 2, let first = samples.first, let last = samples.last,
+              let peak = samples.map(\.usd).max(), peak > 0 else { return nil }
+        let span = last.at - first.at
+        return samples.enumerated().map { index, sample in
+            let x = span > 0 ? (sample.at - first.at) / span
+                             : Double(index) / Double(samples.count - 1)
+            return CGPoint(x: x, y: 1 - max(0, sample.usd / peak))
+        }
+    }
+}
+
 /// Where each usage sample sits in a unit box, for one of its two readings.
 /// x spans the whole buffer's time range, so the 5h and 7d lines share an axis
 /// even when older samples carry no 7d reading.
@@ -1472,6 +1495,46 @@ private struct ContextTrend: View {
             }
         }
         .accessibilityLabel("Context over this session")
+    }
+}
+
+
+/// Cumulative spend over the session, time-scaled like `ContextTrend` so an
+/// idle stretch reads as flat and a heavy turn as a climb. The top is labelled
+/// with the peak because the axis is the session's own, not a fixed one.
+private struct SpendTrend: View {
+    let samples: [SpendSample]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                if let unit = SpendChart.unitPoints(samples),
+                   let peak = samples.map(\.usd).max() {
+                    let points = unit.map { CGPoint(x: $0.x * w, y: $0.y * h) }
+                    ChartPath.area(points, baseline: h).fill(Color.claude.opacity(0.15))
+                    ChartPath.line(points).stroke(Color.claude, lineWidth: 1.5)
+                    Text(StatFormat.money(peak))
+                        .font(.claudeMono(9)).foregroundStyle(Color.label)
+                        .position(x: 22, y: 6)
+                } else {
+                    Text("no spend history yet")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
+                }
+            }
+            .frame(height: 40)
+
+            if let first = samples.first, let last = samples.last, samples.count >= 2 {
+                let now = Date()
+                HStack {
+                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
+                    Spacer(minLength: 0)
+                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
+                }
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
+            }
+        }
+        .accessibilityLabel("Spend over this session")
     }
 }
 
