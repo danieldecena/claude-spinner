@@ -144,6 +144,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the Skills card no longer picks /wrap-up on token count (150k) while
+  the session is mid-turn; it waits for the prompt. At 85% of the window it still
+  picks it regardless. Seen: it read "160k tokens re-read" on a working session
+  at 16% of a 1M window. Unit-tested; 313 pass.
 - Decided: Auto-merge PR switches itself on, without the dialog, the first time
   a PR is open and eligible, once per PR (a hand-off keeps it off after you turn it
   off). The other three toggles stay manual; Daniel chose auto-merge only. Built,

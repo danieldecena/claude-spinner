@@ -11,6 +11,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Hold the wrap-up pick to the prompt when it is size-driven
 - [x] Shrink Config to two lines, show action notices in the conversation card, drop the idle line
 - [x] Merge You asked, reply and Config into one card
 - [x] Style the sidebar as a card like the detail pane

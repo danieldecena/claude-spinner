@@ -3531,6 +3531,9 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000; $0.wrappedUp = true
                                            $0.git = self.repo { $0.sync = .ahead(1) } }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 120_000 }), "/compact")
+        // A working session is not told to wrap up on size alone; over 85% still is.
+        XCTAssertNil(picked(skillInput { $0.contextTokens = 160_000; $0.atPrompt = false }))
+        XCTAssertEqual(picked(skillInput { $0.contextPercent = 90; $0.atPrompt = false }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.idleFor = 40 * 60 }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 5_000 }), "/start-up")
         XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 3; $0.git = self.repo { $0.dirty = 2 } }),

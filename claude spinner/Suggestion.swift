@@ -65,7 +65,9 @@ struct Suggestion: Equatable {
            let s = pick("/wrap-up", "Context is at \(pct)%. Wrap up, then /clear.") { return s }
         // Absolute tokens as well as percent: every call re-reads the whole
         // context, so cost follows its size, and a 1M window puts 60% at 600k.
-        if tokens >= 150_000,
+        // Only at the prompt: mid-turn the session is doing the work this would
+        // have it wrap up, and the chip would type into a running turn.
+        if tokens >= 150_000, input.atPrompt,
            let s = pick("/wrap-up", "\(tokens / 1000)k tokens re-read on every call. Wrap up, then /clear.") {
             return s
         }
