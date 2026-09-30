@@ -144,6 +144,11 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the two stat cards are circles only for now (Daniel: smaller, lighter,
+  compact). Rings are 52pt with a 5pt stroke; the column charts (context, spend,
+  tokens by day, 5h usage) and the facts line are out of the cards. `Columns`,
+  `TrendColumns`, `WeekChart`, `Buckets` stay in StatCards.swift, unused and
+  unit-tested, for when a chart comes back.
 - Decided: the You asked card is the last exchange plus one row: You asked (2 lines),
   Claude said (4 lines), a dim "ran ..." line, and the reply field with the model and
   effort menus beside it; a chevron opens the text out. Dropped: the Show more button,

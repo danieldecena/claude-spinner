@@ -67,7 +67,7 @@ struct Ring: View {
     var pace: Double?
     let value: String
 
-    private let line: CGFloat = 7
+    private let line: CGFloat = 5
 
     var body: some View {
         let share = min(1, max(0, ratio ?? 0))
@@ -83,16 +83,16 @@ struct Ring: View {
             if let pace {
                 let at = min(1, max(0, pace))
                 Circle().trim(from: max(0, at - 0.006), to: min(1, at + 0.006))
-                    .stroke(Color.primary.opacity(0.85), lineWidth: line + 4)
+                    .stroke(Color.primary.opacity(0.85), lineWidth: line + 3)
                     .rotationEffect(.degrees(-90))
             }
-            Text(value).font(.figure(13)).fontWeight(.semibold)
+            Text(value).font(.figure(10)).fontWeight(.semibold)
                 .foregroundStyle(ratio == nil ? Color.label : Color.primary)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.horizontal, line + 2)
         }
-        .frame(width: 70, height: 70)
-        .padding(3)
+        .frame(width: 52, height: 52)
+        .padding(2)
         .accessibilityElement(children: .ignore)
         .accessibilityValue(ratio == nil ? "unknown" : "\(Int((share * 100).rounded())) percent")
     }
@@ -108,7 +108,7 @@ struct RingMetric: View {
     var detail: String?
 
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 3) {
             Ring(ratio: ratio, tint: tint, pace: pace, value: value)
             Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
@@ -224,7 +224,7 @@ struct SessionStatsCard: View {
 
     var body: some View {
         let st = session.stats
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 CardTitle("This session")
                 Spacer(minLength: 4)
@@ -246,14 +246,6 @@ struct SessionStatsCard: View {
                     RingMetric(caption: "spend", value: StatFormat.money(cost),
                                ratio: st.apiShare, tint: .series1, detail: costDetail)
                 }
-            }
-            HStack(alignment: .top, spacing: 16) {
-                contextTrend
-                spendTrend
-            }
-            if let facts = facts {
-                Text(facts).font(.ui(10)).foregroundStyle(Color.label).lineLimit(2)
-                    .truncationMode(.middle)
             }
         }
         .detailCard()
@@ -359,7 +351,7 @@ struct OverviewStrip: View {
     let weekBars: [UsageTotalsPoller.WeekBar]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             CardTitle("Usage")
 
             // The rate-limit windows lead, not the dollar figure. On a Max plan
@@ -389,13 +381,6 @@ struct OverviewStrip: View {
             }
             .opacity(totalsDimmed ? 0.6 : 1)
             .help(totalsHelp)
-
-            if !weekBars.isEmpty {
-                WeekChart(bars: weekBars)
-                    .opacity(totalsDimmed ? 0.6 : 1)
-            }
-
-            usageHistory
 
             // Labelled for what it is. "$93.62 today" under a dollar sign reads
             // as a bill, and on a subscription plan that is simply wrong.
