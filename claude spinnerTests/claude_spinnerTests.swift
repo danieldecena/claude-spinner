@@ -3187,6 +3187,11 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(none, ["code-review", "simplify"])
     }
 
+    func testGitShortcutsAreGroupedApart() {
+        let git = SkillShortcut.curated.filter { $0.group == .git }.map(\.name)
+        XCTAssertEqual(git, ["code-review", "git-push"])
+    }
+
     // MARK: - Usage visuals
 
     func testWindowElapsedPlacesNowInsideTheWindow() {

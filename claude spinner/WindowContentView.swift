@@ -275,8 +275,8 @@ private struct SessionDetail: View {
                     cacheCard
                     contextCard.tileSpan(2)
                     configCard
-                    // Full width at any column count; the span clamps.
-                    ShortcutsCard(session: session, feedDir: feedDir).tileSpan(.max)
+                    SkillsCard(session: session, feedDir: feedDir).tileSpan(2)
+                    GitCommandsCard(session: session, feedDir: feedDir)
                 }
 
                 if !children.isEmpty {
@@ -588,8 +588,8 @@ private struct AskCard: View {
 // MARK: - Free-text reply
 
 /// The window's one-row toolbar, edge to edge: the sidebar toggle, the reply
-/// field, the session actions and the Git actions on glass, with the last
-/// outcome from any of them said underneath.
+/// field and the session actions on glass, with the last outcome from any of
+/// them said underneath. Git actions live in the Git commands card.
 ///
 /// Pinned above the scroll rather than inside it, after the footage library:
 /// replying and acting on the session stay in reach however far down the cards
@@ -614,7 +614,6 @@ private struct WindowToolbar: View {
                     if let session {
                         ReplyBox(session: session, feedDir: feedDir, notice: $notice)
                         ActionBar(session: session, feedDir: feedDir, notice: $notice)
-                        GitButtons(cwd: session.cwd, notice: $notice)
                     } else {
                         Spacer(minLength: 0)
                     }
@@ -1627,48 +1626,89 @@ private struct ActionBar: View {
 
 // MARK: - Shortcuts
 
-/// One-click slash commands for the selected session, typed through the same
-/// pane as the reply field and held to the same rule: idle and in tmux, or the
-/// chip is greyed with the reason.
-private struct ShortcutsCard: View {
+private let installedShortcuts = SkillShortcut.available(
+    claudeDir: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude"))
+
+/// A card's title, in the StatSection style. Not a StatSection itself: with no
+/// rows that would say "nothing reported yet".
+private struct CardTitle: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text).font(.claudeMono(10)).fontWeight(.semibold)
+            .foregroundStyle(Color.label)
+            .textCase(.uppercase).tracking(0.8)
+    }
+}
+
+/// The session skills as one-click slash commands.
+private struct SkillsCard: View {
     let session: SessionFeed
     let feedDir: URL
-    @State private var hasPane = false
     @State private var notice: NoticeMessage?
-    @State private var sending = false
 
-    private static let shortcuts = SkillShortcut.available(
-        claudeDir: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude"))
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("Skills")
+            ShortcutChips(session: session, feedDir: feedDir,
+                          shortcuts: installedShortcuts.filter { $0.group == .skill },
+                          notice: $notice)
+            if let notice { Notice(notice) }
+        }
+        .detailCard()
+    }
+}
+
+/// Git work in one place: the actions that run `git`/`gh` directly, then the
+/// git skills, which go through Claude.
+private struct GitCommandsCard: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @State private var notice: NoticeMessage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("Git commands")
+            GitButtons(cwd: session.cwd, notice: $notice)
+            ShortcutChips(session: session, feedDir: feedDir,
+                          shortcuts: installedShortcuts.filter { $0.group == .git },
+                          notice: $notice)
+            if let notice { Notice(notice) }
+        }
+        .detailCard()
+    }
+}
+
+/// Slash commands typed through the same pane as the reply field and held to
+/// the same rule: idle and in tmux, or the chip is greyed with the reason.
+private struct ShortcutChips: View {
+    let session: SessionFeed
+    let feedDir: URL
+    let shortcuts: [SkillShortcut]
+    @Binding var notice: NoticeMessage?
+    @State private var hasPane = false
+    @State private var sending = false
 
     var body: some View {
         let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
-        VStack(alignment: .leading, spacing: 8) {
-            // Not a StatSection: with no rows it would say "nothing reported yet".
-            Text("Shortcuts").font(.claudeMono(10)).fontWeight(.semibold)
-                .foregroundStyle(Color.label)
-                .textCase(.uppercase).tracking(0.8)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
-                      alignment: .leading, spacing: 6) {
-                ForEach(Self.shortcuts) { shortcut in
-                    Button { send(shortcut) } label: {
-                        Label(shortcut.command, systemImage: shortcut.symbol)
-                            .font(.claudeMono(10))
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.glass)
-                    .disabled(reason != nil || sending)
-                    // Lighter than the toolbar's 0.45: these carry names worth
-                    // reading while the session is busy.
-                    .opacity(reason == nil ? 1 : 0.7)
-                    .help(reason ?? shortcut.blurb)
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
+                  alignment: .leading, spacing: 6) {
+            ForEach(shortcuts) { shortcut in
+                Button { send(shortcut) } label: {
+                    Label(shortcut.command, systemImage: shortcut.symbol)
+                        .font(.claudeMono(10))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            }
-            if let notice {
-                Notice(notice)
+                .buttonStyle(.glass)
+                .disabled(reason != nil || sending)
+                // Lighter than the toolbar's 0.45: these carry names worth
+                // reading while the session is busy.
+                .opacity(reason == nil ? 1 : 0.7)
+                .help(reason ?? shortcut.blurb)
             }
         }
-        .detailCard()
         .task(id: session.id) {
             let pid = session.pid
             hasPane = await Task.detached(priority: .utility) {
@@ -1695,8 +1735,8 @@ private struct ShortcutsCard: View {
 // MARK: - Git
 
 /// Branch, working-tree and remote state for the selected session's directory.
-/// The actions that act on it live in the toolbar (`GitButtons`); what stays
-/// here is the sentence for any of them that couldn't be worked out.
+/// The actions that act on it live in the Git commands card (`GitButtons`);
+/// what stays here is the sentence for any of them that couldn't be worked out.
 ///
 /// Absent entirely when the cwd isn't a repository: a section of dashes tells
 /// you nothing that its own absence doesn't tell you faster.
@@ -1750,7 +1790,7 @@ private struct GitCard: View {
     }
 
     @ViewBuilder private func blockedReasons(_ snap: GitSnapshot) -> some View {
-        // The toolbar button stays greyed for these; the sentence goes on the
+        // The action button stays greyed for these; the sentence goes on the
         // page instead of behind a tooltip nobody hovers for.
         let unsettled = GitAction.allCases.compactMap { action -> Unsettled? in
             guard let block = GitActions.unavailableReason(action, snapshot: snap),
@@ -1807,7 +1847,7 @@ private struct GitCard: View {
     }
 }
 
-/// The Git actions in the toolbar, for the selected session's directory.
+/// The Git actions for the selected session's directory.
 ///
 /// Reads through the same cached `GitProbe` as `GitCard`, so the second reader
 /// costs a dictionary lookup. A settled block isn't drawn at all: the card

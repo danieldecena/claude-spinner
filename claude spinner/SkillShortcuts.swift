@@ -8,10 +8,14 @@ import Foundation
 /// whether each one is installed, so a chip never types a command that isn't
 /// there. Built-ins ship with Claude Code and need no check.
 struct SkillShortcut: Identifiable, Equatable {
+    /// Which card it sits in: git work gets its own, beside the git actions.
+    enum Group { case skill, git }
+
     let name: String
     let symbol: String
     let blurb: String
     let builtIn: Bool
+    var group: Group = .skill
 
     var id: String { name }
     var command: String { "/" + name }
@@ -21,9 +25,11 @@ struct SkillShortcut: Identifiable, Equatable {
         .init(name: "wrap-up", symbol: "moon.zzz", blurb: "Commit, update STATUS, hand off", builtIn: false),
         .init(name: "todo", symbol: "checklist", blurb: "Turn the conversation into tasks", builtIn: false),
         .init(name: "tasks", symbol: "list.bullet.rectangle", blurb: "Re-render the task box", builtIn: false),
-        .init(name: "code-review", symbol: "magnifyingglass", blurb: "Review the current diff", builtIn: true),
+        .init(name: "code-review", symbol: "magnifyingglass", blurb: "Review the current diff", builtIn: true,
+              group: .git),
         .init(name: "simplify", symbol: "wand.and.stars", blurb: "Clean up the changed code", builtIn: true),
-        .init(name: "git-push", symbol: "arrow.up.circle", blurb: "Commit and push", builtIn: false),
+        .init(name: "git-push", symbol: "arrow.up.circle", blurb: "Commit and push", builtIn: false,
+              group: .git),
         .init(name: "recall", symbol: "brain", blurb: "Search past decisions", builtIn: false),
         .init(name: "goal", symbol: "flag.checkered", blurb: "Work autonomously toward a goal", builtIn: false),
         .init(name: "checkup", symbol: "stethoscope", blurb: "Health-check the Claude config", builtIn: false),
