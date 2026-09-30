@@ -1925,6 +1925,10 @@ private struct SkillsCard: View {
                 (Text(command).foregroundStyle(Color.claude) + Text("  \(pick.reason)"))
                     .font(.claudeMono(10)).foregroundStyle(Color.label)
                     .fixedSize(horizontal: false, vertical: true)
+            } else {
+                // Said out loud so a missing outline reads as a verdict, not a fault.
+                Text("No skill needed right now.")
+                    .font(.claudeMono(10)).foregroundStyle(Color.label.opacity(0.6))
             }
             if let notice { Notice(notice) }
         }

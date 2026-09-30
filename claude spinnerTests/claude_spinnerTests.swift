@@ -3398,6 +3398,9 @@ final class claude_spinnerTests: XCTestCase {
                        "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 2 } }), "/simplify")
         XCTAssertEqual(picked(skillInput { $0.projectOpenTasks = 4 }), "/goal")
+        XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 1 }), "/goal")
+        XCTAssertEqual(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30; $0.git = self.repo { _ in } }),
+                       "/wrap-up")
     }
 
     /// Known-good: a mid-sized, committed, taskless session picks nothing, and
@@ -3406,9 +3409,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(picked(skillInput { _ in }))
         XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { _ in } }))
         XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.atPrompt = false }))
-        XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.todoTotal = 2 }))
+        XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.todoTotal = 2; $0.todoDone = 2 }))
         XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 1 }
                                          $0.installed = ["/wrap-up"] }))
+        XCTAssertNil(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 1; $0.atPrompt = false }))
+        XCTAssertNil(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30; $0.git = self.repo { $0.dirty = 1 } }))
+        XCTAssertNil(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30
+                                         $0.git = self.repo { $0.sync = .ahead(2) } }))
+        XCTAssertNil(picked(skillInput { $0.idleFor = 12 * 60; $0.git = self.repo { _ in } }))
+        XCTAssertNil(picked(skillInput { $0.idleFor = 5 * 60; $0.linesChanged = 30; $0.git = self.repo { _ in } }))
     }
 
     func testOpenTasksStopAtCompleted() {

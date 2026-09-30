@@ -66,8 +66,21 @@ struct Suggestion: Equatable {
            let s = pick("/simplify", "\(lines) lines changed and not committed yet: clean up first.") {
             return s
         }
+        if let total = input.todoTotal, total > 0, (input.todoDone ?? 0) < total, input.atPrompt {
+            let open = total - (input.todoDone ?? 0)
+            if let s = pick("/goal", "\(open) todo\(open == 1 ? "" : "s") still open and the session is idle.") {
+                return s
+            }
+        }
         if let open = input.projectOpenTasks, open > 0, input.atPrompt, (input.todoTotal ?? 0) == 0,
            let s = pick("/goal", "\(open) open task\(open == 1 ? "" : "s") in TASKS.md and the session is idle.") {
+            return s
+        }
+        // Work was done and it is all committed and pushed: the session has
+        // likely finished its job.
+        if let idle = input.idleFor, idle >= 10 * 60, (input.linesChanged ?? 0) > 0,
+           input.git?.isDirty == false, input.git?.sync == .inSync,
+           let s = pick("/wrap-up", "Idle \(Int(idle / 60))m with its work committed and pushed.") {
             return s
         }
         return nil
