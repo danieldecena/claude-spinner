@@ -152,6 +152,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (feature 10): "+N more" under a project's tasks opens its TASKS.md, and
+  "N finished" is a chevron that lists the finished subagents in place. Seen on screen
+  (expand and collapse). Feature 11 as designed does NOT work and is off: counting only
+  subagents finished since the parent's `turnStart` hid the one that had just finished,
+  because a background subagent's completion notice starts a new parent turn (observed:
+  child done at 1790777494, parent turn_start 1790777520). `SubagentSplit(since:)` stays
+  tested but unused at the call site until a rule is chosen.
 - Decided (cleanup 7-8): deleted the chart code the ring-only cards orphaned
   (`Buckets`, `Columns`, `TrendColumns`, `WeekChart`, `SpendChart`, `UsageChart`,
   `ContextChart.ceiling`, `UsageTotalsPoller.weekBars`, the detail pane's history and

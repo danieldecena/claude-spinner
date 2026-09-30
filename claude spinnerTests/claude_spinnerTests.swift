@@ -3521,8 +3521,22 @@ final class claude_spinnerTests: XCTestCase {
                                    idlePrompt, permission,
                                    mk("e", .thinking, parentSessionId: "p")])
         XCTAssertEqual(split.live.map(\.id), ["a", "d", "e"])
-        XCTAssertEqual(split.finished, 2)
-        XCTAssertEqual(SubagentSplit([]).finished, 0)
+        XCTAssertEqual(split.finished.map(\.id), ["b", "c"])
+        XCTAssertTrue(SubagentSplit([]).finished.isEmpty)
+    }
+
+    /// While the parent works, only this turn's finished subagents count; one that
+    /// finished before the prompt drops out, and live ones stay whatever their age.
+    func testSubagentSplitStartsOverEachTurn() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        let split = SubagentSplit([mk("old", .idle, updated: start.addingTimeInterval(-60), parentSessionId: "p"),
+                                   mk("new", .idle, updated: start.addingTimeInterval(60), parentSessionId: "p"),
+                                   mk("live", .tool, updated: start.addingTimeInterval(-600), parentSessionId: "p")],
+                                  since: start)
+        XCTAssertEqual(split.finished.map(\.id), ["new"])
+        XCTAssertEqual(split.live.map(\.id), ["live"])
+        XCTAssertEqual(SubagentSplit([mk("old", .idle, updated: start, parentSessionId: "p")]).finished.count, 1,
+                       "an idle parent keeps every finished one")
     }
 
     /// Only the missing-PR reason is hidden; gh missing and auto-merge disallowed

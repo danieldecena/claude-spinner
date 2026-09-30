@@ -193,7 +193,9 @@ private struct SessionSidebar: View {
     let asks: [AskRequest]
     @Binding var selection: String?
     /// Each project section's TASKS.md, read from its first session's folder.
-    @State private var tasks: [String: (open: [String], done: Int)] = [:]
+    @State private var tasks: [String: (open: [String], done: Int, path: String)] = [:]
+    /// Parent sessions whose finished subagents are opened out.
+    @State private var showFinished: Set<String> = []
 
     private static let shownTasks = 5
 
@@ -257,28 +259,28 @@ private struct SessionSidebar: View {
                         .tag(session.id)
                         // Not selectable: the detail pane shows root sessions, and a
                         // subagent has no pane of its own to show.
+                        // No `since`: a background subagent's completion notice starts
+                        // a new parent turn, so "finished this turn" hid the one that
+                        // had just finished (turnStart 26s after it).
                         let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
-                        ForEach(split.live) { child in
-                            HStack(spacing: 6) {
-                                Circle().fill(tint(child)).frame(width: 6, height: 6)
-                                Text(child.agentType ?? "subagent")
-                                    .font(.ui(10)).lineLimit(1)
-                                Spacer(minLength: 0)
-                                Text(child.statusLabel)
-                                    .font(.ui(10)).foregroundStyle(tint(child))
-                                    .lineLimit(1)
+                        ForEach(split.live) { child in childRow(child) }
+                        // Finished ones as a count that opens out: six "done" rows
+                        // outweighed the session they belonged to.
+                        if !split.finished.isEmpty {
+                            let open = showFinished.contains(session.id)
+                            Button {
+                                if open { showFinished.remove(session.id) } else { showFinished.insert(session.id) }
+                            } label: {
+                                Label("\(split.finished.count) finished",
+                                      systemImage: open ? "chevron.down" : "chevron.right")
+                                    .font(.ui(10)).foregroundStyle(Color.label)
                             }
+                            .buttonStyle(.borderless)
                             .padding(.leading, 16)
                             .selectionDisabled()
-                            .accessibilityElement(children: .combine)
-                        }
-                        // Finished ones as a count: six "done" rows outweighed the
-                        // session they belonged to.
-                        if split.finished > 0 {
-                            Text("\(split.finished) finished")
-                                .font(.ui(10)).foregroundStyle(Color.label)
-                                .padding(.leading, 28)
-                                .selectionDisabled()
+                            if open {
+                                ForEach(split.finished) { child in childRow(child) }
+                            }
                         }
                     }
                     if let file = tasks[section.id] { tasksRows(file) }
@@ -299,7 +301,8 @@ private struct SessionSidebar: View {
                     folders.reduce(into: [:]) { out, entry in
                         if let root = Suggestion.tasksRoot(startingAt: entry.value),
                            let text = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8) {
-                            out[entry.key] = Suggestion.tasks(inTasksFile: text)
+                            let file = Suggestion.tasks(inTasksFile: text)
+                            out[entry.key] = (file.open, file.done, root + "/TASKS.md")
                         }
                     }
                 }.value
@@ -322,7 +325,7 @@ private struct SessionSidebar: View {
 
     /// The project's open tasks under its sessions. Not selectable: they are a
     /// read-out, and /todo (in the Skills card) is what writes the file.
-    @ViewBuilder private func tasksRows(_ file: (open: [String], done: Int)) -> some View {
+    @ViewBuilder private func tasksRows(_ file: (open: [String], done: Int, path: String)) -> some View {
         HStack {
             Text("Tasks").font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
@@ -344,9 +347,29 @@ private struct SessionSidebar: View {
                 .selectionDisabled()
         }
         if file.open.count > Self.shownTasks {
-            Text("+\(file.open.count - Self.shownTasks) more")
-                .font(.ui(10)).foregroundStyle(Color.label).selectionDisabled()
+            // The rest are one click away in the file itself, not a longer list.
+            Button("+\(file.open.count - Self.shownTasks) more") {
+                NSWorkspace.shared.open(URL(fileURLWithPath: file.path))
+            }
+            .buttonStyle(.link).font(.ui(10))
+            .help("Open \(file.path)")
+            .selectionDisabled()
         }
+    }
+
+    private func childRow(_ child: SessionFeed) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(tint(child)).frame(width: 6, height: 6)
+            Text(child.agentType ?? "subagent")
+                .font(.ui(10)).lineLimit(1)
+            Spacer(minLength: 0)
+            Text(child.statusLabel)
+                .font(.ui(10)).foregroundStyle(tint(child))
+                .lineLimit(1)
+        }
+        .padding(.leading, 16)
+        .selectionDisabled()
+        .accessibilityElement(children: .combine)
     }
 
     private func rowLabel(_ session: SessionFeed) -> String {
@@ -365,11 +388,19 @@ private struct SessionSidebar: View {
 /// the ones that stopped (counted). Pure so the split is testable.
 struct SubagentSplit {
     let live: [SessionFeed]
-    let finished: Int
+    let finished: [SessionFeed]
 
-    init(_ children: [SessionFeed]) {
+    /// `since`: the parent's turn start. While the parent works, only subagents
+    /// that finished this turn are kept, so the count starts over each prompt
+    /// instead of growing all session. An idle parent has no turn start and keeps
+    /// every finished one.
+    init(_ children: [SessionFeed], since: Date? = nil) {
         live = children.filter { $0.isWorking || $0.isBlockedOnYou }
-        finished = children.count - live.count
+        finished = children.filter { child in
+            guard !(child.isWorking || child.isBlockedOnYou) else { return false }
+            guard let since else { return true }
+            return (child.updated ?? .distantPast) >= since
+        }
     }
 }
 
