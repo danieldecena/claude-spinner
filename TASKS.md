@@ -15,6 +15,8 @@ via `run.sh`.
 - [x] Show usage totals off when polling is disabled -- 9fafa43
 - [x] Check the build exists before run-sh replaces the app -- 5147808
 - [x] Untrack the regenerable ds-bundle files -- 37a7512
+- [ ] Record spend over time for a Cost trend chart
+- [ ] Observe the sidebar toggle and todo bar on screen
 
 ## Completed
 
