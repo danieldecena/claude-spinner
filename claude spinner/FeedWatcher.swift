@@ -861,7 +861,6 @@ final class UsageTotalsPoller {
     /// Without `--offline` a run waits on a network price fetch; a hung one
     /// would hold `inFlight` forever and freeze the totals until relaunch.
     /// Generous: a live scan under build load has taken over 2 min.
-    /// `terminate()` also takes down the native binary node spawns.
     static let runTimeout: TimeInterval = 5 * 60
 
     private let onUpdate: (Result) -> Void
@@ -935,26 +934,15 @@ final class UsageTotalsPoller {
     /// Runs ccusage and returns stdout, or an error message. No `--offline`: its
     /// cached price table predates current models and prices them at $0.00.
     private static func run(_ args: [String]) -> (Data?, String?) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: executable)
-        task.arguments = args
-        // ccusage is `#!/usr/bin/env node`; a GUI app's PATH has no node on it.
-        task.environment = ProcessInfo.processInfo.environment.merging(
-            ["PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"]) { $1 }
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return (nil, "ccusage not found") }
-        let kill = DispatchWorkItem { if task.isRunning { task.terminate() } }
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + runTimeout, execute: kill)
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        kill.cancel()
-        if task.terminationReason == .uncaughtSignal && task.terminationStatus == SIGTERM {
+        guard FileManager.default.isExecutableFile(atPath: executable) else { return (nil, "ccusage not found") }
+        // GitProbe.run bounds the drain after exit: ccusage's node wrapper spawns
+        // the native binary with inherited stdio and never forwards SIGTERM, so a
+        // hung child would otherwise hold stdout open past the kill forever.
+        guard let r = GitProbe.run(executable, args, in: "/", timeout: runTimeout) else {
             return (nil, "ccusage timed out after \(Int(runTimeout))s")
         }
-        guard task.terminationStatus == 0 else { return (nil, "ccusage exit \(task.terminationStatus)") }
-        return (data, nil)
+        guard r.status == 0 else { return (nil, "ccusage exit \(r.status)") }
+        return (Data(r.out.utf8), nil)
     }
 
     private static let dayFormatter: DateFormatter = {
@@ -975,15 +963,17 @@ final class UsageTotalsPoller {
         let since = Self.dayFormatter.string(from: weekStart).replacingOccurrences(of: "-", with: "")
         let today = Self.dayFormatter.string(from: now)
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            func attempt() -> (Result?, String?) {
-                let (daily, err1) = Self.run(["daily", "--json", "--since", since])
-                let (blocks, err2) = daily == nil ? (nil, nil) : Self.run(["blocks", "--active", "--json"])
-                let r = daily.flatMap { d in blocks.flatMap { Self.parse(daily: d, blocks: $0, today: today, now: Date()) } }
-                return (r, err1 ?? err2)
+            let dailyArgs = ["daily", "--json", "--since", since]
+            let (daily, err1) = Self.run(dailyArgs)
+            let (blocks, err2) = daily == nil ? (nil, nil) : Self.run(["blocks", "--active", "--json"])
+            func parse(_ daily: Data?) -> Result? {
+                daily.flatMap { d in blocks.flatMap { Self.parse(daily: d, blocks: $0, today: today, now: Date()) } }
             }
-            var (result, err) = attempt()
+            var result = parse(daily)
+            var err = err1 ?? err2
             // An unpriced run is usually the flaky price lookup; one retry often lands.
-            if result != nil, result?.weekCost == nil, let again = attempt().0, again.weekCost != nil {
+            // Only `daily` carries prices, so the blocks scan is not repeated.
+            if result != nil, result?.weekCost == nil, let again = parse(Self.run(dailyArgs).0), again.weekCost != nil {
                 result = again
             }
             if result == nil { err = err ?? "unreadable output" }
