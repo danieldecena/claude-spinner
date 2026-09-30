@@ -137,13 +137,25 @@
 
 ## Next Up
 
-No open tasks. One unobserved runtime case: the Skills card's new `compact`
-and `clear` chips were seen rendering, but their confirmation dialog was
-never clicked open. Check it on an idle tmux session you can afford to lose.
+No open tasks. Two small findings from the chip test, neither filed yet:
+`/compact` on a session too short to compact keeps the Skills chips greyed
+for the full 180 s observe window, then reports not-observed; and a folder
+that is not a git repo still shows the code-review and git-push chips.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-29 (chip confirmation observed; idle git actions hidden)
+- Decided: the Git commands grid now honours `GitActions.Block.settled`
+  (hide a finished "nothing to do", keep unsettled ones greyed), and git
+  skills with an idle reason hide too, with one line when nothing is left.
+  A clean pushed main read as a dead card. `569804c`, observed on screen.
+- Observed: compact chip on a throwaway tmux session. Dialog opens, Cancel
+  sends nothing, Compact delivers (the test session's transcript has `/compact`
+  at 06:50:34Z and nothing during the Cancel). Counting `❯ /compact` lines in
+  `capture-pane` is not a delivery check: Claude Code redraws and the count
+  stayed 1 across two real sends. Read the transcript instead.
 
 ### 2026-09-29 (/compact and /clear chips in the Skills card)
 - Decided: both were reachable only as toolbar icons; the Skills card now
