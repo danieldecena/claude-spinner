@@ -9,11 +9,11 @@ via `run.sh`.
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
-- [ ] Explain why a probe session auto-answered AskUserQuestion
 - [ ] Stop recording spend history nothing reads
 
 ## Completed
 
+- [x] Explain why a probe session auto-answered AskUserQuestion
 - [x] Watch a refused /compact report on a live short session
 - [x] Make overflow clickable and age out finished subagents
 - [x] Delete dead chart code and close the hover task

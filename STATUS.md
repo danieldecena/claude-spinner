@@ -140,9 +140,9 @@
 
 ## Next Up
 
-1. [you] Ask boxes in the You asked card as well as the terminal: tell me which keys
-   pick an option in the terminal question box. Tried a tmux probe; its questions were
-   auto-answered "Red" before a box drew (cause unexplained, own task).
+1. [code] Ask boxes in the You asked card as well as the terminal. Unblocked: a digit key
+   picks that option in the terminal box at once, no Enter (seen 2026-09-30). The
+   "auto-answer" was a trackpad click landing on the card (decision log).
 2. [you] Keep or drop `FeedWatcher.spendHistory`: it still records to UserDefaults and
    nothing reads it since the charts went. Keep only if a spend chart is coming back.
 3. [you] Palette and offers: attention colour (kit warn vs Spinner blue), menu-bar panel
@@ -153,6 +153,20 @@ The rest is in `TASKS.md`.
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-30 (probe "auto-answer" explained)
+- Decided: nothing auto-answers asks. Every probe "Red" (06:25:29, 06:25:50, 06:26:29,
+  07:26:05) is a physical click: WindowServer logs an internal-trackpad button down/up
+  7-15ms before the app's `sendAction:` burst, and the ask card's first option was under
+  the pointer. Control: Daniel's deliberate Blue click (07:27:53) has the identical
+  signature. No banner response was logged for any of them. The card appears ~3-5s after
+  the tool call, so a click meant for something else lands on option 1.
+- Decided: the 06:25 "app stopped" probe was not stopped: LaunchServices relaunched the
+  app 2s after `killall` (pid 39644, `launchedByLS=1`). Relauncher not chased.
+- Decided: in the terminal box, a digit key selects that option immediately (sent "2",
+  got Green, no Enter). `↑/↓` + Enter also works per its footer.
+- Gotcha: in this zsh `log` is a builtin; `log show` silently prints nothing. Use
+  `/usr/bin/log`. Earlier "unified log unreadable" was that, not a permission.
 
 ### 2026-09-30 (refused /compact seen live)
 - Decided: the refused-/compact report is confirmed on screen. A one-exchange session
