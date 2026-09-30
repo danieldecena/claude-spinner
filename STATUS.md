@@ -143,7 +143,7 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
-### 2026-09-30 (refused /compact; Tasks card)
+### 2026-09-30 (refused /compact; Tasks card; + new session)
 - Decided: a `/compact` Claude Code refuses ("Not enough messages to compact.")
   ends the wait on the transcript line it writes (`system`/`local_command` with
   `commandRun.command == "compact"`, which a compaction that ran never writes),
@@ -155,6 +155,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   You asked | Tasks | Skills share the top row. Seen on screen against
   claude-spinner and save-full-page. The one-line You asked in that narrower
   column is assumed to show its full text on hover; unchecked. `dc9231f`.
+- Decided: + beside a Sessions heading starts a session in a project from
+  `~/.claude/project-registry.json` (the `ws` list, missing and third-party
+  dropped): Ghostty AppleScript opens a window in that folder running
+  `zsh -lic claude`, so the user's `claude` function supplies the tmux wrapper
+  the app needs to reply. Chosen over a headless tmux session so the session
+  is visible. Seen end to end: claude-launch-71495 came up and joined the
+  sidebar. `aed4987`.
 
 ### 2026-09-30 (git card: buttons back, bundle remotes, auto-merge, visibility)
 - Decided: Push/Pull/Merge and the PR buttons are always drawn, dimmed with
