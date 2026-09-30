@@ -29,6 +29,10 @@ actor GitProbe {
     }
 
     private var cache: [String: Entry] = [:]
+    /// The read under way per directory. Every git card asks on appear, all
+    /// at once; without this each started its own full read, and the serial
+    /// queue ran them back to back, so the last card waited for all of them.
+    private var inFlight: [String: Task<GitSnapshot?, Never>] = [:]
     /// Paths already known not to be repositories, so a non-repo cwd doesn't
     /// re-run `rev-parse` every few seconds forever.
     private var notRepos: Set<String> = []
@@ -52,7 +56,16 @@ actor GitProbe {
         if let entry = cache[cwd], now.timeIntervalSince(entry.localAt) < Self.localTTL {
             return entry.snapshot
         }
+        if let running = inFlight[cwd] { return await running.value }
 
+        let task = Task { await read(cwd, now: now) }
+        inFlight[cwd] = task
+        let snap = await task.value
+        if inFlight[cwd] == task { inFlight[cwd] = nil }
+        return snap
+    }
+
+    private func read(_ cwd: String, now: Date) async -> GitSnapshot? {
         let previous = cache[cwd]?.snapshot ?? GitSnapshot()
         let remoteAt = cache[cwd]?.remoteAt ?? .distantPast
         let expired = now.timeIntervalSince(remoteAt) >= Self.remoteTTL
@@ -118,6 +131,9 @@ actor GitProbe {
     /// "ahead 3" looks like it silently failed.
     func invalidate(_ cwd: String) {
         cache[cwd] = nil
+        // A read already running started before the change; the next caller
+        // must not join it.
+        inFlight[cwd] = nil
         notRepos.remove(cwd)
     }
 
@@ -154,10 +170,28 @@ actor GitProbe {
         }
     }
 
+    /// Three independent round trips of about half a second each, run side by
+    /// side rather than in series.
     private static func readRemote(into snap: inout GitSnapshot, cwd: String) {
-        snap.sync = syncState(cwd: cwd, snap: snap)
-        (snap.pr, snap.merge, snap.autoMerge) = prState(cwd: cwd)
-        snap.ci = ciState(cwd: cwd, branch: snap.branch)
+        let local = snap
+        let out = RemoteRead()
+        let group = DispatchGroup()
+        let pool = DispatchQueue.global(qos: .utility)
+        pool.async(group: group) { out.sync = syncState(cwd: cwd, snap: local) }
+        pool.async(group: group) { out.pr = prState(cwd: cwd) }
+        pool.async(group: group) { out.ci = ciState(cwd: cwd, branch: local.branch) }
+        group.wait()
+        snap.sync = out.sync
+        (snap.pr, snap.merge, snap.autoMerge) = out.pr
+        snap.ci = out.ci
+    }
+
+    /// Each field is written by exactly one block and read only after the
+    /// group's wait, so the unchecked conformance holds.
+    private final class RemoteRead: @unchecked Sendable {
+        var sync = SyncState.unknown
+        var pr: (PRState, MergeReadiness, Bool?) = (.unknown, MergeReadiness(), nil)
+        var ci = CIState.unknown
     }
 
     private static func ciState(cwd: String, branch: String?) -> CIState {
