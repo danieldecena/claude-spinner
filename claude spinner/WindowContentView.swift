@@ -52,8 +52,7 @@ struct WindowContentView: View {
     private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
     private var skillPick: Suggestion? { suggestionInput.flatMap(Suggestion.skill) }
 
-    /// Roots only. Children are shown under their parent in the detail pane,
-    /// where there is room for them.
+    /// Roots only. Children are listed under their parent in the sidebar.
     private var roots: [SessionFeed] {
         feed.sessions.filter { $0.parentSessionId == nil }
     }
@@ -148,7 +147,8 @@ struct WindowContentView: View {
                 }
                 Divider()
                 NewSessionBar()
-                SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
+                SessionSidebar(sessions: roots, children: feed.sessions.filter { $0.parentSessionId != nil },
+                               asks: asks.pending, selection: $selection)
             }
             .frame(width: 250)
             .background(Color.card)
@@ -178,7 +178,6 @@ struct WindowContentView: View {
     @ViewBuilder private var detail: some View {
             if let session = selected {
                 SessionDetail(session: session,
-                              children: feed.sessions.filter { $0.parentSessionId == session.id },
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [],
@@ -203,6 +202,8 @@ struct WindowContentView: View {
 
 private struct SessionSidebar: View {
     let sessions: [SessionFeed]
+    /// Subagents, listed under the session that spawned them.
+    let children: [SessionFeed]
     let asks: [AskRequest]
     @Binding var selection: String?
 
@@ -264,6 +265,22 @@ private struct SessionSidebar: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(rowLabel(session))
                         .tag(session.id)
+                        // Not selectable: the detail pane shows root sessions, and a
+                        // subagent has no pane of its own to show.
+                        ForEach(children.filter { $0.parentSessionId == session.id }) { child in
+                            HStack(spacing: 6) {
+                                Circle().fill(tint(child)).frame(width: 6, height: 6)
+                                Text(child.agentType ?? "subagent")
+                                    .font(.claudeMono(10)).lineLimit(1)
+                                Spacer(minLength: 0)
+                                Text(child.statusLabel)
+                                    .font(.claudeMono(10)).foregroundStyle(tint(child))
+                                    .lineLimit(1)
+                            }
+                            .padding(.leading, 16)
+                            .selectionDisabled()
+                            .accessibilityElement(children: .combine)
+                        }
                     }
                 } header: {
                     SectionHeader(section: section)
@@ -369,7 +386,6 @@ private struct SectionHeader: View {
 
 private struct SessionDetail: View {
     let session: SessionFeed
-    let children: [SessionFeed]
     let asks: [AskRequest]
     let feedDir: URL
     /// This session's context over time. Passed in rather than read from the
@@ -435,10 +451,6 @@ private struct SessionDetail: View {
                     usage
                 }
 
-                if !children.isEmpty {
-                    SubagentTree(parent: session, children: children)
-                        .detailCard()
-                }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -563,81 +575,6 @@ private struct SessionDetail: View {
         case .thinking: return "thinking"
         case .tool: return session.tool.isEmpty ? "running a tool" : "running \(session.tool)"
         case .attention: return "needs input"
-        }
-    }
-}
-
-// MARK: - Subagents
-
-/// The session and its subagents drawn as a tree, each node tinted by what it
-/// is doing. A parent waiting on three busy children then reads as a shape,
-/// where the list it replaced read as three names and a dash.
-private struct SubagentTree: View {
-    let parent: SessionFeed
-    let children: [SessionFeed]
-
-    /// Where the trunk runs: under the centre of the parent node's dot, which
-    /// sits past the node's 8pt inset.
-    static let trunkX: CGFloat = 8 + 7 / 2
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Subagents").font(.claudeMono(11)).foregroundStyle(Color.label)
-                .padding(.bottom, 6)
-            node(parent, name: parent.distinctName)
-            ForEach(Array(children.enumerated()), id: \.element.id) { index, child in
-                HStack(spacing: 0) {
-                    TreeConnector(trunkX: Self.trunkX, isLast: index == children.count - 1)
-                        .stroke(Color.label.opacity(0.6), lineWidth: 1)
-                        .frame(width: Self.trunkX + 14)
-                    node(child, name: child.agentType ?? "subagent")
-                        .padding(.top, 6)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func node(_ session: SessionFeed, name: String) -> some View {
-        let tint = Self.tint(session.status)
-        return HStack(spacing: 6) {
-            Circle().fill(tint).frame(width: 7, height: 7)
-            Text(name).font(.claudeMono(11))
-            Text(session.statusLabel).font(.claudeMono(11)).foregroundStyle(tint)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint.opacity(0.10)))
-        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .stroke(tint.opacity(0.5), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-    }
-
-    /// The panel's status colours: orange is working, blue is needs you.
-    static func tint(_ status: SessionStatus) -> Color {
-        switch status {
-        case .attention: return .attention
-        case .thinking, .tool: return .claude
-        case .idle: return .label
-        }
-    }
-}
-
-/// One child's share of the tree: the trunk down its row (stopping at the
-/// branch on the last child, so the tree ends in a corner) and the branch
-/// across to the node, meeting it at the node's vertical centre.
-private struct TreeConnector: Shape {
-    let trunkX: CGFloat
-    let isLast: Bool
-
-    func path(in rect: CGRect) -> Path {
-        // The node is padded 6pt from the row's top, so its centre sits 3pt
-        // below the row's.
-        let branchY = rect.midY + 3
-        return Path { path in
-            path.move(to: CGPoint(x: trunkX, y: rect.minY))
-            path.addLine(to: CGPoint(x: trunkX, y: isLast ? branchY : rect.maxY))
-            path.move(to: CGPoint(x: trunkX, y: branchY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: branchY))
         }
     }
 }

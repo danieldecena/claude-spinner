@@ -144,6 +144,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: subagents are listed in the sidebar under their parent session (dot,
+  type, status), not as a Subagents card at the bottom of the detail pane; the
+  tree drawing is deleted. Rows are not selectable: a subagent has no pane.
+  Seen on screen with two live subagents.
 - Decided: the Skills card no longer picks /wrap-up on token count (150k) while
   the session is mid-turn; it waits for the prompt. At 85% of the window it still
   picks it regardless. Seen: it read "160k tokens re-read" on a working session
