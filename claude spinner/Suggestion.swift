@@ -36,13 +36,15 @@ struct Suggestion: Equatable {
         var todoDone: Int? = nil
         /// Unchecked items in the project's TASKS.md, nil when it has none.
         var projectOpenTasks: Int? = nil
+        /// `/wrap-up` ran in this session and nothing was edited since.
+        var wrappedUp = false
     }
 
     /// The Skills card's pick: the one skill most worth running in this
     /// session now, whatever `next` chose for the pane as a whole. Same
     /// discipline as `next` -- facts on screen, first rule that holds wins.
-    /// Nothing is picked for /recall, /checkup or /clear: nothing on screen
-    /// says when those are due.
+    /// Nothing is picked for /recall or /checkup: nothing on screen says when
+    /// those are due. /clear is picked only after a wrap-up the transcript shows.
     static func skill(_ input: Input) -> Suggestion? {
         func pick(_ command: String, _ reason: String) -> Suggestion? {
             command == "/compact" || input.installed.contains(command)
@@ -50,6 +52,15 @@ struct Suggestion: Equatable {
         }
         let tokens = input.contextTokens ?? 0
 
+        // Wrapped up and still saved: another wrap-up would redo the same work,
+        // and every call from here re-reads a context nothing needs.
+        var saved = true
+        if let git = input.git {
+            if case .ahead = git.sync { saved = false }
+            if git.isDirty { saved = false }
+        }
+        if input.wrappedUp, saved,
+           let s = pick("/clear", "Wrapped up and nothing changed since. Clear to start fresh.") { return s }
         if let pct = input.contextPercent, pct >= 85,
            let s = pick("/wrap-up", "Context is at \(pct)%. Wrap up, then /clear.") { return s }
         // Absolute tokens as well as percent: every call re-reads the whole

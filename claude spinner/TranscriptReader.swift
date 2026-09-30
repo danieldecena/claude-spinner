@@ -21,6 +21,10 @@ struct TranscriptSnapshot: Equatable {
     var outputTokens: Int?
     var thinkingTokens: Int?
     var lastActivity: Date?
+    /// `/wrap-up` ran and nothing was edited after it. Read from the tail
+    /// only, so a wrap-up that scrolled out of it reads as false: the safe way
+    /// to be wrong, since the pick then asks for a wrap-up rather than a clear.
+    var wrappedUp = false
 
     var isEmpty: Bool {
         title == nil && lastPrompt == nil && lastAssistantText == nil && recentTools.isEmpty
@@ -62,6 +66,10 @@ enum TranscriptReader {
 
         var out = TranscriptSnapshot()
         var toolsSeen: [String] = []
+        // Set by whichever comes first going backwards: a wrap-up (true) or an
+        // edit (false). Bash is not an edit here -- wrap-up itself commits with it.
+        var wrapSettled = false
+        let edits: Set<String> = ["Edit", "Write", "MultiEdit", "NotebookEdit"]
 
         // Backwards, so "last" is the first hit and each field is filled once.
         for line in lines.reversed() {
@@ -76,6 +84,12 @@ enum TranscriptReader {
                 out.lastPrompt = out.lastPrompt ?? (obj["lastPrompt"] as? String)
             case "permission-mode":
                 out.permissionMode = out.permissionMode ?? (obj["permissionMode"] as? String)
+            case "user":
+                if !wrapSettled, let text = (obj["message"] as? [String: Any])?["content"] as? String,
+                   text.contains("<command-name>/wrap-up</command-name>") {
+                    out.wrappedUp = true
+                    wrapSettled = true
+                }
             case "assistant":
                 out.gitBranch = out.gitBranch ?? (obj["gitBranch"] as? String)
                 out.claudeVersion = out.claudeVersion ?? (obj["version"] as? String)
@@ -100,7 +114,15 @@ enum TranscriptReader {
                            let t = (block["thinking"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                            !t.isEmpty { out.lastThinking = t }
                     case "tool_use":
-                        if let name = block["name"] as? String { toolsSeen.append(name) }
+                        if let name = block["name"] as? String {
+                            toolsSeen.append(name)
+                            if !wrapSettled, edits.contains(name) { wrapSettled = true }
+                            if !wrapSettled, name == "Skill",
+                               (block["input"] as? [String: Any])?["skill"] as? String == "wrap-up" {
+                                out.wrappedUp = true
+                                wrapSettled = true
+                            }
+                        }
                     default: break
                     }
                 }

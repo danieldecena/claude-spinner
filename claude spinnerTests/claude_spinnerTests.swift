@@ -1362,6 +1362,24 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertFalse(snap.isEmpty)
     }
 
+    /// Wrapped up = the newest of {a /wrap-up, an edit} is the wrap-up. The
+    /// typed command and the Skill tool both count; Bash (wrap-up's own
+    /// commits) does not undo it.
+    func testTranscriptKnowsWhenTheSessionWrappedUp() {
+        let typed = #"{"type":"user","message":{"role":"user","content":"<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>"}}"#
+        let skill = #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"wrap-up"}}]}}"#
+        let edit = #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit"}]}}"#
+        let bash = #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}"#
+        func wrapped(_ lines: [String]) -> Bool {
+            TranscriptReader.parse(lines.joined(separator: "\n"), droppingFirstLine: false).wrappedUp
+        }
+        XCTAssertTrue(wrapped([edit, typed, bash]))
+        XCTAssertTrue(wrapped([edit, skill]))
+        XCTAssertFalse(wrapped([typed, bash, edit]))
+        XCTAssertFalse(wrapped([edit, bash]))
+        XCTAssertFalse(wrapped(transcriptLines))
+    }
+
     /// A turn of eight Bash calls filled the line with "Bash · Bash · Bash …"
     /// and said less than one count does.
     func testTranscriptCollapsesRunsOfTheSameTool() {
@@ -3378,7 +3396,7 @@ final class claude_spinnerTests: XCTestCase {
 
     private func skillInput(_ configure: (inout Suggestion.Input) -> Void) -> Suggestion.Input {
         suggestionInput {
-            $0.installed = ["/wrap-up", "/start-up", "/simplify", "/goal"]
+            $0.installed = ["/wrap-up", "/start-up", "/simplify", "/goal", "/clear"]
             $0.contextTokens = 60_000
             configure(&$0)
         }
@@ -3394,6 +3412,12 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(picked(skillInput { $0.contextPercent = 90 }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextPercent = 70 }), "/compact")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000 }), "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000; $0.wrappedUp = true
+                                           $0.git = self.repo { _ in } }), "/clear")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000; $0.wrappedUp = true
+                                           $0.git = self.repo { $0.dirty = 1 } }), "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000; $0.wrappedUp = true
+                                           $0.git = self.repo { $0.sync = .ahead(1) } }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 120_000 }), "/compact")
         XCTAssertEqual(picked(skillInput { $0.idleFor = 40 * 60 }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 5_000 }), "/start-up")

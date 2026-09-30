@@ -22,6 +22,7 @@ struct WindowContentView: View {
     @State private var gitSnapshot: GitSnapshot?
     /// Open items in the selected repo's TASKS.md, re-read with the snapshot.
     @State private var projectOpenTasks: Int?
+    @State private var wrappedUp = false
 
     private var suggestionInput: Suggestion.Input? {
         guard let session = selected else { return nil }
@@ -37,7 +38,8 @@ struct WindowContentView: View {
             linesChanged: session.stats.linesAdded.map { $0 + (session.stats.linesRemoved ?? 0) },
             todoTotal: session.todoTotal,
             todoDone: session.todoDone,
-            projectOpenTasks: projectOpenTasks)
+            projectOpenTasks: projectOpenTasks,
+            wrappedUp: wrappedUp)
     }
 
     private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
@@ -104,6 +106,19 @@ struct WindowContentView: View {
                 let root = gitSnapshot?.toplevel ?? cwd
                 projectOpenTasks = (try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8))
                     .flatMap(Suggestion.openTasks(inTasksFile:))
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+        // Per session, not per folder: two sessions can share a cwd and only one
+        // of them wrapped up.
+        .task(id: selected?.id) {
+            wrappedUp = false
+            while !Task.isCancelled {
+                if let path = selected?.stats.transcriptPath {
+                    wrappedUp = await Task.detached(priority: .utility) {
+                        TranscriptReader.read(path: path).wrappedUp
+                    }.value
+                }
                 try? await Task.sleep(for: .seconds(5))
             }
         }
