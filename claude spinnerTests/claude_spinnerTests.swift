@@ -3497,6 +3497,38 @@ final class claude_spinnerTests: XCTestCase {
                        SessionAction.clear.confirmation)
     }
 
+    /// Fetch, Open CI and Open repo are the quiet row; the rest are state actions.
+    func testGitToolsAreTheAlwaysRunnableActions() {
+        XCTAssertEqual(GitAction.allCases.filter(\.isTool), [.fetch, .openCI, .openRepo])
+    }
+
+    /// A clean, pushed default branch dims both git skills; work to act on lights them.
+    func testGitSkillsIdleOnACleanPushedTree() {
+        let push = SkillShortcut.curated.first { $0.name == "git-push" }!
+        let review = SkillShortcut.curated.first { $0.name == "code-review" }!
+        var snap = GitSnapshot()
+        snap.sync = .inSync
+        snap.isDefaultBranch = true
+        XCTAssertNotNil(SkillShortcut.idleReason(push, snapshot: snap))
+        XCTAssertNotNil(SkillShortcut.idleReason(review, snapshot: snap))
+        XCTAssertNil(SkillShortcut.idleReason(push, snapshot: nil))
+
+        snap.sync = .ahead(2)
+        XCTAssertNil(SkillShortcut.idleReason(push, snapshot: snap))
+        XCTAssertNotNil(SkillShortcut.idleReason(review, snapshot: snap))
+
+        snap.sync = .inSync
+        snap.dirty = 1
+        XCTAssertNil(SkillShortcut.idleReason(push, snapshot: snap))
+        XCTAssertNil(SkillShortcut.idleReason(review, snapshot: snap))
+
+        snap.dirty = 0
+        snap.isDefaultBranch = false
+        XCTAssertNil(SkillShortcut.idleReason(review, snapshot: snap))
+        let simplify = SkillShortcut.curated.first { $0.name == "simplify" }!
+        XCTAssertNil(SkillShortcut.idleReason(simplify, snapshot: snap))
+    }
+
     func testGitShortcutsAreGroupedApart() {
         let git = SkillShortcut.curated.filter { $0.group == .git }.map(\.name)
         XCTAssertEqual(git, ["code-review", "git-push"])

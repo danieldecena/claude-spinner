@@ -46,6 +46,16 @@ enum GitAction: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Runnable nearly always, so never the thing to do next. The card draws
+    /// these as a quiet icon row: at full brightness beside the state actions
+    /// they read as five suggestions on a clean, pushed repo.
+    var isTool: Bool {
+        switch self {
+        case .fetch, .openCI, .openRepo: return true
+        case .pull, .push, .createPR, .openPR, .merge: return false
+        }
+    }
+
     /// Whether clicking it needs a yes first.
     ///
     /// Push and Create PR are outward-facing: once they land, other people can

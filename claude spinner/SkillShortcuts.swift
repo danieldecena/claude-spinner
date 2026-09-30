@@ -56,6 +56,20 @@ struct SkillShortcut: Identifiable, Equatable {
         }
     }
 
+    /// Why a git skill has nothing to act on, or nil. Same test the
+    /// suggestion uses (tracked edits, unpushed commits), so an untracked-only
+    /// tree reads as clean here too. An unread snapshot blocks nothing.
+    static func idleReason(_ shortcut: SkillShortcut, snapshot: GitSnapshot?) -> String? {
+        guard shortcut.group == .git, let snap = snapshot, !snap.isDirty else { return nil }
+        switch (shortcut.name, snap.sync) {
+        case ("git-push", .ahead), ("git-push", .noUpstream): return nil
+        case ("git-push", _): return "Nothing to commit or push."
+        case ("code-review", _) where !snap.isDefaultBranch: return nil
+        case ("code-review", _): return "No changes to review."
+        default: return nil
+        }
+    }
+
     /// Why a shortcut can't be typed into this session right now, or nil.
     /// Same rule as `/compact`: there has to be a pane, and the prompt has to be free.
     static func unavailableReason(session: SessionFeed, hasPane: Bool) -> String? {

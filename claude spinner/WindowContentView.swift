@@ -1906,14 +1906,16 @@ private struct GitCommandsCard: View {
     let feedDir: URL
     let suggestion: Suggestion?
     @State private var notice: NoticeMessage?
+    @State private var snapshot: GitSnapshot?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Git commands")
-            GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice)
+            GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
             ShortcutChips(session: session, feedDir: feedDir,
                           shortcuts: installedShortcuts.filter { $0.group == .git },
-                          suggestion: suggestion, notice: $notice)
+                          suggestion: suggestion, notice: $notice,
+                          idleReason: { SkillShortcut.idleReason($0, snapshot: snapshot) })
             if let notice { Notice(notice) }
             Divider().padding(.vertical, 2)
             AutomationToggles(session: session, feedDir: feedDir)
@@ -2126,15 +2128,18 @@ private struct ShortcutChips: View {
     let shortcuts: [SkillShortcut]
     let suggestion: Suggestion?
     @Binding var notice: NoticeMessage?
+    /// Why a chip has nothing to act on even though it could be typed.
+    var idleReason: (SkillShortcut) -> String? = { _ in nil }
     @State private var hasPane = false
     @State private var sending = false
     @State private var confirming: SkillShortcut?
 
     var body: some View {
-        let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
                   alignment: .leading, spacing: 6) {
             ForEach(shortcuts) { shortcut in
+                let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
+                    ?? idleReason(shortcut)
                 Button { start(shortcut) } label: {
                     // The name alone; the slash is implied by the card, and the
                     // tooltip and the notice still say the command typed.
@@ -2522,28 +2527,44 @@ private struct GitButtons: View {
     let cwd: String
     let suggestion: Suggestion?
     @Binding var notice: NoticeMessage?
-    @State private var snapshot: GitSnapshot?
+    @Binding var snapshot: GitSnapshot?
     @State private var confirming: GitAction?
     @State private var running = false
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
-                  alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             if let snap = snapshot {
-                ForEach(GitAction.allCases) { action in
-                    let block = GitActions.unavailableReason(action, snapshot: snap)
-                    Button { start(action) } label: {
-                        Label(action.title, systemImage: action.symbol)
-                            .font(.claudeMono(10))
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
+                          alignment: .leading, spacing: 6) {
+                    ForEach(GitAction.allCases.filter { !$0.isTool }) { action in
+                        let block = GitActions.unavailableReason(action, snapshot: snap)
+                        Button { start(action) } label: {
+                            Label(action.title, systemImage: action.symbol)
+                                .font(.claudeMono(10))
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(block != nil || running)
+                        .opacity(block == nil ? 1 : 0.7)
+                        .suggestedGlow(block == nil && suggestion?.action == .git(action))
+                        .help(help(action, block: block))
                     }
-                    .buttonStyle(.glass)
-                    .disabled(block != nil || running)
-                    .opacity(block == nil ? 1 : 0.7)
-                    .suggestedGlow(block == nil && suggestion?.action == .git(action))
-                    .help(block?.reason ?? (suggestion?.action == .git(action) ? suggestion?.reason : nil)
-                          ?? action.title)
+                }
+                HStack(spacing: 4) {
+                    ForEach(GitAction.allCases.filter(\.isTool)) { action in
+                        let block = GitActions.unavailableReason(action, snapshot: snap)
+                        Button { start(action) } label: {
+                            Image(systemName: action.symbol).frame(width: 22, height: 18)
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(Color.label)
+                        .disabled(block != nil || running)
+                        .opacity(block == nil ? 1 : 0.45)
+                        .suggestedGlow(block == nil && suggestion?.action == .git(action))
+                        .help(help(action, block: block))
+                        .accessibilityLabel(action.title)
+                    }
                 }
             }
         }
@@ -2560,6 +2581,10 @@ private struct GitButtons: View {
             }
             Button("Cancel", role: .cancel) { confirming = nil }
         }
+    }
+
+    private func help(_ action: GitAction, block: GitActions.Block?) -> String {
+        block?.reason ?? (suggestion?.action == .git(action) ? suggestion?.reason : nil) ?? action.title
     }
 
     private func start(_ action: GitAction) {
