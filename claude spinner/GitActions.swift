@@ -9,11 +9,14 @@ import AppKit
 /// session to be idle. A subprocess has none of those constraints and leaves the
 /// transcript untouched.
 enum GitAction: String, CaseIterable, Identifiable {
-    case openPR
-    case push
-    case createPR
     case pull
+    case push
+    case fetch
+    case createPR
+    case openPR
     case merge
+    case openCI
+    case openRepo
 
     var id: String { rawValue }
 
@@ -24,6 +27,22 @@ enum GitAction: String, CaseIterable, Identifiable {
         case .createPR: return "Create PR"
         case .pull:     return "Pull"
         case .merge:    return "Merge"
+        case .fetch:    return "Fetch"
+        case .openCI:   return "Open CI"
+        case .openRepo: return "Open repo"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .pull:     return "arrow.down"
+        case .push:     return "arrow.up"
+        case .fetch:    return "arrow.clockwise"
+        case .createPR: return "plus.square"
+        case .openPR:   return "arrow.up.forward.square"
+        case .merge:    return "arrow.triangle.merge"
+        case .openCI:   return "gearshape.2"
+        case .openRepo: return "safari"
         }
     }
 
@@ -36,7 +55,7 @@ enum GitAction: String, CaseIterable, Identifiable {
     /// deletion rather than leaving it as a flag the reader has to know about.
     var confirmation: String? {
         switch self {
-        case .openPR:   return nil
+        case .openPR, .fetch, .openCI, .openRepo: return nil
         case .push:     return "Push this branch to its remote? Anyone with access will see these commits."
         case .createPR: return "Open a pull request for this branch? It becomes visible to the repository's reviewers straight away."
         case .pull:     return "Fast-forward this branch to the remote?"
@@ -78,7 +97,7 @@ enum GitActions {
     static func unavailableReason(_ action: GitAction, snapshot: GitSnapshot) -> Block? {
         // Everything GitHub knows arrives through gh. Answering this first
         // means a missing binary is never dressed up as an unreachable network.
-        if !snapshot.ghInstalled, action == .openPR || action == .createPR || action == .merge {
+        if !snapshot.ghInstalled, [.openPR, .createPR, .merge, .openCI, .openRepo].contains(action) {
             return Block("The gh CLI isn't installed, so GitHub state can't be read. Install it with `brew install gh`.",
                          settled: false)
         }
@@ -136,6 +155,15 @@ enum GitActions {
 
         case .merge:
             return mergeBlock(snapshot)
+
+        case .fetch:
+            // Read-only against the working tree, so the only thing that can
+            // stop it is having nowhere to fetch from.
+            if case .noUpstream = snapshot.sync { return Block("No upstream is configured; there is nothing to fetch from.", settled: true) }
+            return nil
+
+        case .openCI, .openRepo:
+            return nil
         }
     }
 
@@ -216,6 +244,12 @@ enum GitActions {
             // A method has to be named. `gh pr merge` with none prompts, and a
             // subprocess with no terminal would sit there until the timeout.
             return (GitProbe.ghPath ?? "", ["pr", "merge", String(n), "--squash", "--delete-branch"])
+        case .fetch:
+            return ("/usr/bin/git", ["fetch", "--prune"])
+        case .openCI:
+            return (GitProbe.ghPath ?? "", ["browse", "--actions"])
+        case .openRepo:
+            return (GitProbe.ghPath ?? "", ["browse"])
         }
     }
 

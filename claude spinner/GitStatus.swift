@@ -90,6 +90,54 @@ extension GitSnapshot {
     }
 }
 
+/// The latest GitHub Actions run on this branch.
+///
+/// Its own row rather than folded into `checks`: that one only exists beside a
+/// PR, so a default branch -- where CI matters most -- never showed any.
+/// `unknown` (gh failed or isn't there) is kept apart from `none` (gh answered
+/// with no runs), the same not-found-is-not-unreachable split as `PRState`.
+enum CIState: Equatable {
+    case unknown
+    case none
+    case running(workflow: String, url: String)
+    case finished(workflow: String, conclusion: String, url: String)
+
+    var url: String? {
+        switch self {
+        case .running(_, let u), .finished(_, _, let u): return u
+        case .unknown, .none: return nil
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .unknown: return "unknown"
+        case .none: return "no runs"
+        case .running(let w, _): return "\(w) running"
+        case .finished(let w, let c, _):
+            switch c {
+            case "success": return "\(w) passed"
+            case "failure": return "\(w) failed"
+            default: return "\(w) \(c.replacingOccurrences(of: "_", with: " "))"
+            }
+        }
+    }
+
+    var tone: GitTone {
+        switch self {
+        case .unknown, .none: return .neutral
+        case .running: return .pending
+        case .finished(_, let c, _):
+            switch c {
+            case "success": return .good
+            case "failure", "timed_out", "startup_failure": return .bad
+            case "action_required": return .warn
+            default: return .neutral
+            }
+        }
+    }
+}
+
 /// Whether this branch has a pull request.
 ///
 /// Three cases, not two. `gh pr view` exits non-zero both when there is no PR
@@ -196,6 +244,7 @@ struct GitSnapshot: Equatable {
     var sync: SyncState = .unknown
     var pr: PRState = .unknown
     var merge = MergeReadiness()
+    var ci: CIState = .unknown
     /// Whether the `gh` binary was found. False makes every GitHub-derived
     /// answer unavailable for a reason that names gh, rather than for one that
     /// blames the network for a tool that was never installed.
@@ -215,6 +264,120 @@ struct GitSnapshot: Equatable {
     /// Uncommitted tracked work. The counter-signal to clearing a session:
     /// the reasoning behind a half-finished edit lives only in that context.
     var isDirty: Bool { dirty > 0 || staged > 0 }
+}
+
+/// One commit for the history graph.
+struct GraphCommit: Equatable {
+    var sha: String
+    var parents: [String]
+    var refs: [String] = []
+    var subject: String = ""
+    var committedAt: Date?
+
+    var shortSHA: String { String(sha.prefix(7)) }
+}
+
+/// A commit placed in the graph: its lane, and the line segments that leave
+/// its row for the next one, as (from lane, to lane) pairs.
+struct GraphRow: Equatable {
+    var commit: GraphCommit
+    var column: Int
+    var edges: [GraphEdge]
+    /// Lanes in use at this row, for sizing the drawing.
+    var width: Int
+}
+
+struct GraphEdge: Equatable, Hashable {
+    var from: Int
+    var to: Int
+}
+
+enum GitGraph {
+    /// Full sha, parents, ref names, subject, commit time -- tab-separated.
+    static let format = "%H%x09%P%x09%D%x09%s%x09%ct"
+
+    static func parse(_ output: String) -> [GraphCommit] {
+        output.split(separator: "\n", omittingEmptySubsequences: true).compactMap { raw in
+            let f = raw.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            guard f.count >= 5, !f[0].isEmpty else { return nil }
+            return GraphCommit(sha: f[0],
+                               parents: f[1].split(separator: " ").map(String.init),
+                               refs: f[2].split(separator: ",")
+                                   .map { $0.trimmingCharacters(in: .whitespaces) }
+                                   .filter { !$0.isEmpty },
+                               subject: f[3],
+                               committedAt: Double(f[4]).map { Date(timeIntervalSince1970: $0) })
+        }
+    }
+
+    /// Lanes for commits in topological order, newest first.
+    ///
+    /// Each lane holds the sha it is waiting to reach. A commit takes the lane
+    /// already waiting for it (the lowest, if several are; else the first free
+    /// one), any other lanes waiting
+    /// for it converge into it, and its first parent continues in its own lane
+    /// so a branch stays a straight line; further parents take a lane already
+    /// waiting for them, or a free one. Lanes are never compacted, so a line
+    /// keeps its column for its whole length.
+    static func layout(_ commits: [GraphCommit]) -> [GraphRow] {
+        var lanes: [String?] = []
+        var placed: [(commit: GraphCommit, column: Int, carried: [String?], after: [String?], fromNode: [Int])] = []
+
+        for commit in commits {
+            let column: Int
+            if let i = lanes.firstIndex(of: commit.sha) {
+                column = i
+            } else if let free = lanes.firstIndex(of: nil) {
+                column = free
+            } else {
+                lanes.append(nil)
+                column = lanes.count - 1
+            }
+            for i in lanes.indices where lanes[i] == commit.sha { lanes[i] = nil }
+            let carried = lanes
+
+            var fromNode: [Int] = []
+            for (k, parent) in commit.parents.enumerated() {
+                if k == 0 {
+                    // Always straight down, even when another lane already waits
+                    // for this parent: the duplicates converge at the parent's
+                    // row, where the lower lane wins, so main stays main.
+                    lanes[column] = parent
+                    fromNode.append(column)
+                } else if let i = lanes.firstIndex(of: parent) {
+                    fromNode.append(i)
+                } else if let free = lanes.firstIndex(of: nil) {
+                    lanes[free] = parent
+                    fromNode.append(free)
+                } else {
+                    lanes.append(parent)
+                    fromNode.append(lanes.count - 1)
+                }
+            }
+            placed.append((commit, column, carried, lanes, fromNode))
+        }
+
+        return placed.indices.map { r in
+            let row = placed[r]
+            let next = r + 1 < placed.count ? placed[r + 1] : nil
+            var edges: [GraphEdge] = []
+            for (i, waiting) in row.after.enumerated() {
+                guard let waiting else { continue }
+                // Lines converge on the next commit where it sits; everything
+                // else runs straight down its own lane.
+                let target = waiting == next?.commit.sha ? next!.column : i
+                // `carried` predates lanes the parents opened, so it can be shorter.
+                if i < row.carried.count, row.carried[i] != nil {
+                    edges.append(GraphEdge(from: i, to: target))
+                }
+                if row.fromNode.contains(i) { edges.append(GraphEdge(from: row.column, to: target)) }
+            }
+            let width = max(row.after.count, row.carried.count, row.column + 1)
+            return GraphRow(commit: row.commit, column: row.column,
+                            edges: Array(Set(edges)).sorted { ($0.from, $0.to) < ($1.from, $1.to) },
+                            width: width)
+        }
+    }
 }
 
 /// Pure parsing, split out from the subprocess work so every branch below is
@@ -303,6 +466,21 @@ enum GitParse {
         return MergeReadiness(mergeable: obj["mergeable"] as? String,
                               state: obj["mergeStateStatus"] as? String,
                               review: obj["reviewDecision"] as? String)
+    }
+
+    /// `gh run list --json status,conclusion,workflowName,url --limit 1`. An
+    /// empty array is an observed "no runs"; anything unparseable is unknown.
+    static func ci(json: Data) -> CIState {
+        guard let rows = try? JSONSerialization.jsonObject(with: json) as? [[String: Any]] else {
+            return .unknown
+        }
+        guard let run = rows.first else { return .none }
+        let workflow = run["workflowName"] as? String ?? "CI"
+        let url = run["url"] as? String ?? ""
+        if run["status"] as? String != "completed" {
+            return .running(workflow: workflow, url: url)
+        }
+        return .finished(workflow: workflow, conclusion: run["conclusion"] as? String ?? "unknown", url: url)
     }
 
     /// Tell "this branch has no PR" from "GitHub couldn't be reached".

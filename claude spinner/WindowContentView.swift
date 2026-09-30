@@ -275,8 +275,12 @@ private struct SessionDetail: View {
                     cacheCard
                     contextCard.tileSpan(2)
                     configCard
-                    SkillsCard(session: session, feedDir: feedDir).tileSpan(2)
-                    GitCommandsCard(session: session, feedDir: feedDir)
+                    // Full width at any column count (the span clamps): the graph
+                    // wants the width, and the button grids lay out in rows
+                    // instead of one tall column that stretched their neighbours.
+                    GitGraphCard(cwd: session.cwd).tileSpan(.max)
+                    GitCommandsCard(session: session, feedDir: feedDir).tileSpan(.max)
+                    SkillsCard(session: session, feedDir: feedDir).tileSpan(.max)
                 }
 
                 if !children.isEmpty {
@@ -1734,6 +1738,133 @@ private struct ShortcutChips: View {
 
 // MARK: - Git
 
+/// The repository's recent history as a lane graph: a dot per commit, a
+/// coloured line per branch, curves where they split and merge, and the
+/// commit's refs, subject and age beside it.
+private struct GitGraphCard: View {
+    let cwd: String
+    @State private var rows: [GraphRow]?
+    @State private var read = false
+
+    private static let limit = 40
+    private static let rowHeight: CGFloat = 20
+    private static let laneWidth: CGFloat = 12
+    /// Beyond this many lanes the drawing is clipped rather than letting a
+    /// repo full of stale remote branches push the text off the card.
+    private static let maxLanes = 8
+    private static let palette: [Color] = [.claude, .identityCyan, .identityPurple,
+                                           .identityJade, .usageAmber, .identityIndigo]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("History")
+            if let rows, !rows.isEmpty {
+                let lanes = min(Self.maxLanes, rows.map(\.width).max() ?? 1)
+                ScrollView {
+                    HStack(alignment: .top, spacing: 8) {
+                        graph(rows)
+                            .frame(width: CGFloat(lanes) * Self.laneWidth,
+                                   height: CGFloat(rows.count) * Self.rowHeight)
+                            .clipped()
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                                label(row).frame(height: Self.rowHeight)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 260)
+            } else {
+                Text(rows != nil ? "no commits yet" : read ? "history couldn't be read" : "reading…")
+                    .font(.claudeMono(11)).foregroundStyle(Color.label)
+            }
+        }
+        .detailCard()
+        .task(id: cwd) { await poll() }
+    }
+
+    private func graph(_ rows: [GraphRow]) -> some View {
+        Canvas { context, _ in
+            let h = Self.rowHeight
+            func x(_ lane: Int) -> CGFloat { CGFloat(lane) * Self.laneWidth + Self.laneWidth / 2 }
+            func y(_ row: Int) -> CGFloat { CGFloat(row) * h + h / 2 }
+            func color(_ lane: Int) -> Color { Self.palette[lane % Self.palette.count] }
+
+            for (r, row) in rows.enumerated() {
+                for edge in row.edges {
+                    var path = Path()
+                    let start = CGPoint(x: x(edge.from), y: y(r))
+                    let end = CGPoint(x: x(edge.to), y: y(r + 1))
+                    path.move(to: start)
+                    if edge.from == edge.to {
+                        path.addLine(to: end)
+                    } else {
+                        path.addCurve(to: end,
+                                      control1: CGPoint(x: start.x, y: start.y + h * 0.6),
+                                      control2: CGPoint(x: end.x, y: end.y - h * 0.6))
+                    }
+                    // A branch-off or merge takes the colour of the side lane.
+                    let lane = edge.from == edge.to ? edge.from : max(edge.from, edge.to)
+                    context.stroke(path, with: .color(color(lane)), lineWidth: 1.6)
+                }
+            }
+            for (r, row) in rows.enumerated() {
+                let center = CGPoint(x: x(row.column), y: y(r))
+                let isHead = row.commit.refs.contains { $0.hasPrefix("HEAD") }
+                let radius: CGFloat = isHead ? 5 : 3.5
+                let dot = Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
+                                                 width: radius * 2, height: radius * 2))
+                if row.commit.parents.count > 1 {
+                    // A merge commit is a ring, so it reads as a join, not a step.
+                    context.fill(dot, with: .color(Color(nsColor: .windowBackgroundColor)))
+                    context.stroke(dot, with: .color(color(row.column)), lineWidth: 1.6)
+                } else {
+                    context.fill(dot, with: .color(color(row.column)))
+                }
+                if isHead {
+                    context.stroke(dot, with: .color(.primary), lineWidth: 1.2)
+                }
+            }
+        }
+    }
+
+    private func label(_ row: GraphRow) -> some View {
+        HStack(spacing: 6) {
+            Text(row.commit.shortSHA).foregroundStyle(Color.label)
+            ForEach(row.commit.refs, id: \.self) { ref in
+                Text(ref).font(.claudeMono(9))
+                    .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
+                    .padding(.horizontal, 4).padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.15), in: Capsule())
+                    .fixedSize()
+            }
+            Text(row.commit.subject).lineLimit(1).truncationMode(.tail)
+                .help(row.commit.subject)
+            Spacer(minLength: 8)
+            if let at = row.commit.committedAt {
+                Text(FeedWatcher.compactAge(since: at)).foregroundStyle(Color.label).fixedSize()
+            }
+        }
+        .font(.claudeMono(11))
+    }
+
+    /// Local and cheap, so a commit made in the session shows within seconds.
+    private func poll() async {
+        rows = nil
+        read = false
+        while !Task.isCancelled {
+            let dir = cwd
+            let fresh = await Task.detached(priority: .utility) {
+                GitProbe.graph(cwd: dir, limit: Self.limit)
+            }.value
+            if fresh != rows { rows = fresh }
+            read = true
+            try? await Task.sleep(for: .seconds(15))
+        }
+    }
+}
+
 /// One git fact: a tinted icon saying how it reads, a label, the value.
 private struct GitStatusRow: View {
     let label: String
@@ -1831,6 +1962,7 @@ private struct GitCard: View {
                     if let checks = checksLabel(snap) {
                         GitStatusRow("checks", checks, symbol: "checklist", tone: snap.merge.tone)
                     }
+                    GitStatusRow("ci", snap.ci.label, symbol: "gearshape.2", tone: snap.ci.tone)
                 }
                 blockedReasons(snap)
                 // Two clocks, said once each, under everything they date.
@@ -1924,10 +2056,10 @@ private struct GitCard: View {
 /// The Git actions for the selected session's directory.
 ///
 /// Reads through the same cached `GitProbe` as `GitCard`, so the second reader
-/// costs a dictionary lookup. A settled block isn't drawn at all: the card
-/// already says "clean", "in sync", "#3 open", and permanently greyed buttons
-/// beside that read as a broken app rather than a finished repo. Absent when
-/// the directory isn't a repository.
+/// costs a dictionary lookup. Every action is drawn, greyed with its reason
+/// when it can't run: hiding the settled ones left a repo on main, in sync and
+/// without a PR showing no git commands at all, which read as missing rather
+/// than finished. Absent when the directory isn't a repository.
 private struct GitButtons: View {
     let cwd: String
     @Binding var notice: NoticeMessage?
@@ -1936,17 +2068,21 @@ private struct GitButtons: View {
     @State private var running = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
+                  alignment: .leading, spacing: 6) {
             if let snap = snapshot {
                 ForEach(GitAction.allCases) { action in
                     let block = GitActions.unavailableReason(action, snapshot: snap)
-                    if block?.settled != true {
-                        Button(action.title) { start(action) }
+                    Button { start(action) } label: {
+                        Label(action.title, systemImage: action.symbol)
                             .font(.claudeMono(10))
-                            .buttonStyle(.glass)
-                            .disabled(block != nil || running)
-                            .help(block?.reason ?? action.title)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .buttonStyle(.glass)
+                    .disabled(block != nil || running)
+                    .opacity(block == nil ? 1 : 0.7)
+                    .help(block?.reason ?? action.title)
                 }
             }
         }

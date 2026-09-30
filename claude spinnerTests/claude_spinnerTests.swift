@@ -3204,6 +3204,65 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(snap.changesTone, .pending)
     }
 
+    func testCIParseTellsNoRunsFromUnknown() {
+        XCTAssertEqual(GitParse.ci(json: Data("[]".utf8)), .none)
+        XCTAssertEqual(GitParse.ci(json: Data("not json".utf8)), .unknown)
+        let passed = GitParse.ci(json: Data(#"[{"status":"completed","conclusion":"success","workflowName":"CI","url":"u"}]"#.utf8))
+        XCTAssertEqual(passed, .finished(workflow: "CI", conclusion: "success", url: "u"))
+        XCTAssertEqual(passed.tone, .good)
+        XCTAssertEqual(passed.label, "CI passed")
+        let running = GitParse.ci(json: Data(#"[{"status":"in_progress","conclusion":"","workflowName":"CI","url":"u"}]"#.utf8))
+        XCTAssertEqual(running.tone, .pending)
+        let failed = GitParse.ci(json: Data(#"[{"status":"completed","conclusion":"failure","workflowName":"CI","url":"u"}]"#.utf8))
+        XCTAssertEqual(failed.tone, .bad)
+    }
+
+    func testNewGitActionsRunTheRightCommands() {
+        var snap = GitSnapshot()
+        snap.sync = .inSync
+        XCTAssertEqual(GitActions.command(.fetch, snapshot: snap)?.args, ["fetch", "--prune"])
+        XCTAssertEqual(GitActions.command(.openCI, snapshot: snap)?.args, ["browse", "--actions"])
+        XCTAssertNil(GitActions.unavailableReason(.fetch, snapshot: snap))
+        snap.sync = .noUpstream
+        XCTAssertEqual(GitActions.unavailableReason(.fetch, snapshot: snap)?.settled, true)
+        snap.ghInstalled = false
+        XCTAssertNotNil(GitActions.unavailableReason(.openCI, snapshot: snap))
+    }
+
+    func testGitGraphParseReadsParentsAndRefs() {
+        let out = "aaa\tbbb ccc\tHEAD -> main, origin/main\tMerge it\t1000\nbbb\t\t\tRoot\t900\n"
+        let commits = GitGraph.parse(out)
+        XCTAssertEqual(commits.count, 2)
+        XCTAssertEqual(commits[0].parents, ["bbb", "ccc"])
+        XCTAssertEqual(commits[0].refs, ["HEAD -> main", "origin/main"])
+        XCTAssertEqual(commits[1].parents, [])
+        XCTAssertEqual(commits[1].committedAt, Date(timeIntervalSince1970: 900))
+    }
+
+    /// A straight history is one lane with a line from each commit to the next.
+    func testGraphLayoutKeepsALinearHistoryInOneLane() {
+        let rows = GitGraph.layout([.init(sha: "c", parents: ["b"]),
+                                    .init(sha: "b", parents: ["a"]),
+                                    .init(sha: "a", parents: [])])
+        XCTAssertEqual(rows.map(\.column), [0, 0, 0])
+        XCTAssertEqual(rows[0].edges, [GraphEdge(from: 0, to: 0)])
+        XCTAssertEqual(rows[2].edges, [])
+    }
+
+    /// m merges f into main: m's second parent opens lane 1, the feature commit
+    /// sits there, and both lanes converge back on the fork point.
+    func testGraphLayoutBranchesAndConvergesAMerge() {
+        let rows = GitGraph.layout([.init(sha: "m", parents: ["b", "f"]),
+                                    .init(sha: "f", parents: ["a"]),
+                                    .init(sha: "b", parents: ["a"]),
+                                    .init(sha: "a", parents: [])])
+        XCTAssertEqual(rows.map(\.column), [0, 1, 0, 0])
+        XCTAssertEqual(Set(rows[0].edges), [GraphEdge(from: 0, to: 0), GraphEdge(from: 0, to: 1)])
+        // f and b are both waiting on a; b's row is where lane 1 bends back into 0.
+        XCTAssertEqual(Set(rows[2].edges), [GraphEdge(from: 0, to: 0), GraphEdge(from: 1, to: 0)])
+        XCTAssertEqual(rows.map(\.width).max(), 2)
+    }
+
     // MARK: - Skill shortcuts
 
     /// Built-ins always show; a skill or command shows only when its file exists.

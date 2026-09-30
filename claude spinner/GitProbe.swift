@@ -101,6 +101,7 @@ actor GitProbe {
                     snap.sync = .unknown
                     snap.pr = .unknown
                     snap.merge = MergeReadiness()
+                    snap.ci = .unknown
                 }
                 let wantRemote = remoteExpired
                     || switchedBranch
@@ -153,6 +154,15 @@ actor GitProbe {
     private static func readRemote(into snap: inout GitSnapshot, cwd: String) {
         snap.sync = syncState(cwd: cwd, snap: snap)
         (snap.pr, snap.merge) = prState(cwd: cwd)
+        snap.ci = ciState(cwd: cwd, branch: snap.branch)
+    }
+
+    private static func ciState(cwd: String, branch: String?) -> CIState {
+        guard let gh = ghPath, let branch else { return .unknown }
+        let result = run(gh, ["run", "list", "--branch", branch, "--limit", "1",
+                              "--json", "status,conclusion,workflowName,url"], in: cwd)
+        guard let result, result.status == 0 else { return .unknown }
+        return GitParse.ci(json: Data(result.out.utf8))
     }
 
     private static func syncState(cwd: String, snap: GitSnapshot) -> SyncState {
@@ -196,6 +206,15 @@ actor GitProbe {
         }
         // Mergeability is only meaningful alongside a PR that was actually read.
         return (GitParse.prFailure(stderr: result.err), MergeReadiness())
+    }
+
+    /// The newest `limit` commits across local branches, remotes and tags, in
+    /// topological order, laid out into lanes. nil when git failed, which the
+    /// card says rather than drawing an empty history.
+    static func graph(cwd: String, limit: Int) -> [GraphRow]? {
+        git(["log", "--topo-order", "--branches", "--remotes", "--tags", "-n", String(limit),
+             "--format=\(GitGraph.format)"], in: cwd)
+            .map { GitGraph.layout(GitGraph.parse($0)) }
     }
 
     // MARK: - Running
