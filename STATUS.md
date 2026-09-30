@@ -144,6 +144,8 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: skill, superpower, git and git-skill buttons are content-width chips that
+  wrap (`ChipFlow`), not equal-width grid cells. Seen on screen.
 - Decided: Git status and Automation are one card (300pt wide) with the four
   switches in one row, name under each (Merge PR, Push main, Commit, Open PR);
   the disabled reason and Auto-fix CI sit under the row. Seen on screen.

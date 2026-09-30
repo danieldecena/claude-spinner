@@ -1488,6 +1488,43 @@ private struct SkillsCard: View {
     }
 }
 
+/// Buttons at their own width, wrapping onto the next line when a line is full.
+/// A grid column made every chip as wide as the widest, and a short name like
+/// "goal" sat in a bar twice its length.
+private struct ChipFlow: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(proposal.width ?? .infinity, subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let placed = arrange(bounds.width, subviews)
+        for (index, frame) in placed.frames.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                                  proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func arrange(_ width: CGFloat, _ subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (CGSize(width: widest, height: y + rowHeight), frames)
+    }
+}
+
 private struct OptionalCard: ViewModifier {
     let framed: Bool
     @ViewBuilder func body(content: Content) -> some View {
@@ -1729,8 +1766,7 @@ private struct ShortcutChips: View {
     @State private var confirming: SkillShortcut?
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
-                  alignment: .leading, spacing: 6) {
+        ChipFlow(spacing: 6) {
             ForEach(shortcuts) { shortcut in
                 let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
                 Button { start(shortcut) } label: {
@@ -1739,7 +1775,6 @@ private struct ShortcutChips: View {
                     Label(shortcut.label, systemImage: shortcut.symbol)
                         .font(.ui(10))
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.glass)
                 .disabled(reason != nil || sending)
@@ -2197,8 +2232,7 @@ private struct GitButtons: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let snap = snapshot {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
-                          alignment: .leading, spacing: 6) {
+                ChipFlow(spacing: 6) {
                     // Always drawn, so Push/Pull/Merge are where you expect them;
                     // an idle one is dimmed with its reason as the tooltip.
                     ForEach(GitAction.allCases.filter { !$0.isTool }) { action in
@@ -2207,7 +2241,6 @@ private struct GitButtons: View {
                             Label(action.title, systemImage: action.symbol)
                                 .font(.ui(10))
                                 .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.glass)
                         .disabled(block != nil || running)
