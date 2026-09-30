@@ -554,7 +554,7 @@ private struct ReplyBox: View {
             switch result {
             case .success:
                 text = ""
-                notice = .init(kind: .info, text: "Sent — the session started a turn.")
+                notice = .init(kind: .info, text: "Sent — the session picked it up.")
             case .failure(let error):
                 notice = error.errorDescription.map { .init(kind: .error, text: $0) }
             }
