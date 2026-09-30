@@ -298,6 +298,27 @@ struct GraphEdge: Equatable, Hashable {
     var to: Int
 }
 
+/// A row of the History card: a commit worth seeing, or a run of plain ones
+/// folded into a count. `edges` on a gap are the lanes passing through it.
+enum GraphLine: Equatable {
+    case commit(GraphRow)
+    case gap(count: Int, edges: [GraphEdge])
+
+    var edges: [GraphEdge] {
+        switch self {
+        case .commit(let row): return row.edges
+        case .gap(_, let edges): return edges
+        }
+    }
+
+    var width: Int {
+        switch self {
+        case .commit(let row): return row.width
+        case .gap(_, let edges): return (edges.map { max($0.from, $0.to) }.max() ?? 0) + 1
+        }
+    }
+}
+
 enum GitGraph {
     /// Full sha, parents, ref names, subject, commit time -- tab-separated.
     static let format = "%H%x09%P%x09%D%x09%s%x09%ct"
@@ -314,6 +335,51 @@ enum GitGraph {
                                subject: f[3],
                                committedAt: Double(f[4]).map { Date(timeIntervalSince1970: $0) })
         }
+    }
+
+    /// The landmarks of `rows`, with each run of the rest folded into one gap:
+    /// the `newest`, anything carrying a ref, merges, fork points, and commits
+    /// no remote-tracking ref reaches (unpushed). With no remote ref in view
+    /// at all, "unpushed" would keep everything, so it is skipped.
+    ///
+    /// A gap draws the last folded row's edges, which lead into the next drawn
+    /// row; layout never compacts lanes, so they sit in the same columns as
+    /// the rows either side of it.
+    static func condense(_ rows: [GraphRow], remotes: Set<String>,
+                         newest: Int = 3, maxLines: Int = 10) -> [GraphLine] {
+        let index = Dictionary(rows.enumerated().map { ($1.commit.sha, $0) }, uniquingKeysWith: { a, _ in a })
+        var children: [String: Int] = [:]
+        for row in rows { for p in row.commit.parents { children[p, default: 0] += 1 } }
+
+        func isRemote(_ ref: String) -> Bool {
+            ref.split(separator: "/").first.map { remotes.contains(String($0)) } ?? false
+        }
+        var pushed = Set<String>()
+        var stack = rows.filter { $0.commit.refs.contains(where: isRemote) }.map(\.commit.sha)
+        let judgePushed = !stack.isEmpty
+        while let sha = stack.popLast() {
+            guard pushed.insert(sha).inserted, let i = index[sha] else { continue }
+            stack += rows[i].commit.parents
+        }
+
+        var lines: [GraphLine] = []
+        var folded: [GraphRow] = []
+        func flush() {
+            guard !folded.isEmpty else { return }
+            // A run ending at the root commit has no edges out of its last row;
+            // the line still runs through the run, so draw the one before it.
+            let edges = folded.last(where: { !$0.edges.isEmpty })?.edges ?? []
+            lines.append(.gap(count: folded.count, edges: edges))
+            folded = []
+        }
+        for (i, row) in rows.enumerated() {
+            let c = row.commit
+            let landmark = i < newest || !c.refs.isEmpty || c.parents.count > 1
+                || children[c.sha, default: 0] > 1 || (judgePushed && !pushed.contains(c.sha))
+            if landmark { flush(); lines.append(.commit(row)) } else { folded.append(row) }
+        }
+        flush()
+        return Array(lines.prefix(maxLines))
     }
 
     /// Lanes for commits in topological order, newest first.

@@ -247,12 +247,15 @@ actor GitProbe {
     }
 
     /// The newest `limit` commits across local branches, remotes and tags, in
-    /// topological order, laid out into lanes. nil when git failed, which the
-    /// card says rather than drawing an empty history.
-    static func graph(cwd: String, limit: Int) -> [GraphRow]? {
-        git(["log", "--topo-order", "--branches", "--remotes", "--tags", "-n", String(limit),
-             "--format=\(GitGraph.format)"], in: cwd)
-            .map { GitGraph.layout(GitGraph.parse($0)) }
+    /// topological order, laid out into lanes and condensed to their landmarks.
+    /// nil when git failed, which the card says rather than drawing an empty
+    /// history.
+    static func graph(cwd: String, limit: Int) -> [GraphLine]? {
+        guard let log = git(["log", "--topo-order", "--branches", "--remotes", "--tags", "-n", String(limit),
+                             "--format=\(GitGraph.format)"], in: cwd) else { return nil }
+        // Remote names, so "origin/main" is told from a local "feature/x".
+        let remotes = Set((git(["remote"], in: cwd) ?? "").split(separator: "\n").map(String.init))
+        return GitGraph.condense(GitGraph.layout(GitGraph.parse(log)), remotes: remotes)
     }
 
     // MARK: - Running

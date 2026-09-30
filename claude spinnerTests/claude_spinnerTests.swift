@@ -3315,6 +3315,57 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(rows.map(\.width).max(), 2)
     }
 
+    private func linear(_ n: Int, refs: [Int: [String]] = [:]) -> [GraphRow] {
+        GitGraph.layout((0..<n).map { i in
+            GraphCommit(sha: "c\(i)", parents: i + 1 < n ? ["c\(i + 1)"] : [], refs: refs[i] ?? [])
+        })
+    }
+
+    private func shape(_ lines: [GraphLine]) -> [String] {
+        lines.map {
+            switch $0 {
+            case .commit(let row): return row.commit.sha
+            case .gap(let count, _): return "+\(count)"
+            }
+        }
+    }
+
+    /// A pushed straight history keeps the newest three and folds the rest.
+    func testCondenseFoldsAPushedStraightHistory() {
+        let rows = linear(10, refs: [0: ["HEAD -> main", "origin/main"]])
+        let lines = GitGraph.condense(rows, remotes: ["origin"])
+        XCTAssertEqual(shape(lines), ["c0", "c1", "c2", "+7"])
+        XCTAssertEqual(lines[3].edges, [GraphEdge(from: 0, to: 0)])
+    }
+
+    /// Commits above the remote ref are unpushed and stay; the ref's own commit
+    /// stays for its label. A local "feature/x" is not mistaken for a remote.
+    func testCondenseKeepsUnpushedCommitsAndRefs() {
+        let rows = linear(8, refs: [0: ["HEAD -> main"], 3: ["origin/main"], 5: ["feature/x"]])
+        XCTAssertEqual(shape(GitGraph.condense(rows, remotes: ["origin"], newest: 1)),
+                       ["c0", "c1", "c2", "c3", "+1", "c5", "+2"])
+    }
+
+    /// No remote ref in view: nothing counts as unpushed, or nothing would fold.
+    func testCondenseWithoutRemotesStillFolds() {
+        XCTAssertEqual(shape(GitGraph.condense(linear(6), remotes: [], newest: 1)), ["c0", "+5"])
+    }
+
+    /// Merges and fork points are landmarks; the plain commit between them folds.
+    func testCondenseKeepsMergesAndForkPoints() {
+        let rows = GitGraph.layout([.init(sha: "m", parents: ["b", "f"]),
+                                    .init(sha: "f", parents: ["a"]),
+                                    .init(sha: "b", parents: ["a"]),
+                                    .init(sha: "a", parents: ["z"]),
+                                    .init(sha: "z", parents: [])])
+        XCTAssertEqual(shape(GitGraph.condense(rows, remotes: [], newest: 1)), ["m", "+2", "a", "+1"])
+    }
+
+    func testCondenseCapsTheLineCount() {
+        let refs = Dictionary(uniqueKeysWithValues: (0..<30).map { ($0, ["tag: v\($0)"]) })
+        XCTAssertEqual(GitGraph.condense(linear(30, refs: refs), remotes: [], maxLines: 10).count, 10)
+    }
+
     // MARK: - Suggestion
 
     private func suggestionInput(_ configure: (inout Suggestion.Input) -> Void = { _ in }) -> Suggestion.Input {

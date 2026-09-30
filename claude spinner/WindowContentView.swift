@@ -2201,14 +2201,17 @@ private struct ShortcutChips: View {
 
 // MARK: - Git
 
-/// The repository's recent history as a lane graph: a dot per commit, a
-/// coloured line per branch, curves where they split and merge, and the
-/// commit's refs and age beside it (the subject is the row's tooltip).
+/// The repository's recent history as a lane graph: a dot per landmark commit
+/// (runs of plain ones fold into a dashed "N commits" row), a coloured line per
+/// branch, curves where they split and merge, and the commit's refs and age
+/// beside it (the subject is the row's tooltip).
 private struct GitGraphCard: View {
     let cwd: String
-    @State private var rows: [GraphRow]?
+    @State private var rows: [GraphLine]?
     @State private var read = false
 
+    /// Read this many, then show only their landmarks (`GitGraph.condense`),
+    /// so the card fits its rows instead of scrolling.
     private static let limit = 40
     private static let rowHeight: CGFloat = 20
     private static let laneWidth: CGFloat = 12
@@ -2223,21 +2226,18 @@ private struct GitGraphCard: View {
             CardTitle("History")
             if let rows, !rows.isEmpty {
                 let lanes = min(Self.maxLanes, rows.map(\.width).max() ?? 1)
-                ScrollView {
-                    HStack(alignment: .top, spacing: 8) {
-                        graph(rows)
-                            .frame(width: CGFloat(lanes) * Self.laneWidth,
-                                   height: CGFloat(rows.count) * Self.rowHeight)
-                            .clipped()
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                                label(row).frame(height: Self.rowHeight)
-                            }
+                HStack(alignment: .top, spacing: 8) {
+                    graph(rows)
+                        .frame(width: CGFloat(lanes) * Self.laneWidth,
+                               height: CGFloat(rows.count) * Self.rowHeight)
+                        .clipped()
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.offset) { _, line in
+                            label(line).frame(height: Self.rowHeight)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: 260)
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text(rows != nil ? "no commits yet" : read ? "history couldn't be read" : "reading…")
                     .font(.claudeMono(11)).foregroundStyle(Color.label)
@@ -2247,15 +2247,22 @@ private struct GitGraphCard: View {
         .task(id: cwd) { await poll() }
     }
 
-    private func graph(_ rows: [GraphRow]) -> some View {
+    private func graph(_ rows: [GraphLine]) -> some View {
         Canvas { context, _ in
             let h = Self.rowHeight
             func x(_ lane: Int) -> CGFloat { CGFloat(lane) * Self.laneWidth + Self.laneWidth / 2 }
             func y(_ row: Int) -> CGFloat { CGFloat(row) * h + h / 2 }
             func color(_ lane: Int) -> Color { Self.palette[lane % Self.palette.count] }
 
-            for (r, row) in rows.enumerated() {
-                for edge in row.edges {
+            for (r, line) in rows.enumerated() {
+                // A folded run is dashed: the line continues, but not every
+                // commit on it is drawn.
+                let style = if case .gap = line {
+                    StrokeStyle(lineWidth: 1.6, dash: [2, 3])
+                } else {
+                    StrokeStyle(lineWidth: 1.6)
+                }
+                for edge in line.edges {
                     var path = Path()
                     let start = CGPoint(x: x(edge.from), y: y(r))
                     let end = CGPoint(x: x(edge.to), y: y(r + 1))
@@ -2269,10 +2276,11 @@ private struct GitGraphCard: View {
                     }
                     // A branch-off or merge takes the colour of the side lane.
                     let lane = edge.from == edge.to ? edge.from : max(edge.from, edge.to)
-                    context.stroke(path, with: .color(color(lane)), lineWidth: 1.6)
+                    context.stroke(path, with: .color(color(lane)), style: style)
                 }
             }
-            for (r, row) in rows.enumerated() {
+            for (r, line) in rows.enumerated() {
+                guard case .commit(let row) = line else { continue }
                 let center = CGPoint(x: x(row.column), y: y(r))
                 let isHead = row.commit.refs.contains { $0.hasPrefix("HEAD") }
                 let radius: CGFloat = isHead ? 5 : 3.5
@@ -2289,6 +2297,16 @@ private struct GitGraphCard: View {
                     context.stroke(dot, with: .color(.primary), lineWidth: 1.2)
                 }
             }
+        }
+    }
+
+    @ViewBuilder private func label(_ line: GraphLine) -> some View {
+        switch line {
+        case .commit(let row): label(row)
+        case .gap(let count, _):
+            Text("\u{22EF} \(count) commit\(count == 1 ? "" : "s")")
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
