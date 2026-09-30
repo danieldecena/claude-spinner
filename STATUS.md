@@ -166,9 +166,11 @@ The rest is in `TASKS.md`.
 - Decided: Career Hub embeds via WKWebView on the default persistent store (the URL is
   403 without a claude.ai session), Safari user agent, Pop out = floating NSPanel per URL.
   The Desktop project's "Career Hub sync" task is server-side and cannot be listed.
-- Decided: an artifact card is a one-column tile showing the page at half zoom (clicks
-  expand it, never land inside it); Expand widens it to the full row at full size, Pop out
-  opens the mini window. Seen: signed-in Career Hub preview with live counts (105 sent).
+- Decided: an artifact card is a one-column tile: icon, rounded 15pt title, host, the
+  note's first sentence, and the page at 0.75 zoom faded at the bottom (clicks expand, never
+  land inside). Expand replaces the dashboard with the page filling the detail pane, with
+  a back chevron (Esc); Pop out opens the mini window. Seen: the full-pane view with live
+  Career Hub data. Not yet seen: the redesigned collapsed tile (Daniel was using the pane).
 - Decided: goal sign beside the You asked title reads `~/.claude/state/goal-deadline-<pane>`;
   landing tint at the 10% reserve; untimed goals and non-tmux sessions show nothing.
 - Gotcha: a copied `/bin/sh` renamed `claude` is killed on launch (137); a symlink works.

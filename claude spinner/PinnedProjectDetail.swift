@@ -20,12 +20,24 @@ struct PinnedProjectDetail: View {
     @State private var recent: Found<RecentSession>?
     @State private var extras: ProjectExtras?
     @State private var failure: String?
+    /// An artifact expanded to fill the pane in place of the dashboard.
+    @State private var focused: ProjectArtifact?
 
     private static let shownTasks = 5
 
     private var live: [SessionFeed] { PinnedProject.liveSessions(in: project.path, sessions: sessions) }
 
     var body: some View {
+        if let focused {
+            ArtifactFullView(artifact: focused, backTitle: project.name) {
+                withAnimation(.snappy) { self.focused = nil }
+            }
+        } else {
+            dashboard
+        }
+    }
+
+    private var dashboard: some View {
         ScrollView {
             // A dashboard: the same tile grid as a session's pane, so the two
             // read as one app. Launch and tasks share the top row, what ran and
@@ -66,7 +78,9 @@ struct PinnedProjectDetail: View {
                         }
                     }
                     ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
-                        ArtifactCard(artifact: artifact)
+                        ArtifactCard(artifact: artifact) {
+                            withAnimation(.snappy) { focused = artifact }
+                        }
                     }
                     if !extras.artifacts.unreadable.isEmpty {
                         discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in

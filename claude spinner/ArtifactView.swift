@@ -91,64 +91,130 @@ final class ArtifactPopouts: NSObject, ObservableObject, NSWindowDelegate {
     }
 }
 
-/// An artifact as a dashboard card: a small live preview by default, which
-/// expands in place to a full-width working page, or pops out to its own window.
+/// An artifact as a dashboard card: a small live preview, which expands to fill
+/// the whole detail pane (`onExpand`) or pops out to its own window.
 struct ArtifactCard: View {
     let artifact: ProjectArtifact
+    let onExpand: () -> Void
     @ObservedObject private var popouts = ArtifactPopouts.shared
-    @State private var expanded = false
+
+    private var host: String { URL(string: artifact.url)?.host() ?? "artifact" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                CardTitle(artifact.title).lineLimit(1)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "rectangle.stack.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.attention)
+                    .frame(width: 30, height: 30)
+                    .background(Color.attention.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(artifact.title)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                    Text(host).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+                }
                 Spacer(minLength: 4)
                 if let url = URL(string: artifact.url) {
-                    Button { withAnimation(.snappy) { expanded.toggle() } } label: {
-                        Label(expanded ? "Collapse" : "Expand",
-                              systemImage: expanded ? "arrow.down.right.and.arrow.up.left"
-                                                    : "arrow.up.left.and.arrow.down.right")
+                    HStack(spacing: 4) {
+                        ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand",
+                                           action: onExpand)
+                        ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
+                            popouts.show(title: artifact.title, url: url)
+                        }
+                        ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
                     }
-                    Button { popouts.show(title: artifact.title, url: url) } label: {
-                        Label("Pop out", systemImage: "macwindow.on.rectangle")
-                    }
-                    .help("Open in a floating mini window")
-                    Button { NSWorkspace.shared.open(url) } label: {
-                        Label("Browser", systemImage: "safari")
-                    }
-                    .help(artifact.url)
                 }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .font(.ui(11))
+
+            if let summary = artifact.summary {
+                Text(summary)
+                    .font(.ui(12)).foregroundStyle(Color.label)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
 
             if let url = URL(string: artifact.url) {
                 if popouts.open.contains(url.absoluteString) {
-                    Text("Open in its own window.")
+                    Label("Open in its own window", systemImage: "macwindow.on.rectangle")
                         .font(.ui(11)).foregroundStyle(Color.label)
                         .frame(maxWidth: .infinity, minHeight: 80)
-                } else if expanded {
-                    ArtifactWebView(url: url)
-                        .frame(minHeight: 560)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 } else {
-                    // A look, not a workspace: the page is shrunk and clicks go to
-                    // Expand, so scrolling the dashboard never lands inside it.
-                    ArtifactWebView(url: url, zoom: 0.5)
-                        .frame(height: 200)
+                    // A look, not a workspace: the page is scaled to where its
+                    // type still reads, faded at the bottom to say there is more,
+                    // and clicks go to Expand so scrolling the dashboard never
+                    // lands inside it.
+                    ArtifactWebView(url: url, zoom: 0.75)
+                        .frame(height: 220)
                         .allowsHitTesting(false)
+                        .mask {
+                            LinearGradient(stops: [.init(color: .black, location: 0.7),
+                                                   .init(color: .clear, location: 1)],
+                                           startPoint: .top, endPoint: .bottom)
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.clear).contentShape(Rectangle())
-                                .onTapGesture { withAnimation(.snappy) { expanded = true } }
+                                .strokeBorder(Color.label.opacity(0.15))
+                                .contentShape(Rectangle())
+                                .onTapGesture(perform: onExpand)
                         }
                         .help("Expand")
                 }
             }
         }
         .detailCard()
-        .tileSpan(expanded ? 3 : 1)
+    }
+}
+
+private struct ArtifactIconButton: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .medium)).frame(width: 26, height: 22)
+        }
+        .buttonStyle(.bordered)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}
+
+/// One artifact filling the detail pane: the working page at full size, with a
+/// way back to the project dashboard it was opened from.
+struct ArtifactFullView: View {
+    let artifact: ProjectArtifact
+    let backTitle: String
+    let onClose: () -> Void
+    @ObservedObject private var popouts = ArtifactPopouts.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Button(action: onClose) {
+                    Label(backTitle, systemImage: "chevron.left").font(.ui(12))
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut(.cancelAction)
+                Text(artifact.title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if let url = URL(string: artifact.url) {
+                    ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
+                        popouts.show(title: artifact.title, url: url)
+                        onClose()
+                    }
+                    ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
+                }
+            }
+            if let url = URL(string: artifact.url) {
+                ArtifactWebView(url: url)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

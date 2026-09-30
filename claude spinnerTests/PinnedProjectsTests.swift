@@ -157,6 +157,17 @@ final class PinnedProjectsTests: XCTestCase {
     /// pile of them cannot push the real sessions off the list. Both directions
     /// are covered: those files are dropped, and a terminal one and one with no
     /// `entrypoint` stay.
+    /// The card's description is the note's first sentence without its
+    /// "<title> =" lead-in; a missing or blank note gives nothing to show.
+    func testArtifactSummaryIsTheNotesFirstSentence() {
+        let note = "Career Hub = Front prep sheet + Applications tab, merged 2026-09-28. Data refresh only: run it."
+        XCTAssertEqual(ProjectArtifact.summary(fromNote: note, title: "Career Hub"),
+                       "Front prep sheet + Applications tab, merged 2026-09-28")
+        XCTAssertEqual(ProjectArtifact.summary(fromNote: "A board of openings.", title: "Board"), "A board of openings")
+        XCTAssertNil(ProjectArtifact.summary(fromNote: nil, title: "X"))
+        XCTAssertNil(ProjectArtifact.summary(fromNote: "   ", title: "X"))
+    }
+
     func testRecentSessionsSkipHeadlessAndDesktopRuns() {
         withTempDir { root in
             let slug = ProjectDiscovery.transcriptSlug("/x/job search")

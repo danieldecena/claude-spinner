@@ -97,6 +97,19 @@ nonisolated struct ProjectArtifact: Equatable {
     let title: String
     let url: String
     let path: String
+    var summary: String? = nil
+
+    /// A one-line description from the file's `note`: its first sentence, less
+    /// a leading "<title> =" (Career Hub's note opens "Career Hub = …"). The
+    /// rest of a note is upkeep instructions, not something to show.
+    static func summary(fromNote note: String?, title: String) -> String? {
+        guard var text = note?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        if let end = text.range(of: ". ") { text = String(text[..<end.lowerBound]) }
+        let prefix = title + " ="
+        if text.hasPrefix(prefix) { text = text.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces) }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text.isEmpty ? nil : text
+    }
 }
 
 nonisolated struct ProjectExtras: Equatable {
@@ -514,8 +527,10 @@ nonisolated enum ProjectDiscovery {
             }
             let folder = ((rel as NSString).deletingLastPathComponent as NSString).lastPathComponent
             let title = (obj["title"] as? String) ?? (obj["name"] as? String)
-            found.items.append(ProjectArtifact(title: title ?? (folder.isEmpty ? "Artifact" : folder),
-                                               url: url, path: path))
+            let name = title ?? (folder.isEmpty ? "Artifact" : folder)
+            found.items.append(ProjectArtifact(title: name, url: url, path: path,
+                                               summary: ProjectArtifact.summary(fromNote: obj["note"] as? String,
+                                                                                title: name)))
         }
         return found
     }
