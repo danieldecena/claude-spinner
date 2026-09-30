@@ -97,7 +97,7 @@ struct PinnedProjectDetail: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                rail.frame(width: 280)
+                rail.frame(width: 300)
                 }
                 .padding(20)
             }

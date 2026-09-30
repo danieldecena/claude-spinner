@@ -168,7 +168,9 @@ The rest is in `TASKS.md`.
   the window did not reopen after the relaunch.
 - Lesson: relaunching the app (run.sh, test runs) discards a draft in the reply box;
   Daniel was mid-message at 08:55 when one went out. Check the screenshot for a draft
-  before relaunching.
+  before relaunching. Any `xcodebuild test` quits the live app too (it launches the
+  test host), even `-only-testing` of one class: it took Daniel out of the expanded
+  Career Hub at 09:07. Treat a test run as a relaunch.
 
 ### 2026-09-30 (History overflow, question-aware reply refusal)
 - Decided: History ref chips cap at 150pt, cut in the middle, full name on hover; at
