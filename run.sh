@@ -33,8 +33,12 @@ if xcodebuild -version &>/dev/null; then
     # Install over /Applications too: a login item relaunches that copy, and
     # when only DerivedData was updated it ran a two-week-old build (2026-09-29).
     echo "Installing to /Applications/claude spinner.app..."
+    # Copy beside it first: a ditto that fails (disk full, permissions) then
+    # stops set -e before the old copy is removed.
+    rm -rf "/Applications/claude spinner.app.new"
+    ditto "$app" "/Applications/claude spinner.app.new"
     rm -rf "/Applications/claude spinner.app"
-    ditto "$app" "/Applications/claude spinner.app"
+    mv "/Applications/claude spinner.app.new" "/Applications/claude spinner.app"
     echo "Launching /Applications/claude spinner.app..."
     open "/Applications/claude spinner.app"
 else
