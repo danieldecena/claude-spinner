@@ -23,6 +23,12 @@ if xcodebuild -version &>/dev/null; then
         echo "error: could not resolve BUILT_PRODUCTS_DIR / FULL_PRODUCT_NAME" >&2
         exit 1
     fi
+    # Checked before the rm below: a path the build never produced would
+    # otherwise delete the installed copy and leave nothing in its place.
+    if [ ! -d "$app" ]; then
+        echo "error: $app was not built" >&2
+        exit 1
+    fi
     killall "claude spinner" 2>/dev/null || true
     # Install over /Applications too: a login item relaunches that copy, and
     # when only DerivedData was updated it ran a two-week-old build (2026-09-29).
