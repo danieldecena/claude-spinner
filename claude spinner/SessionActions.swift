@@ -9,10 +9,13 @@ import AppKit
 /// are unavailable rather than silently ineffective when a session isn't in a
 /// pane.
 enum SessionAction: String, CaseIterable, Identifiable {
+    case focus
     case interrupt
     case compact
     case clear
     case revealCWD
+    case openTerminal
+    case copyPath
     case openTranscript
     case copySessionID
 
@@ -20,10 +23,13 @@ enum SessionAction: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .focus: return "Focus session"
         case .interrupt: return "Interrupt"
         case .compact: return "Compact"
         case .clear: return "Clear"
         case .revealCWD: return "Reveal folder"
+        case .openTerminal: return "New terminal here"
+        case .copyPath: return "Copy folder path"
         case .openTranscript: return "Open transcript"
         case .copySessionID: return "Copy session id"
         }
@@ -33,10 +39,13 @@ enum SessionAction: String, CaseIterable, Identifiable {
     /// and the accessibility label.
     var symbol: String {
         switch self {
+        case .focus: return "macwindow"
         case .interrupt: return "stop.circle"
         case .compact: return "arrow.down.right.and.arrow.up.left"
         case .clear: return "eraser"
         case .revealCWD: return "folder"
+        case .openTerminal: return "terminal"
+        case .copyPath: return "link"
         case .openTranscript: return "doc.text"
         case .copySessionID: return "doc.on.doc"
         }
@@ -46,7 +55,7 @@ enum SessionAction: String, CaseIterable, Identifiable {
     var needsPane: Bool {
         switch self {
         case .interrupt, .compact, .clear: return true
-        case .revealCWD, .openTranscript, .copySessionID: return false
+        case .focus, .revealCWD, .openTerminal, .copyPath, .openTranscript, .copySessionID: return false
         }
     }
 
@@ -91,12 +100,12 @@ enum SessionActions {
                                   session: SessionFeed,
                                   hasPane: Bool) -> String? {
         switch action {
-        case .revealCWD:
+        case .revealCWD, .openTerminal, .copyPath:
             return session.cwd.isEmpty ? "This session has no working directory yet." : nil
         case .openTranscript:
             return session.stats.transcriptPath == nil
                 ? "No transcript yet — the statusLine hasn't reported." : nil
-        case .copySessionID:
+        case .focus, .copySessionID:
             return nil
         case .interrupt, .compact, .clear:
             guard hasPane else {
@@ -115,10 +124,27 @@ enum SessionActions {
     @discardableResult
     static func runLocal(_ action: SessionAction, session: SessionFeed) -> Bool {
         switch action {
+        case .focus:
+            SessionLauncher.focus(host: session.host, pid: session.pid, cwd: session.cwd)
+            return true
         case .revealCWD:
             guard !session.cwd.isEmpty else { return false }
             NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: session.cwd)
             return true
+        case .openTerminal:
+            // A fresh window on purpose -- Focus is the one that finds the
+            // session's own. Same terminal choice as SessionLauncher's fallback.
+            guard !session.cwd.isEmpty else { return false }
+            let bundleID = FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
+                ? "com.mitchellh.ghostty" : "com.apple.Terminal"
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            task.arguments = ["-b", bundleID, session.cwd]
+            return (try? task.run()) != nil
+        case .copyPath:
+            guard !session.cwd.isEmpty else { return false }
+            NSPasteboard.general.clearContents()
+            return NSPasteboard.general.setString(session.cwd, forType: .string)
         case .openTranscript:
             guard let path = session.stats.transcriptPath else { return false }
             return NSWorkspace.shared.open(URL(fileURLWithPath: path))

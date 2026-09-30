@@ -1775,11 +1775,18 @@ final class FeedWatcher: ObservableObject {
     /// rescan. Sorting on anything live (tokens, timestamps) would have replaced an
     /// arbitrary order with a merely slower-moving one.
     ///
+    /// `byRecency` is the window sidebar's opt-out, asked for by name: projects by
+    /// their newest session, rows newest first, so the top row is always the
+    /// latest activity. It does move as sessions report -- that is the point --
+    /// but ties still fall to the id, so it never reshuffles on a rescan alone.
+    /// The panel keeps the non-ticking order above.
+    ///
     /// A blocked session appears in "Needs you" ONLY, not also under its project:
     /// the sidebar tags rows with the session id for `List` selection, and two rows
     /// sharing a tag is undefined. Section counts follow the rows each section lists.
     static func projectSections(_ items: [SessionRowItem],
-                                asked: Set<String> = []) -> [ProjectSection] {
+                                asked: Set<String> = [],
+                                byRecency: Bool = false) -> [ProjectSection] {
         func needsYou(_ item: SessionRowItem) -> Bool {
             item.session.isBlockedOnYou || asked.contains(item.session.id)
         }
@@ -1787,7 +1794,8 @@ final class FeedWatcher: ObservableObject {
         var sections: [ProjectSection] = []
         let waiting = items.filter { $0.depth == 0 && needsYou($0) }
         if !waiting.isEmpty {
-            sections.append(makeSection(id: "needs-you", title: "Needs you", items: ordered(waiting)))
+            sections.append(makeSection(id: "needs-you", title: "Needs you",
+                                        items: ordered(waiting, byRecency: byRecency)))
         }
 
         let waitingIds = Set(waiting.map(\.id))
@@ -1796,16 +1804,24 @@ final class FeedWatcher: ObservableObject {
             // A child rides with its parent's project, not its own row's grouping.
             byProject[item.session.projectName, default: []].append(item)
         }
-        for name in byProject.keys.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
-            sections.append(makeSection(id: "project:" + name, title: name, items: ordered(byProject[name]!)))
+        func newest(_ name: String) -> Date {
+            byProject[name]!.compactMap(\.session.updated).max() ?? .distantPast
+        }
+        let names = byProject.keys.sorted { a, b in
+            if byRecency, newest(a) != newest(b) { return newest(a) > newest(b) }
+            return a.localizedStandardCompare(b) == .orderedAscending
+        }
+        for name in names {
+            sections.append(makeSection(id: "project:" + name, title: name,
+                                        items: ordered(byProject[name]!, byRecency: byRecency)))
         }
         return sections
     }
 
-    /// Roots alphabetically, each followed by its own nested children in the order
-    /// `displayItems` already put them in — re-sorting children would split them
-    /// from the parent they are indented under.
-    private static func ordered(_ items: [SessionRowItem]) -> [SessionRowItem] {
+    /// Roots alphabetically (or newest first), each followed by its own nested
+    /// children in the order `displayItems` already put them in — re-sorting
+    /// children would split them from the parent they are indented under.
+    private static func ordered(_ items: [SessionRowItem], byRecency: Bool) -> [SessionRowItem] {
         var childrenOf: [String: [SessionRowItem]] = [:]
         var roots: [SessionRowItem] = []
         var lastRoot: String?
@@ -1818,6 +1834,8 @@ final class FeedWatcher: ObservableObject {
             }
         }
         let sortedRoots = roots.sorted { a, b in
+            let (au, bu) = (a.session.updated ?? .distantPast, b.session.updated ?? .distantPast)
+            if byRecency, au != bu { return au > bu }
             let (an, bn) = (a.session.distinctName, b.session.distinctName)
             if an != bn { return an.localizedStandardCompare(bn) == .orderedAscending }
             return a.id < b.id

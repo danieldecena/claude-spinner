@@ -16,6 +16,7 @@ struct WindowContentView: View {
     @ObservedObject private var asks = AskInbox.shared
     @StateObject private var install = InstallState()
     @State private var selection: String?
+    @State private var sidebarVisible = true
 
     /// Roots only. Children are shown under their parent in the detail pane,
     /// where there is room for them.
@@ -47,7 +48,32 @@ struct WindowContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
+            if sidebarVisible {
+                sidebar
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+            detail
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        // Across both columns, not just the detail pane: the toolbar acts on the
+        // selected session wherever you are, and the sidebar and cards both pass
+        // under the glass as they scroll.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            WindowToolbar(session: selected, feedDir: feed.feedDirectory,
+                          sidebarVisible: $sidebarVisible)
+                // Rebuilt per session so a half-typed reply or a notice about one
+                // session can never be sent to, or read as about, the next.
+                .id(selected?.id)
+        }
+    }
+
+    /// A floating glass panel inset from the window edges, after the macOS 26
+    /// sidebar, rather than a split-view column. NavigationSplitView only floats
+    /// its sidebar under a full-size-content title bar, and this window keeps a
+    /// real title because the usage readout lives there when the status item is
+    /// unplaced.
+    private var sidebar: some View {
             VStack(spacing: 0) {
                 OverviewStrip(overview: feed.overview,
                               fiveHour: feed.usageFiveHourPct,
@@ -70,13 +96,17 @@ struct WindowContentView: View {
                 Divider()
                 SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
             }
-            .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 320)
-        } detail: {
+            .frame(width: 250)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.leading, 10).padding(.bottom, 10)
+    }
+
+    @ViewBuilder private var detail: some View {
             if let session = selected {
                 SessionDetail(session: session,
                               children: feed.sessions.filter { $0.parentSessionId == session.id },
                               asks: asks.pending.filter { $0.sessionId == session.id },
-                              feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [])
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
@@ -85,7 +115,6 @@ struct WindowContentView: View {
                                        systemImage: "moon.zzz",
                                        description: Text("Sessions appear here as Claude Code runs."))
             }
-        }
     }
 }
 
@@ -106,7 +135,8 @@ private struct SessionSidebar: View {
     private var groups: [ProjectSection] {
         FeedWatcher.projectSections(
             sessions.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) },
-            asked: Set(asks.map(\.sessionId)))
+            asked: Set(asks.map(\.sessionId)),
+            byRecency: true)
     }
 
     private func asksFor(_ session: SessionFeed) -> Bool {
@@ -160,6 +190,8 @@ private struct SessionSidebar: View {
             }
         }
         .listStyle(.sidebar)
+        // The glass panel is the background; the list's own would sit on top of it.
+        .scrollContentBackground(.hidden)
     }
 
     private func rowLabel(_ session: SessionFeed) -> String {
@@ -202,7 +234,6 @@ private struct SessionDetail: View {
     let session: SessionFeed
     let children: [SessionFeed]
     let asks: [AskRequest]
-    let feedDir: URL
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
@@ -234,12 +265,6 @@ private struct SessionDetail: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        // Pinned above the scroll rather than inside it, after the footage
-        // library: replying and acting on the session stay in reach however far
-        // down the cards you are, and the cards pass underneath the glass.
-        .safeAreaInset(edge: .top, spacing: 0) {
-            SessionToolbar(session: session, feedDir: feedDir)
         }
     }
 
@@ -494,22 +519,37 @@ private struct AskCard: View {
 
 // MARK: - Free-text reply
 
-/// The detail pane's one-row toolbar: the reply field and the session actions
-/// on glass, with the last outcome from either said underneath.
+/// The window's one-row toolbar, edge to edge: the sidebar toggle, the reply
+/// field, the session actions and the Git actions on glass, with the last
+/// outcome from any of them said underneath.
 ///
-/// The notice is the one thing allowed to add a line, and only after you did
-/// something: it answers the click, so it should not wait in the scroll.
-private struct SessionToolbar: View {
-    let session: SessionFeed
+/// Pinned above the scroll rather than inside it, after the footage library:
+/// replying and acting on the session stay in reach however far down the cards
+/// you are. The notice is the one thing allowed to add a line, and only after
+/// you did something: it answers the click, so it should not wait in the scroll.
+private struct WindowToolbar: View {
+    let session: SessionFeed?
     let feedDir: URL
+    @Binding var sidebarVisible: Bool
     @State private var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
-                    ReplyBox(session: session, feedDir: feedDir, notice: $notice)
-                    ActionBar(session: session, feedDir: feedDir, notice: $notice)
+                    Button { withAnimation(.smooth) { sidebarVisible.toggle() } } label: {
+                        Image(systemName: "sidebar.left").frame(width: 18, height: 18)
+                    }
+                    .buttonStyle(.glass)
+                    .help(sidebarVisible ? "Hide sidebar" : "Show sidebar")
+                    .accessibilityLabel(sidebarVisible ? "Hide sidebar" : "Show sidebar")
+                    if let session {
+                        ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+                        ActionBar(session: session, feedDir: feedDir, notice: $notice)
+                        GitButtons(cwd: session.cwd, notice: $notice)
+                    } else {
+                        Spacer(minLength: 0)
+                    }
                 }
             }
             if let notice {
@@ -517,7 +557,7 @@ private struct SessionToolbar: View {
                     .background(Color.card, in: RoundedRectangle(cornerRadius: 6))
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 10)
         .padding(.vertical, 10)
     }
 }
@@ -1126,8 +1166,8 @@ private struct TranscriptCard: View {
         // reply and jolt the grid below it every few seconds. Expanded is the
         // one state allowed to size to its text, because you asked for that.
         VStack(alignment: .leading, spacing: 10) {
-            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 3)
-            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 6)
+            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 1)
+            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 3)
             Labelled("just ran",
                      snapshot.recentTools.isEmpty
                          ? nil : snapshot.recentTools.joined(separator: " · "),
@@ -1185,7 +1225,8 @@ private struct Labelled: View {
 
 // MARK: - Actions
 
-/// The action row under the reply field.
+/// The session actions beside the reply field, in three groups: get to the
+/// session, act on its turn, and reach its files.
 ///
 /// Every button is either enabled or disabled with a stated reason. A control
 /// that is greyed out and says nothing is what makes people click it twice and
@@ -1198,19 +1239,29 @@ private struct ActionBar: View {
     @State private var hasPane = false
     @State private var confirming: SessionAction?
 
+    private static let groups: [[SessionAction]] = [
+        [.focus],
+        [.interrupt, .compact, .clear],
+        [.revealCWD, .openTerminal, .copyPath, .openTranscript, .copySessionID],
+    ]
+
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(SessionAction.allCases) { action in
-                let reason = SessionActions.unavailableReason(action,
-                                                              session: session,
-                                                              hasPane: hasPane)
-                Button { start(action) } label: {
-                    Image(systemName: action.symbol).frame(width: 18, height: 18)
+        HStack(spacing: 14) {
+            ForEach(Self.groups, id: \.self) { group in
+                HStack(spacing: 6) {
+                    ForEach(group) { action in
+                        let reason = SessionActions.unavailableReason(action,
+                                                                      session: session,
+                                                                      hasPane: hasPane)
+                        Button { start(action) } label: {
+                            Image(systemName: action.symbol).frame(width: 18, height: 18)
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(reason != nil)
+                        .help(reason ?? action.title)
+                        .accessibilityLabel(action.title)
+                    }
                 }
-                .buttonStyle(.glass)
-                .disabled(reason != nil)
-                .help(reason ?? action.title)
-                .accessibilityLabel(action.title)
             }
         }
         .task(id: session.id) {
@@ -1271,8 +1322,9 @@ private struct ActionBar: View {
 
 // MARK: - Git
 
-/// Branch, working-tree and remote state for the selected session's directory,
-/// with the four actions that act on it.
+/// Branch, working-tree and remote state for the selected session's directory.
+/// The actions that act on it live in the toolbar (`GitButtons`); what stays
+/// here is the sentence for any of them that couldn't be worked out.
 ///
 /// Absent entirely when the cwd isn't a repository: a section of dashes tells
 /// you nothing that its own absence doesn't tell you faster.
@@ -1282,9 +1334,6 @@ private struct GitCard: View {
     /// Whether `snapshot` has been read for this `cwd` yet. A nil snapshot is
     /// either "still reading" or "not a repository", and only this tells them apart.
     @State private var read = false
-    @State private var notice: NoticeMessage?
-    @State private var confirming: GitAction?
-    @State private var running = false
 
     var body: some View {
         // A VStack, not a Group: a Group hands its modifiers to each member, so
@@ -1313,65 +1362,33 @@ private struct GitCard: View {
                     ("pr", snap.pr.label, remote),
                     ("checks", checksLabel(snap), remote),
                 ], refresh: reload)
-                actions(snap)
-                if let notice {
-                    Notice(notice)
-                }
-            }
-            .confirmationDialog(confirming?.confirmation ?? "",
-                                isPresented: Binding(get: { confirming != nil },
-                                                     set: { if !$0 { confirming = nil } }),
-                                titleVisibility: .visible) {
-                if let action = confirming {
-                    Button(action.title) {
-                        confirming = nil
-                        perform(action, snap)
-                    }
-                }
-                Button("Cancel", role: .cancel) { confirming = nil }
+                blockedReasons(snap)
             }
         } else {
             StatSection("Git", empty: read ? "not a git repository" : "reading…")
         }
     }
 
-    /// An action worth drawing, and why it can't run if it can't.
-    private struct Offered: Identifiable {
+    /// An action that couldn't be worked out, with its reason. Settled blocks
+    /// ("in sync", "clean") are not listed: the rows above already say why.
+    private struct Unsettled: Identifiable {
         let action: GitAction
-        let block: GitActions.Block?
+        let reason: String
         var id: String { action.id }
     }
 
-    @ViewBuilder private func actions(_ snap: GitSnapshot) -> some View {
-        // A settled block isn't drawn at all. The rows above already say why --
-        // "clean", "in sync", "#3 open" -- and three permanently greyed buttons
-        // beside them read as a broken app rather than as a finished repo.
-        // What survives is what can run, plus whatever couldn't be worked out,
-        // and that second kind states its reason on the page instead of behind
-        // a tooltip nobody hovers for.
-        let offered = GitAction.allCases
-            .map { Offered(action: $0, block: GitActions.unavailableReason($0, snapshot: snap)) }
-            .filter { $0.block?.settled != true }
-        VStack(alignment: .leading, spacing: 5) {
-            if offered.isEmpty {
-                Text("no actions available")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
-            } else {
-                HStack(spacing: 6) {
-                    ForEach(offered) { item in
-                        Button(item.action.title) { start(item.action, snap) }
-                            .font(.claudeMono(10))
-                            .disabled(item.block != nil || running)
-                            .help(item.block?.reason ?? item.action.title)
-                    }
-                    Spacer(minLength: 0)
-                }
-                ForEach(offered.filter { $0.block != nil }) { item in
-                    Text("\(item.action.title.lowercased()): \(item.block?.reason ?? "")")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+    @ViewBuilder private func blockedReasons(_ snap: GitSnapshot) -> some View {
+        // The toolbar button stays greyed for these; the sentence goes on the
+        // page instead of behind a tooltip nobody hovers for.
+        let unsettled = GitAction.allCases.compactMap { action -> Unsettled? in
+            guard let block = GitActions.unavailableReason(action, snapshot: snap),
+                  !block.settled else { return nil }
+            return Unsettled(action: action, reason: block.reason)
+        }
+        ForEach(unsettled) { item in
+            Text("\(item.action.title.lowercased()): \(item.reason)")
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1394,20 +1411,6 @@ private struct GitCard: View {
         return parts.joined(separator: ", ")
     }
 
-    private func start(_ action: GitAction, _ snap: GitSnapshot) {
-        notice = nil
-        if action.confirmation != nil { confirming = action } else { perform(action, snap) }
-    }
-
-    private func perform(_ action: GitAction, _ snap: GitSnapshot) {
-        running = true
-        GitActions.perform(action, snapshot: snap, cwd: cwd) { message in
-            notice = message
-            running = false
-            reload()
-        }
-    }
-
     /// Invalidate, then read, on one task and in that order. Two unordered
     /// actor hops let the read win and hand back the pre-action entry, which is
     /// how a finished push leaves the row still saying "ahead 1".
@@ -1427,6 +1430,79 @@ private struct GitCard: View {
         while !Task.isCancelled {
             snapshot = await GitProbe.shared.snapshot(for: cwd)
             read = true
+            try? await Task.sleep(for: .seconds(5))
+        }
+    }
+}
+
+/// The Git actions in the toolbar, for the selected session's directory.
+///
+/// Reads through the same cached `GitProbe` as `GitCard`, so the second reader
+/// costs a dictionary lookup. A settled block isn't drawn at all: the card
+/// already says "clean", "in sync", "#3 open", and permanently greyed buttons
+/// beside that read as a broken app rather than a finished repo. Absent when
+/// the directory isn't a repository.
+private struct GitButtons: View {
+    let cwd: String
+    @Binding var notice: NoticeMessage?
+    @State private var snapshot: GitSnapshot?
+    @State private var confirming: GitAction?
+    @State private var running = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let snap = snapshot {
+                ForEach(GitAction.allCases) { action in
+                    let block = GitActions.unavailableReason(action, snapshot: snap)
+                    if block?.settled != true {
+                        Button(action.title) { start(action) }
+                            .font(.claudeMono(10))
+                            .buttonStyle(.glass)
+                            .disabled(block != nil || running)
+                            .help(block?.reason ?? action.title)
+                    }
+                }
+            }
+        }
+        .task(id: cwd) { await poll() }
+        .confirmationDialog(confirming?.confirmation ?? "",
+                            isPresented: Binding(get: { confirming != nil },
+                                                 set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible) {
+            if let action = confirming {
+                Button(action.title) {
+                    confirming = nil
+                    perform(action)
+                }
+            }
+            Button("Cancel", role: .cancel) { confirming = nil }
+        }
+    }
+
+    private func start(_ action: GitAction) {
+        notice = nil
+        if action.confirmation != nil { confirming = action } else { perform(action) }
+    }
+
+    private func perform(_ action: GitAction) {
+        guard let snap = snapshot else { return }
+        running = true
+        GitActions.perform(action, snapshot: snap, cwd: cwd) { message in
+            notice = message
+            running = false
+            // Invalidate, then read, on one task and in that order -- see
+            // `GitCard.reload`.
+            Task {
+                await GitProbe.shared.invalidate(cwd)
+                snapshot = await GitProbe.shared.snapshot(for: cwd)
+            }
+        }
+    }
+
+    private func poll() async {
+        snapshot = nil
+        while !Task.isCancelled {
+            snapshot = await GitProbe.shared.snapshot(for: cwd)
             try? await Task.sleep(for: .seconds(5))
         }
     }

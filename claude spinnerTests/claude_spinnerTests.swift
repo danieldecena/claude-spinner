@@ -563,6 +563,25 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(sections[0].items.map(\.id), ["m1", "m2"])
     }
 
+    func testProjectSectionsByRecencyPutNewestActivityFirst() {
+        let now = Date()
+        func at(_ id: String, cwd: String, ago: TimeInterval) -> SessionFeed {
+            var s = named(id, .tool, cwd: cwd, name: id)
+            s.updated = now.addingTimeInterval(-ago)
+            return s
+        }
+        let input = rows([
+            at("a-old", cwd: "/w/alpha", ago: 300),
+            at("z-new", cwd: "/w/zebra", ago: 10),
+            at("a-new", cwd: "/w/alpha", ago: 60),
+        ])
+        let sections = FeedWatcher.projectSections(input, byRecency: true)
+        XCTAssertEqual(sections.map(\.title), ["zebra", "alpha"])
+        XCTAssertEqual(sections[1].items.map(\.id), ["a-new", "a-old"])
+        // The default is untouched: the panel still sorts by name.
+        XCTAssertEqual(FeedWatcher.projectSections(input).map(\.title), ["alpha", "zebra"])
+    }
+
     /// Pinned on top, and listed once — the sidebar tags rows by session id, so the
     /// same session appearing under its project too would duplicate a selection tag.
     func testNeedsYouIsPinnedFirstAndNotRepeatedUnderItsProject() {
