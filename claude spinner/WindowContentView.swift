@@ -135,21 +135,6 @@ struct WindowContentView: View {
     /// unplaced.
     private var sidebar: some View {
             VStack(spacing: 0) {
-                OverviewStrip(overview: feed.overview,
-                              fiveHour: feed.usageFiveHourPct,
-                              sevenDay: feed.usageSevenDayPct,
-                              usageStale: feed.usageIsStale,
-                              usageHelp: feed.usageAsOfString,
-                              history: feed.usageHistory,
-                              totals: feed.usageTotalsRows,
-                              totalsStatus: feed.usageTotalsStatus,
-                              totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
-                              totalsHelp: feed.usageTotalsTooltip,
-                              fiveHourElapsed: feed.usageFiveHourElapsed,
-                              sevenDayElapsed: feed.usageSevenDayElapsed,
-                              fiveHourReset: feed.usageFiveHourResetRelative,
-                              sevenDayReset: feed.usageSevenDayReset,
-                              weekBars: feed.usageWeekBars)
                 // Same reason the panel carries it: without this the window
                 // surface answers questions fine and silently never rings.
                 NotificationsNotice()
@@ -170,6 +155,24 @@ struct WindowContentView: View {
             .padding(.leading, 10).padding(.bottom, 10)
     }
 
+    private var usageCard: OverviewStrip {
+        OverviewStrip(overview: feed.overview,
+                      fiveHour: feed.usageFiveHourPct,
+                      sevenDay: feed.usageSevenDayPct,
+                      usageStale: feed.usageIsStale,
+                      usageHelp: feed.usageAsOfString,
+                      history: feed.usageHistory,
+                      totals: feed.usageTotalsRows,
+                      totalsStatus: feed.usageTotalsStatus,
+                      totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
+                      totalsHelp: feed.usageTotalsTooltip,
+                      fiveHourElapsed: feed.usageFiveHourElapsed,
+                      sevenDayElapsed: feed.usageSevenDayElapsed,
+                      fiveHourReset: feed.usageFiveHourResetRelative,
+                      sevenDayReset: feed.usageSevenDayReset,
+                      weekBars: feed.usageWeekBars)
+    }
+
     @ViewBuilder private var detail: some View {
             if let session = selected {
                 SessionDetail(session: session,
@@ -181,7 +184,8 @@ struct WindowContentView: View {
                               suggestion: suggestion,
                               skillPick: skillPick,
                               tasksText: tasksText,
-                              tasksRoot: tasksRoot)
+                              tasksRoot: tasksRoot,
+                              usage: usageCard)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -374,6 +378,9 @@ private struct SessionDetail: View {
     let skillPick: Suggestion?
     let tasksText: String?
     let tasksRoot: String?
+    /// Account-wide, not this session's: built by the window from the feed so
+    /// the detail pane doesn't need the watcher.
+    let usage: OverviewStrip
 
     var body: some View {
         ScrollView {
@@ -419,6 +426,7 @@ private struct SessionDetail: View {
                     cacheCard
                     sessionCard
                     contextCard.tileSpan(2)
+                    usage
                     ConfigCard(session: session, feedDir: feedDir)
                 }
 
@@ -1024,8 +1032,8 @@ enum StatFormat {
 
 // MARK: - Overview
 
-/// Totals across every session, above the sidebar groups. The one thing here
-/// that isn't in the detail pane is the shape of the 5h window over time, which
+/// Totals across every session, as a card in the detail pane beside the
+/// session's context. It shows the shape of the 5h window over time, which
 /// only means anything aggregated.
 private struct OverviewStrip: View {
     let overview: FeedWatcher.Overview
@@ -1051,6 +1059,7 @@ private struct OverviewStrip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            CardTitle("Usage")
             // The rate-limit windows lead, not the dollar figure. On a Max plan
             // these are the only numbers that can actually stop you; the money
             // is a proxy for burn and is never charged.
@@ -1125,8 +1134,7 @@ private struct OverviewStrip: View {
                 .accessibilityLabel("5-hour usage over time")
                 .accessibilityValue(Sparkline.spokenValue(history))
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .detailCard()
     }
 
     /// Counts, context and lines on one line: each was a line of its own, and

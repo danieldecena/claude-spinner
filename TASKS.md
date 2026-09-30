@@ -9,6 +9,7 @@ via `run.sh`.
 - [ ] Check You asked shows full text on hover in the top row
 - [x] Show question boxes in terminal when it is frontmost -- 85dd8c7
 - [ ] Fill the History card to its height
+- [ ] Move the usage block into a detail card
 
 ## Completed
 
