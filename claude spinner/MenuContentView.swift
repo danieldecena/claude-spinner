@@ -484,8 +484,8 @@ extension SessionFeed {
 ///
 /// Scaled to the heavy band's floor (200k, where `contextTint` turns red), or to
 /// the window if that is smaller, rather than to the window alone. The detail
-/// pane's `ContextTrend` has 28pt and can afford the window's scale; ten points
-/// cannot, and a 1M-window session under 200k would draw as a flat hairline no
+/// pane's context columns are 44pt tall and can afford the window's scale; ten
+/// points cannot, and a 1M-window session under 200k would draw as a flat hairline no
 /// matter what it did. A line pinned to the top therefore means "heavy", the
 /// same thing the red tint says. Draws nothing without two samples.
 struct ContextSpark: View {

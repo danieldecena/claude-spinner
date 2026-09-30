@@ -11,6 +11,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Move git commands into Skills and Automation under the Git card
 - [x] Combine the stat cards into two and redraw the charts as rings and columns
 - [x] Move subagents from a detail card into the sidebar
 - [x] Hold the wrap-up pick to the prompt when it is size-driven

@@ -12,8 +12,8 @@
 - `TranscriptReader` shows what a session is *doing* — the last thing Claude
   said, what you last asked, and what it just ran — read from the last 256KB of
   its own transcript. Observed on screen 2026-09-04 against a live 4.7MB file.
-- The Context section carries a meter and a chart, both scaled to the window so
-  they mean the same thing: how close this session is to needing a compact, and
+- The context ring and the context columns in the This session card are both
+  scaled to the window so they mean the same thing: how close this session is to needing a compact, and
   how fast it got there. Behind them is the app's first per-session time series
   -- `contextHistory`, sampled on each rescan, only when the count actually
   moves, capped at 240 points and dropped when the session goes away. Both
@@ -22,7 +22,7 @@
   1.5pt line with its tinted area fill, flat along the floor. Flat is correct
   there, not a failure -- 0.099 to 0.157 of a 1M window is a 1.6pt rise inside a
   28pt frame. What separates "flat" from "not drawing" is the *absence* of the
-  `no context history yet` fallback text, which is what `ContextTrend` renders
+  `no context history yet` fallback text, which is what `TrendColumns` renders
   when `unitPoints` returns nil.
 - Six session actions under the reply field: Interrupt, Compact and Clear
   through the tmux pane, Reveal folder / Open transcript / Copy session id
@@ -144,6 +144,11 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the git buttons and git skill chips live in the Skills card under a Git
+  label, and the Automation switches sit in their own card under the Git status
+  card; the Git commands card is gone. History takes the width it freed. Seen on
+  screen. Bucketing now clamps a timestamp before the first sample into the first
+  slice (a verifier found it trapped; the writers never produce one).
 - Decided: Cost, Prompt cache, Session, Context and Usage became two cards,
   This session and Usage, in `StatCards.swift`. No horizontal bars or lines:
   ratios are rings (a tick on the limit rings marks the window's clock), history

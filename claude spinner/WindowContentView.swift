@@ -434,14 +434,17 @@ private struct SessionDetail: View {
                     // One full-width tile for everything git, straight under the
                     // transcript and skills: it is acted on, the stat tiles below
                     // are only read. The graph takes what is left beside
-                    // fixed-width status and command columns, so the state and the
-                    // actions sit next to the history.
+                    // a fixed-width status column with its automation switches under it,
+                    // so the state sits next to the history. The git commands
+                    // themselves live in the Skills card.
                     HStack(alignment: .top, spacing: 10) {
                         GitGraphCard(cwd: session.cwd)
-                        GitCard(cwd: session.cwd)
-                            .frame(width: 230)
-                        GitCommandsCard(session: session, feedDir: feedDir, suggestion: suggestion)
-                            .frame(width: 250)
+                        VStack(spacing: 10) {
+                            GitCard(cwd: session.cwd)
+                            AutomationToggles(session: session, feedDir: feedDir)
+                                .detailCard()
+                        }
+                        .frame(width: 250)
                     }
                     .tileSpan(.max)
                     // This session and the account, side by side: everything
@@ -1377,6 +1380,7 @@ private struct SkillsCard: View {
     let suggestion: Suggestion?
     let pick: Suggestion?
     @State private var notice: NoticeMessage?
+    @State private var snapshot: GitSnapshot?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1391,6 +1395,7 @@ private struct SkillsCard: View {
                 ShortcutChips(session: session, feedDir: feedDir, shortcuts: superpowers,
                               suggestion: suggestion, notice: $notice, pick: pick)
             }
+            gitCommands
             // Said even while the chips are greyed mid-turn: it is what to run
             // when the turn ends.
             if let pick, case .command(let command) = pick.action {
@@ -1405,6 +1410,28 @@ private struct SkillsCard: View {
             if let notice { Notice(notice) }
         }
         .detailCard()
+    }
+
+    /// The repo's git buttons and the git skills, under the other skills: they
+    /// are the same kind of thing, one click that acts on the session.
+    @ViewBuilder private var gitCommands: some View {
+        Text("Git").font(.claudeMono(9)).foregroundStyle(Color.label)
+            .textCase(.uppercase).tracking(0.8)
+        GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
+        // Same rule as the buttons: a skill with nothing to act on is hidden,
+        // and outside a repo (no snapshot) there is nothing to act on.
+        let chips = snapshot == nil ? [] : installedShortcuts.filter {
+            $0.group == .git && SkillShortcut.idleReason($0, snapshot: snapshot) == nil
+        }
+        if !chips.isEmpty {
+            ShortcutChips(session: session, feedDir: feedDir, shortcuts: chips,
+                          suggestion: suggestion, notice: $notice)
+        } else if let snapshot, GitAction.allCases.allSatisfy({
+            $0.isTool || GitActions.unavailableReason($0, snapshot: snapshot)?.settled == true
+        }) {
+            Text("Nothing to do: clean, in sync, and no PR waiting.")
+                .font(.claudeMono(10)).foregroundStyle(Color.label)
+        }
     }
 }
 
@@ -1455,41 +1482,6 @@ private struct TasksCard: View {
                           shortcuts: installedShortcuts.filter { $0.group == .tasks },
                           suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
-        }
-        .detailCard()
-    }
-}
-
-/// Git work in one place: the actions that run `git`/`gh` directly, then the
-/// git skills, which go through Claude.
-private struct GitCommandsCard: View {
-    let session: SessionFeed
-    let feedDir: URL
-    let suggestion: Suggestion?
-    @State private var notice: NoticeMessage?
-    @State private var snapshot: GitSnapshot?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CardTitle("Git commands")
-            GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
-            // Same rule as the buttons: a skill with nothing to act on is hidden,
-            // and outside a repo (no snapshot) there is nothing to act on.
-            let chips = snapshot == nil ? [] : installedShortcuts.filter {
-                $0.group == .git && SkillShortcut.idleReason($0, snapshot: snapshot) == nil
-            }
-            if !chips.isEmpty {
-                ShortcutChips(session: session, feedDir: feedDir, shortcuts: chips,
-                              suggestion: suggestion, notice: $notice)
-            } else if let snapshot, GitAction.allCases.allSatisfy({
-                $0.isTool || GitActions.unavailableReason($0, snapshot: snapshot)?.settled == true
-            }) {
-                Text("Nothing to do: clean, in sync, and no PR waiting.")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-            if let notice { Notice(notice) }
-            Divider().padding(.vertical, 2)
-            AutomationToggles(session: session, feedDir: feedDir)
         }
         .detailCard()
     }

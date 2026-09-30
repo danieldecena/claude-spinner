@@ -3524,6 +3524,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(Buckets.levels(series([(0, 1), (1, 2)]), count: 0))
     }
 
+    /// A sample stamped before the first (a clock stepped back) joins the first
+    /// slice; it used to index off the front and trap.
+    func testBucketsHoldAnOutOfOrderTimestampInsideTheRange() {
+        let early = series([(10, 1), (5, 2), (20, 3)])
+        XCTAssertEqual(Buckets.levels(early, count: 4)?.count, 4)
+        XCTAssertEqual(Buckets.increases(early, count: 4)?.count, 4)
+        XCTAssertNotNil(Buckets.levels(series([(0, 1), (.nan, 2), (10, 3)]), count: 4))
+    }
+
     func testTotalsSplitIntoAFigureAndWhatGoesWithIt() {
         XCTAssertEqual(OverviewStrip.split("329M  $154").0, "329M")
         XCTAssertEqual(OverviewStrip.split("329M  $154").1, "$154")

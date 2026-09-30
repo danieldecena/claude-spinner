@@ -12,6 +12,14 @@ import SwiftUI
 /// A time series cut into equal slices, for the column charts. Pure, so the
 /// degenerate cases are testable without laying out a view.
 enum Buckets {
+    /// Which slice a timestamp falls in, held inside the range: a sample stamped
+    /// before the first (a clock stepped back) joins the first slice instead of
+    /// indexing off the front.
+    private static func slice(_ at: Double, first: Double, span: Double, count: Int) -> Int {
+        let raw = (at - first) / span * Double(count)
+        return raw.isFinite ? min(count - 1, max(0, Int(raw))) : 0
+    }
+
     /// `count` equal slices from the first sample to the last. A slice holds the
     /// last level seen in it and carries the previous slice's level when it has
     /// no sample, because a level (context, a percentage) does not vanish while
@@ -23,7 +31,7 @@ enum Buckets {
         let span = last.at - first.at
         var out = [Double?](repeating: nil, count: count)
         for sample in samples {
-            out[min(count - 1, Int((sample.at - first.at) / span * Double(count)))] = sample.value
+            out[slice(sample.at, first: first.at, span: span, count: count)] = sample.value
         }
         var carried = samples[0].value
         return out.map { value in
@@ -41,8 +49,7 @@ enum Buckets {
         let span = last.at - first.at
         var out = [Double](repeating: 0, count: count)
         for (previous, sample) in zip(samples, samples.dropFirst()) {
-            let slice = min(count - 1, Int((sample.at - first.at) / span * Double(count)))
-            out[slice] += max(0, sample.value - previous.value)
+            out[slice(sample.at, first: first.at, span: span, count: count)] += max(0, sample.value - previous.value)
         }
         return out
     }
