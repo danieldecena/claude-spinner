@@ -64,8 +64,16 @@ struct WindowContentView: View {
     /// broken. Order: something waiting on a person, then the most recently
     /// active session that actually has numbers to show, then anything.
     private var selected: SessionFeed? {
+        Self.resolveSelection(selection, roots: roots, asks: asks.pending)
+    }
+
+    /// nil for a pinned project's tag: that pane is not a session, and falling
+    /// through to the default here would put a session's toolbar, git probe and
+    /// transcript loops behind the project's pane.
+    static func resolveSelection(_ selection: String?, roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
+        if PinnedProject.isPinnedTag(selection) { return nil }
         if let selection, let picked = roots.first(where: { $0.id == selection }) { return picked }
-        return Self.defaultSelection(roots: roots, asks: asks.pending)
+        return defaultSelection(roots: roots, asks: asks)
     }
 
     static func defaultSelection(roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
@@ -170,7 +178,10 @@ struct WindowContentView: View {
     }
 
     @ViewBuilder private var detail: some View {
-            if let session = selected {
+            if let project = PinnedProject.project(forTag: selection) {
+                PinnedProjectDetail(project: project, sessions: roots) { selection = $0 }
+                    .id(project.id)
+            } else if let session = selected {
                 SessionDetail(session: session,
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
@@ -223,6 +234,25 @@ private struct SessionSidebar: View {
 
     var body: some View {
         List(selection: $selection) {
+            Section {
+                ForEach(PinnedProject.all) { project in
+                    let live = PinnedProject.liveSessions(in: project.path, sessions: sessions).count
+                    HStack(spacing: 6) {
+                        Image(systemName: "pin.fill").font(.ui(10)).foregroundStyle(Color.label)
+                        Text(project.name).font(.claudeMono(11)).lineLimit(1)
+                        Spacer(minLength: 0)
+                        if live > 0 {
+                            Text("\(live) live").font(.ui(10)).foregroundStyle(Color.label)
+                        }
+                    }
+                    .help(project.path)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(project.name), pinned project" + (live > 0 ? ", \(live) live" : ""))
+                    .tag(project.tag)
+                }
+            } header: {
+                Text("Pinned").font(.ui(10)).fontWeight(.semibold).foregroundStyle(Color.label)
+            }
             ForEach(groups) { section in
                 Section {
                     ForEach(section.items) { item in
