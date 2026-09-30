@@ -793,6 +793,15 @@ struct SessionRow: View {
                 // Time + host chip travel together as one right-flush unit with a tight
                 // gap, so the time stays near the right edge with the tag just after it.
                 HStack(spacing: 4) {
+                    // A resting row has no second line and so no meter, but its context
+                    // size is what decides a /clear or /compact; keep the figure here.
+                    if isResting, !session.isChild, !contextTokens.isEmpty {
+                        Text(contextTokens)
+                            .font(.claudeMono(11))
+                            .monospacedDigit()
+                            .foregroundStyle(contextColor)
+                    }
+
                     // Elapsed / waiting / done time in a fixed-width column so the times
                     // line up down the panel regardless of label. A one-line resting
                     // row puts its evidence ("idle 12m", open todos) here instead, and
