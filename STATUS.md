@@ -142,13 +142,19 @@
 
 1. [code] Watch the Career Hub pop-out open (floating mini window, frame remembered). Not
    seen yet: the embed rendered, but Daniel was mid claude.ai sign-in inside it.
-2. [code] Notarize the app: Daniel has an Apple Developer account (2026-09-30), so the
-   2026-07-21 "no paid account" reason for ad-hoc signing no longer holds.
+2. [you] Click the Plans and Job Search tabs: Plans pin and plugin skill chips not seen yet.
 3. [you] Keep or drop `FeedWatcher.spendHistory`; attention colour; menu-bar panel type.
 
 The rest is in `TASKS.md`.
 
 ## Decision log
+
+### 2026-09-30 (notarized)
+- Decided: `./notarize.sh` ships a Developer ID signed, notarized, stapled copy to
+  `build/notarized/` (archive -> developer-id export -> `notarytool --keychain-profile
+  notary` -> staple). First run Accepted; spctl `source=Notarized Developer ID`. It
+  does not install: `run.sh` stays the Debug dev loop, and the export drops
+  `get-task-allow`. Supersedes the 2026-07-21 "no paid account" reason for ad-hoc signing.
 
 ### 2026-09-30 (Job Search dashboard, Career Hub, goal sign, one-surface window)
 - Decided: questions no longer block. ask.sh writes a non-waiting ask (`waits:false`,

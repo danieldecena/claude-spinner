@@ -2,7 +2,6 @@
 
 ## Tasks
 
-- [ ] Notarize the app with the Developer account
 - [ ] Watch auto-merge switch itself on for a real open PR
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
@@ -12,9 +11,10 @@
 
 ## Completed
 
+- [x] Notarize the app with the Developer account
 - [x] Embed Career Hub in Job Search with a pop-out window -- b6bc623
 - [x] Show ask boxes in the You asked card and the terminal
-- [x] Arm ask card options 0,8s after the card appears
+- [x] Arm ask card options 0.8s after the card appears -- f3e0809
 - [x] Show a goal sign with minutes left in the You asked card
 - [x] Pin Job Search as a hub tab in the sidebar
 - [x] Launch sessions with resume or a starting prompt

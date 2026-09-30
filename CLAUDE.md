@@ -18,6 +18,7 @@ an existing `/Applications/claude spinner.app`. `xcbeautify` is optional
 
 ```bash
 ./run.sh          # build (xcodebuild if full Xcode, else swiftc fallback) + relaunch
+./notarize.sh     # Developer ID + notarized + stapled copy into build/notarized/ (no install)
 ```
 
 `run.sh` derives the built `.app` from `BUILT_PRODUCTS_DIR` (DerivedData hash is
