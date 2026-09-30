@@ -162,6 +162,9 @@ The rest is in `TASKS.md`.
   Two new tests, both mutation-checked. Seen on screen 11:04: CLAUDE.md whole,
   `~/developer/job search`. Not seen: the artifact card (the window jumped back to the
   session needing input before the scroll landed).
+- Observed 15:42: the artifact card reads "Career Hub" / "claude.ai" in full with its
+  three buttons on their own row. Scheduled now also lists `com.danieldecena.jobscout.control`
+  (kept running, launchd), so the word match still finds the real agent.
 - Observed: the window follows a session that needs you. A likely cause for the 09:23
   probe's "selection moved on its own"; unconfirmed.
 

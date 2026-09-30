@@ -4,10 +4,10 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
-- [ ] [you] See the Career Hub card title whole in the Job Search tab
 
 ## Completed
 
+- [x] See the Career Hub card title whole in the Job Search tab -- 3d61817
 - [x] Fix the Job Search tab review findings (7)
 - [x] See the tidied Job Search rail after the next relaunch
 - [x] Add the New session prompt box to pinned projects -- e27ead0
