@@ -3765,6 +3765,33 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SkillShortcut.curated.filter { $0.group == .tasks }.map(\.name), ["todo"])
     }
 
+    func testNewSessionListsYourProjectsOnDisk() {
+        let json = Data(#"""
+        {"projects": {
+          "zeta": {"path": "~/developer/zeta"},
+          "Alpha": {"path": "/abs/alpha", "third_party_owner": null},
+          "vendor": {"path": "~/developer/vendor", "third_party_owner": "someone"},
+          "gone": {"path": "~/developer/gone"},
+          "nopath": {}
+        }}
+        """#.utf8)
+        let dirs: Set<String> = ["/h/developer/zeta", "/abs/alpha", "/h/developer/vendor"]
+        let found = NewSession.projects(registryJSON: json, home: "/h", isDirectory: dirs.contains)
+        XCTAssertEqual(found?.map(\.name), ["Alpha", "zeta"])
+        XCTAssertEqual(found?.last?.path, "/h/developer/zeta")
+        // Unreadable is unknown, not an empty list.
+        XCTAssertNil(NewSession.projects(registryJSON: nil, home: "/h", isDirectory: dirs.contains))
+        XCTAssertNil(NewSession.projects(registryJSON: Data("{}".utf8), home: "/h", isDirectory: dirs.contains))
+        XCTAssertEqual(NewSession.projects(registryJSON: Data(#"{"projects":{}}"#.utf8), home: "/h",
+                                           isDirectory: dirs.contains), [])
+    }
+
+    func testNewSessionScriptQuotesThePath() {
+        let script = NewSession.appleScript(for: #"/tmp/a "b"\c"#)
+        XCTAssertTrue(script.contains(#"set initial working directory of cfg to "/tmp/a \"b\"\\c""#))
+        XCTAssertTrue(script.contains(#"set command of cfg to "/bin/zsh -lic claude""#))
+    }
+
     func testTasksFileListsOpenTitlesAndCountsDoneEverywhere() {
         let text = """
         # Tasks

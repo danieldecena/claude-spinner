@@ -159,6 +159,7 @@ struct WindowContentView: View {
                         .padding(.horizontal, 10).padding(.vertical, 10)
                 }
                 Divider()
+                NewSessionBar()
                 SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
             }
             .frame(width: 250)
@@ -276,6 +277,60 @@ private struct SessionSidebar: View {
     private func tint(_ session: SessionFeed) -> Color {
         if session.isBlockedOnYou || asksFor(session) { return .attention }
         return session.isWorking ? .claude : .secondary
+    }
+}
+
+/// The sessions heading, with + to start one in a project: a Ghostty window
+/// running `claude` there, which the feed then picks up like any other.
+private struct NewSessionBar: View {
+    @State private var projects: [NewSession.Project]?
+    @State private var failure: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                CardTitle("Sessions")
+                Spacer()
+                Menu {
+                    if let projects {
+                        if projects.isEmpty { Text("No projects in the registry") }
+                        ForEach(projects) { project in
+                            Button(project.name) { start(project) }
+                        }
+                    } else {
+                        Text("Couldn't read ~/.claude/project-registry.json")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("New Claude Code session in a project")
+            }
+            if let failure {
+                Text(failure).font(.claudeMono(10)).foregroundStyle(Color.attention)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 16).padding(.top, 8)
+        // Re-read now and then: repo-inventory.py rewrites the registry.
+        .task {
+            while !Task.isCancelled {
+                projects = await Task.detached(priority: .utility) { NewSession.loadProjects() }.value
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+    }
+
+    private func start(_ project: NewSession.Project) {
+        failure = nil
+        Task {
+            let error = await Task.detached(priority: .userInitiated) {
+                NewSession.launch(in: project.path)
+            }.value
+            failure = error.map { "Couldn't open Ghostty: \($0)" }
+        }
     }
 }
 
