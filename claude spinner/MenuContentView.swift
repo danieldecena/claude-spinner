@@ -35,7 +35,7 @@ struct MenuContentView: View {
             if feed.sessions.isEmpty {
                 if feed.isSetupInstalled {
                     Text("No active sessions")
-                        .font(.claudeMono(11)).foregroundStyle(Color.label)
+                        .font(.ui(11)).foregroundStyle(Color.label)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10).padding(.vertical, 12)
                 } else {
@@ -154,7 +154,7 @@ struct UsageHeader: View {
                                             "5-hour limit resets at \(clock)\(rel.isEmpty ? "" : ", in \(rel)")")
                                 }
                             }
-                            .font(.claudeMono(10))
+                            .font(.ui(10))
                             .lineLimit(1)
                             .textCase(.lowercase)
                             // Only the account numbers go stale; the total below is
@@ -168,7 +168,7 @@ struct UsageHeader: View {
                         // single row can show.
                         if let total = feed.totalContextTokens {
                             Text("\(FeedWatcher.formatTokens(total)) total")
-                                .font(.claudeMono(10))
+                                .font(.figure(10))
                                 .monospacedDigit()
                                 .foregroundStyle(Color.secondary.opacity(0.75))
                                 .lineLimit(1)
@@ -261,7 +261,7 @@ struct SessionBreakdownBars: View {
             }
             .fixedSize()
         }
-        .font(.claudeMono(10))
+        .font(.ui(10))
         .lineLimit(1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sessions by \(title == "status" ? "status" : "model")")
@@ -321,7 +321,7 @@ struct UsageFooter: View {
                             .help(feed.usageAsOfString)
                         } else {
                             Text("no usage data yet")
-                                .font(.claudeMono(11))
+                                .font(.ui(11))
                                 .foregroundStyle(Color.secondary.opacity(0.6))
                         }
 
@@ -333,7 +333,7 @@ struct UsageFooter: View {
                     if feed.hasUsage {
                         HStack(spacing: 6) {
                             Text("5h history")
-                                .font(.claudeMono(10))
+                                .font(.ui(10))
                                 .foregroundStyle(Color.label)
                                 .fixedSize()
                             Sparkline(samples: feed.usageHistory)
@@ -347,7 +347,7 @@ struct UsageFooter: View {
                     Text(feed.usageTotals == nil ? feed.usageTotalsStatus
                          : feed.usageTotalsRows.prefix(2).map { "\($0.label) \($0.value)" }
                              .joined(separator: "   "))
-                        .font(.claudeMono(11))
+                        .font(.ui(11))
                         .foregroundStyle(Color.label)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -374,7 +374,7 @@ struct UsageGauge: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(label)
-                .font(.claudeMono(11))
+                .font(.ui(11))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -390,7 +390,7 @@ struct UsageGauge: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: pct)
             }
             Text("\(pct)%")
-                .font(.claudeMono(11)).monospacedDigit()
+                .font(.figure(11)).monospacedDigit()
                 .foregroundStyle(Color.usageTint(pct))
                 .fixedSize()
         }
@@ -430,7 +430,7 @@ struct TrendGauge: View {
     var body: some View {
         HStack(spacing: 3) {
             Text("trend")
-                .font(.claudeMono(11))
+                .font(.ui(11))
                 .foregroundStyle(Color.secondary)
                 .fixedSize()
             ZStack(alignment: .leading) {
@@ -445,7 +445,7 @@ struct TrendGauge: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.7), value: delta)
             }
             Text("\(delta > 0 ? "+" : "")\(delta)%")
-                .font(.claudeMono(11)).monospacedDigit()
+                .font(.figure(11)).monospacedDigit()
                 .foregroundStyle(tint)
                 .fixedSize()
         }
@@ -701,7 +701,7 @@ private struct PanelSectionHeader: View {
                 Text(FeedWatcher.formatTokens(total))
             }
         }
-        .font(.claudeMono(10)).fontWeight(.bold)
+        .font(.ui(10)).fontWeight(.bold)
         .textCase(.uppercase)
         .foregroundStyle(ink)
         .padding(.horizontal, 10)
