@@ -40,6 +40,11 @@ set -o pipefail
 xcodebuild -scheme "claude spinner" test | { command -v xcbeautify >/dev/null && xcbeautify || cat; }
 ```
 
+That `killall` also kills the self-hosted CI runner's test host (same Mac, same
+process name): a local test run started while CI is testing a push fails CI
+with a host that vanished mid-test and no crash report. Check
+`gh run list --limit 1` is not `in_progress` first (2026-09-29).
+
 Unit target only — `claude spinnerUITests` is intentionally not in the scheme
 (matches CI). CI runs on a **self-hosted** runner: the project is Xcode 27 format
 110, which GitHub-hosted runners can't open.

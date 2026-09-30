@@ -90,6 +90,39 @@ enum SessionAction: String, CaseIterable, Identifiable {
     }
 }
 
+/// Switching a session's model or effort by typing the command Claude Code
+/// already has, rather than editing settings behind its back.
+///
+/// Typed, `/model <alias>` and `/effort <level>` also save the choice as the
+/// default for new sessions, and a model switch makes the next turn re-read
+/// the whole conversation uncached. Both are said in the confirmation.
+enum SessionConfig {
+    static let models: [(alias: String, title: String)] = [
+        ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku"), ("fable", "Fable"),
+    ]
+    static let efforts = ["low", "medium", "high", "xhigh", "max"]
+
+    static func modelCommand(_ alias: String) -> String { "/model \(alias)" }
+    static func effortCommand(_ level: String) -> String { "/effort \(level)" }
+
+    /// Whether a display name such as "Opus 5.5" is the model an alias picks.
+    static func isCurrent(_ alias: String, model: String?) -> Bool {
+        model?.lowercased().hasPrefix(alias) == true
+    }
+
+    static func modelConfirmation(_ title: String) -> String {
+        "Switch this session to \(title)? The next turn re-reads the whole conversation uncached, "
+            + "and /model also saves \(title) as your default for new sessions. "
+            + "Claude Code may ask you to confirm in the terminal."
+    }
+
+    static func effortConfirmation(_ level: String) -> String {
+        level == "max"
+            ? "Set effort to max for this session?"
+            : "Set effort to \(level)? /effort also saves it as your default for this model."
+    }
+}
+
 enum SessionActions {
     /// Whether an action can run against this session right now, and why not.
     ///

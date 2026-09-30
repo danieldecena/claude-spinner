@@ -298,19 +298,18 @@ private struct SessionDetail: View {
                     TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
                         .tileSpan(2)
                     SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion)
-                    GitCard(cwd: session.cwd)
                     costCard
                     cacheCard
+                    sessionCard
                     contextCard.tileSpan(2)
-                    VStack(spacing: 10) {
-                        sessionCard
-                        configCard
-                    }
-                    // One full-width tile holding two cards: the graph takes what
-                    // is left beside a fixed-width Git commands column, so its
-                    // actions sit next to the history they act on at any width.
+                    ConfigCard(session: session, feedDir: feedDir)
+                    // One full-width tile for everything git: the graph takes what
+                    // is left beside fixed-width status and command columns, so
+                    // the state and the actions sit next to the history.
                     HStack(alignment: .top, spacing: 10) {
                         GitGraphCard(cwd: session.cwd)
+                        GitCard(cwd: session.cwd)
+                            .frame(width: 230)
                         GitCommandsCard(session: session, feedDir: feedDir, suggestion: suggestion)
                             .frame(width: 250)
                     }
@@ -440,20 +439,6 @@ private struct SessionDetail: View {
                 CacheRing(ratio: ratio)
             }
         }
-        .detailCard()
-    }
-
-    private var configCard: some View {
-        let st = session.stats
-        return StatSection("Config", rows: [
-            // The id only when the display name is missing: "Opus 5.5" over
-            // "claude-opus-5-5" said the same thing twice.
-            ("model", session.model ?? st.modelID),
-            ("effort", st.effort),
-            ("thinking", st.thinking.map { $0 ? "on" : "off" }),
-            ("style", st.outputStyle),
-            ("claude", st.claudeVersion),
-        ])
         .detailCard()
     }
 
@@ -742,6 +727,9 @@ private struct DetailCard: ViewModifier {
 private struct TileGrid: Layout {
     let minimum: CGFloat
     let spacing: CGFloat
+    /// The rows are composed for three columns (wide cards alternating sides);
+    /// a fourth let them wrap into a row with one card and a gap.
+    var maxColumns = 3
 
     private struct Slot {
         let index: Int
@@ -770,7 +758,7 @@ private struct TileGrid: Layout {
     }
 
     private func grid(width: CGFloat) -> (columns: Int, columnWidth: CGFloat) {
-        let columns = max(1, Int((width + spacing) / (minimum + spacing)))
+        let columns = min(maxColumns, max(1, Int((width + spacing) / (minimum + spacing))))
         return (columns, (width - spacing * CGFloat(columns - 1)) / CGFloat(columns))
     }
 
@@ -1671,6 +1659,118 @@ private struct ActionBar: View {
     }
 }
 
+// MARK: - Config
+
+/// Model and effort as menus that type `/model` or `/effort` into the
+/// session, after a confirmation naming what that costs. The read-only facts
+/// stay rows beneath them.
+private struct ConfigCard: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @State private var hasPane = false
+    @State private var pending: (command: String, question: String)?
+    @State private var notice: NoticeMessage?
+    @State private var sending = false
+
+    var body: some View {
+        let st = session.stats
+        let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("Config")
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
+                GridRow {
+                    Text("model").font(.system(size: 11)).foregroundStyle(Color.label)
+                    Menu {
+                        ForEach(SessionConfig.models, id: \.alias) { model in
+                            Button {
+                                pending = (SessionConfig.modelCommand(model.alias),
+                                           SessionConfig.modelConfirmation(model.title))
+                            } label: {
+                                if SessionConfig.isCurrent(model.alias, model: session.model) {
+                                    Label(model.title, systemImage: "checkmark")
+                                } else {
+                                    Text(model.title)
+                                }
+                            }
+                        }
+                    } label: {
+                        // The id only when the display name is missing.
+                        Text(session.model ?? st.modelID ?? "unknown").font(.claudeMono(11))
+                    }
+                    .fixedSize()
+                    .disabled(reason != nil || sending)
+                    .help(reason ?? "Switch model")
+                }
+                GridRow {
+                    Text("effort").font(.system(size: 11)).foregroundStyle(Color.label)
+                    Menu {
+                        ForEach(SessionConfig.efforts, id: \.self) { level in
+                            Button {
+                                pending = (SessionConfig.effortCommand(level),
+                                           SessionConfig.effortConfirmation(level))
+                            } label: {
+                                if st.effort == level {
+                                    Label(level, systemImage: "checkmark")
+                                } else {
+                                    Text(level)
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(st.effort ?? "default").font(.claudeMono(11))
+                    }
+                    .fixedSize()
+                    .disabled(reason != nil || sending)
+                    .help(reason ?? "Change effort")
+                }
+                // Read-only facts, same grid so the columns line up; a nil drops its row.
+                ForEach([("thinking", st.thinking.map { $0 ? "on" : "off" }),
+                         ("style", st.outputStyle),
+                         ("claude", st.claudeVersion)], id: \.0) { key, value in
+                    if let value {
+                        GridRow {
+                            Text(key).font(.system(size: 11)).foregroundStyle(Color.label)
+                            Text(value).font(.claudeMono(11)).lineLimit(1)
+                        }
+                    }
+                }
+            }
+            if let notice { Notice(notice) }
+        }
+        .detailCard()
+        .task(id: session.id) {
+            let pid = session.pid
+            hasPane = await Task.detached(priority: .utility) {
+                pid != nil && SessionReplier.hasPane(session)
+            }.value
+        }
+        .confirmationDialog(pending?.question ?? "",
+                            isPresented: Binding(get: { pending != nil },
+                                                 set: { if !$0 { pending = nil } }),
+                            titleVisibility: .visible) {
+            if let command = pending?.command {
+                Button(command) {
+                    pending = nil
+                    send(command)
+                }
+            }
+            Button("Cancel", role: .cancel) { pending = nil }
+        }
+    }
+
+    private func send(_ command: String) {
+        sending = true
+        notice = nil
+        SessionReplier.reply(to: session, text: command, feedDir: feedDir) { result in
+            sending = false
+            switch result {
+            case .success: notice = .init(kind: .info, text: "Sent \(command).")
+            case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
+            }
+        }
+    }
+}
+
 // MARK: - Suggested
 
 /// A pulsing ring around the button `Suggestion.next` picked. In place of a
@@ -1817,7 +1917,7 @@ private struct ShortcutChips: View {
 
 /// The repository's recent history as a lane graph: a dot per commit, a
 /// coloured line per branch, curves where they split and merge, and the
-/// commit's refs, subject and age beside it.
+/// commit's refs and age beside it (the subject is the row's tooltip).
 private struct GitGraphCard: View {
     let cwd: String
     @State private var rows: [GraphRow]?
@@ -1916,14 +2016,16 @@ private struct GitGraphCard: View {
                     .background(Color.secondary.opacity(0.15), in: Capsule())
                     .fixedSize()
             }
-            Text(row.commit.subject).lineLimit(1).truncationMode(.tail)
-                .help(row.commit.subject)
+            // No subject line: the card is a picture of branches, and the
+            // message sits a hover away without pushing the refs off the row.
             Spacer(minLength: 8)
             if let at = row.commit.committedAt {
                 Text(FeedWatcher.compactAge(since: at)).foregroundStyle(Color.label).fixedSize()
             }
         }
         .font(.claudeMono(11))
+        .contentShape(Rectangle())
+        .help(row.commit.subject)
     }
 
     /// Local and cheap, so a commit made in the session shows within seconds.

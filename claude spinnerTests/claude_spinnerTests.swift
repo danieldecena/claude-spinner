@@ -3328,6 +3328,19 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(s?.action, .git(.createPR))
     }
 
+    // MARK: - Session config
+
+    func testConfigCommandsAndCurrentModel() {
+        XCTAssertEqual(SessionConfig.modelCommand("sonnet"), "/model sonnet")
+        XCTAssertEqual(SessionConfig.effortCommand("xhigh"), "/effort xhigh")
+        XCTAssertTrue(SessionConfig.isCurrent("opus", model: "Opus 5.5"))
+        XCTAssertFalse(SessionConfig.isCurrent("sonnet", model: "Opus 5.5"))
+        XCTAssertFalse(SessionConfig.isCurrent("opus", model: nil))
+        // The costs are said before the switch, not discovered after it.
+        XCTAssertTrue(SessionConfig.modelConfirmation("Sonnet").contains("default for new sessions"))
+        XCTAssertTrue(SessionConfig.modelConfirmation("Sonnet").contains("uncached"))
+    }
+
     // MARK: - Skill shortcuts
 
     /// Built-ins always show; a skill or command shows only when its file exists.
