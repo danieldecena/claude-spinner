@@ -66,7 +66,7 @@ struct PinnedProjectDetail: View {
                         }
                     }
                     ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
-                        ArtifactCard(artifact: artifact).tileSpan(3)
+                        ArtifactCard(artifact: artifact)
                     }
                     if !extras.artifacts.unreadable.isEmpty {
                         discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in

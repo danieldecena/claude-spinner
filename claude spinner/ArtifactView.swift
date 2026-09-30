@@ -27,14 +27,19 @@ enum ArtifactWeb {
 
 struct ArtifactWebView: NSViewRepresentable {
     let url: URL
+    /// Below 1 the page lays out wider than the view and shrinks to fit, which
+    /// is what makes a small card read as a preview of the whole page.
+    var zoom: CGFloat = 1
 
     func makeNSView(context: Context) -> WKWebView {
         let view = ArtifactWeb.makeWebView()
+        view.pageZoom = zoom
         view.load(URLRequest(url: url))
         return view
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
+        if view.pageZoom != zoom { view.pageZoom = zoom }
         if view.url == nil { view.load(URLRequest(url: url)) }
     }
 }
@@ -86,17 +91,24 @@ final class ArtifactPopouts: NSObject, ObservableObject, NSWindowDelegate {
     }
 }
 
-/// An artifact as a dashboard card: live inline, with pop-out and browser.
+/// An artifact as a dashboard card: a small live preview by default, which
+/// expands in place to a full-width working page, or pops out to its own window.
 struct ArtifactCard: View {
     let artifact: ProjectArtifact
     @ObservedObject private var popouts = ArtifactPopouts.shared
+    @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                CardTitle(artifact.title)
+            HStack(spacing: 6) {
+                CardTitle(artifact.title).lineLimit(1)
                 Spacer(minLength: 4)
                 if let url = URL(string: artifact.url) {
+                    Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+                        Label(expanded ? "Collapse" : "Expand",
+                              systemImage: expanded ? "arrow.down.right.and.arrow.up.left"
+                                                    : "arrow.up.left.and.arrow.down.right")
+                    }
                     Button { popouts.show(title: artifact.title, url: url) } label: {
                         Label("Pop out", systemImage: "macwindow.on.rectangle")
                     }
@@ -116,13 +128,27 @@ struct ArtifactCard: View {
                     Text("Open in its own window.")
                         .font(.ui(11)).foregroundStyle(Color.label)
                         .frame(maxWidth: .infinity, minHeight: 80)
-                } else {
+                } else if expanded {
                     ArtifactWebView(url: url)
-                        .frame(minHeight: 520)
+                        .frame(minHeight: 560)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                } else {
+                    // A look, not a workspace: the page is shrunk and clicks go to
+                    // Expand, so scrolling the dashboard never lands inside it.
+                    ArtifactWebView(url: url, zoom: 0.5)
+                        .frame(height: 200)
+                        .allowsHitTesting(false)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.clear).contentShape(Rectangle())
+                                .onTapGesture { withAnimation(.snappy) { expanded = true } }
+                        }
+                        .help("Expand")
                 }
             }
         }
         .detailCard()
+        .tileSpan(expanded ? 3 : 1)
     }
 }

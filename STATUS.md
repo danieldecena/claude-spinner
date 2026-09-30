@@ -140,19 +140,38 @@
 
 ## Next Up
 
-1. [code] Ask boxes in the You asked card as well as the terminal. Unblocked: a digit key
-   picks that option in the terminal box at once, no Enter (seen 2026-09-30). The
-   "auto-answer" was a trackpad click landing on the card (decision log).
-2. [you] Keep or drop `FeedWatcher.spendHistory`: it still records to UserDefaults and
-   nothing reads it since the charts went. Keep only if a spend chart is coming back.
-3. [you] Palette and offers: attention colour (kit warn vs Spinner blue), menu-bar panel
-   on App Kit type, five more skill chips, App Kit `conventions.md` listing 13 components.
+1. [code] Watch the Career Hub pop-out open (floating mini window, frame remembered). Not
+   seen yet: the embed rendered, but Daniel was mid claude.ai sign-in inside it.
+2. [code] Notarize the app: Daniel has an Apple Developer account (2026-09-30), so the
+   2026-07-21 "no paid account" reason for ad-hoc signing no longer holds.
+3. [you] Keep or drop `FeedWatcher.spendHistory`; attention colour; menu-bar panel type.
 
 The rest is in `TASKS.md`.
 
-The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
-
 ## Decision log
+
+### 2026-09-30 (Job Search dashboard, Career Hub, goal sign, one-surface window)
+- Decided: questions no longer block. ask.sh writes a non-waiting ask (`waits:false`,
+  `session_pid`) and returns, the terminal draws its box, and a card/banner click types the
+  option's digit into the pane. The ask drops once the state leaves AskUserQuestion or the
+  session pid dies. Probe: box drew at once; clicking Green answered it. Installed
+  (`~/.claude` fa1e498).
+- Decided: card options arm 0.8s after appearing (the stray-click "Red" answers), carry
+  accessibility labels, and the needs-you banner is pulled once resolved.
+- Decided: the window has no title bar or traffic lights; content runs to the top edge.
+- Decided: a pinned Job Search tab (`~/developer/job search`) is a tile-grid dashboard:
+  launch (New session, Apply next job), tasks, recent terminal sessions with Resume,
+  skills, schedulers, workflows, and each artifact as a live card. Recent sessions keep
+  only `entrypoint: cli` transcripts; `sdk-cli` and `claude-desktop` ran 58 to 2.
+- Decided: Career Hub embeds via WKWebView on the default persistent store (the URL is
+  403 without a claude.ai session), Safari user agent, Pop out = floating NSPanel per URL.
+  The Desktop project's "Career Hub sync" task is server-side and cannot be listed.
+- Decided: an artifact card is a one-column tile showing the page at half zoom (clicks
+  expand it, never land inside it); Expand widens it to the full row at full size, Pop out
+  opens the mini window. Seen: signed-in Career Hub preview with live counts (105 sent).
+- Decided: goal sign beside the You asked title reads `~/.claude/state/goal-deadline-<pane>`;
+  landing tint at the 10% reserve; untimed goals and non-tmux sessions show nothing.
+- Gotcha: a copied `/bin/sh` renamed `claude` is killed on launch (137); a symlink works.
 
 ### 2026-09-30 (probe "auto-answer" explained)
 - Decided: nothing auto-answers asks. Every probe "Red" (06:25:29, 06:25:50, 06:26:29,
@@ -504,83 +523,3 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   so a non-GitHub remote reads as an outage forever. Harmless on this machine
   (every remote is GitHub); noted, not fixed.
 
-### 2026-09-29 (sloped context line observed, seeded)
-- Observed: the detail chart draws a climbing line. A fake session (feed files
-  under a throwaway id, 200k window, 151,294 tokens) plus a seeded
-  `contextHistory` of 20 samples rising 20k -> 143.5k over 40 min: the Window
-  surface's CONTEXT block read `75%` and the chart rose left to right from
-  `41m ago` to `1m ago`, top label `150k`. Screenshot 14:31.
-- Decided: a seeded session is a valid input for this check. The open question
-  was the rendering path (does a slope draw), not whether real sessions climb;
-  the app appended its own live sample (151,294) on top of the seed, so the read
-  path was the real one.
-- Cleanup observed: deleting the fake feed files made the next rescan drop the
-  id from `contextHistory` (3 keys -> 2, id absent), confirming
-  `recordContextSamples` prunes departed sessions.
-- Observed, same technique: all four identity hues. Three fake sessions
-  (Sonnet + `web`, Haiku + Ghostty, Fable + `com.microsoft.VSCode`) put
-  `4 opus 1 fable 1 haiku 1 sonnet` in the header's models bar as four distinct
-  segments, and each row drew its model word and host pill in its own hue:
-  `fable`/`vsc` indigo, `sonnet`/`web` cyan, `haiku`/`trm` jade. Captured with
-  `screencapture -l <window id>`, which reads the panel even while another app
-  covers it; AX could not scroll the panel, so fakes were removed one at a time
-  to bring each row into view.
-- Found: a session with no statusLine of its own borrows the most recently
-  updated session's model (`modelDisplay`, by design since the fallback went
-  in). With the Haiku fake newest, the idle claude-in-safari desktop row flipped
-  from `opus` to `haiku`. On a one-model machine this never shows; in a mixed
-  fleet the borrowed tag is a guess drawn like a fact.
-- Decided (Daniel): mark the borrowed tag as a guess rather than blank it.
-  `FeedWatcher.modelTag` appends `?` when `session.model` is nil and the row
-  draws it at 0.55 opacity. Observed after relaunch: both claude-in-safari
-  desktop rows read `opus?` in a lighter purple, the Ghostty session `opus`
-  solid.
-- Decided (Daniel): the header's models bar keeps borrowed models apart too.
-  `SessionBreakdown.byModel` now takes `modelTag`, so a borrowed `opus?` is its
-  own segment at 0.55 opacity instead of adding to the real opus count.
-  Observed after relaunch (15:50, popover captured by window id): `2 opus
-  2 opus?`, the second segment lighter. 249 tests, 0 failures.
-
-### 2026-09-29 (policy round-trip observed; the surface precondition)
-
-- Decided: the placed-status-item policy round-trip is closed. On the menuBar
-  surface a window open reads `type="Foreground"` and after closing it reads
-  `type="UIElement"`, with 0 windows remaining (12:47).
-- The first attempt read Foreground after the close, which looked like a bug.
-  The cause was the persisted `surface` default, which was `window`: that
-  surface creates no status item, so `windowWillClose` treats it as unplaced and
-  keeps the Dock icon by design. Any check of this path has to confirm
-  `defaults read decenad.claude-spinner surface` is `menuBar` first. It was
-  switched to `menuBar` for the test and left there.
-- In this shell `log` is a zsh function, so `log show` silently runs something
-  else and returns nothing. Use `/usr/bin/log`.
-
-### 2026-09-29 (usage totals from ccusage; the Dock bounce)
-
-- Decided: today / week / active-block totals come from `ccusage`, polled every
-  10 min (a daily scan costs ~11s wall, ~90s CPU), shown as one line in the
-  panel footer (today + week) and as an "All sessions" `StatSection` in the
-  window overview (today, week, block). They count every transcript, ended
-  sessions included, which nothing else in the app does.
-- Decided: never `--offline`, and cost is `$?` whenever any model with tokens
-  came back at $0.00. ccusage's price lookup is intermittent: the same query a
-  minute apart returned $154 and $1.84, the low run pricing only haiku. The
-  block shows tokens only; its JSON has no per-model breakdown to check its
-  dollar figure against. A poll that comes back unpriced retries once.
-- Decided: the ask Dock bounce is `.informationalRequest` (one bounce), not
-  `.criticalRequest` (bounces until activated). Asked for 2026-09-29.
-- Not observed on screen: the window's "All sessions" section. This machine's
-  window sat in Stage Manager's strip, and raising it by script captured the
-  thumbnail twice. Tests pin the parse (239, 0 failures); the rendering is unseen.
-- Fixed: the Figma dark copies' near-black text. The 2026-09-16 guess was right:
-  100 of 122 text runs in the three dark frames had per-range fills bound to
-  **Light** variables, which a whole-node swap never reads. Rebound each run to
-  the same-named Dark variable, plus 23 Light-bound shape fills/strokes; a
-  recount found 0 Light-bound runs left. Panel · Dark screenshot looked at
-  (light text on dark ground); Window · Dark rests on the recount only. Two
-  Figma calls, under the Starter cap.
-- Decided: no Dock bounce at all on an ask; one bounce was still too much. The
-  first fix never ran: the live app was the Sep 15 `/Applications` copy, which a
-  login item relaunched, because `run.sh` launched DerivedData and never
-  installed. `run.sh` now installs over `/Applications`. Observed: the installed
-  dylib has 0 `requestUserAttention` strings against 1 in the Sep 15 backup.

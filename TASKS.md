@@ -2,17 +2,16 @@
 
 ## Tasks
 
-Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
-not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
-via `run.sh`.
+- [ ] Notarize the app with the Developer account
 - [ ] Watch auto-merge switch itself on for a real open PR
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
-- [ ] Embed Career Hub in Job Search with a pop-out window
+- [ ] Watch the Career Hub pop-out open after sign-in
 - [ ] Stop recording spend history nothing reads
 
 ## Completed
 
+- [x] Embed Career Hub in Job Search with a pop-out window -- b6bc623
 - [x] Show ask boxes in the You asked card and the terminal
 - [x] Arm ask card options 0,8s after the card appears
 - [x] Show a goal sign with minutes left in the You asked card
