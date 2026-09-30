@@ -151,6 +151,15 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-09-30 (review of this session's code)
+- Decided: fixed the three review findings (waiting parent's subagents, harness user
+  records read as prompts, chip width). Seen live: "you asked" reads `/goal 120` beside
+  the teal goal chip (08:55). Not seen: chips at natural width after the priority fix;
+  the window did not reopen after the relaunch.
+- Lesson: relaunching the app (run.sh, test runs) discards a draft in the reply box;
+  Daniel was mid-message at 08:55 when one went out. Check the screenshot for a draft
+  before relaunching.
+
 ### 2026-09-30 (History overflow, question-aware reply refusal)
 - Decided: History ref chips cap at 150pt, cut in the middle, full name on hover; at
   full width two long branch names pushed the card out over the sidebar. Seen fixed.
