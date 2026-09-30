@@ -250,6 +250,8 @@ struct GitSnapshot: Equatable {
     /// Whether GitHub auto-merge is on for the open PR. nil when there is no
     /// PR that was read, which is not the same as "off".
     var autoMerge: Bool?
+    /// The repository's GitHub "Allow auto-merge" setting; nil when unread.
+    var autoMergeAllowed: Bool?
     /// The repository root, which the per-repo automations are keyed on so a
     /// session in a subdirectory shares its repo's settings.
     var toplevel: String?

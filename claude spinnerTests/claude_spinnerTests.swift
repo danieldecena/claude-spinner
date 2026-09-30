@@ -3619,6 +3619,21 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap))
     }
 
+    /// GitHub's own setting is the first blocker; unread (nil) is not "off", and
+    /// an open PR on a repo that allows it can be switched on (known-good).
+    func testAutoMergeSaysWhyItCantBeUsed() {
+        var snap = GitSnapshot()
+        snap.pr = .open(number: 7, url: "u", draft: false)
+        snap.autoMergeAllowed = false
+        XCTAssertEqual(GitAutomation.autoMergeUnavailableReason(snap)?.hasPrefix("GitHub has auto-merge off"), true)
+        snap.autoMergeAllowed = nil
+        XCTAssertNil(GitAutomation.autoMergeUnavailableReason(snap))
+        snap.autoMergeAllowed = true
+        XCTAssertNil(GitAutomation.autoMergeUnavailableReason(snap))
+        snap.pr = .none
+        XCTAssertEqual(GitAutomation.autoMergeUnavailableReason(snap), "There is no open PR on this branch.")
+    }
+
     /// A clean, pushed default branch dims both git skills; work to act on lights them.
     func testGitSkillsIdleOnACleanPushedTree() {
         let push = SkillShortcut.curated.first { $0.name == "git-push" }!

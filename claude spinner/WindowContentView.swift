@@ -2010,9 +2010,13 @@ private struct AutomationToggles: View {
         VStack(alignment: .leading, spacing: 6) {
             CardTitle("Automation")
             if let snap = snapshot, let top = snap.toplevel {
-                toggle("Auto-merge PR", isOn: snap.autoMerge == true,
-                       disabledReason: autoMergeReason(snap)) { on in
+                let mergeReason = GitAutomation.autoMergeUnavailableReason(snap)
+                toggle("Auto-merge PR", isOn: snap.autoMerge == true, disabledReason: mergeReason) { on in
                     if on { confirm = .autoMerge } else { setAutoMerge(false, snap) }
+                }
+                if let mergeReason {
+                    Text(mergeReason).font(.claudeMono(9)).foregroundStyle(Color.label.opacity(0.6))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 toggle("Auto-push on main", isOn: GitAutomation.mainPushEnabled(toplevel: top),
                        disabledReason: nil) { on in
@@ -2070,16 +2074,6 @@ private struct AutomationToggles: View {
             .font(.claudeMono(10))
             .disabled(disabledReason != nil || busy)
             .help(disabledReason ?? title)
-    }
-
-    private func autoMergeReason(_ snap: GitSnapshot) -> String? {
-        guard snap.ghInstalled else { return "The gh CLI isn't installed." }
-        guard case .open(_, _, let draft) = snap.pr else { return "There is no open PR on this branch." }
-        if draft { return "The PR is a draft." }
-        // Enabling can merge at once when checks already pass, and --delete-branch
-        // then switches this checkout: the same guard as Merge.
-        if snap.isDirty, snap.autoMerge != true { return "There are uncommitted changes. Commit or stash them first." }
-        return nil
     }
 
     private func turnOn(_ pending: Pending) {

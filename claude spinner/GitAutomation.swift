@@ -136,6 +136,21 @@ enum GitAutomation {
         + "and review comments and pushes fixes. It needs the Claude GitHub App on the repo, replies to "
         + "review threads under your GitHub account, and is turned off at claude.ai/code."
 
+    /// Why the auto-merge switch can't be used, or nil. Shown under the switch,
+    /// not only as a tooltip: a disabled mini switch looks like one that's off.
+    static func autoMergeUnavailableReason(_ snap: GitSnapshot) -> String? {
+        guard snap.ghInstalled else { return "The gh CLI isn't installed." }
+        if snap.autoMergeAllowed == false {
+            return "GitHub has auto-merge off for this repo (Settings -> General -> Allow auto-merge)."
+        }
+        guard case .open(_, _, let draft) = snap.pr else { return "There is no open PR on this branch." }
+        if draft { return "The PR is a draft." }
+        // Enabling can merge at once when checks already pass, and --delete-branch
+        // then switches this checkout: the same guard as Merge.
+        if snap.isDirty, snap.autoMerge != true { return "There are uncommitted changes. Commit or stash them first." }
+        return nil
+    }
+
     static func autoFixUnavailableReason(_ snap: GitSnapshot) -> String? {
         guard snap.ghInstalled else { return "The gh CLI isn't installed." }
         guard case .open = snap.pr else { return "There is no open PR on this branch." }

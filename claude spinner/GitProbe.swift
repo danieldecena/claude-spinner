@@ -174,7 +174,7 @@ actor GitProbe {
         }
     }
 
-    /// Three independent round trips of about half a second each, run side by
+    /// Four independent round trips of about half a second each, run side by
     /// side rather than in series.
     private static func readRemote(into snap: inout GitSnapshot, cwd: String) {
         let local = snap
@@ -184,10 +184,25 @@ actor GitProbe {
         pool.async(group: group) { out.sync = syncState(cwd: cwd, snap: local) }
         pool.async(group: group) { out.pr = prState(cwd: cwd) }
         pool.async(group: group) { out.ci = ciState(cwd: cwd, branch: local.branch) }
+        pool.async(group: group) { out.autoMergeAllowed = autoMergeAllowed(cwd: cwd) }
         group.wait()
         snap.sync = out.sync
         (snap.pr, snap.merge, snap.autoMerge) = out.pr
         snap.ci = out.ci
+        snap.autoMergeAllowed = out.autoMergeAllowed
+    }
+
+    /// The repository's "Allow auto-merge" setting. nil when it couldn't be
+    /// read, which the switch treats as unknown rather than as off.
+    private static func autoMergeAllowed(cwd: String) -> Bool? {
+        guard let gh = ghPath,
+              let result = run(gh, ["api", "repos/{owner}/{repo}", "--jq", ".allow_auto_merge"], in: cwd),
+              result.status == 0 else { return nil }
+        switch result.out.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
     }
 
     /// Each field is written by exactly one block and read only after the
@@ -196,6 +211,7 @@ actor GitProbe {
         var sync = SyncState.unknown
         var pr: (PRState, MergeReadiness, Bool?) = (.unknown, MergeReadiness(), nil)
         var ci = CIState.unknown
+        var autoMergeAllowed: Bool?
     }
 
     private static func ciState(cwd: String, branch: String?) -> CIState {
