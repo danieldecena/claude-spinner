@@ -20,6 +20,8 @@ struct PinnedProjectDetail: View {
     @State private var recent: Found<RecentSession>?
     @State private var extras: ProjectExtras?
     @State private var failure: String?
+    /// Desktop's "New session in <project>" box: a first prompt to start with.
+    @State private var draft = ""
     /// An artifact expanded to fill the pane in place of the dashboard.
     @State private var focused: ProjectArtifact?
 
@@ -149,6 +151,17 @@ struct PinnedProjectDetail: View {
             CardTitle("Start")
             Text(project.path).font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1).truncationMode(.middle)
+            TextField("New session in \(project.name)", text: $draft)
+                .textFieldStyle(.plain).font(.ui(12))
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .onSubmit {
+                    let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !prompt.isEmpty else { return }
+                    start([prompt])
+                    draft = ""
+                }
+                .help("Return starts Claude Code in \(project.path) with this as its first prompt")
             // Side by side when both fit, else stacked: beside the rail the card
             // is a third of the main column and cut both labels short.
             ViewThatFits(in: .horizontal) {
