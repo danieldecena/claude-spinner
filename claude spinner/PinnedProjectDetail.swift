@@ -27,11 +27,13 @@ struct PinnedProjectDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                launchCard
-                if !live.isEmpty { liveCard }
-                tasksCard
-                recentCard
+            // A dashboard: the same tile grid as a session's pane, so the two
+            // read as one app. Launch and tasks share the top row, what ran and
+            // what can be run the next, and each artifact takes a full row.
+            TileGrid(minimum: 220, spacing: 12) {
+                launchCard.tileSpan(1)
+                tasksCard.tileSpan(2)
+                recentCard.tileSpan(2)
                 if let extras {
                     discoveryCard("Skills", extras.skills) { skills in
                         chips(skills) { skill in
@@ -41,15 +43,16 @@ struct PinnedProjectDetail: View {
                             }
                         }
                     }
+                }
+                if !live.isEmpty { liveCard.tileSpan(1) }
+                if let extras {
                     discoveryCard("Scheduled", extras.scheduled) { jobs in
                         VStack(alignment: .leading, spacing: 6) {
                             ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
-                                HStack(spacing: 6) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
-                                    Spacer(minLength: 4)
-                                    Text(job.schedule + (job.enabled == false ? " · off" : ""))
+                                    Text(job.schedule + (job.enabled == false ? " · off" : "") + " · " + job.source)
                                         .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
-                                    Text(job.source).font(.ui(9)).foregroundStyle(Color.label)
                                 }
                             }
                         }
@@ -62,12 +65,14 @@ struct PinnedProjectDetail: View {
                             }
                         }
                     }
-                    discoveryCard("Artifacts", extras.artifacts) { artifacts in
-                        chips(artifacts) { artifact in
-                            chip(artifact.title, symbol: "safari", help: artifact.url) {
-                                if let url = URL(string: artifact.url) { NSWorkspace.shared.open(url) }
-                            }
+                    ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
+                        ArtifactCard(artifact: artifact).tileSpan(3)
+                    }
+                    if !extras.artifacts.unreadable.isEmpty {
+                        discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in
+                            EmptyView()
                         }
+                        .tileSpan(3)
                     }
                 }
             }

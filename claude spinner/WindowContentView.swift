@@ -868,7 +868,7 @@ struct DetailCard: ViewModifier {
 ///
 /// A card may span several columns (`tileSpan`), clamped to however many there
 /// are; one that doesn't fit what is left of a row starts the next.
-private struct TileGrid: Layout {
+struct TileGrid: Layout {
     let minimum: CGFloat
     let spacing: CGFloat
     /// The rows are composed for three columns (wide cards alternating sides);
@@ -933,7 +933,7 @@ private struct TileGrid: Layout {
     }
 }
 
-private struct TileSpan: LayoutValueKey {
+struct TileSpan: LayoutValueKey {
     static let defaultValue = 1
 }
 
