@@ -2,12 +2,14 @@
 
 ## Tasks
 
-- [ ] See History ref chips at natural width on screen
+- [ ] See the tidied Job Search rail after the next relaunch
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
 
 ## Completed
 
+- [x] Give pinned projects the Desktop side rail -- fee5f0d
+- [x] See History ref chips at natural width on screen
 - [x] Review the six code commits from 0b20d77 to 3390fee
 - [x] Keep long branch names inside the History card -- 874274a
 - [x] Say a question is pending instead of mid-turn -- 874274a

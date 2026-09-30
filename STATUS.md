@@ -151,6 +151,16 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-09-30 (Desktop-shaped project page)
+- Decided: pinned projects get Desktop's right rail (Instructions, Context, Folder,
+  Memory, Scheduled); the work stays in the tile grid. Folders come from Desktop's
+  `remote-session-spaces.json` (newest session holding the root): job search +
+  Resume/artifact. Context = docs in the root; Desktop uploads stay in its cloud.
+  Seen live 09:05 (fee5f0d); tidy-ups after it built but not relaunched.
+- Decided: TileGrid answers an infinite width instead of trapping; the rail's HStack
+  probed it that way and would have crashed the app on opening the tab. Caught by an
+  offscreen render before anyone opened it; regression test crashes without the guard.
+
 ### 2026-09-30 (review of this session's code)
 - Decided: fixed the three review findings (waiting parent's subagents, harness user
   records read as prompts, chip width). Seen live: "you asked" reads `/goal 120` beside
