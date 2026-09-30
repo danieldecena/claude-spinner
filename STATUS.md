@@ -152,6 +152,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (feature 11, Daniel chose the rule): finished subagents count for 30 minutes
+  after they finish (`SubagentSplit.keepFinished`), replacing the turn-based rule that
+  could not work. Seen: "4 finished" against feed files aged 3, 20, 20, 21 min, with six
+  older ones (59-73 min) dropped. 320 tests pass.
 - Decided (feature 10): "+N more" under a project's tasks opens its TASKS.md, and
   "N finished" is a chevron that lists the finished subagents in place. Seen on screen
   (expand and collapse). Feature 11 as designed does NOT work and is off: counting only

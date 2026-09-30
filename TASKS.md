@@ -12,10 +12,10 @@ via `run.sh`.
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Explain why a probe session auto-answered AskUserQuestion
 - [ ] Stop recording spend history nothing reads
-- [ ] Make overflow clickable and age out finished subagents
 
 ## Completed
 
+- [x] Make overflow clickable and age out finished subagents
 - [x] Delete dead chart code and close the hover task
 - [x] Check You asked shows full text on hover (chevron covers it)
 - [x] Trim Usage params, unify context colour, scroll below fit floor

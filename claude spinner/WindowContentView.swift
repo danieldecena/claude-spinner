@@ -259,9 +259,6 @@ private struct SessionSidebar: View {
                         .tag(session.id)
                         // Not selectable: the detail pane shows root sessions, and a
                         // subagent has no pane of its own to show.
-                        // No `since`: a background subagent's completion notice starts
-                        // a new parent turn, so "finished this turn" hid the one that
-                        // had just finished (turnStart 26s after it).
                         let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
                         ForEach(split.live) { child in childRow(child) }
                         // Finished ones as a count that opens out: six "done" rows
@@ -390,16 +387,17 @@ struct SubagentSplit {
     let live: [SessionFeed]
     let finished: [SessionFeed]
 
-    /// `since`: the parent's turn start. While the parent works, only subagents
-    /// that finished this turn are kept, so the count starts over each prompt
-    /// instead of growing all session. An idle parent has no turn start and keeps
-    /// every finished one.
-    init(_ children: [SessionFeed], since: Date? = nil) {
+    /// How long a finished subagent stays counted. By time, not by the parent's
+    /// turn: a background subagent's completion notice starts a new parent turn,
+    /// so "finished this turn" hid the one that had just finished.
+    static let keepFinished: TimeInterval = 30 * 60
+
+    init(_ children: [SessionFeed], now: Date = Date()) {
         live = children.filter { $0.isWorking || $0.isBlockedOnYou }
         finished = children.filter { child in
             guard !(child.isWorking || child.isBlockedOnYou) else { return false }
-            guard let since else { return true }
-            return (child.updated ?? .distantPast) >= since
+            guard let updated = child.updated else { return false }
+            return now.timeIntervalSince(updated) <= Self.keepFinished
         }
     }
 }

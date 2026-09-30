@@ -3512,31 +3512,31 @@ final class claude_spinnerTests: XCTestCase {
     /// Working and blocked subagents stay listed; idle and finished ones are
     /// counted, including one sitting at an idle prompt, which asks nothing.
     func testSubagentSplitListsLiveOnesAndCountsTheRest() {
-        var idlePrompt = mk("c", .attention, parentSessionId: "p")
+        let now = Date()
+        var idlePrompt = mk("c", .attention, updated: now, parentSessionId: "p")
         idlePrompt.notificationType = "idle_prompt"
-        var permission = mk("d", .attention, parentSessionId: "p")
+        var permission = mk("d", .attention, updated: now, parentSessionId: "p")
         permission.notificationType = "permission_prompt"
-        let split = SubagentSplit([mk("a", .tool, parentSessionId: "p"),
-                                   mk("b", .idle, parentSessionId: "p"),
+        let split = SubagentSplit([mk("a", .tool, updated: now, parentSessionId: "p"),
+                                   mk("b", .idle, updated: now, parentSessionId: "p"),
                                    idlePrompt, permission,
-                                   mk("e", .thinking, parentSessionId: "p")])
+                                   mk("e", .thinking, updated: now, parentSessionId: "p")], now: now)
         XCTAssertEqual(split.live.map(\.id), ["a", "d", "e"])
         XCTAssertEqual(split.finished.map(\.id), ["b", "c"])
         XCTAssertTrue(SubagentSplit([]).finished.isEmpty)
     }
 
-    /// While the parent works, only this turn's finished subagents count; one that
-    /// finished before the prompt drops out, and live ones stay whatever their age.
-    func testSubagentSplitStartsOverEachTurn() {
-        let start = Date(timeIntervalSince1970: 1_000)
-        let split = SubagentSplit([mk("old", .idle, updated: start.addingTimeInterval(-60), parentSessionId: "p"),
-                                   mk("new", .idle, updated: start.addingTimeInterval(60), parentSessionId: "p"),
-                                   mk("live", .tool, updated: start.addingTimeInterval(-600), parentSessionId: "p")],
-                                  since: start)
-        XCTAssertEqual(split.finished.map(\.id), ["new"])
+    /// Finished ones drop out after 30 minutes; live ones stay whatever their age,
+    /// and one with no timestamp is not counted as recent.
+    func testFinishedSubagentsAgeOutAfterHalfAnHour() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let split = SubagentSplit([mk("recent", .idle, updated: now.addingTimeInterval(-29 * 60), parentSessionId: "p"),
+                                   mk("stale", .idle, updated: now.addingTimeInterval(-31 * 60), parentSessionId: "p"),
+                                   mk("undated", .idle, parentSessionId: "p"),
+                                   mk("live", .tool, updated: now.addingTimeInterval(-3_600), parentSessionId: "p")],
+                                  now: now)
+        XCTAssertEqual(split.finished.map(\.id), ["recent"])
         XCTAssertEqual(split.live.map(\.id), ["live"])
-        XCTAssertEqual(SubagentSplit([mk("old", .idle, updated: start, parentSessionId: "p")]).finished.count, 1,
-                       "an idle parent keeps every finished one")
     }
 
     /// Only the missing-PR reason is hidden; gh missing and auto-merge disallowed
