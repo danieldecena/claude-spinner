@@ -144,6 +144,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: Git status and Automation are one card (300pt wide) with the four
+  switches in one row, name under each (Merge PR, Push main, Commit, Open PR);
+  the disabled reason and Auto-fix CI sit under the row. Seen on screen.
+- Open: Daniel wants AskUserQuestion boxes in the You asked card as well as the
+  terminal (choice: card and terminal both). Not built: which keys the terminal
+  box accepts is unverified (probe sessions auto-answered "Red" before a box drew),
+  and the auto-answer itself is unexplained.
 - Decided: the window follows App Kit (audit of 2026-09-30, Daniel chose "everything
   including type"). Type: SF at the kit's 11pt floor via `Font.ui` (9 and 10 -> 11,
   11 -> 12, 12 -> 13) and `Font.figure` (rounded) for figures; Menlo stays only for

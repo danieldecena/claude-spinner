@@ -490,12 +490,13 @@ private struct SessionDetail: View {
                     // themselves live in the Skills card.
                     HStack(alignment: .top, spacing: 12) {
                         GitGraphCard(cwd: session.cwd)
-                        VStack(spacing: 12) {
-                            GitCard(cwd: session.cwd)
+                        // The repo's state and the switches that act on it, one card.
+                        VStack(alignment: .leading, spacing: 14) {
+                            GitCard(cwd: session.cwd, framed: false)
                             AutomationToggles(session: session, feedDir: feedDir)
-                                .detailCard()
                         }
-                        .frame(width: 250)
+                        .detailCard()
+                        .frame(width: 300)
                     }
                     .tileSpan(.max)
                     // This session and the account, side by side: everything
@@ -1487,6 +1488,13 @@ private struct SkillsCard: View {
     }
 }
 
+private struct OptionalCard: ViewModifier {
+    let framed: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if framed { content.detailCard() } else { content }
+    }
+}
+
 /// The four automations as switches, each reading its state back from where
 /// it actually lives (GitHub, a marker file, settings.json, the app's own
 /// defaults) rather than remembering what was last clicked. Turning one on
@@ -1527,23 +1535,30 @@ private struct AutomationToggles: View {
             CardTitle("Automation")
             if let snap = snapshot, let top = snap.toplevel {
                 let mergeReason = GitAutomation.autoMergeUnavailableReason(snap)
-                toggle("Auto-merge PR", isOn: snap.autoMerge == true, disabledReason: mergeReason) { on in
-                    if on { confirm = .autoMerge } else { setAutoMerge(false, snap) }
+                // One row of four, the name under each switch: a labelled switch per
+                // line made this the tallest part of the card.
+                HStack(alignment: .top, spacing: 4) {
+                    toggle("Auto-merge PR", short: "Merge PR", isOn: snap.autoMerge == true,
+                           disabledReason: mergeReason) { on in
+                        if on { confirm = .autoMerge } else { setAutoMerge(false, snap) }
+                    }
+                    toggle("Auto-push on main", short: "Push main",
+                           isOn: GitAutomation.mainPushEnabled(toplevel: top), disabledReason: nil) { on in
+                        if on { confirm = .mainPush } else { setMainPush(false, top) }
+                    }
+                    toggle("Auto-commit (all projects)", short: "Commit", isOn: autoCommitOn,
+                           disabledReason: nil) { on in
+                        if on { confirm = .autoCommit } else { setAutoCommit(false) }
+                    }
+                    toggle("Auto-PR", short: "Open PR",
+                           isOn: GitAutomation.autoPREnabled(toplevel: top),
+                           disabledReason: snap.ghInstalled ? nil : "The gh CLI isn't installed.") { on in
+                        if on { confirm = .autoPR } else { GitAutomation.setAutoPR(false, toplevel: top); reread() }
+                    }
                 }
                 if let mergeReason {
-                    Text(mergeReason).font(.ui(9)).foregroundStyle(Color.label.opacity(0.6))
+                    Text(mergeReason).font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                toggle("Auto-push on main", isOn: GitAutomation.mainPushEnabled(toplevel: top),
-                       disabledReason: nil) { on in
-                    if on { confirm = .mainPush } else { setMainPush(false, top) }
-                }
-                toggle("Auto-commit (all projects)", isOn: autoCommitOn, disabledReason: nil) { on in
-                    if on { confirm = .autoCommit } else { setAutoCommit(false) }
-                }
-                toggle("Auto-PR", isOn: GitAutomation.autoPREnabled(toplevel: top),
-                       disabledReason: snap.ghInstalled ? nil : "The gh CLI isn't installed.") { on in
-                    if on { confirm = .autoPR } else { GitAutomation.setAutoPR(false, toplevel: top); reread() }
                 }
                 if let result = autoPR.lastResult[top] { Notice(result) }
                 let fixReason = GitAutomation.autoFixUnavailableReason(snap)
@@ -1582,14 +1597,20 @@ private struct AutomationToggles: View {
         }
     }
 
-    private func toggle(_ title: String, isOn: Bool, disabledReason: String?,
+    private func toggle(_ title: String, short: String, isOn: Bool, disabledReason: String?,
                         set: @escaping (Bool) -> Void) -> some View {
-        Toggle(title, isOn: Binding(get: { isOn }, set: set))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .font(.ui(10))
-            .disabled(disabledReason != nil || busy)
-            .help(disabledReason ?? title)
+        VStack(spacing: 4) {
+            Toggle(title, isOn: Binding(get: { isOn }, set: set))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .controlSize(.mini)
+                .disabled(disabledReason != nil || busy)
+            Text(short).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .help(disabledReason ?? title)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 
     private func turnOn(_ pending: Pending) {
@@ -2008,6 +2029,8 @@ private struct GitStatusRow: View {
 /// you nothing that its own absence doesn't tell you faster.
 private struct GitCard: View {
     let cwd: String
+    /// Drawn as its own card unless a parent card holds it.
+    var framed = true
     @State private var snapshot: GitSnapshot?
     /// Whether `snapshot` has been read for this `cwd` yet. A nil snapshot is
     /// either "still reading" or "not a repository", and only this tells them apart.
@@ -2020,7 +2043,7 @@ private struct GitCard: View {
         VStack(alignment: .leading, spacing: 0) {
             content
         }
-        .detailCard()
+        .modifier(OptionalCard(framed: framed))
         .task(id: cwd) { await poll() }
     }
 

@@ -9,10 +9,13 @@ via `run.sh`.
 - [ ] Watch auto-merge switch itself on for a real open PR
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
+- [ ] Show ask boxes in the You asked card and the terminal
+- [ ] Explain why a probe session auto-answered AskUserQuestion
 - [ ] Check You asked shows full text on hover in the top row
 
 ## Completed
 
+- [x] Make Git status and Automation one card with a single row of switches
 - [x] Adopt App Kit type in the window: SF chrome, rounded figures, mono only for terminal echo -- 2cc52b1
 - [x] Adopt App Kit colour: warn for attention, kit surfaces and neutral label, heat names -- 2cc52b1 (surfaces, label only)
 - [x] Draw charts grey with one highlight, fix cache and spend ring colour -- 2cc52b1
