@@ -1497,6 +1497,13 @@ final class FeedWatcher: ObservableObject {
             let request = UNNotificationRequest(identifier: "attention-\(id)", content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request)
         }
+        // A banner saying "needs you" is false the moment you answer in the
+        // terminal; pull it rather than leave it on screen for its own timeout.
+        let resolved = notifiedAttention.subtracting(attentionNow)
+        if !resolved.isEmpty {
+            UNUserNotificationCenter.current()
+                .removeDeliveredNotifications(withIdentifiers: resolved.map { "attention-\($0)" })
+        }
         notifiedAttention = attentionNow
     }
 

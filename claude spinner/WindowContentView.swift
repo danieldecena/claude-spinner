@@ -634,6 +634,12 @@ private struct SessionDetail: View {
 private struct AskCard: View {
     let ask: AskRequest
     @State private var answered: String?
+    /// The options ignore clicks until this long after the card appears. The card
+    /// draws under a pointer that was resting on whatever it replaced, and a click
+    /// meant for that answered the question (four "Red" answers, 2026-09-30, each
+    /// with a trackpad click just before it).
+    static let armDelay: Duration = .milliseconds(800)
+    @State private var armed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -674,9 +680,16 @@ private struct AskCard: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.bordered)
+                        .disabled(!armed)
+                        .accessibilityLabel(choice.label)
                     }
                 }
             }
+        }
+        .task(id: ask.req) {
+            armed = false
+            try? await Task.sleep(for: Self.armDelay)
+            armed = true
         }
         .padding(12)
         .background(Color.attention.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
