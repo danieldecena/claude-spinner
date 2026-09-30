@@ -3263,6 +3263,71 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(rows.map(\.width).max(), 2)
     }
 
+    // MARK: - Suggestion
+
+    private func suggestionInput(_ configure: (inout Suggestion.Input) -> Void = { _ in }) -> Suggestion.Input {
+        var input = Suggestion.Input(git: nil, contextPercent: nil, contextTokens: 100_000, atPrompt: true,
+                                     idleFor: 0, fiveHourPct: nil, fiveHourElapsed: nil,
+                                     installed: ["/wrap-up", "/git-push", "/start-up"])
+        configure(&input)
+        return input
+    }
+
+    private func repo(_ configure: (inout GitSnapshot) -> Void) -> GitSnapshot {
+        var snap = GitSnapshot()
+        snap.branch = "main"
+        snap.upstream = "origin/main"
+        snap.isDefaultBranch = true
+        snap.sync = .inSync
+        snap.pr = .none
+        snap.ci = .finished(workflow: "CI", conclusion: "success", url: "u")
+        configure(&snap)
+        return snap
+    }
+
+    /// Known-good: a clean, synced, green repo with a light context suggests nothing.
+    func testNothingToSuggestForASettledSession() {
+        XCTAssertNil(Suggestion.next(suggestionInput { $0.git = self.repo { _ in } }))
+    }
+
+    func testFailedCIOutranksEverythingElse() {
+        let s = Suggestion.next(suggestionInput {
+            $0.contextPercent = 90
+            $0.git = self.repo { $0.ci = .finished(workflow: "CI", conclusion: "failure", url: "u"); $0.sync = .ahead(2) }
+        })
+        XCTAssertEqual(s?.action, .git(.openCI))
+    }
+
+    func testContextSuggestsCompactThenWrapUp() {
+        XCTAssertEqual(Suggestion.next(suggestionInput { $0.contextPercent = 65 })?.action, .command("/compact"))
+        XCTAssertEqual(Suggestion.next(suggestionInput { $0.contextPercent = 90 })?.action, .command("/wrap-up"))
+    }
+
+    func testUnpushedCommitsSuggestPushAndDirtyIdleSuggestsGitPush() {
+        XCTAssertEqual(Suggestion.next(suggestionInput { $0.git = self.repo { $0.sync = .ahead(1) } })?.action,
+                       .git(.push))
+        let dirty = Suggestion.next(suggestionInput { $0.git = self.repo { $0.dirty = 3 } })
+        XCTAssertEqual(dirty?.action, .command("/git-push"))
+        // Not while Claude is mid-turn: typing would land in the middle of it.
+        XCTAssertNil(Suggestion.next(suggestionInput { $0.atPrompt = false; $0.git = self.repo { $0.dirty = 3 } }))
+    }
+
+    /// A skill that isn't installed is never suggested.
+    func testUninstalledSkillIsSkipped() {
+        let s = Suggestion.next(suggestionInput {
+            $0.installed = []
+            $0.git = self.repo { $0.dirty = 3 }
+        })
+        XCTAssertNil(s)
+    }
+
+    func testFeatureBranchWithoutPRSuggestsCreatePR() {
+        let s = Suggestion.next(suggestionInput {
+            $0.git = self.repo { $0.branch = "feature"; $0.upstream = "origin/feature"; $0.isDefaultBranch = false }
+        })
+        XCTAssertEqual(s?.action, .git(.createPR))
+    }
+
     // MARK: - Skill shortcuts
 
     /// Built-ins always show; a skill or command shows only when its file exists.

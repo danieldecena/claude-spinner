@@ -119,7 +119,9 @@ struct WindowContentView: View {
                               children: feed.sessions.filter { $0.parentSessionId == session.id },
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
-                              history: feed.contextHistory[session.id] ?? [])
+                              history: feed.contextHistory[session.id] ?? [],
+                              fiveHourPct: feed.usageFiveHourPct,
+                              fiveHourElapsed: feed.usageFiveHourElapsed)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -250,11 +252,15 @@ private struct SessionDetail: View {
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
+    let fiveHourPct: Int?
+    let fiveHourElapsed: Double?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header
+                SuggestionBar(session: session, feedDir: feedDir,
+                              fiveHourPct: fiveHourPct, fiveHourElapsed: fiveHourElapsed)
 
                 ForEach(asks) { ask in
                     AskCard(ask: ask)
@@ -275,11 +281,15 @@ private struct SessionDetail: View {
                     cacheCard
                     contextCard.tileSpan(2)
                     configCard
-                    // Full width at any column count (the span clamps): the graph
-                    // wants the width, and the button grids lay out in rows
-                    // instead of one tall column that stretched their neighbours.
-                    GitGraphCard(cwd: session.cwd).tileSpan(.max)
-                    GitCommandsCard(session: session, feedDir: feedDir).tileSpan(.max)
+                    // One full-width tile holding two cards: the graph takes what
+                    // is left beside a fixed-width Git commands column, so its
+                    // actions sit next to the history they act on at any width.
+                    HStack(alignment: .top, spacing: 10) {
+                        GitGraphCard(cwd: session.cwd)
+                        GitCommandsCard(session: session, feedDir: feedDir)
+                            .frame(width: 250)
+                    }
+                    .tileSpan(.max)
                     SkillsCard(session: session, feedDir: feedDir).tileSpan(.max)
                 }
 
@@ -1628,6 +1638,135 @@ private struct ActionBar: View {
     }
 }
 
+// MARK: - Suggested
+
+/// The one next step `Suggestion.next` picks, as a button with its reason.
+/// Absent when no rule holds: an empty "nothing to suggest" line is noise.
+private struct SuggestionBar: View {
+    let session: SessionFeed
+    let feedDir: URL
+    let fiveHourPct: Int?
+    let fiveHourElapsed: Double?
+    @State private var snapshot: GitSnapshot?
+    @State private var hasPane = false
+    @State private var notice: NoticeMessage?
+    @State private var confirming: GitAction?
+    @State private var running = false
+
+    private var suggestion: Suggestion? {
+        Suggestion.next(.init(
+            git: snapshot,
+            contextPercent: session.stats.contextUsedPercent,
+            contextTokens: session.contextTokens,
+            atPrompt: session.isAtPrompt,
+            idleFor: session.updated.map { Date().timeIntervalSince($0) },
+            fiveHourPct: fiveHourPct,
+            fiveHourElapsed: fiveHourElapsed,
+            installed: Set(installedShortcuts.map(\.command))))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let suggestion {
+                HStack(spacing: 10) {
+                    Image(systemName: suggestion.action == .warning ? "exclamationmark.triangle" : "sparkle")
+                        .foregroundStyle(suggestion.action == .warning ? Color.usageAmber : Color.claude)
+                    Text("Suggested").font(.claudeMono(10)).fontWeight(.semibold)
+                        .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+                    button(suggestion)
+                    Text(suggestion.reason).font(.claudeMono(11))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .glassEffect(.regular.tint(Color.claude.opacity(0.12)),
+                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            if let notice { Notice(notice) }
+        }
+        .task(id: session.cwd) { await poll() }
+        .task(id: session.id) {
+            let pid = session.pid
+            hasPane = await Task.detached(priority: .utility) {
+                pid != nil && SessionReplier.hasPane(session)
+            }.value
+        }
+        .confirmationDialog(confirming?.confirmation ?? "",
+                            isPresented: Binding(get: { confirming != nil },
+                                                 set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible) {
+            if let action = confirming {
+                Button(action.title) {
+                    confirming = nil
+                    run(action)
+                }
+            }
+            Button("Cancel", role: .cancel) { confirming = nil }
+        }
+    }
+
+    @ViewBuilder private func button(_ suggestion: Suggestion) -> some View {
+        switch suggestion.action {
+        case .git(let action):
+            Button { start(action) } label: {
+                Label(action.title, systemImage: action.symbol).font(.claudeMono(11))
+            }
+            .buttonStyle(.glassProminent)
+            .tint(.claude)
+            .disabled(running)
+        case .command(let command):
+            let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
+            Button(command) { type(command) }
+                .font(.claudeMono(11))
+                .buttonStyle(.glassProminent)
+                .tint(.claude)
+                .disabled(reason != nil || running)
+                .help(reason ?? "Type \(command) into the session")
+        case .warning:
+            EmptyView()
+        }
+    }
+
+    private func start(_ action: GitAction) {
+        notice = nil
+        if action.confirmation != nil { confirming = action } else { run(action) }
+    }
+
+    private func run(_ action: GitAction) {
+        guard let snap = snapshot else { return }
+        running = true
+        GitActions.perform(action, snapshot: snap, cwd: session.cwd) { message in
+            notice = message
+            running = false
+            let cwd = session.cwd
+            Task {
+                await GitProbe.shared.invalidate(cwd)
+                snapshot = await GitProbe.shared.snapshot(for: cwd)
+            }
+        }
+    }
+
+    private func type(_ command: String) {
+        running = true
+        notice = nil
+        SessionReplier.reply(to: session, text: command, feedDir: feedDir) { result in
+            running = false
+            switch result {
+            case .success: notice = .init(kind: .info, text: "Sent \(command).")
+            case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
+            }
+        }
+    }
+
+    private func poll() async {
+        snapshot = nil
+        while !Task.isCancelled {
+            snapshot = await GitProbe.shared.snapshot(for: session.cwd)
+            try? await Task.sleep(for: .seconds(5))
+        }
+    }
+}
+
 // MARK: - Shortcuts
 
 private let installedShortcuts = SkillShortcut.available(
@@ -1700,7 +1839,9 @@ private struct ShortcutChips: View {
                   alignment: .leading, spacing: 6) {
             ForEach(shortcuts) { shortcut in
                 Button { send(shortcut) } label: {
-                    Label(shortcut.command, systemImage: shortcut.symbol)
+                    // The name alone; the slash is implied by the card, and the
+                    // tooltip and the notice still say the command typed.
+                    Label(shortcut.name, systemImage: shortcut.symbol)
                         .font(.claudeMono(10))
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
