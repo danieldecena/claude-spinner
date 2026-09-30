@@ -101,6 +101,10 @@ struct WindowContentView: View {
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
         }
+        // The window has no title bar (see showMainWindow), so the content owns
+        // the top edge instead of leaving the bar's height empty above it. After
+        // the toolbar inset, so the toolbar counts as part of the content.
+        .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
         .task(id: selected?.cwd) {
             gitSnapshot = nil

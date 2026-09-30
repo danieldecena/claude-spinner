@@ -225,9 +225,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 contentRect: NSRect(x: 0, y: 0,
                                     width: Constants.windowDefaultWidth,
                                     height: Constants.windowDefaultHeight),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 backing: .buffered, defer: false)
             w.contentView = container
+            // One surface, no chrome strip above it: the bar is transparent, its
+            // title (still set, for Mission Control and the Window menu) and the
+            // three buttons are hidden, and the content runs to the top edge.
+            // The window stays draggable by any non-interactive part of itself,
+            // and Cmd-W / Cmd-M still close and minimise it.
+            w.titlebarAppearsTransparent = true
+            w.titleVisibility = .hidden
+            for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                w.standardWindowButton(button)?.isHidden = true
+            }
+            w.isMovableByWindowBackground = true
             // Width has a floor because `RowLayout.columns` subtracts fixed slots
             // from it without a `max(0)` guard, relying on the caller never handing
             // it less than `panelMinWidth`.
