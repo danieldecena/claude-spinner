@@ -7,6 +7,8 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 - [ ] Watch a refused /compact report on a live short session
 - [ ] Check You asked shows full text on hover in the top row
+- [x] Show question boxes in terminal when it is frontmost -- 85dd8c7
+- [ ] Fill the History card to its height
 
 ## Completed
 
@@ -233,7 +235,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-29 18:53.
+Plan approved 2026-09-30 05:40.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -242,7 +244,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 63f99cc7-7bdf-49f4-8d65-63c0009d7128
+    claude --resume 97eb3b30-ec31-412d-aea9-7625bafa3db9
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

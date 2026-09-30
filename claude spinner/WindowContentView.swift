@@ -2390,12 +2390,15 @@ private struct ShortcutChips: View {
 /// beside it (the subject is the row's tooltip).
 private struct GitGraphCard: View {
     let cwd: String
-    @State private var rows: [GraphLine]?
+    @State private var history: (rows: [GraphRow], remotes: Set<String>)?
     @State private var read = false
+    /// Rows the card has room for, measured, so a card stretched by a taller
+    /// neighbour fills with commits instead of leaving a gap below them.
+    @State private var fit = 10
 
     /// Read this many, then show only their landmarks (`GitGraph.condense`),
     /// so the card fits its rows instead of scrolling.
-    private static let limit = 40
+    private static let limit = 60
     private static let rowHeight: CGFloat = 20
     private static let laneWidth: CGFloat = 12
     /// Beyond this many lanes the drawing is clipped rather than letting a
@@ -2407,22 +2410,27 @@ private struct GitGraphCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("History")
-            if let rows, !rows.isEmpty {
+            if let history, case let rows = condensed(history), !rows.isEmpty {
                 let lanes = min(Self.maxLanes, rows.map(\.width).max() ?? 1)
                 HStack(alignment: .top, spacing: 8) {
                     graph(rows)
                         .frame(width: CGFloat(lanes) * Self.laneWidth,
-                               height: CGFloat(rows.count) * Self.rowHeight)
+                               height: CGFloat(rows.map(Self.span).reduce(0, +)) * Self.rowHeight)
                         .clipped()
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.offset) { _, line in
-                            label(line).frame(height: Self.rowHeight)
+                            label(line).frame(height: CGFloat(Self.span(line)) * Self.rowHeight, alignment: .top)
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                // Measured from the space offered, not the rows drawn, so the
+                // count can't feed back into its own height.
+                .onGeometryChange(for: Int.self) { max(4, Int($0.size.height / Self.rowHeight)) } action: {
+                    fit = $0
+                }
             } else {
-                Text(rows != nil ? "no commits yet" : read ? "history couldn't be read" : "reading…")
+                Text(history != nil ? "no commits yet" : read ? "history couldn't be read" : "reading…")
                     .font(.claudeMono(11)).foregroundStyle(Color.label)
             }
         }
@@ -2430,11 +2438,34 @@ private struct GitGraphCard: View {
         .task(id: cwd) { await poll() }
     }
 
+    /// Text lines a row takes: its refs stack one per line, so a commit
+    /// carrying three refs is three lines tall.
+    private static func span(_ line: GraphLine) -> Int {
+        if case .commit(let row) = line { return max(1, row.commit.refs.count) }
+        return 1
+    }
+
+    /// The newest commits whole and the rest folded into the last line, as
+    /// many as fit. Stacked refs make some rows taller, so fewer are kept
+    /// whole until the total fits the measured lines.
+    private func condensed(_ history: (rows: [GraphRow], remotes: Set<String>)) -> [GraphLine] {
+        var newest = fit - 1
+        while true {
+            let lines = GitGraph.condense(history.rows, remotes: history.remotes,
+                                          newest: newest, maxLines: fit)
+            var used = 0
+            let kept = Array(lines.prefix { used += Self.span($0); return used <= fit })
+            if kept.count == lines.count || newest <= 1 { return kept }
+            newest -= 1
+        }
+    }
+
     private func graph(_ rows: [GraphLine]) -> some View {
         Canvas { context, _ in
             let h = Self.rowHeight
+            let tops = rows.reduce(into: [CGFloat(0)]) { $0.append($0.last! + CGFloat(Self.span($1)) * h) }
             func x(_ lane: Int) -> CGFloat { CGFloat(lane) * Self.laneWidth + Self.laneWidth / 2 }
-            func y(_ row: Int) -> CGFloat { CGFloat(row) * h + h / 2 }
+            func y(_ row: Int) -> CGFloat { tops[row] + h / 2 }
             func color(_ lane: Int) -> Color { Self.palette[lane % Self.palette.count] }
 
             for (r, line) in rows.enumerated() {
@@ -2494,20 +2525,24 @@ private struct GitGraphCard: View {
     }
 
     private func label(_ row: GraphRow) -> some View {
-        HStack(spacing: 6) {
-            Text(row.commit.shortSHA).foregroundStyle(Color.label)
-            ForEach(row.commit.refs, id: \.self) { ref in
-                Text(ref).font(.claudeMono(9))
-                    .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
-                    .padding(.horizontal, 4).padding(.vertical, 1)
-                    .background(Color.secondary.opacity(0.15), in: Capsule())
-                    .fixedSize()
+        HStack(alignment: .top, spacing: 6) {
+            Text(row.commit.shortSHA).foregroundStyle(Color.label).frame(height: Self.rowHeight)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(row.commit.refs, id: \.self) { ref in
+                    Text(ref).font(.claudeMono(9))
+                        .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(Color.secondary.opacity(0.15), in: Capsule())
+                        .fixedSize()
+                        .frame(height: Self.rowHeight)
+                }
             }
             // No subject line: the card is a picture of branches, and the
             // message sits a hover away without pushing the refs off the row.
             Spacer(minLength: 8)
             if let at = row.commit.committedAt {
                 Text(FeedWatcher.compactAge(since: at)).foregroundStyle(Color.label).fixedSize()
+                    .frame(height: Self.rowHeight)
             }
         }
         .font(.claudeMono(11))
@@ -2517,14 +2552,14 @@ private struct GitGraphCard: View {
 
     /// Local and cheap, so a commit made in the session shows within seconds.
     private func poll() async {
-        rows = nil
+        history = nil
         read = false
         while !Task.isCancelled {
             let dir = cwd
             let fresh = await Task.detached(priority: .utility) {
                 GitProbe.graph(cwd: dir, limit: Self.limit)
             }.value
-            if fresh != rows { rows = fresh }
+            if fresh?.rows != history?.rows || fresh?.remotes != history?.remotes { history = fresh }
             read = true
             try? await Task.sleep(for: .seconds(15))
         }
