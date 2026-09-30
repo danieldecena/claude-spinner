@@ -914,3 +914,38 @@ directly -- so it was created rather than assumed.
   login item relaunched, because `run.sh` launched DerivedData and never
   installed. `run.sh` now installs over `/Applications`. Observed: the installed
   dylib has 0 `requestUserAttention` strings against 1 in the Sep 15 backup.
+
+### 2026-09-29 (window 5h/7d unified; test host exempt from single-instance)
+- Decided: the window's overview strip reads `feed.usageFiveHourPct` /
+  `usageSevenDayPct` (poll -> freshest session -> cached snapshot), the same
+  chain as the menu bar, instead of its own freshest-session pick. Observed
+  after `run.sh`: strip `45% of 5h · 47% of 7d`, matching the cached snapshot
+  (45/47). The fallback leg (no live session carrying rate limits) is reasoned
+  from the shared chain, not observed.
+- Fixed: `-only-testing` runs failed at bootstrap ("test runner exited with
+  code 0 before establishing connection", exit 65) whenever the installed app
+  was running: the test host is a second copy, and the single-instance guard
+  `exit(0)`s it. The guard now skips when `XCTestConfigurationFilePath` is set.
+  Pair observed beside live pid 40771: with the fix, two single-test runs exit
+  0 and the live app survives; with it reverted, exit 65 with that error. Full
+  suite 249/0. Something relaunches the app ~4s after `killall` (parent
+  launchd, no LaunchAgent or ~/bin script found); source unidentified. It did
+  not recur at 15:03: after the full suite's `killall` the app stayed down
+  over a minute. BTM shows the login item disabled, and nothing in hooks or
+  ~/bin opens the app, so a sibling `run.sh` is the likelier cause (unconfirmed).
+
+### 2026-09-29 (unreadable-remote rendering observed, seeded)
+- Observed: the Git card's "couldn't tell" path. A throwaway repo on branch
+  `feature`, upstream `origin/feature`, origin `file:///nonexistent/...`
+  (`ls-remote` exit 128; `gh pr view` exit 1, "no known GitHub host"), plus a
+  fake feed session with that cwd. The card read `remote unknown`, `pr unknown`
+  and kept all five actions on screen greyed, each reason printed underneath
+  (push: "The remote couldn't be read, so there is nothing to compare
+  against."). Screenshot 14:54. The real repo's card in the same window read
+  `in sync` / `none` / "no actions available", the settled control.
+- Cleanup observed: deleting the fake feed file dropped the row on the next
+  rescan (14:54:29 capture).
+- Found: the gh failure here was not a network one, yet the card says "GitHub
+  couldn't be reached". `prFailure` maps every non-"no PR" stderr to `.unknown`,
+  so a non-GitHub remote reads as an outage forever. Harmless on this machine
+  (every remote is GitHub); noted, not fixed.
