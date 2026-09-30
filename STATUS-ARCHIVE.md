@@ -3,6 +3,322 @@
 Decision-log entries rotated out of `STATUS.md` to keep it readable.
 Append-only; git holds the full history either way.
 
+### 2026-09-16 (Swift aligned to the spec; stale ask cards fixed)
+- Decided: the five Swift slices follow the palette and type scale in
+  `~/.claude/plans/iridescent-tinkering-frog.md`, since the Figma file itself was
+  unreadable (the Starter cap still refused the first call this session). State
+  colors cc96705, one Notice style 30e2514, sidebar glyph plus spoken status
+  e0313c4, type scale 63b3383, git/stat empty states 741259c. All 223+ tests pass
+  after each one; none of the new visuals has been looked at on screen yet.
+- Decided: stale ask cards get two fixes (64752a0). ask.sh traps EXIT/HUP/INT/TERM,
+  and the inbox drops asks whose hook pid is gone, rescanning every 5s because a
+  killed process makes no directory event. The script test fails with the traps
+  stripped and passes with them.
+- Found: the installed `~/.claude/spinnerfeed/ask.sh` had a `$2` pgrep override
+  (2026-09-15) that was in no commit. Daniel chose to merge it: ported to the repo
+  (8aeb629), installed, synced in `~/.claude` (72c98ab). XCTest cannot see
+  processes through pgrep, so that gate was checked from a shell both ways.
+
+### 2026-09-16 (UI review; unified Figma spec, cut short by the Starter limit)
+- Decided: Figma is the spec the Swift UI gets fixed to, not a mirror of it. A
+  review found the panel and window disagree on every state color (needs-you blue
+  vs red, working orange vs system accent, idle grey vs dim orange), one red
+  covering rate limits, setup, notifications-off and asks, nine Menlo sizes, about
+  26 hardcoded RGBs with duplicates, color-only sidebar status, and blank
+  loading and error states. The spec fixes each; the file's "Code vs spec" table
+  lists them with file:line.
+- Decided: color only for state and usage. Model names go plain, host chips go
+  neutral, the spinner glyph replaces the sidebar dot, every detail group is a
+  card, and errors get their own notice style.
+- File: https://www.figma.com/design/atOtbz9apX1vGrBVOARRMs (Personal drafts).
+  Pages Tokens, Components, Screens. Light and Dark variable collections, 16
+  component sets, panel (sessions, empty, setup) and window in light, dark copies,
+  conflict log.
+- Starter plan limits hit, each costing a call: no Menlo or SF Mono in Figma's
+  cloud renderer (JetBrains Mono stands in; Swift keeps Menlo), 3 pages per file,
+  1 mode per collection (so Light and Dark are separate collections, and dark
+  screens are copies rebound by name), and SF Symbols render 0pt wide (plain
+  glyphs stand in). The MCP refused call 11: the cap arrived after 10 calls,
+  not the documented "up to 20".
+- Known broken in the file: the dark copies still show near-black text on some
+  labels inside component instances (row names, ask prompt, notice text, stat
+  values). The swap reported 68 swapped / 0 missed, so the unswapped fills
+  likely sit in per-range text fills it never read. Unverified; the fix script
+  was the refused call.
+- Also found: a stale ask card persists when ask.sh is killed before its own
+  cleanup (no exit trap; the app never checks the pid). Tracked in TASKS.md.
+
+### 2026-09-15 (notifications granted; the feature rings for the first time)
+- Daniel allowed notifications in System Settings. The on-activation re-read
+  then logged `authorization re-read status=2 allowed=1` -- the known-GOOD input
+  the earlier entry said was missing. Until now every recorded read was a
+  denial, which a detector that always reads denied would have produced
+  identically; this is the first time the pair exists.
+- It needed an activation to fire, and none had happened since the switch was
+  flipped: the read still said `status=1` four minutes after. That is the design
+  working, not a lag -- but it means the notice clears when you next come back to
+  the app, not the instant you grant.
+- Proved the whole path, not just the flag. Wrote a real ask file into
+  `spinnerfeed/asks/`; `usernotificationsd` logged `Entitlement check success`,
+  ran the pipeline to `NotificationRequest: Completed`, and filed it under
+  `destinations=[notices]`. Daniel then pressed a button on the banner and the
+  app wrote `{"behavior":"allow","answers":{"Did this banner reach you?":"Yes"}}`.
+  Banner -> button -> answer file, which is the feature.
+- Not observed, and worth saying: the notice *disappearing* from the window.
+  Hearthstone held the screen full-screen on its own Space, which also shrank
+  the window's `CGWindowList` entry to 80x137 while Accessibility still read
+  996x1106 -- so no capture of that window could be trusted. The flag it renders
+  from is confirmed `true`; the pixels are not.
+
+### 2026-09-15 (the notice reaches both surfaces)
+- Fixed the first of the two surfacing gaps found earlier today.
+  `NotificationsNotice` is its own view now, drawn by the panel and by the
+  window sidebar, so the state that silences every banner is readable from the
+  surface this machine is actually set to. Observed on screen: amber text and
+  an Open Settings button under the overview strip, captured by window id
+  because a foreground app kept winning the raise.
+- Decided the guard against a third instance is a source-text test, not a
+  convention. `SetupBanner` was stranded in the panel once and the notice after
+  it; `testBothSurfacesDrawTheSharedNotices` reads both view files and asserts
+  each names both. Proved it fails first: with the window's line deleted it
+  reports exactly the stranding it is there to catch.
+- Found a second, quieter half of the same bug: authorization was read once at
+  launch, and the notice's own button sends you to System Settings to change
+  it. So the notice would keep claiming notifications are off for the rest of
+  the session, on the path it creates itself. Re-read in
+  `applicationDidBecomeActive` now.
+- That re-read is logged on purpose. While the answer stays `false` it changes
+  nothing on screen, so a refresh that never runs and one that runs and finds
+  the same denial are the same picture; the log line is the only thing that
+  separates them. Observed: `authorization re-read status=1 allowed=0`, three
+  lines per launch, and the third has no caller but `didBecomeActive`.
+- Still unobserved, deliberately not claimed: the notice *clearing*. That needs
+  the switch flipped, which is the top `[you]` task, and granting is the only
+  input that distinguishes a working re-read from one that always reads denied.
+- Merged. `notification-answers` went to `main` as `21afc3d` (PR #3, squash,
+  branch deleted both sides); 222 tests green on the merged tree, and the `test`
+  check passed on the self-hosted runner -- the first PR on this repo whose
+  check ran rather than queueing. The three `[you]` hand-checks survive the
+  merge unchanged: they test surfaces that shipped, not the branch.
+
+### 2026-09-15 (context chart observed; two surfacing gaps)
+- Observed: the context chart draws. Window surface, `fix-dock-passwords-icon`,
+  24 persisted samples reloaded from `UserDefaults` at launch. Line and area
+  both present; shape is a flat crawl along the floor.
+- Decided: read the chart's liveness off the fallback, not the slope. Every
+  session on this machine is Opus 1M and none has passed ~18%, so a correct
+  chart and a dead one both look flat. `ContextTrend` renders the literal text
+  `no context history yet` when `ContextChart.unitPoints` returns nil, so that
+  string's absence is the observation; the slope is not. A visibly climbing line
+  stays unobserved and needs a session past ~50% of its window.
+- Found: two things are only reachable from a surface you may not be on. The
+  notifications-denied notice lives in `MenuContentView` alone, so in Window
+  mode (the current setting) there is no readout of the very state that is the
+  top open task. Same shape for the placed-status-item round-trip, which cannot
+  start until `Show in` is flipped back to Menu bar -- `lsappinfo` reads
+  `type="Foreground"` in Window mode because no status item is ever created.
+- Found: `showMainWindow()` opens the window at launch but does not raise it. A
+  relaunch left the window behind a full-screen-ish terminal, and
+  `tell application id ... to activate` did not bring it forward; only
+  `System Events` + `AXRaise` did. Mistook that for "the window never opened"
+  until the AX window list showed it at 816,55 all along.
+
+### 2026-09-15 (CI had never run; project grouping; icon)
+- Found: PR #3's red check was never a test failure. `gh api
+  .../actions/runners` returned `total_count: 0` -- the workflow had required
+  `[self-hosted, macOS]` since it was written and no runner was ever registered.
+  Five runs on this branch each sat in the queue and were cancelled at exactly
+  `24h0m`, annotated "exceeded the maximum execution time while awaiting a
+  runner". The suite was green the whole time, locally.
+- Decided: check the workflow's own premise before acting on it. Its header
+  claimed hosted images ship Xcode 26.x and cannot open this project's
+  `objectVersion 110`. A throwaway probe on macos-latest/26/15 could not test
+  that at all: every hosted job failed in ~6s with zero steps and the annotation
+  "The job was not started because recent account payments have failed or your
+  spending limit needs to be increased." So the Xcode-format claim stays
+  **unverified**, and the header now says so rather than asserting it.
+- The probe's useful output was the contrast, not the answer it was after: a
+  hosted job is refused in 6s while a self-hosted job in the same repo queues
+  normally for 24h. That places the billing block on hosted minutes alone, which
+  is what made registering a runner viable without touching billing.
+- Noted: the workflow header omitted the binding constraint. Every configuration
+  sets `MACOSX_DEPLOYMENT_TARGET = 27.0` and the tests are hosted in the app, so
+  a runner needs macOS 27 at RUNTIME, not merely Xcode 27 installed. Recorded in
+  the workflow now.
+- Found: the sidebar's row order was not a bad sort but no sort. `rescan`
+  publishes `sessions = Array(byId.values)` and Swift leaves dictionary
+  iteration order undefined, so rows re-shuffled on every scan.
+- Decided: `projectSections` keys only on values that do not tick -- project
+  name, session name, id. Sorting on tokens or `updated` would have replaced an
+  arbitrary order with a slower-moving one, which is the same bug with a longer
+  period.
+- Decided: a blocked session is listed under "Needs you" only, not also under
+  its project. The sidebar tags rows with the session id for `List` selection
+  and two rows sharing a tag is undefined. Section counts follow the rows each
+  section actually lists.
+- Proved the churn test can fail before trusting it: with the sort removed it
+  reports `["c","a"]` against `["a","c"]` -- the dictionary order leaking
+  through, which is the bug's own signature. Restored after.
+- Unobserved, deliberately not claimed: the panel's project sections were never
+  seen on screen. The panel needs the menu-bar surface (this machine is set to
+  `window`), and repeated capture attempts were defeated by other live sessions
+  stealing focus and Spaces. Covered by tests and a clean build only.
+
+### 2026-09-04 (per-session context history)
+- Asked for more graphs and data points; scoped to the detail pane and to
+  context growth. The inventory that preceded it is the finding worth keeping:
+  **the app had no per-session time series at all.** `usageHistory` is global,
+  account-scoped and sampled only by the usage poller, and every per-session
+  number in the pane -- spend, tokens, cache ratio, lines -- is latest-value
+  only, overwritten on each statusLine write. So this was new plumbing, not a
+  new view over data already held.
+- Decided: sample only when the token count changes. A flat line through an idle
+  session would push the informative part of the curve out of a capped buffer,
+  and the chart is time-scaled, so a gap between two points already draws the
+  idle stretch.
+- Decided: a change inside the 15s min gap rewrites the last point rather than
+  being dropped. Dropping it would hold a stale count on screen through a fast
+  turn, and the count is the thing being plotted.
+- Decided: scaled 0 to the window, not to the data, for both the meter and the
+  chart. A 1M-window session holding 20k should draw as a flat crawl; auto-zoom
+  would make it look as full as 190k on a 200k window. Same reasoning as the
+  existing sparkline's fixed 0-100 axis.
+- Decided: x is time-scaled, unlike `Sparkline`, which is index-based and so
+  compresses a polling gap into an ordinary step. The old chart was left alone.
+- Observed: the sampler works end to end. After a relaunch, UserDefaults held
+  six samples for this session with rising token counts, gaps of 17-143s, no
+  duplicate values, and no entry for sessions that report no context.
+- Not done: **the meter and the chart have never been seen rendered.** The unit
+  tests cover the geometry both ways, but every attempt to screenshot the window
+  failed on machine state, not on the code -- a BetterDisplay "Virtual 16:9"
+  5120x2880 display reports as present, is DISCONNECTED, will not reconnect, is
+  display 1, and is where AppKit places the window. On it the window is invisible
+  to `screencapture` (black), to Accessibility (0 windows), and to the user. The
+  window's saved frame was restored to what it was. Left as a `[you]` check.
+
+### 2026-09-04 (the Git card said things that were not true)
+- Reported as "confusing, not sure it's accurate when available": three of the
+  four buttons greyed in a healthy repo. The values were right, but the reasons
+  were invisible (a `.help` tooltip nobody hovers for) and, worse, sometimes
+  false. `sync` and `pr` ran on a 90-second TTL that nothing invalidated when
+  HEAD moved, so for up to a minute and a half after a commit the card read
+  `in sync` and Push refused with "Already in sync with the remote." The cache
+  is keyed by directory, so a branch switch carried the previous branch's PR
+  and sync forward for the rest of that window.
+- Decided: the remote decision moves after the local read. A changed `headSHA`
+  or branch forces it, and a branch switch clears `sync`/`pr`/mergeability
+  first so a read that then fails says unknown rather than mislabelling the new
+  branch. Observed: committing `eaf5cad` flipped `remote` to `ahead 1` and made
+  Push appear within one poll, against 90s before.
+- Decided: `unavailableReason` returns the sentence *and* whether it is
+  settled. A settled block hides its button, since the rows above already say
+  "clean" / "in sync" / "#3 open"; an unreadable one keeps the button greyed
+  with the reason printed on the page. Absence now means "nothing to do" and
+  grey means "couldn't tell" — the distinction the report was actually about.
+  This is why "hide unavailable actions" is safe: without the split, a failed
+  probe would delete a control silently.
+- The post-action `invalidate` moved into the view, ordered ahead of its own
+  re-read. As two unordered actor hops the read could win and return the
+  pre-action entry, which is the "still says ahead 1 after a push" symptom the
+  `invalidate` doc comment claims to prevent.
+- `gh` is resolved against `/opt/homebrew/bin` then `/usr/local/bin`. A missing
+  binary used to fail the run, map to `.unknown`, and blame GitHub for a tool
+  that was never installed.
+- Correction, found while verifying: the new `checks` row read `checks failing`
+  off `mergeStateStatus == UNSTABLE`, while `gh pr checks` reported no checks
+  at all on the branch. UNSTABLE covers any non-passing status, pending
+  included. Now `checks not passing` (`aa339f2`) — a false claim in the row
+  whose entire purpose is not making false claims.
+- Also caught by an assertion rather than by luck: a test helper typed
+  `PRState?` read `.none` as `Optional.none`, so the "no PR" merge case
+  silently re-tested the mergeable default. `PRState` has a case called `none`;
+  never take it through an optional parameter.
+- Not done: the unreadable-remote rendering was never observed on screen. The
+  predicate is covered both ways by unit tests, but the greyed-plus-inline-
+  reason path has only been reasoned about. Toggling wifi would have disturbed
+  three other live sessions, and the throwaway-repo probe was denied.
+- 202 unit tests green, including a mergeable snapshot that yields no block, so
+  the merge gate is shown to pass and not only to block.
+
+### 2026-09-04 (closing the runtime-verification gaps)
+- The permission card names what it is asking about. `AskRequest` now decodes
+  `tool_input` (string fields only; a non-object one leaves it empty rather than
+  throwing, since a decode failure loses a request the hook is still blocked on),
+  and `toolSubject` returns the first of `command`, `file_path`, `url`, `pattern`,
+  `query`, `path`, `prompt`, capped at 600 chars. The notification body carries it
+  too. Observed against live `ask.sh` runs: Bash rendered
+  `rm -rf /tmp/verify-probe-dir`, Read rendered the full path, and a payload whose
+  only fields were non-strings fell back to the old `Run TodoWrite?`. A click
+  returned `decision{behavior:"allow"}` and an answer file returned `"deny"`, both
+  exit 0 with `asks/` empty afterwards.
+- The window opens with nothing focused -- `makeFirstResponder(nil)` after
+  `makeKeyAndOrderFront`. `AXFocusedUIElement` read `AXWindow` on two separate
+  launches, and two characters typed at the frontmost window landed nowhere while
+  the reply field still rendered its placeholder.
+- Decided: the "Pull is disabled by untracked files" finding was a misdiagnosis,
+  the second one this branch has produced after the installer-reformatting task.
+  `GitParse.porcelain` files `??` lines under `untracked` and `isDirty` reads only
+  `dirty`/`staged`, so the gate could not have seen the untracked file; the tooltip
+  observed proves `dirty > 0`, and that session had just made a tracked edit to
+  watch the pane update live. The real defect was adjacent: `isDirty` answered
+  ahead of the sync switch, so an in-sync repo with a dirty tree was told to commit
+  or stash -- which reads as a promise that pulling would then work. Sync answers
+  first now; the dirty gate survives inside `.remoteAhead`, where it is the only
+  state a pull would otherwise run in. Proven by re-introducing the old ordering:
+  the new test failed with the commit-or-stash sentence, and passed once restored.
+- Not done: reading the Pull tooltip in the running app. Selecting a session by
+  synthetic click kept missing -- the sidebar re-sorts live under the pointer and a
+  stray click opened System Settings -- and the string is a pure function already
+  pinned by a test with a demonstrated failing case, so this was dropped rather
+  than chased further.
+
+### 2026-09-04 (runtime verification)
+- Verified by running the app rather than the suite. `ask.sh` was driven as a
+  real hook with live payloads and answered by clicking the window: a
+  single-select question returned `permissionDecision:"allow"` with `answers`
+  keyed on the question text (`"Cold brew"`), and a `PermissionRequest` returned
+  `decision{behavior:"deny"}`. Both exit 0 and leave `asks/` empty.
+- The fall-through matrix holds. Timeout, `multiSelect`, two questions, missing
+  `session_id`, non-JSON stdin and app-not-running all exit 0 with empty stdout,
+  and the four decidable without waiting return in 0s. Nothing exits 2. Malformed
+  stdin does leak a `jq: parse error` to stderr.
+- The GIT pane updates live: a tracked edit moved `changes` from `1 untracked` to
+  `1 modified, 1 untracked` with no restart, and every disabled control was
+  confirmed to carry a true reason in its tooltip (mid-turn, in sync, PR already
+  open, uncommitted changes).
+- Found: the permission card renders only `Run \(ask.toolName)?`. `ask.sh` writes
+  `tool_input` into the ask file but `AskRequest` has no `toolInput` field, so the
+  window asks you to approve a command it does not show. Probed with
+  `rm -rf /tmp/verify-probe-dir` and got Allow/Deny with no command text. This is
+  the one place the window is worse than the terminal prompt it replaces.
+- Found: the reply field takes first responder on window open — confirmed via
+  `AXFocusedUIElement` immediately after launch — and mid-run held a stray `ui`
+  nobody typed deliberately. Keystrokes aimed at anything else land in a box whose
+  Send types into a running session. It does not survive relaunch, which is the
+  only thing keeping it harmless.
+- Found: Pull is disabled by untracked files. With a clean tree except `.local/`,
+  the tooltip reads "There are uncommitted changes. Commit or stash them first."
+  An untracked file does not block `git pull`, so Pull is permanently greyed on
+  this repo.
+- Not exercised: the Install-hooks banner (gated on `!feed.isSetupInstalled`, and
+  the hooks are installed — driving it means uninstalling from the live
+  `settings.json`) and Send on the reply field (it would have typed into this
+  session's own pane).
+
+### 2026-09-04 (installer diff)
+- Investigated and dropped: "SetupInstaller reformats settings.json". It already
+  writes `.prettyPrinted, .sortedKeys`, so its output is deterministic. The
+  428/406 diff on first install was one-time normalisation -- the file carried 86
+  unsorted objects because Claude Code's own writer does not sort, and the
+  install sorted all of them at once. A semantic diff confirmed exactly two
+  additions, 23 deny and 9 allow rules unchanged. It can recur only after Claude
+  Code rewrites the file, and installs are rare, so an order-preserving encoder
+  is not worth writing.
+- Verified while installing: `ask.sh` had never run on this machine. The control
+  that installs it lived only in `MenuContentView`, unreachable under
+  `surface = window` where the app has no status item, so every permission
+  prompt arrived with nothing to press.
+
 ### 2026-09-04 (filling the window)
 - Noted: the pane looked empty because the statusLine writes 45 fields to
   `<id>.status.json` every few seconds and `StatusFile` decoded 8. Nothing new
