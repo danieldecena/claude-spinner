@@ -146,6 +146,26 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (todo bar fed from TaskCreate lists; sidebar toggle observed)
+- Found: the todo bar could never draw on a Claude Code build that has
+  TaskCreate/TaskUpdate instead of TodoWrite. `emit.sh` only counted
+  `.tool_input.todos` on a TodoWrite PostToolUse, and TaskCreate carries one
+  task, not the list.
+- Decided: read `~/.claude/tasks/<session_id>/*.json` (one file per task, with
+  `status`) on every root event, after the TodoWrite branch. Every event, not just
+  after a task tool, because that list outlives a turn and the per-prompt
+  reset would otherwise blank the bar until the next task call. Root only:
+  subagents share the parent's session id and would inherit its list. One jq
+  call, assigned only on success, so a file caught mid-write keeps the
+  carried-over counts (shell-reviewer finding).
+- Observed, script: against a scratch HOME -- tasks 3/1, no dir null, empty
+  dir null, subagent null, TodoWrite 2/1, half-written file keeps 3/1 with
+  empty stderr. Live: this session's state file read `3/2` at 20:31:04,
+  matching its task panel.
+- Observed, screen: Session card `todos 2/3` with the green "todos done" bar
+  (20:31:10); sidebar hidden in that frame, shown after a click on the toggle
+  (20:31:26, System Events named the hit as button 1 of the app's window).
+
 ### 2026-09-29 (spend history and the Cost trend chart)
 - Decided: spend gets its own per-session series (`spendHistory`,
   `SpendSample`) beside `contextHistory`, recorded on the same rescan with the

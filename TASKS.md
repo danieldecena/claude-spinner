@@ -17,7 +17,8 @@ via `run.sh`.
 - [x] Untrack the regenerable ds-bundle files -- 37a7512
 - [x] Record spend over time for a Cost trend chart
 - [x] Observe the Cost trend chart on screen
-- [ ] Observe the sidebar toggle and todo bar on screen
+- [x] Observe the sidebar toggle and todo bar on screen
+- [x] Feed the todo bar from TaskCreate task lists
 
 ## Completed
 

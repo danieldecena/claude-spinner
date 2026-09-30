@@ -122,6 +122,19 @@ if [ "$event" = "PostToolUse" ] && [ "$tool" = "TodoWrite" ]; then
     todo_done=$(printf '%s' "$todos_json" | jq '[.[] | select(.status == "completed")] | length')
 fi
 
+# Builds with TaskCreate/TaskUpdate instead of TodoWrite keep the list on disk,
+# one file per task, and it outlives a turn -- so it is re-read on every root
+# event rather than only after a task tool, and survives the per-prompt reset.
+# Subagents share the parent's session id, so they would inherit its list.
+tasks_dir="$HOME/.claude/tasks/$sid"
+# One jq call so both counts come from one snapshot; a file caught mid-write
+# fails the parse and keeps the carried-over counts instead of blanking them.
+if [ -z "$agent_id" ] && ls "$tasks_dir"/*.json >/dev/null 2>&1; then
+    counts=$(jq -rs '"\(length) \([.[] | select(.status == "completed")] | length)"' \
+        "$tasks_dir"/*.json 2>/dev/null) \
+        && { todo_total=${counts% *}; todo_done=${counts#* }; }
+fi
+
 tmp="$f.tmp.$$"
 jq -n \
     --arg sid "$sid" --arg status "$status" --arg tool "$tool" \
