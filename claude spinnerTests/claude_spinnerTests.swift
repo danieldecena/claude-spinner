@@ -1958,6 +1958,13 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(SessionReplier.Landing(typed: "/compact keep the plan"), .compacted)
         XCTAssertEqual(SessionReplier.Landing(typed: "/clearly not a command"), .turnStarted)
         XCTAssertEqual(SessionReplier.Landing(typed: "please /clear the cache"), .turnStarted)
+        // Built-ins that start no turn can't be seen landing, and say so.
+        XCTAssertEqual(SessionReplier.Landing(typed: "/model sonnet"), .unobservable)
+        XCTAssertEqual(SessionReplier.Landing(typed: "/effort xhigh"), .unobservable)
+        XCTAssertEqual(SessionReplier.Landing(typed: "/autofix-pr"), .unobservable)
+        XCTAssertFalse(SessionReplier.canObserve("/model sonnet"))
+        XCTAssertTrue(SessionReplier.canObserve("/wrap-up"))
+        XCTAssertFalse(SessionReplier.landed(.unobservable, baseline: nil, current: nil))
     }
 
     /// Shapes recorded from a live pane 2026-09-29: after a turn the file

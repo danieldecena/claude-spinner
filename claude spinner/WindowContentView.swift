@@ -1764,7 +1764,8 @@ private struct ConfigCard: View {
         SessionReplier.reply(to: session, text: command, feedDir: feedDir) { result in
             sending = false
             switch result {
-            case .success: notice = .init(kind: .info, text: "Sent \(command).")
+            // /model and /effort start no turn, so "sent" is all that's known.
+            case .success: notice = .init(kind: .info, text: "Typed \(command). The app can't see whether it took; check the terminal.")
             case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
             }
         }
@@ -1985,7 +1986,7 @@ private struct AutomationToggles: View {
             SessionReplier.reply(to: session, text: GitAutomation.autoFixCommand, feedDir: feedDir) { result in
                 busy = false
                 switch result {
-                case .success: notice = .init(kind: .info, text: "Sent /autofix-pr. Watch it at claude.ai/code.")
+                case .success: notice = .init(kind: .info, text: "Typed /autofix-pr. The app can't see whether it took; check the terminal, then claude.ai/code.")
                 case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
                 }
             }

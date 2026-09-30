@@ -41,13 +41,20 @@ enum SessionReplier {
     /// session id and SessionEnd deletes its files within a second, and
     /// `/compact` ends in a SessionStart that rewrites the file idle with the
     /// turn fields cleared, after however long compaction takes.
+    ///
+    /// `unobservable` is the built-ins that change a setting or hand off to the
+    /// cloud without starting a local turn and without touching the state file
+    /// (`/model`, `/effort`, `/autofix-pr`): waiting for "thinking" would report
+    /// every one of them as lost. For those, tmux taking the keys is the most
+    /// that can be known, and callers say so rather than claiming it landed.
     enum Landing: Equatable {
-        case turnStarted, cleared, compacted
+        case turnStarted, cleared, compacted, unobservable
 
         init(typed text: String) {
             switch text.split(whereSeparator: \.isWhitespace).first {
             case "/clear": self = .cleared
             case "/compact": self = .compacted
+            case "/model", "/effort", "/autofix-pr": self = .unobservable
             default: self = .turnStarted
             }
         }
@@ -59,8 +66,15 @@ enum SessionReplier {
             // Compaction is a model call over the whole context; a large one
             // runs well past a minute.
             case .compacted: return 180
+            case .unobservable: return 0
             }
         }
+    }
+
+    /// Whether a successful `reply` for this text means it was seen to land, or
+    /// only that the keys went in.
+    static func canObserve(_ text: String) -> Bool {
+        Landing(typed: text) != .unobservable
     }
 
     static let tmuxPaths = ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/usr/bin/tmux"]
@@ -161,6 +175,7 @@ enum SessionReplier {
             for args in steps where run(tmux, args) == nil {
                 return done(.failure(.sendFailed))
             }
+            if landing == .unobservable { return done(.success(())) }
             done(observe(landing, sessionID: session.id, feedDir: feedDir, baseline: baseline)
                  ? .success(()) : .failure(.notObserved))
         }
@@ -210,6 +225,8 @@ enum SessionReplier {
             return obj["status"] as? String == "idle"
                 && (obj["turn_start"] ?? NSNull()) is NSNull
                 && (obj["last_seed"] ?? NSNull()) is NSNull
+        case .unobservable:
+            return false
         }
     }
 
