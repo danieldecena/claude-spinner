@@ -151,6 +151,14 @@ enum GitAutomation {
         return nil
     }
 
+    /// Whether auto-merge is unavailable for no reason but the missing PR, which
+    /// the pr pill already says. Mirrors `autoMergeUnavailableReason`'s order.
+    static func autoMergeLacksOnlyAPR(_ snap: GitSnapshot) -> Bool {
+        guard snap.ghInstalled, snap.autoMergeAllowed != false else { return false }
+        if case .open = snap.pr { return false }
+        return true
+    }
+
     static func autoFixUnavailableReason(_ snap: GitSnapshot) -> String? {
         guard snap.ghInstalled else { return "The gh CLI isn't installed." }
         guard case .open = snap.pr else { return "There is no open PR on this branch." }

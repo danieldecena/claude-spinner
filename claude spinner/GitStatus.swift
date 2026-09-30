@@ -330,6 +330,12 @@ enum GraphLine: Equatable {
 }
 
 enum GitGraph {
+    /// Refs worth a label. `origin/HEAD` only says which branch the remote calls
+    /// default, which the Git card already says; it sat on nearly every HEAD row.
+    static func shownRefs(_ refs: [String]) -> [String] {
+        refs.filter { !$0.hasSuffix("/HEAD") }
+    }
+
     /// Full sha, parents, ref names, subject, commit time -- tab-separated.
     static let format = "%H%x09%P%x09%D%x09%s%x09%ct"
 

@@ -3510,6 +3510,42 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    // MARK: - Critique helpers
+
+    func testShownRefsDropOnlyTheRemoteHead() {
+        XCTAssertEqual(GitGraph.shownRefs(["HEAD -> main", "origin/main", "origin/HEAD"]),
+                       ["HEAD -> main", "origin/main"])
+        XCTAssertEqual(GitGraph.shownRefs(["tag: v1"]), ["tag: v1"])
+        XCTAssertEqual(GitGraph.shownRefs([]), [])
+    }
+
+    /// Working and blocked subagents stay listed; idle and finished ones are
+    /// counted, including one sitting at an idle prompt, which asks nothing.
+    func testSubagentSplitListsLiveOnesAndCountsTheRest() {
+        var idlePrompt = mk("c", .attention, parentSessionId: "p")
+        idlePrompt.notificationType = "idle_prompt"
+        var permission = mk("d", .attention, parentSessionId: "p")
+        permission.notificationType = "permission_prompt"
+        let split = SubagentSplit([mk("a", .tool, parentSessionId: "p"),
+                                   mk("b", .idle, parentSessionId: "p"),
+                                   idlePrompt, permission,
+                                   mk("e", .thinking, parentSessionId: "p")])
+        XCTAssertEqual(split.live.map(\.id), ["a", "d", "e"])
+        XCTAssertEqual(split.finished, 2)
+        XCTAssertEqual(SubagentSplit([]).finished, 0)
+    }
+
+    /// Only the missing-PR reason is hidden; gh missing and auto-merge disallowed
+    /// still show with no PR open.
+    func testAutoMergeCaptionHidesOnlyTheMissingPR() {
+        XCTAssertTrue(GitAutomation.autoMergeLacksOnlyAPR(repo { $0.ghInstalled = true; $0.pr = .none }))
+        XCTAssertFalse(GitAutomation.autoMergeLacksOnlyAPR(repo { $0.ghInstalled = false; $0.pr = .none }))
+        XCTAssertFalse(GitAutomation.autoMergeLacksOnlyAPR(repo {
+            $0.ghInstalled = true; $0.autoMergeAllowed = false; $0.pr = .none }))
+        XCTAssertFalse(GitAutomation.autoMergeLacksOnlyAPR(repo {
+            $0.ghInstalled = true; $0.pr = .open(number: 3, url: "u", draft: false) }))
+    }
+
     // MARK: - Pane fit
 
     func testPaneFitGivesLeftoverHeightToTheTopRowWhenItFits() {

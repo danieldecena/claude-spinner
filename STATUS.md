@@ -152,6 +152,13 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (critique slice 3): Skills shows one line while the session works (git buttons
+  stay); History rows carry the commit subject and drop `origin/HEAD`; finished
+  subagents collapse to "N finished" (`SubagentSplit`); the section header reads
+  "1 session · 562k"; task rows are bullets; the no-open-PR caption hides only when that
+  is the sole reason (`GitAutomation.autoMergeLacksOnlyAPR`); Interrupt, Compact and
+  Clear are labelled. Verifier found an expanded-reply fit gap (the opened card took no
+  `extra`) and the caption hiding gh-missing; both fixed. 326 tests pass; seen on screen.
 - Decided (critique slice 2): Claude said fills the You asked card (a flexible block with
   a 4-line ideal, cut to what fits; the chevron still opens the full text), and when the
   pane fits at full size the leftover window height goes to both top-row cards, so no

@@ -11,11 +11,11 @@ via `run.sh`.
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Explain why a probe session auto-answered AskUserQuestion
-- [ ] Apply critique to Skills, History, sidebar, Git and toolbar
 - [ ] Check You asked shows full text on hover in the top row
 
 ## Completed
 
+- [x] Apply critique to Skills, History, sidebar, Git and toolbar
 - [x] Fill the You asked card and hand leftover height to the top row
 - [x] Make spend a plain figure and tint the context ring by share -- 5326012
 - [x] Make Git status and Automation one card with a single row of switches

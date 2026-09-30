@@ -266,7 +266,8 @@ private struct SessionSidebar: View {
                         .tag(session.id)
                         // Not selectable: the detail pane shows root sessions, and a
                         // subagent has no pane of its own to show.
-                        ForEach(children.filter { $0.parentSessionId == session.id }) { child in
+                        let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
+                        ForEach(split.live) { child in
                             HStack(spacing: 6) {
                                 Circle().fill(tint(child)).frame(width: 6, height: 6)
                                 Text(child.agentType ?? "subagent")
@@ -279,6 +280,14 @@ private struct SessionSidebar: View {
                             .padding(.leading, 16)
                             .selectionDisabled()
                             .accessibilityElement(children: .combine)
+                        }
+                        // Finished ones as a count: six "done" rows outweighed the
+                        // session they belonged to.
+                        if split.finished > 0 {
+                            Text("\(split.finished) finished")
+                                .font(.ui(10)).foregroundStyle(Color.label)
+                                .padding(.leading, 28)
+                                .selectionDisabled()
                         }
                     }
                     if let file = tasks[section.id] { tasksRows(file) }
@@ -336,7 +345,9 @@ private struct SessionSidebar: View {
                 .selectionDisabled()
         }
         ForEach(Array(file.open.prefix(Self.shownTasks).enumerated()), id: \.offset) { _, title in
-            Label { Text(title) } icon: { Image(systemName: "square").foregroundStyle(Color.label) }
+            Label { Text(title) } icon: {
+                Circle().fill(Color.label).frame(width: 4, height: 4)
+            }
                 .font(.ui(10)).lineLimit(1).truncationMode(.tail)
                 .help(title)
                 .selectionDisabled()
@@ -356,6 +367,18 @@ private struct SessionSidebar: View {
     private func tint(_ session: SessionFeed) -> Color {
         if session.isBlockedOnYou || asksFor(session) { return .attention }
         return session.isWorking ? .claude : .secondary
+    }
+}
+
+/// A session's subagents split into the ones still doing something (listed) and
+/// the ones that stopped (counted). Pure so the split is testable.
+struct SubagentSplit {
+    let live: [SessionFeed]
+    let finished: Int
+
+    init(_ children: [SessionFeed]) {
+        live = children.filter { $0.isWorking || $0.isBlockedOnYou }
+        finished = children.count - live.count
     }
 }
 
@@ -427,12 +450,10 @@ private struct SectionHeader: View {
                 .font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label)
             Spacer(minLength: 4)
-            Text("\(section.sessionCount)")
+            Text(([ "\(section.sessionCount) session\(section.sessionCount == 1 ? "" : "s")" ]
+                  + [section.contextTotal.map(FeedWatcher.formatTokens)].compactMap { $0 })
+                    .joined(separator: " · "))
                 .font(.ui(10)).foregroundStyle(Color.label)
-            if let total = section.contextTotal {
-                Text(FeedWatcher.formatTokens(total))
-                    .font(.ui(10)).foregroundStyle(Color.label)
-            }
         }
     }
 }
@@ -536,8 +557,8 @@ private struct SessionDetail: View {
                     // so the state sits next to the history. The git commands
                     // themselves live in the Skills card.
                     HStack(alignment: .top, spacing: 12) {
-                        // As wide as a SHA, its refs and an age need, not the row: the
-                        // middle of a wider one was empty.
+                        // Fixed width: the subject fills what the SHA, refs and age
+                        // leave, and the Git card takes the rest of the row.
                         GitGraphCard(cwd: session.cwd)
                             .frame(width: 360)
                         // The repo's state and the switches that act on it, one card.
@@ -1173,6 +1194,10 @@ private struct TranscriptCard: View {
                     .font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
             }
         }
+        // Opened out, the reply no longer takes `extra` through its fill, so the
+        // card takes it here: the row must grow by exactly `extra` either way,
+        // or the pane's measured ideal comes back short and it clips.
+        .padding(.bottom, expanded ? extra : 0)
         .task(id: sessionID) { await refresh() }
         // Re-read on the same cadence the rows already tick at. The read is a
         // bounded tail, not the whole file, so this stays cheap.
@@ -1265,6 +1290,7 @@ private struct ActionBar: View {
         [.interrupt, .compact, .clear],
         [.revealCWD, .openTerminal, .copyPath, .openTranscript, .copySessionID],
     ]
+    private static let named: Set<SessionAction> = [.interrupt, .compact, .clear]
 
     var body: some View {
         HStack(spacing: 14) {
@@ -1275,7 +1301,14 @@ private struct ActionBar: View {
                                                                       session: session,
                                                                       hasPane: hasPane)
                         Button { start(action) } label: {
-                            Image(systemName: action.symbol).frame(width: 18, height: 18)
+                            // Named where a click changes the session; the rest
+                            // only reach its files and stay icons.
+                            if Self.named.contains(action) {
+                                Label(action.title, systemImage: action.symbol)
+                                    .font(.ui(11)).frame(height: 18)
+                            } else {
+                                Image(systemName: action.symbol).frame(width: 18, height: 18)
+                            }
                         }
                         .buttonStyle(.glass)
                         .disabled(reason != nil)
@@ -1504,15 +1537,22 @@ private struct SkillsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Skills")
-            ShortcutChips(session: session, feedDir: feedDir,
-                          shortcuts: installedShortcuts.filter { $0.group == .skill || $0.group == .tasks },
-                          suggestion: suggestion, notice: $notice, pick: pick)
-            let superpowers = installedShortcuts.filter { $0.group == .superpower }
-            if !superpowers.isEmpty {
-                Text("Superpowers").font(.ui(9)).foregroundStyle(Color.label)
-                    .textCase(.uppercase).tracking(0.8)
-                ShortcutChips(session: session, feedDir: feedDir, shortcuts: superpowers,
+            // Mid-turn every skill chip is disabled; a wall of greyed buttons for
+            // most of the session's life said nothing. The git buttons still work.
+            if session.isWorking {
+                Text("Skills return when this turn ends.")
+                    .font(.ui(10)).foregroundStyle(Color.label)
+            } else {
+                ShortcutChips(session: session, feedDir: feedDir,
+                              shortcuts: installedShortcuts.filter { $0.group == .skill || $0.group == .tasks },
                               suggestion: suggestion, notice: $notice, pick: pick)
+                let superpowers = installedShortcuts.filter { $0.group == .superpower }
+                if !superpowers.isEmpty {
+                    Text("Superpowers").font(.ui(9)).foregroundStyle(Color.label)
+                        .textCase(.uppercase).tracking(0.8)
+                    ShortcutChips(session: session, feedDir: feedDir, shortcuts: superpowers,
+                                  suggestion: suggestion, notice: $notice, pick: pick)
+                }
             }
             gitCommands
             // Said even while the chips are greyed mid-turn: it is what to run
@@ -1543,14 +1583,11 @@ private struct SkillsCard: View {
         let chips = snapshot == nil ? [] : installedShortcuts.filter {
             $0.group == .git && SkillShortcut.idleReason($0, snapshot: snapshot) == nil
         }
+        // No "nothing to do" line when there are none: the Git card's pills
+        // already say clean and in sync.
         if !chips.isEmpty {
             ShortcutChips(session: session, feedDir: feedDir, shortcuts: chips,
                           suggestion: suggestion, notice: $notice)
-        } else if let snapshot, GitAction.allCases.allSatisfy({
-            $0.isTool || GitActions.unavailableReason($0, snapshot: snapshot)?.settled == true
-        }) {
-            Text("Nothing to do: clean, in sync, and no PR waiting.")
-                .font(.ui(10)).foregroundStyle(Color.label)
         }
     }
 }
@@ -1660,7 +1697,9 @@ private struct AutomationToggles: View {
                         if on { confirm = .autoPR } else { GitAutomation.setAutoPR(false, toplevel: top); reread() }
                     }
                 }
-                if let mergeReason {
+                // "No open PR" is already the pr pill above; gh missing or auto-merge
+                // disallowed are news whether or not a PR is open.
+                if let mergeReason, !GitAutomation.autoMergeLacksOnlyAPR(snap) {
                     Text(mergeReason).font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -2043,20 +2082,24 @@ private struct GitGraphCard: View {
 
     private func label(_ row: GraphRow) -> some View {
         HStack(alignment: .top, spacing: 6) {
-            Text(row.commit.shortSHA).foregroundStyle(Color.label).frame(height: Self.rowHeight)
+            Text(row.commit.shortSHA).foregroundStyle(Color.label).fixedSize()
+                .frame(height: Self.rowHeight)
             HStack(spacing: 4) {
-                ForEach(row.commit.refs, id: \.self) { ref in
+                ForEach(GitGraph.shownRefs(row.commit.refs), id: \.self) { ref in
                     Text(ref).font(.claudeMono(9))
                         .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
                         .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(Color.secondary.opacity(0.15), in: Capsule())
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
                         .fixedSize()
                         .frame(height: Self.rowHeight)
                 }
             }
-            // No subject line: the card is a picture of branches, and the
-            // message sits a hover away without pushing the refs off the row.
-            Spacer(minLength: 8)
+            // The subject takes what the SHA, refs and age leave: a hash alone
+            // says nothing about what the commit was.
+            Text(row.commit.subject).font(.ui(11)).foregroundStyle(Color.primary)
+                .lineLimit(1).truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: Self.rowHeight)
             if let at = row.commit.committedAt {
                 Text(FeedWatcher.compactAge(since: at)).foregroundStyle(Color.label).fixedSize()
                     .frame(height: Self.rowHeight)
@@ -2168,13 +2211,13 @@ private struct GitCard: View {
                     if snap.isDefaultBranch {
                         Text("default").font(.ui(9)).foregroundStyle(Color.label)
                             .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.18), in: Capsule())
+                            .background(Color.secondary.opacity(0.12), in: Capsule())
                     }
                     if let isPrivate = snap.isPrivate {
                         Label(isPrivate ? "private" : "public", systemImage: isPrivate ? "lock" : "globe")
                             .font(.ui(9)).foregroundStyle(Color.label)
                             .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.18), in: Capsule())
+                            .background(Color.secondary.opacity(0.12), in: Capsule())
                             .help(isPrivate ? "Private repository on GitHub" : "Public repository on GitHub")
                     }
                 }
@@ -2320,7 +2363,7 @@ private struct GitButtons: View {
                     ForEach(GitAction.allCases.filter(\.isTool)) { action in
                         let block = GitActions.unavailableReason(action, snapshot: snap)
                         Button { start(action) } label: {
-                            Image(systemName: action.symbol).frame(width: 22, height: 18)
+                            Image(systemName: action.symbol).frame(width: 28, height: 24)
                         }
                         .buttonStyle(.borderless)
                         .foregroundStyle(Color.label)
