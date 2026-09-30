@@ -7,12 +7,13 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 - [ ] Watch a refused /compact report on a live short session
 - [ ] Check You asked shows full text on hover in the top row
-- [x] Show question boxes in terminal when it is frontmost -- 85dd8c7
-- [ ] Fill the History card to its height
-- [ ] Move the usage block into a detail card
 
 ## Completed
 
+- [x] Style the sidebar as a card like the detail pane
+- [x] Move the usage block into a detail card -- 8c7eb4a
+- [x] Fill the History card to its height -- aaceb05
+- [x] Show question boxes in terminal when it is frontmost -- 85dd8c7
 - [x] Stop a hung ccusage scan from freezing the totals poller -- 9387f19
 - [x] Retry only the daily ccusage call when unpriced -- 9387f19
 - [x] Count only blocked sessions as needs you in the fleet bar -- 5def87c

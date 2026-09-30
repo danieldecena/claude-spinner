@@ -144,6 +144,9 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the sidebar is a card (`Color.card`, radius 14, the detail pane's
+  14pt inset, mono project headings) instead of a clear glass panel. The glass
+  took the desktop's tint and matched none of the cards beside it. Seen on screen.
 - Decided: a `/compact` Claude Code refuses ("Not enough messages to compact.")
   ends the wait on the transcript line it writes (`system`/`local_command` with
   `commandRun.command == "compact"`, which a compaction that ran never writes),

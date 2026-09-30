@@ -85,10 +85,8 @@ struct WindowContentView: View {
             }
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                // Opaque: only the sidebar's column shows the window's
-                // behind-window blur.
-                .background(Color(nsColor: .windowBackgroundColor))
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         // Across both columns, not just the detail pane: the toolbar acts on the
         // selected session wherever you are. Its strip is opaque edge to edge; a
         // strip half blur and half pane put a seam through the reply field.
@@ -128,11 +126,10 @@ struct WindowContentView: View {
         }
     }
 
-    /// A floating glass panel inset from the window edges, after the macOS 26
-    /// sidebar, rather than a split-view column. NavigationSplitView only floats
-    /// its sidebar under a full-size-content title bar, and this window keeps a
-    /// real title because the usage readout lives there when the status item is
-    /// unplaced.
+    /// A card inset from the window edges, the same surface and radius as the
+    /// detail pane's, rather than a split-view column. A clear glass panel here
+    /// read as a second design beside the cards: the desktop tinted it, and its
+    /// radius and top edge matched nothing next to it.
     private var sidebar: some View {
             VStack(spacing: 0) {
                 // Same reason the panel carries it: without this the window
@@ -148,11 +145,10 @@ struct WindowContentView: View {
                 SessionSidebar(sessions: roots, asks: asks.pending, selection: $selection)
             }
             .frame(width: 250)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            // Clear, not regular: the panel should read as a pane of glass over
-            // the window, with the rows carrying the contrast.
-            .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .padding(.leading, 10).padding(.bottom, 10)
+            .background(Color.card)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // The detail pane's own padding, so the top edges line up.
+            .padding([.leading, .top, .bottom], 14)
     }
 
     private var usageCard: OverviewStrip {
@@ -268,7 +264,7 @@ private struct SessionSidebar: View {
             }
         }
         .listStyle(.sidebar)
-        // The glass panel is the background; the list's own would sit on top of it.
+        // The card is the background; the list's own would sit on top of it.
         .scrollContentBackground(.hidden)
     }
 
@@ -349,6 +345,8 @@ private struct SectionHeader: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(section.title).lineLimit(1)
+                .font(.claudeMono(10)).fontWeight(.semibold)
+                .foregroundStyle(Color.label)
             Spacer(minLength: 4)
             Text("\(section.sessionCount)")
                 .font(.claudeMono(10)).foregroundStyle(Color.label)
