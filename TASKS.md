@@ -16,7 +16,7 @@ via `run.sh`.
 - [x] Check the build exists before run-sh replaces the app -- 5147808
 - [x] Untrack the regenerable ds-bundle files -- 37a7512
 - [x] Record spend over time for a Cost trend chart
-- [ ] Observe the Cost trend chart on screen
+- [x] Observe the Cost trend chart on screen
 - [ ] Observe the sidebar toggle and todo bar on screen
 
 ## Completed

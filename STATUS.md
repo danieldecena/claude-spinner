@@ -158,8 +158,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 - Observed: recording, not rendering. `spendHistory` in the app's defaults held
   two samples for this session ($1.061 -> $1.109, 35s apart) within 40s of
   relaunch. The chart itself is unobserved: `screencapture -l` of the window
-  returned a blank frame twice (window parked on another Space). Tests and a
-  clean build only for the drawing.
+  returned a blank frame twice (window parked on another Space).
+- Observed: the chart, 20:29:40, once the window was on the current Space.
+  Cost card for this session: `$1.77` peak label top-left, the orange line
+  climbing with its fill from `3m ago` to `2s ago`, starting about 60% up the
+  box as $1.06 of $1.77 should. `screencapture -l` of an off-Space window
+  returns a blank frame with exit 0, not an error.
 
 ### 2026-09-29 (detail tiles equal per row, not across the grid)
 - Decided: the stat grid equalises card heights per row with a custom
