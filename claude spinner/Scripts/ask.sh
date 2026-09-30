@@ -29,6 +29,16 @@ sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
 # and turn "app closed, exit fast" into a 300s block on every permission request.
 pgrep -x "${2:-claude spinner}" >/dev/null 2>&1 || exit 0
 
+# A PreToolUse hook holds the terminal prompt until it returns, so waiting here
+# while you are looking at the terminal means the box never appears there. Only
+# route to the app when the session's own terminal is not the frontmost app.
+host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"
+if [ -n "$host" ]; then
+    front=$(lsappinfo info -only bundleid "$(lsappinfo front 2>/dev/null)" 2>/dev/null \
+        | sed -n 's/.*bundleID="\([^"]*\)".*/\1/p')
+    [ "$front" = "$host" ] && exit 0
+fi
+
 # A banner has one tap. Fall through to the terminal for the shapes it cannot
 # express: several questions at once, or a question that takes several answers.
 if [ "$mode" = "question" ]; then
@@ -54,7 +64,6 @@ trap 'rm -f "$f" "$answer" "$tmp"' EXIT
 trap 'exit 0' HUP INT TERM
 
 cwd=$(printf '%s' "$input" | jq -r '.cwd // .workspace.current_dir // empty')
-host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"
 
 printf '%s' "$input" | jq -c \
     --arg req "$req" --arg kind "$mode" --arg cwd "$cwd" \

@@ -147,6 +147,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(contents.contains("pgrep -x \"${2:-claude spinner}\""),
                       "ask.sh must not write an ask file with no app to answer it")
         XCTAssertTrue(contents.contains("passthrough"))
+        XCTAssertTrue(contents.contains("lsappinfo front"),
+                      "ask.sh must leave the question to the terminal when it is frontmost")
         XCTAssertTrue(contents.contains("trap "),
                       "ask.sh must remove its ask file when stopped, or the card goes stale")
         XCTAssertTrue(contents.contains("multiSelect"),
@@ -2191,6 +2193,60 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    /// The frontmost guard, run both ways against a stubbed `lsappinfo`: with the
+    /// session's terminal in front the hook must exit at once without an ask
+    /// file (so the terminal draws its own box), and with anything else in front
+    /// it must reach the wait. The second half is what shows the first isn't a
+    /// guard that always exits.
+    func testAskScriptLeavesTheQuestionToAFrontmostTerminal() throws {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        for (host, expectAsk) in [("com.example.term", false), ("com.example.other", true)] {
+            try withTempDir { home in
+                let asks = home.appendingPathComponent(".claude/spinnerfeed/asks")
+                let bin = home.appendingPathComponent("bin")
+                try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+                let stubs = ["pgrep": "#!/bin/sh\nexit 0\n",
+                             "lsappinfo": "#!/bin/sh\n[ \"$1\" = front ] && echo ASN:0x0-0x1 && exit 0\n"
+                                 + "echo '    bundleID=\"com.example.term\"'\n"]
+                for (name, body) in stubs {
+                    let url = bin.appendingPathComponent(name)
+                    try Data(body.utf8).write(to: url)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+                }
+                let hook = Process()
+                hook.executableURL = URL(fileURLWithPath: "/bin/sh")
+                hook.arguments = [script.path, "question"]
+                hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
+                                    "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": host]
+                let stdin = Pipe()
+                hook.standardInput = stdin
+                try hook.run()
+                stdin.fileHandleForWriting.write(Data(
+                    #"{"session_id":"sid","tool_input":{"questions":[{"question":"q","options":[]}]}}"#.utf8))
+                try stdin.fileHandleForWriting.close()
+
+                func askFiles() -> [String] {
+                    ((try? FileManager.default.contentsOfDirectory(atPath: asks.path)) ?? [])
+                        .filter { $0.hasSuffix(".ask.json") }
+                }
+                let deadline = Date().addingTimeInterval(5)
+                if expectAsk {
+                    while askFiles().isEmpty && Date() < deadline { usleep(50_000) }
+                    XCTAssertEqual(askFiles().count, 1, "a terminal in the background must hand the ask to the app")
+                    hook.terminate()
+                } else {
+                    while hook.isRunning && Date() < deadline { usleep(50_000) }
+                    XCTAssertFalse(hook.isRunning, "a frontmost terminal must get the question at once")
+                    XCTAssertEqual(askFiles(), [])
+                    if hook.isRunning { hook.terminate() }
+                }
+                hook.waitUntilExit()
+            }
+        }
+    }
+
     // MARK: - What the permission is actually for
     //
     // The card used to render `Run Bash?` and nothing else, because `ask.sh`
@@ -3386,6 +3442,13 @@ final class claude_spinnerTests: XCTestCase {
         GitGraph.layout((0..<n).map { i in
             GraphCommit(sha: "c\(i)", parents: i + 1 < n ? ["c\(i + 1)"] : [], refs: refs[i] ?? [])
         })
+    }
+
+    /// The card passes `newest: fit - 1, maxLines: fit`: a tall card is all
+    /// commits down to one trailing fold, never more lines than it measured.
+    func testCondenseFillsTheRowsTheCardHasRoomFor() {
+        let lines = GitGraph.condense(linear(30), remotes: [], newest: 14, maxLines: 15)
+        XCTAssertEqual(shape(lines), (0..<14).map { "c\($0)" } + ["+16"])
     }
 
     private func shape(_ lines: [GraphLine]) -> [String] {
