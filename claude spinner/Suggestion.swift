@@ -52,8 +52,16 @@ struct Suggestion: Equatable {
 
         if let pct = input.contextPercent, pct >= 85,
            let s = pick("/wrap-up", "Context is at \(pct)%. Wrap up, then /clear.") { return s }
+        // Absolute tokens as well as percent: every call re-reads the whole
+        // context, so cost follows its size, and a 1M window puts 60% at 600k.
+        if tokens >= 150_000,
+           let s = pick("/wrap-up", "\(tokens / 1000)k tokens re-read on every call. Wrap up, then /clear.") {
+            return s
+        }
         if let pct = input.contextPercent, pct >= 60,
            let s = pick("/compact", "Context is at \(pct)% of the window.") { return s }
+        if tokens >= 100_000, input.atPrompt,
+           let s = pick("/compact", "\(tokens / 1000)k tokens in context and the session is idle.") { return s }
         if let idle = input.idleFor, idle >= 30 * 60, tokens >= 50_000,
            let s = pick("/wrap-up", "Idle for \(Int(idle / 60))m with a loaded context.") { return s }
         if input.contextTokens != nil, tokens < 20_000,

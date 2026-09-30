@@ -3379,6 +3379,7 @@ final class claude_spinnerTests: XCTestCase {
     private func skillInput(_ configure: (inout Suggestion.Input) -> Void) -> Suggestion.Input {
         suggestionInput {
             $0.installed = ["/wrap-up", "/start-up", "/simplify", "/goal"]
+            $0.contextTokens = 60_000
             configure(&$0)
         }
     }
@@ -3392,6 +3393,8 @@ final class claude_spinnerTests: XCTestCase {
     func testSkillPickFollowsTheSessionsState() {
         XCTAssertEqual(picked(skillInput { $0.contextPercent = 90 }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextPercent = 70 }), "/compact")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 160_000 }), "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 120_000 }), "/compact")
         XCTAssertEqual(picked(skillInput { $0.idleFor = 40 * 60 }), "/wrap-up")
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 5_000 }), "/start-up")
         XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 3; $0.git = self.repo { $0.dirty = 2 } }),
@@ -3413,6 +3416,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 1 }
                                          $0.installed = ["/wrap-up"] }))
         XCTAssertNil(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 1; $0.atPrompt = false }))
+        XCTAssertNil(picked(skillInput { $0.contextTokens = 120_000; $0.atPrompt = false }))
+        XCTAssertNil(picked(skillInput { $0.contextTokens = 90_000 }))
         XCTAssertNil(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30; $0.git = self.repo { $0.dirty = 1 } }))
         XCTAssertNil(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30
                                          $0.git = self.repo { $0.sync = .ahead(2) } }))
