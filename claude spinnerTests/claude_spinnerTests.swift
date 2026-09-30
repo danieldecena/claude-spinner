@@ -3603,6 +3603,22 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(GitAction.allCases.filter(\.isTool), [.fetch, .openCI, .openRepo])
     }
 
+    /// A clone of a bundle file rejects every push, so Push is settled-hidden
+    /// even when ahead; the same ahead branch on GitHub can push (known-good).
+    func testABundleRemoteCannotBePushed() {
+        var snap = GitSnapshot()
+        snap.branch = "main"
+        snap.upstream = "origin/main"
+        snap.sync = .ahead(1)
+        snap.pr = .none
+        snap.remoteURL = "/Users/home/Tools/osmo.bundle"
+        XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap)?.settled, true)
+        XCTAssertEqual(GitActions.unavailableReason(.createPR, snapshot: snap)?.settled, true)
+        XCTAssertNil(GitActions.unavailableReason(.fetch, snapshot: snap))
+        snap.remoteURL = "https://github.com/danieldecena/osmo-footage-library.git"
+        XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap))
+    }
+
     /// A clean, pushed default branch dims both git skills; work to act on lights them.
     func testGitSkillsIdleOnACleanPushedTree() {
         let push = SkillShortcut.curated.first { $0.name == "git-push" }!

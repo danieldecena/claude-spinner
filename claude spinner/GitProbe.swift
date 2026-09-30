@@ -158,6 +158,10 @@ actor GitProbe {
 
         snap.upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
                             in: cwd)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let remote = snap.upstream?.split(separator: "/").first {
+            snap.remoteURL = git(["remote", "get-url", String(remote)], in: cwd)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         if let branch = snap.branch {
             // `origin/HEAD` is the recorded default. Absent in a fresh clone that

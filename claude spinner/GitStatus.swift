@@ -237,6 +237,8 @@ struct GitSnapshot: Equatable {
     var staged: Int = 0
     var untracked: Int = 0
     var upstream: String?
+    /// Where the upstream's remote points, from `git remote get-url`.
+    var remoteURL: String?
     /// The commit HEAD points at. Carried so the prober can notice a commit and
     /// re-read the remote, instead of trusting a 90-second clock to have been
     /// right about a repository that moved two seconds ago.
@@ -270,6 +272,10 @@ struct GitSnapshot: Equatable {
     /// Uncommitted tracked work. The counter-signal to clearing a session:
     /// the reasoning behind a half-finished edit lives only in that context.
     var isDirty: Bool { dirty > 0 || staged > 0 }
+
+    /// A clone of a `git bundle` file: fetchable, but read-only and not on
+    /// GitHub, so a push is rejected every time and gh has nothing to read.
+    var remoteIsBundle: Bool { remoteURL?.hasSuffix(".bundle") == true }
 }
 
 /// One commit for the history graph.

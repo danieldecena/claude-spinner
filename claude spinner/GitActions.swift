@@ -105,6 +105,11 @@ enum GitActions {
     /// `SessionActions.unavailableReason`: a greyed-out button that won't say
     /// why is the thing that makes people click it twice.
     static func unavailableReason(_ action: GitAction, snapshot: GitSnapshot) -> Block? {
+        // Asked before gh for the same reason gh is asked before the network:
+        // the most basic cause wins, and no retry fixes this one.
+        if snapshot.remoteIsBundle, [.push, .openPR, .createPR, .merge, .openCI, .openRepo].contains(action) {
+            return Block("The remote is a git bundle file, which is read-only and not on GitHub.", settled: true)
+        }
         // Everything GitHub knows arrives through gh. Answering this first
         // means a missing binary is never dressed up as an unreachable network.
         if !snapshot.ghInstalled, [.openPR, .createPR, .merge, .openCI, .openRepo].contains(action) {
