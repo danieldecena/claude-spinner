@@ -990,7 +990,7 @@ struct SessionRow: View {
     /// is tinted by how many tokens it's carrying.
     private var contextColor: Color {
         guard let used = session.contextTokens, session.status != .idle else { return .secondary }
-        return .contextTint(used)
+        return .contextTint(tokens: used, window: session.stats.contextWindowSize)
     }
 
     private var contextTokens: String {

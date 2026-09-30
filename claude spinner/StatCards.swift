@@ -200,25 +200,6 @@ struct TrendColumns: View {
     }
 }
 
-/// A figure with its caption over it, for the totals that have no ratio to draw.
-private struct Figure: View {
-    let caption: String
-    let main: String
-    var sub: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(caption).font(.ui(9)).fontWeight(.semibold)
-                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-            Text(main).font(.figure(13)).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.7)
-            if let sub {
-                Text(sub).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 // MARK: - This session
 
 /// Cost, prompt cache, context and the session's own facts as one card: three
@@ -246,7 +227,7 @@ struct SessionStatsCard: View {
                                value: st.contextUsedPercent.map { "\($0)%" } ?? "\(Int((share * 100).rounded()))%",
                                // Tinted by the share the arc draws, not by the token
                                // count: a red ring half full said two things at once.
-                               ratio: share, tint: .usageTint(Int((share * 100).rounded())),
+                               ratio: share, tint: .contextTint(tokens: tokens, window: window),
                                detail: "\(StatFormat.compactCount(tokens)) of \(StatFormat.compactCount(window))")
                 }
                 if let hit = st.cacheHitRatio {
@@ -340,7 +321,6 @@ struct SessionStatsCard: View {
 /// session's. The two limit windows lead, as rings with the window's clock
 /// ticked on them; the totals and the history follow.
 struct OverviewStrip: View {
-    let overview: FeedWatcher.Overview
     /// The menu bar's own resolution (poll, then a live session, then the
     /// persisted snapshot), not the live feeds alone -- read from the feeds, the
     /// window went blank or disagreed whenever only the poll or cache had it.
@@ -348,18 +328,10 @@ struct OverviewStrip: View {
     let sevenDay: Int?
     let usageStale: Bool
     let usageHelp: String
-    let history: [UsageSample]
-    /// ccusage totals across every session, ended ones included -- the lines
-    /// above add up only the sessions that are live right now.
-    let totals: [FeedWatcher.TotalsRow]
-    let totalsStatus: String
-    let totalsDimmed: Bool
-    let totalsHelp: String
     let fiveHourElapsed: Double?
     let sevenDayElapsed: Double?
     let fiveHourReset: String?
     let sevenDayReset: String?
-    let weekBars: [UsageTotalsPoller.WeekBar]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -391,49 +363,6 @@ struct OverviewStrip: View {
                           tint: pct.map(Color.usageTint) ?? .label,
                           pace: pct == nil ? nil : elapsed,
                           detail: pct == nil ? "no current reading" : detail)
-    }
-
-    /// Five-hour usage over the retained polls, one column per slice, each in the
-    /// colour its level would tint the ring. The 7d line the old chart dashed in
-    /// is the second ring now.
-    @ViewBuilder private var usageHistory: some View {
-        let slices = 30
-        let levels = Buckets.levels(history.map { (at: $0.at, value: Double($0.pct)) }, count: slices)
-        TrendColumns(title: "5h usage", now: fiveHour.map { "\($0)%" } ?? "",
-                     shares: levels?.map { min(1, max(0, $0 / 100)) },
-                     highlight: .usageTint(fiveHour ?? 0),
-                     first: history.first?.at, last: history.last?.at,
-                     empty: "no usage history yet")
-            .accessibilityValue(Sparkline.spokenValue(history))
-    }
-
-    /// `329M  $154` and `41M → 67M · 1h56m left` as a figure and what goes
-    /// with it. The rows are the poller's own strings; only their two-space and
-    /// dot separators are read here.
-    static func split(_ value: String) -> (String, String?) {
-        for separator in ["  ", " · "] {
-            if let range = value.range(of: separator) {
-                return (String(value[..<range.lowerBound]),
-                        String(value[range.upperBound...]).trimmingCharacters(in: .whitespaces))
-            }
-        }
-        return (value, nil)
-    }
-
-    /// Counts, context and lines on one line: each was a line of its own, and
-    /// four one-fact lines pushed the session list half a screen down.
-    private var liveLine: String {
-        var parts = ["\(overview.sessions) session\(overview.sessions == 1 ? "" : "s")"]
-        if overview.working > 0 { parts.append("\(overview.working) working") }
-        if overview.waiting > 0 { parts.append("\(overview.waiting) waiting") }
-        if let tokens = overview.contextTokens {
-            parts.append("\(StatFormat.compactCount(tokens)) ctx")
-        }
-        if let diff = StatFormat.lines(added: overview.linesAdded,
-                                       removed: overview.linesRemoved) {
-            parts.append("\(diff) lines")
-        }
-        return parts.joined(separator: " · ")
     }
 }
 

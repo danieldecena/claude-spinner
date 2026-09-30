@@ -3594,10 +3594,21 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(fit.extra, 0)
     }
 
-    func testPaneFitStopsAtTheFloor() {
+    func testPaneFitStopsAtTheFloorAndScrolls() {
         let fit = PaneFit.fit(available: 100, ideal: 1000)
         XCTAssertEqual(fit.scale, PaneFit.floor)
         XCTAssertEqual(fit.extra, 0)
+        XCTAssertTrue(fit.scrolls)
+        XCTAssertFalse(PaneFit.fit(available: 600, ideal: 800).scrolls, "fits by shrinking")
+        XCTAssertFalse(PaneFit.fit(available: 900, ideal: 700).scrolls)
+    }
+
+    func testContextTintFollowsTheWindowShareWhenKnown() {
+        XCTAssertEqual(Color.contextPercent(tokens: 500_000, window: 1_000_000), 50)
+        XCTAssertEqual(Color.contextTint(tokens: 210_000, window: 1_000_000), Color.usageTint(21))
+        XCTAssertNotEqual(Color.contextTint(tokens: 210_000, window: 1_000_000), Color.contextTint(210_000),
+                          "210k is red by tokens, green by share of 1M")
+        XCTAssertEqual(Color.contextTint(tokens: 210_000, window: nil), Color.contextTint(210_000))
     }
 
     /// Before the first layout there is no ideal to fit against.
@@ -3641,14 +3652,6 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(Buckets.levels(early, count: 4)?.count, 4)
         XCTAssertEqual(Buckets.increases(early, count: 4)?.count, 4)
         XCTAssertNotNil(Buckets.levels(series([(0, 1), (.nan, 2), (10, 3)]), count: 4))
-    }
-
-    func testTotalsSplitIntoAFigureAndWhatGoesWithIt() {
-        XCTAssertEqual(OverviewStrip.split("329M  $154").0, "329M")
-        XCTAssertEqual(OverviewStrip.split("329M  $154").1, "$154")
-        XCTAssertEqual(OverviewStrip.split("41M → 67M · 1h56m left").0, "41M → 67M")
-        XCTAssertEqual(OverviewStrip.split("41M → 67M · 1h56m left").1, "1h56m left")
-        XCTAssertEqual(OverviewStrip.split("12M").1, nil)
     }
 
     // MARK: - Suggestion

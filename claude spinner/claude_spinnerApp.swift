@@ -841,6 +841,18 @@ extension Color {
     /// Urgency for a session's context, banded on the absolute token count rather
     /// than its percentage: a 200k conversation is heavy whether the window is 200k
     /// or 1m, and the percentage hides that on the big windows.
+    /// Context by how full its window is, the question a ring or meter of the
+    /// window answers: 500k of 1M is half full, not "heavy". Falls back to the
+    /// token bands when no window has reported.
+    static func contextTint(tokens: Int, window: Int?) -> Color {
+        guard let window, window > 0 else { return contextTint(tokens) }
+        return usageTint(contextPercent(tokens: tokens, window: window))
+    }
+
+    static func contextPercent(tokens: Int, window: Int) -> Int {
+        Int((min(1, Double(tokens) / Double(window)) * 100).rounded())
+    }
+
     static func contextTint(_ tokens: Int) -> Color {
         switch tokens {
         case 200_000...: return usageRed

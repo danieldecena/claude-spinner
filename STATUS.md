@@ -152,6 +152,14 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (fixes 4-6): the window's Usage card takes only what it draws (the ccusage
+  poll stays; the menu panel shows its totals). Context colour follows share of the
+  window wherever a window is known (`Color.contextTint(tokens:window:)`: window ring and
+  meter, menu row); the menu's heavy-scaled spark keeps token bands. Below the 0.55
+  floor the pane scrolls instead of clipping. First version swapped a plain pane for a
+  ScrollView and flip-flopped: the two structures measured different ideals (510 vs
+  ~680, found with a file probe) and it settled clipped. Now one ScrollView always, with
+  scrolling disabled when it fits. Seen: 392pt tall scrolls to the stats row; 977 fills.
 - Decided (logic fixes 1-3): pace is not judged in the first 5% of a limit window
   (`StatFormat.aheadOfPace`; 1% just after a reset read "ahead of pace"); the /simplify
   pick uses the uncommitted diff size (`GitSnapshot.dirtyLines` from `git diff HEAD

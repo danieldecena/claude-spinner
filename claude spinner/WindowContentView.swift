@@ -155,21 +155,14 @@ struct WindowContentView: View {
     }
 
     private var usageCard: OverviewStrip {
-        OverviewStrip(overview: feed.overview,
-                      fiveHour: feed.usageFiveHourPct,
+        OverviewStrip(fiveHour: feed.usageFiveHourPct,
                       sevenDay: feed.usageSevenDayPct,
                       usageStale: feed.usageIsStale,
                       usageHelp: feed.usageAsOfString,
-                      history: feed.usageHistory,
-                      totals: feed.usageTotalsRows,
-                      totalsStatus: feed.usageTotalsStatus,
-                      totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
-                      totalsHelp: feed.usageTotalsTooltip,
                       fiveHourElapsed: feed.usageFiveHourElapsed,
                       sevenDayElapsed: feed.usageSevenDayElapsed,
                       fiveHourReset: feed.usageFiveHourResetRelative,
-                      sevenDayReset: feed.usageSevenDayReset,
-                      weekBars: feed.usageWeekBars)
+                      sevenDayReset: feed.usageSevenDayReset)
     }
 
     @ViewBuilder private var detail: some View {
@@ -470,10 +463,12 @@ enum PaneFit {
     /// (a tall window does not blow the cards up) and never below the floor.
     /// `extra`: the window height left over when the pane fits at full size,
     /// which goes to the top row so no empty band sits under the last one.
-    static func fit(available: CGFloat, ideal: CGFloat) -> (scale: CGFloat, extra: CGFloat) {
-        guard ideal > 0, available > 0 else { return (1, 0) }
+    /// `scrolls`: even at the floor the pane is taller than the window, so it
+    /// scrolls rather than cutting its bottom off where nobody can reach it.
+    static func fit(available: CGFloat, ideal: CGFloat) -> (scale: CGFloat, extra: CGFloat, scrolls: Bool) {
+        guard ideal > 0, available > 0 else { return (1, 0, false) }
         let scale = min(1, max(floor, available / ideal))
-        return (scale, scale < 1 ? 0 : available - ideal)
+        return (scale, scale < 1 ? 0 : available - ideal, ideal * scale > available + 1)
     }
 }
 
@@ -507,7 +502,7 @@ private struct SessionDetail: View {
         GeometryReader { geo in
             let fit = PaneFit.fit(available: geo.size.height, ideal: idealHeight)
             let scale = fit.scale
-            content(extra: fit.extra)
+            let pane = content(extra: fit.extra)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)
                 .fixedSize(horizontal: false, vertical: true)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
@@ -518,8 +513,17 @@ private struct SessionDetail: View {
                     if abs(ideal - idealHeight) > 2 { idealHeight = ideal }
                 }
                 .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                .clipped()
+            // One structure whether it scrolls or not: swapping a plain pane for a
+            // ScrollView changed the view's identity and its measured ideal, and
+            // the fit flipped between the two and could settle on the wrong one.
+            // scaleEffect draws smaller but keeps the layout size, so the content
+            // is framed to the drawn height, and to at least the window's.
+            ScrollView(.vertical) {
+                pane.frame(width: geo.size.width, height: max(geo.size.height, idealHeight * scale),
+                           alignment: .topLeading)
+            }
+            .scrollDisabled(!fit.scrolls)
+            .scrollIndicators(fit.scrolls ? .automatic : .hidden)
         }
     }
 
@@ -1128,7 +1132,7 @@ struct ContextMeter: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.secondary.opacity(0.22))
-                Capsule().fill(Color.contextTint(tokens))
+                Capsule().fill(Color.contextTint(tokens: tokens, window: window))
                     // Keep a sliver visible for a tiny non-zero context, so a
                     // just-started session doesn't read as an empty track.
                     .frame(width: max(tokens > 0 ? 3 : 0, geo.size.width * ratio))
