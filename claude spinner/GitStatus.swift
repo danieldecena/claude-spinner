@@ -252,6 +252,8 @@ struct GitSnapshot: Equatable {
     var autoMerge: Bool?
     /// The repository's GitHub "Allow auto-merge" setting; nil when unread.
     var autoMergeAllowed: Bool?
+    /// Whether the GitHub repository is private; nil when unread or not on GitHub.
+    var isPrivate: Bool?
     /// The repository root, which the per-repo automations are keyed on so a
     /// session in a subdirectory shares its repo's settings.
     var toplevel: String?
@@ -463,6 +465,13 @@ enum GitGraph {
 /// Pure parsing, split out from the subprocess work so every branch below is
 /// reachable in a unit test without a repository on disk.
 enum GitParse {
+    /// `gh api repos/{owner}/{repo} --jq '"\(.private) \(.allow_auto_merge)"'`
+    /// output, e.g. "true false". Anything but a literal true/false is nil.
+    static func repoSettings(_ out: String) -> (isPrivate: Bool?, autoMergeAllowed: Bool?) {
+        let words = out.split(whereSeparator: \.isWhitespace).map { Bool(String($0)) }
+        return (words.first ?? nil, words.count > 1 ? words[1] : nil)
+    }
+
     /// `git status --porcelain=v1 --untracked-files=all`.
     ///
     /// Column 1 is the index status and column 2 the worktree status, so a file

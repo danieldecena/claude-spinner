@@ -2479,6 +2479,13 @@ private struct GitCard: View {
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.secondary.opacity(0.18), in: Capsule())
                     }
+                    if let isPrivate = snap.isPrivate {
+                        Label(isPrivate ? "private" : "public", systemImage: isPrivate ? "lock" : "globe")
+                            .font(.claudeMono(9)).foregroundStyle(Color.label)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.18), in: Capsule())
+                            .help(isPrivate ? "Private repository on GitHub" : "Public repository on GitHub")
+                    }
                 }
                 .help(snap.upstream.map { "tracks \($0)" } ?? "no upstream")
                 VStack(alignment: .leading, spacing: 5) {

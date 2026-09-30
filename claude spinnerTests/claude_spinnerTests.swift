@@ -3619,6 +3619,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(GitActions.unavailableReason(.push, snapshot: snap))
     }
 
+    /// "true false" -> private, auto-merge off; a failed or odd read is nil,
+    /// never false.
+    func testRepoSettingsParse() {
+        XCTAssertTrue(GitParse.repoSettings("true false\n") == (true, false))
+        XCTAssertTrue(GitParse.repoSettings("false true") == (false, true))
+        XCTAssertTrue(GitParse.repoSettings("true null") == (true, nil))
+        XCTAssertTrue(GitParse.repoSettings("") == (nil, nil))
+    }
+
     /// GitHub's own setting is the first blocker; unread (nil) is not "off", and
     /// an open PR on a repo that allows it can be switched on (known-good).
     func testAutoMergeSaysWhyItCantBeUsed() {

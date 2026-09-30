@@ -184,25 +184,22 @@ actor GitProbe {
         pool.async(group: group) { out.sync = syncState(cwd: cwd, snap: local) }
         pool.async(group: group) { out.pr = prState(cwd: cwd) }
         pool.async(group: group) { out.ci = ciState(cwd: cwd, branch: local.branch) }
-        pool.async(group: group) { out.autoMergeAllowed = autoMergeAllowed(cwd: cwd) }
+        pool.async(group: group) { out.repo = repoSettings(cwd: cwd) }
         group.wait()
         snap.sync = out.sync
         (snap.pr, snap.merge, snap.autoMerge) = out.pr
         snap.ci = out.ci
-        snap.autoMergeAllowed = out.autoMergeAllowed
+        (snap.isPrivate, snap.autoMergeAllowed) = out.repo
     }
 
-    /// The repository's "Allow auto-merge" setting. nil when it couldn't be
-    /// read, which the switch treats as unknown rather than as off.
-    private static func autoMergeAllowed(cwd: String) -> Bool? {
+    /// The repository's visibility and "Allow auto-merge" setting, in one call.
+    /// Each is nil when it couldn't be read, which is unknown, not false.
+    private static func repoSettings(cwd: String) -> (isPrivate: Bool?, autoMergeAllowed: Bool?) {
         guard let gh = ghPath,
-              let result = run(gh, ["api", "repos/{owner}/{repo}", "--jq", ".allow_auto_merge"], in: cwd),
-              result.status == 0 else { return nil }
-        switch result.out.trimmingCharacters(in: .whitespacesAndNewlines) {
-        case "true": return true
-        case "false": return false
-        default: return nil
-        }
+              let result = run(gh, ["api", "repos/{owner}/{repo}", "--jq", "\"\\(.private) \\(.allow_auto_merge)\""],
+                               in: cwd),
+              result.status == 0 else { return (nil, nil) }
+        return GitParse.repoSettings(result.out)
     }
 
     /// Each field is written by exactly one block and read only after the
@@ -211,7 +208,7 @@ actor GitProbe {
         var sync = SyncState.unknown
         var pr: (PRState, MergeReadiness, Bool?) = (.unknown, MergeReadiness(), nil)
         var ci = CIState.unknown
-        var autoMergeAllowed: Bool?
+        var repo: (isPrivate: Bool?, autoMergeAllowed: Bool?) = (nil, nil)
     }
 
     private static func ciState(cwd: String, branch: String?) -> CIState {
