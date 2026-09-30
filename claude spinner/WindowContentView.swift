@@ -1852,7 +1852,7 @@ private struct GitCommandsCard: View {
                           suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
             Divider().padding(.vertical, 2)
-            AutomationToggles(cwd: session.cwd)
+            AutomationToggles(session: session, feedDir: feedDir)
         }
         .detailCard()
     }
@@ -1863,8 +1863,11 @@ private struct GitCommandsCard: View {
 /// defaults) rather than remembering what was last clicked. Turning one on
 /// asks first and says what it will do and where; turning one off doesn't.
 private struct AutomationToggles: View {
-    let cwd: String
+    let session: SessionFeed
+    let feedDir: URL
+    private var cwd: String { session.cwd }
     @ObservedObject private var autoPR = AutoPRWatcher.shared
+    @State private var hasPane = false
     @State private var snapshot: GitSnapshot?
     @State private var autoCommitOn = false
     @State private var confirm: Pending?
@@ -1872,7 +1875,7 @@ private struct AutomationToggles: View {
     @State private var busy = false
 
     private enum Pending: Equatable {
-        case autoMerge, mainPush, autoCommit, autoPR
+        case autoMerge, mainPush, autoCommit, autoPR, autoFix
 
         var question: String {
             switch self {
@@ -1884,6 +1887,8 @@ private struct AutomationToggles: View {
                 return "Add the auto-commit Stop hook to ~/.claude/settings.json? Every project's sessions will commit their tracked changes at the end of each turn (Haiku writes the message) and push feature branches. settings.json is tracked in ~/.claude and ~, so both will show it modified."
             case .autoPR:
                 return "Open pull requests automatically in this repo? When a feature branch is pushed and has no PR, the app runs gh pr create --fill -- once per branch."
+            case .autoFix:
+                return GitAutomation.autoFixConfirmation
             }
         }
     }
@@ -1908,10 +1913,28 @@ private struct AutomationToggles: View {
                     if on { confirm = .autoPR } else { GitAutomation.setAutoPR(false, toplevel: top); reread() }
                 }
                 if let result = autoPR.lastResult[top] { Notice(result) }
+                let fixReason = GitAutomation.autoFixUnavailableReason(snap)
+                    ?? SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
+                Button { confirm = .autoFix } label: {
+                    Label("Auto-fix CI & comments", systemImage: "wrench.and.screwdriver")
+                        .font(.claudeMono(10)).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.glass)
+                .disabled(fixReason != nil || busy)
+                .opacity(fixReason == nil ? 1 : 0.7)
+                .help(fixReason ?? "Type /autofix-pr into the session")
             }
             if let notice { Notice(notice) }
         }
         .task(id: cwd) { await poll() }
+        .task(id: session.id) {
+            let pid = session.pid
+            let current = session
+            hasPane = await Task.detached(priority: .utility) {
+                pid != nil && SessionReplier.hasPane(current)
+            }.value
+        }
         .confirmationDialog(confirm?.question ?? "",
                             isPresented: Binding(get: { confirm != nil },
                                                  set: { if !$0 { confirm = nil } }),
@@ -1956,6 +1979,16 @@ private struct AutomationToggles: View {
             GitAutomation.setAutoPR(true, toplevel: top)
             reread()
             Task { await AutoPRWatcher.shared.tick([cwd]) }
+        case .autoFix:
+            busy = true
+            notice = nil
+            SessionReplier.reply(to: session, text: GitAutomation.autoFixCommand, feedDir: feedDir) { result in
+                busy = false
+                switch result {
+                case .success: notice = .init(kind: .info, text: "Sent /autofix-pr. Watch it at claude.ai/code.")
+                case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
+                }
+            }
         }
     }
 

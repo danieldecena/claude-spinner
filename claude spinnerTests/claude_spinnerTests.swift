@@ -3406,6 +3406,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertFalse(GitAutomation.shouldCreatePR(snap))
     }
 
+    func testAutoFixNeedsAnOpenPR() {
+        var snap = GitSnapshot()
+        snap.pr = .none
+        XCTAssertNotNil(GitAutomation.autoFixUnavailableReason(snap))
+        snap.pr = .open(number: 2, url: "u", draft: false)
+        XCTAssertNil(GitAutomation.autoFixUnavailableReason(snap))
+        XCTAssertTrue(GitAutomation.autoFixConfirmation.contains("under your GitHub account"))
+    }
+
     func testAutoMergeCommands() {
         var snap = GitSnapshot()
         XCTAssertNil(GitAutomation.autoMergeCommand(enable: true, snapshot: snap))

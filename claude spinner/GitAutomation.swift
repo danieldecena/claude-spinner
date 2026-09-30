@@ -124,6 +124,24 @@ enum GitAutomation {
             && snap.sync == .inSync && snap.pr == .none
     }
 
+    // MARK: auto-fix
+
+    /// Claude Code's own PR auto-fix: a cloud session watches CI and review
+    /// comments and pushes fixes. A button, not a switch: it's turned off at
+    /// claude.ai/code and its state can't be read from here, so a switch would
+    /// show a position nobody can vouch for.
+    static let autoFixCommand = "/autofix-pr"
+    static let autoFixConfirmation =
+        "Turn on auto-fix for this PR? /autofix-pr starts a Claude Code cloud session that watches CI "
+        + "and review comments and pushes fixes. It needs the Claude GitHub App on the repo, replies to "
+        + "review threads under your GitHub account, and is turned off at claude.ai/code."
+
+    static func autoFixUnavailableReason(_ snap: GitSnapshot) -> String? {
+        guard snap.ghInstalled else { return "The gh CLI isn't installed." }
+        guard case .open = snap.pr else { return "There is no open PR on this branch." }
+        return nil
+    }
+
     // MARK: auto-merge
 
     static func autoMergeCommand(enable: Bool, snapshot: GitSnapshot) -> (tool: String, args: [String])? {
