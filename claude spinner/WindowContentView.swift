@@ -2256,6 +2256,21 @@ private struct AutomationToggles: View {
         }
     }
 
+    /// Auto-merge is the one toggle that is unavailable until something exists,
+    /// so it switches itself on the first time a PR is open and ready. Once per
+    /// PR, not whenever it reads off: turning it off by hand must stick.
+    private func enableAutoMergeWhenAvailable() {
+        guard let snap = snapshot, let top = snap.toplevel,
+              snap.autoMerge == false,
+              GitAutomation.autoMergeUnavailableReason(snap) == nil,
+              case .open(let number, _, _) = snap.pr, !busy else { return }
+        let key = "\(top)#\(number)"
+        guard Self.autoMergeTried.insert(key).inserted else { return }
+        setAutoMerge(true, snap)
+    }
+
+    private static var autoMergeTried = Set<String>()
+
     private func setAutoMerge(_ on: Bool, _ snap: GitSnapshot) {
         guard let cmd = GitAutomation.autoMergeCommand(enable: on, snapshot: snap) else { return }
         busy = true
@@ -2313,6 +2328,7 @@ private struct AutomationToggles: View {
             snapshot = await GitProbe.shared.snapshot(for: cwd)
             autoCommitOn = (try? String(contentsOf: GitAutomation.settingsURL, encoding: .utf8))
                 .map(GitAutomation.autoCommitEnabled) ?? false
+            enableAutoMergeWhenAvailable()
             try? await Task.sleep(for: .seconds(5))
         }
     }

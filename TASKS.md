@@ -6,6 +6,7 @@ Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 - [ ] Watch a refused /compact report on a live short session
+- [ ] Watch auto-merge switch itself on for a real open PR
 - [ ] Check You asked shows full text on hover in the top row
 
 ## Completed

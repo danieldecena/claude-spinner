@@ -144,6 +144,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: Auto-merge PR switches itself on, without the dialog, the first time
+  a PR is open and eligible, once per PR (a hand-off keeps it off after you turn it
+  off). The other three toggles stay manual; Daniel chose auto-merge only. Built,
+  not observed: no open PR with GitHub auto-merge allowed to test against.
 - Decided: Config is two rows (model and effort menus, then thinking, style and
   version on one line) with no title. Toolbar action notices (copy, reveal,
   interrupt, compact) now show in the conversation card under the reply field,
