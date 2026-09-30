@@ -84,11 +84,10 @@ enum GitActions {
     /// Why an action can't run, and whether that answer is final.
     ///
     /// `settled` is the whole point. "Already in sync with the remote" is a
-    /// finished answer -- there is nothing to do, and the status rows above
-    /// already say so, so the button is simply not drawn. "The remote couldn't
-    /// be read" is not an answer at all, and a button that vanishes for that
-    /// reason tells you nothing; it stays on screen, greyed, with this sentence
-    /// underneath. Absence then means something definite.
+    /// finished answer -- there is nothing to do, and when every action is
+    /// settled the card says "Nothing to do" rather than leaving a row of dim
+    /// buttons to read as broken. "The remote couldn't be read" is not an
+    /// answer at all, so it never counts towards that line.
     struct Block: Equatable {
         let reason: String
         let settled: Bool

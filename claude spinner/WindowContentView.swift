@@ -2608,11 +2608,9 @@ private struct GitButtons: View {
             if let snap = snapshot {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
                           alignment: .leading, spacing: 6) {
-                    // A settled block is a finished answer, so its button goes;
-                    // an unsettled one stays greyed with its reason.
-                    ForEach(GitAction.allCases.filter {
-                        !$0.isTool && GitActions.unavailableReason($0, snapshot: snap)?.settled != true
-                    }) { action in
+                    // Always drawn, so Push/Pull/Merge are where you expect them;
+                    // an idle one is dimmed with its reason as the tooltip.
+                    ForEach(GitAction.allCases.filter { !$0.isTool }) { action in
                         let block = GitActions.unavailableReason(action, snapshot: snap)
                         Button { start(action) } label: {
                             Label(action.title, systemImage: action.symbol)

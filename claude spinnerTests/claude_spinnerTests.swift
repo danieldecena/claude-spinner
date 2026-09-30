@@ -2850,9 +2850,9 @@ final class claude_spinnerTests: XCTestCase {
 
     // MARK: - Blocked, and whether that is the final answer
 
-    /// The flag the whole action row is drawn from. A settled block hides its
-    /// button; an unsettled one keeps it on screen with the reason showing. Get
-    /// this backwards and "couldn't reach GitHub" silently removes the control.
+    /// The flag the "Nothing to do" line is drawn from. Only settled blocks
+    /// count towards it. Get this backwards and "couldn't reach GitHub" is
+    /// reported as nothing to do.
     func testOnlyFinishedAnswersAreSettled() {
         XCTAssertEqual(GitActions.unavailableReason(.push, snapshot: snap(sync: .inSync))?.settled, true)
         XCTAssertEqual(GitActions.unavailableReason(.pull, snapshot: snap(sync: .inSync))?.settled, true)
