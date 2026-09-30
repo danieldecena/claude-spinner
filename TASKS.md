@@ -2,11 +2,14 @@
 
 ## Tasks
 
+- [ ] Review the six code commits from 0b20d77 to 3390fee
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
 
 ## Completed
 
+- [x] Keep long branch names inside the History card -- 874274a
+- [x] Say a question is pending instead of mid-turn -- 874274a
 - [x] Drop AGENT-id sections with 0 sessions from the menu panel -- f300f26
 - [x] Decide attention colour: kit warn or Spinner blue
 - [x] Bring the menu-bar panel onto App Kit type

@@ -151,6 +151,14 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-09-30 (History overflow, question-aware reply refusal)
+- Decided: History ref chips cap at 150pt, cut in the middle, full name on hover; at
+  full width two long branch names pushed the card out over the sidebar. Seen fixed.
+- Decided: the reply box refuses with "waiting on the question above" while AskInbox
+  holds a question for that session; the feed reads such a session as `thinking`, so
+  the replier said "mid-turn" (Daniel typed `/goal 120` into apply-next-job-plan).
+  Shipped inside 874274a, whose message names only the History fix.
+
 ### 2026-09-30 (goal chip, real last prompt, panel type, spend history dropped)
 - Decided: the goal chip is tinted (`series1`, attention when landing) with a flag; in
   label grey Daniel asked where it was twice. A missing deadline file is re-read in
