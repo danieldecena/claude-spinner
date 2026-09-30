@@ -146,6 +146,21 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-30 (git card: buttons back, bundle remotes, auto-merge, visibility)
+- Decided: Push/Pull/Merge and the PR buttons are always drawn, dimmed with
+  their reason when idle; hiding settled ones (earlier the same day) made them
+  look missing. "Nothing to do" still shows when every action is settled.
+  `db72288`.
+- Decided: a remote that is a `.bundle` file settles push and the gh actions
+  (`~/Tools/osmo` offered Push and every push failed). `a227481`.
+- Decided: the probe reads GitHub's `allow_auto_merge` and `private` in one
+  `gh api` call; the auto-merge switch prints its blocker under itself, and the
+  branch row shows a private/public badge. nil (not GitHub, read failed) draws
+  nothing. `25eb382`, `cd8f332`.
+- Decided: the skill pick also fires on absolute context size, 150k -> /wrap-up
+  and 100k idle -> /compact, since a 1M window put the 60% rule at 600k.
+  `1be4599`. All observed on screen.
+
 ### 2026-09-30 (skill pick covers the common idle states)
 - Decided: most sessions matched no pick rule, so the Skills card outlined
   nothing and read as broken. Added an idle session with open todos -> /goal,
@@ -412,114 +427,3 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
   is pinned against pairs the WCAG spec fixes (21:1, 1:1, and `#767676`'s
   canonical 4.5) so the threshold assertions cannot both pass on a function
   returning 21 for everything, and each threshold test was mutation-verified.
-
-### 2026-09-28 (the identity colours, re-hued rather than darkened)
-
-- The eight `model-*` / `host-*` colours were the palette's last failures, 2.31:1
-  to 3.41:1 in light. They are text, and the host tag's real ground is its own
-  hue at 16% over the pane, not the pane -- a stricter surface, so that composite
-  is what both the derivation and the tests measure. The test reads the 16% from
-  `Ink.chipTint`, the same constant `MenuContentView` fills the chip with, so it
-  cannot measure a number the app does not draw.
-- Holding hue and darkening for a white ground was tried first and abandoned: it
-  put Haiku at `#438443`, 12/255 from the re-derived `usageGreen`, and VS Code at
-  `#1d66be`, 17/255 from `attention`. That is exactly the collision a status
-  palette exists to prevent, and no test would have caught it. Daniel chose the
-  re-hue.
-- Four hues now, each shared by a model and the host it sits beside: purple 275
-  (Opus / app), cyan 198 (Sonnet / web), jade 163 (Haiku / trm), indigo 244
-  (Fable / VS Code). The column and the printed word say which of the two a tint
-  belongs to, so the colour does not have to. Nearest identity-to-status pair is
-  48/255 (jade to `usageGreen`); nearest identity pair 38 (purple to indigo, in
-  dark). The model hues no longer match the statusLine's green and blue -- that
-  is the price, taken deliberately.
-- Both new tests were proved able to fail, with the mutation asserted applied
-  before each run and reverted after: the old green fails contrast at 2.10, and
-  the darkened old hue fails separation, naming "jade light sits on usageGreen"
-  at 12.3. 234 tests, 0 failures.
-- Observed on screen 2026-09-28 in both appearances. The panel is the surface
-  that draws these, and this machine runs `surface = window`, which creates no
-  status item at all -- so the preference was flipped to `menuBar`, the status
-  item pressed through `AXExtrasMenuBar`, the popover captured by window id, and
-  the preference put back to `window` afterwards. Sampled at the glyph core:
-  light `#9859D0` against `#8F39CD` pure, dark `#BE9BE1` against `#B983E0` --
-  both the antialiased blend of the intended value toward the ground, and the
-  two are plainly different values, which is what rules out one appearance's
-  branch being served to the other.
-- Not observed: only purple appeared. Every session on screen was Opus in a
-  desktop app, so cyan, jade and indigo are asserted numerically and drawn from
-  the same four constants, but have not been seen. The light ground was also not
-  white -- the popover is translucent material over the desktop and measured
-  mid-grey, so the 4.5:1 figures remain the optimistic ones, as the README says.
-
-### 2026-09-20 (dark appearance looked at; slice 3 is smaller than written)
-
-- Found: the unchecked `Fix dark-copy text still bound to Light colors` is a
-  **Figma** fault, not a Swift one. It sits inside the Figma task block, and the
-  2026-09-16 entry below already records it: the dark screen copies show
-  near-black text on labels inside component instances, the rebind having missed
-  per-range text fills. Every colour in `claude_spinnerApp.swift:672-745` goes
-  through `dynamic(light:dark:)`. So slice 3 is not blocked on Swift colour
-  bindings, as the plan's open question assumed. The real consequence is
-  narrower: the Figma dark frames cannot serve as slice 3's dark reference, so
-  that slice is checked on screen instead of against the spec.
-- Observed 2026-09-20 06:01 in dark: no near-black text anywhere in the app --
-  labels, values, Git rows, empty states and both slice 2 strings all read
-  correctly. Two per-app appearance overrides were tried first and both silently
-  failed (`AppleInterfaceStyle` in the app's domain, then in the argument
-  domain); the first screenshots were still light. Caught by sampling the
-  background rather than trusting the override -- RGB(255,255,255) against the
-  RGB(30,31,32) of the real dark run. The system appearance was toggled with
-  permission and restored, both confirmed by reading the setting back.
-- Found, and it shrinks slice 3: the plan's problem 5 says "Reveal and Copy carry
-  borders; Interrupt, Compact, Clear and Open transcript do not" -- six buttons
-  in two treatments. On this build all six carry the same capsule, and what
-  separates them is the enabled/disabled fill, which is already the
-  one-class-two-states outcome slice 3 was written to produce. The plan was
-  written from a screenshot and that reading does not survive the running app.
-  What is real is the truncation: `Reveal fol…`, `Open trans…` and `Copy sessi…`
-  all clip on a window with spare width. Treat the remaining claim -- "disabled
-  is signalled by text colour alone" -- as unverified until looked at.
-
-### 2026-09-20 (UI pass slice 2: the two contradicting sentences)
-
-Branch `design-system-pass-2026-09-20`, off `main` at 6895886. The branch named
-in the request did not exist -- the ten Figma-pass commits all went to `main`
-directly -- so it was created rather than assumed.
-
-- Decided: the overview strip's `— of 5h` becomes `no current 5h reading`
-  (c5d615a). The dash was not only a broken sentence: it was tinted
-  `usageTint(fiveHour ?? 0)`, so a window that had never reported drew in the
-  green of untouched headroom. `StatFormat.usagePercent` now separates unknown
-  from a real zero, mirroring `lines(added:removed:)` beside it.
-- Found on screen, and it changed the copy: this machine has no live 5h reading,
-  so the empty branch actually drew -- and the first wording, `no usage data yet`
-  (chosen to match the panel), sat directly above a sparkline plotting 240
-  retained samples peaking at 37%. That is the same fault the slice exists to
-  remove, made worse: the old dash was ambiguous, an explicit sentence is a
-  claim. The string is scoped to the live window instead. The panel keeps its own
-  wording, where no history is drawn beside it.
-- Decided: the Git card's `Nothing to do here right now.` becomes
-  `no actions available`. The condition is `offered.isEmpty` -- the action-button
-  list -- which never consults the rows above, so five populated rows could sit
-  under a sentence saying there was nothing here. The condition is untouched;
-  only the scope and wording were wrong. It was also the app's only
-  sentence-cased empty state.
-- Observed 2026-09-20 05:39, both against the running build: the `home` session
-  (main, clean, in sync, 47 untracked, no PR -- the state that settles every
-  action) draws `no actions available` under four populated rows, and the
-  overview strip draws `no current 5h reading` above the sparkline. Neither was
-  taken from a build log; the build's own `Build Succeeded` line is the wrapper's
-  word, so the product was confirmed by mtime and the rendering by screenshot.
-- Verified the new test can fail: `usagePercent` mutated to reject zero fails at
-  the `a real reading of zero` assertion (rc=65), and passes once reverted. The
-  nil case alone would have been satisfied by a formatter returning nil for
-  everything. 229 tests, 0 failures.
-
-- Found, not fixed -- for slice 5: `OverviewStrip` derives its percentages from
-  `FeedWatcher.Overview`, which reads live session feeds only, while
-  `usageFiveHourPct` / `usageSevenDayPct` resolve poll -> session -> cache. The
-  cache currently holds 7d = 8.05% that the window therefore cannot show, so the
-  menu bar and the window can disagree about the same account-wide number. Slice
-  5 already owns the window's rate-limit panels and reset times (`Overview`
-  carries no reset at all), so it belongs there rather than widening this slice.
