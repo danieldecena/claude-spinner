@@ -152,6 +152,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the Usage card is the two limit rings only; the All sessions totals (today,
+  week, block) and the api-equivalent and live-session footer lines are hidden (Daniel:
+  "maybe hide this data"). The ccusage poll and `OverviewStrip.split` stay for when
+  they come back.
 - Decided: the detail pane does not scroll. It is laid out at its natural height and
   drawn smaller to fit the window (`fitScale`, floor 0.55), laid out at the window's
   width divided by the scale so the cards use the room shrinking frees. Below the floor

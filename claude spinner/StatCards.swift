@@ -363,34 +363,6 @@ struct OverviewStrip: View {
             }
             .opacity(usageStale ? 0.5 : 1)
             .help(usageHelp)
-
-            // Headed, because every figure above counts live sessions only and
-            // these count every transcript -- same words, different population.
-            VStack(alignment: .leading, spacing: 6) {
-                CardTitle("All sessions")
-                if totals.isEmpty {
-                    Text(totalsStatus).font(.ui(11)).foregroundStyle(Color.label)
-                } else {
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(totals, id: \.self) { row in
-                            let (main, sub) = Self.split(row.value)
-                            Figure(caption: row.label, main: main, sub: sub)
-                        }
-                    }
-                }
-            }
-            .opacity(totalsDimmed ? 0.6 : 1)
-            .help(totalsHelp)
-
-            // Labelled for what it is. "$93.62 today" under a dollar sign reads
-            // as a bill, and on a subscription plan that is simply wrong.
-            VStack(alignment: .leading, spacing: 2) {
-                if let spend = overview.spendUSD {
-                    Text("\(StatFormat.money(spend)) api-equivalent, not billed")
-                }
-                Text(liveLine)
-            }
-            .font(.ui(10)).foregroundStyle(Color.label)
         }
         .detailCard()
     }
