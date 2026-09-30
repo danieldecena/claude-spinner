@@ -35,6 +35,9 @@
   half is read every 5s and the network half every 90s, and Refresh forces
   the network half early. Merge runs `gh pr merge --squash --delete-branch`
   and is offered only when gh reports the PR mergeable, reviewed and passing.
+- Compact reports a refusal in Claude Code's own words under the reply field
+  ("Claude Code didn't run it: Not enough messages to compact."), read from the
+  transcript's `local_command` line. Seen live 2026-09-30 on a tmux probe.
 
 - Notifications reach you. Authorization was denied for the app's whole life
   until 2026-09-15; granted, a posted ask clears the entitlement check, runs the
@@ -150,6 +153,13 @@ The rest is in `TASKS.md`.
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-30 (refused /compact seen live)
+- Decided: the refused-/compact report is confirmed on screen. A one-exchange session
+  does NOT refuse (it compacted); the refusal needs an already-compacted session, so the
+  probe was: one exchange, Compact, Compact again. Second press printed the refusal in
+  the pane, wrote the `local_command` line, and the app showed it under the reply field.
+  Side note, not chased: the compaction left "1 finished" under the probe's row.
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
 - Decided (feature 11, Daniel chose the rule): finished subagents count for 30 minutes
