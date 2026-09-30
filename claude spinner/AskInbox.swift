@@ -287,13 +287,16 @@ final class AskInbox: ObservableObject {
     }
 
     /// Whether a non-waiting question is over, from its session's state file.
-    /// No file means the session ended. Otherwise it is over once the state was
+    /// No file, or a dead session process, means the session ended. Otherwise it is over once the state was
     /// written after the ask and is no longer on AskUserQuestion; `attention` is
     /// the same box still waiting (a Notification fires while it sits there).
     /// Strictly later: `created` is whole seconds, and a write from the second
     /// before the tool call would otherwise read as its answer.
-    nonisolated static func settled(_ request: AskRequest, state: Data?) -> Bool {
+    nonisolated static func settled(_ request: AskRequest, state: Data?,
+                                    isAlive: (pid_t) -> Bool = AskInbox.isAlive) -> Bool {
         guard let state else { return true }
+        // A killed session never writes the state that would close its box.
+        if let pid = request.sessionPID, !isAlive(pid_t(pid)) { return true }
         guard let obj = try? JSONSerialization.jsonObject(with: state) as? [String: Any],
               let updated = obj["updated"] as? Double, updated > request.created
         else { return false }

@@ -41,14 +41,32 @@ enum NewSession {
         }
     }
 
-    static func appleScript(for dir: String) -> String {
-        let quoted = "\"" + dir.replacingOccurrences(of: "\\", with: "\\\\")
+    /// `sh` single quoting: safe for any text, including quotes and spaces.
+    static func shellQuoted(_ text: String) -> String {
+        "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// The command Ghostty runs. Arguments (`--resume <id>`, a starting prompt)
+    /// go to the `claude` function, which forwards them; none keeps the bare form.
+    static func command(claudeArgs: [String]) -> String {
+        guard !claudeArgs.isEmpty else { return "/bin/zsh -lic claude" }
+        let line = "claude " + claudeArgs.map(shellQuoted).joined(separator: " ")
+        return "/bin/zsh -lic " + shellQuoted(line)
+    }
+
+    private static func appleScriptQuoted(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    static func appleScript(for dir: String, claudeArgs: [String] = []) -> String {
+        let quoted = appleScriptQuoted(dir)
+        let command = appleScriptQuoted(command(claudeArgs: claudeArgs))
         return """
         tell application "Ghostty"
             set cfg to new surface configuration
             set initial working directory of cfg to \(quoted)
-            set command of cfg to "/bin/zsh -lic claude"
+            set command of cfg to \(command)
             new window with configuration cfg
             activate
         end tell
@@ -58,10 +76,10 @@ enum NewSession {
     /// Open the window. nil when Ghostty took it, otherwise osascript's own
     /// error (Ghostty missing, Automation permission refused). Blocks; call it
     /// off the main thread.
-    static func launch(in dir: String) -> String? {
+    static func launch(in dir: String, claudeArgs: [String] = []) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", appleScript(for: dir)]
+        task.arguments = ["-e", appleScript(for: dir, claudeArgs: claudeArgs)]
         let err = Pipe()
         task.standardOutput = FileHandle.nullDevice
         task.standardError = err

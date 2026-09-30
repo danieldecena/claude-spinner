@@ -10,10 +10,12 @@ via `run.sh`.
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Arm ask card options 0,8s after the card appears
+- [ ] Pin Job Search as a hub tab in the sidebar
 - [ ] Stop recording spend history nothing reads
 
 ## Completed
 
+- [x] Launch sessions with resume or a starting prompt
 - [x] Explain why a probe session auto-answered AskUserQuestion
 - [x] Watch a refused /compact report on a live short session
 - [x] Make overflow clickable and age out finished subagents
@@ -263,7 +265,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-30 06:47.
+Plan approved 2026-09-30 07:40.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -272,7 +274,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume ce296d8d-9d52-4b3c-9a71-ac535092ea9d
+    claude --resume 184766ef-95a1-4698-89d9-ad88706268b4
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->

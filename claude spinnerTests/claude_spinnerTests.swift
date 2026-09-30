@@ -2165,6 +2165,11 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(AskInbox.settled(ask, state: state("idle", updated: 105)))
         XCTAssertFalse(AskInbox.settled(ask, state: Data("not json".utf8)),
                        "an unreadable state is not evidence the box closed")
+        let owned = makeQuestionAsk(waits: false, created: 100, pid: "4242")
+        let open = state("tool", tool: "AskUserQuestion", updated: 101)
+        XCTAssertTrue(AskInbox.settled(owned, state: open, isAlive: { _ in false }),
+                      "a killed session leaves its state on the tool, so its pid has to say it is over")
+        XCTAssertFalse(AskInbox.settled(owned, state: open, isAlive: { $0 == 4242 }))
     }
 
     /// The terminal numbers options from 1; a digit picks at once.
@@ -4065,6 +4070,35 @@ final class claude_spinnerTests: XCTestCase {
         let script = NewSession.appleScript(for: #"/tmp/a "b"\c"#)
         XCTAssertTrue(script.contains(#"set initial working directory of cfg to "/tmp/a \"b\"\\c""#))
         XCTAssertTrue(script.contains(#"set command of cfg to "/bin/zsh -lic claude""#))
+    }
+
+    /// Arguments have to reach `claude` intact through the shell that `zsh -lic`
+    /// runs. Checked by running the command string through sh with a stand-in
+    /// `claude` that prints each argument, using a prompt with every character
+    /// that breaks a naive quote.
+    func testNewSessionCommandDeliversArgumentsIntact() throws {
+        XCTAssertEqual(NewSession.command(claudeArgs: []), "/bin/zsh -lic claude")
+
+        let prompt = #"it's a "test" $HOME `x` \n"#
+        let command = NewSession.command(claudeArgs: ["--resume", prompt])
+        let prefix = "/bin/zsh -lic "
+        XCTAssertTrue(command.hasPrefix(prefix))
+        // sh -c "<the -c string zsh would get>", with `claude` replaced by a printer.
+        let line = String(command.dropFirst(prefix.count))
+        let sh = Process()
+        sh.executableURL = URL(fileURLWithPath: "/bin/sh")
+        sh.arguments = ["-c", "claude() { for a in \"$@\"; do printf '[%s]' \"$a\"; done; }; eval \(line)"]
+        let out = Pipe()
+        sh.standardOutput = out
+        try sh.run()
+        sh.waitUntilExit()
+        let printed = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+        XCTAssertEqual(printed, "[--resume][\(prompt)]")
+    }
+
+    func testNewSessionScriptCarriesTheCommand() {
+        let script = NewSession.appleScript(for: "/tmp/p", claudeArgs: ["-c"])
+        XCTAssertTrue(script.contains(#"set command of cfg to "/bin/zsh -lic 'claude '\\''-c'\\'''""#), script)
     }
 
     func testTasksFileListsOpenTitlesAndCountsDoneEverywhere() {
