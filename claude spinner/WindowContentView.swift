@@ -17,6 +17,22 @@ struct WindowContentView: View {
     @StateObject private var install = InstallState()
     @State private var selection: String?
     @State private var sidebarVisible = true
+    /// The selected session's repo, read once here so the suggestion can be
+    /// worked out once and handed to every card that might own its button.
+    @State private var gitSnapshot: GitSnapshot?
+
+    private var suggestion: Suggestion? {
+        guard let session = selected else { return nil }
+        return Suggestion.next(.init(
+            git: gitSnapshot,
+            contextPercent: session.stats.contextUsedPercent,
+            contextTokens: session.contextTokens,
+            atPrompt: session.isAtPrompt,
+            idleFor: session.updated.map { Date().timeIntervalSince($0) },
+            fiveHourPct: feed.usageFiveHourPct,
+            fiveHourElapsed: feed.usageFiveHourElapsed,
+            installed: Set(installedShortcuts.map(\.command))))
+    }
 
     /// Roots only. Children are shown under their parent in the detail pane,
     /// where there is room for them.
@@ -64,11 +80,19 @@ struct WindowContentView: View {
         // strip half blur and half pane put a seam through the reply field.
         .safeAreaInset(edge: .top, spacing: 0) {
             WindowToolbar(session: selected, feedDir: feed.feedDirectory,
-                          sidebarVisible: $sidebarVisible)
+                          sidebarVisible: $sidebarVisible, suggestion: suggestion)
                 .background(Color(nsColor: .windowBackgroundColor))
                 // Rebuilt per session so a half-typed reply or a notice about one
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
+        }
+        .task(id: selected?.cwd) {
+            gitSnapshot = nil
+            guard let cwd = selected?.cwd else { return }
+            while !Task.isCancelled {
+                gitSnapshot = await GitProbe.shared.snapshot(for: cwd)
+                try? await Task.sleep(for: .seconds(5))
+            }
         }
     }
 
@@ -120,8 +144,7 @@ struct WindowContentView: View {
                               asks: asks.pending.filter { $0.sessionId == session.id },
                               feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [],
-                              fiveHourPct: feed.usageFiveHourPct,
-                              fiveHourElapsed: feed.usageFiveHourElapsed)
+                              suggestion: suggestion)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -252,15 +275,13 @@ private struct SessionDetail: View {
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
-    let fiveHourPct: Int?
-    let fiveHourElapsed: Double?
+    /// Shown as a glow on the button it names, in whichever card owns it.
+    let suggestion: Suggestion?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header
-                SuggestionBar(session: session, feedDir: feedDir,
-                              fiveHourPct: fiveHourPct, fiveHourElapsed: fiveHourElapsed)
 
                 ForEach(asks) { ask in
                     AskCard(ask: ask)
@@ -271,26 +292,29 @@ private struct SessionDetail: View {
                 // each row reads as a set of equal tiles without a short card
                 // stretched to match a chart two rows away. At three columns the
                 // two wide cards alternate sides and every row is full: the
-                // transcript's prose and the context chart are what use width.
+                // transcript's prose and the context chart are what use width,
+                // and Session and Config, both short, share one column.
                 TileGrid(minimum: 180, spacing: 10) {
                     TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
                         .tileSpan(2)
-                    sessionCard
+                    SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion)
                     GitCard(cwd: session.cwd)
                     costCard
                     cacheCard
                     contextCard.tileSpan(2)
-                    configCard
+                    VStack(spacing: 10) {
+                        sessionCard
+                        configCard
+                    }
                     // One full-width tile holding two cards: the graph takes what
                     // is left beside a fixed-width Git commands column, so its
                     // actions sit next to the history they act on at any width.
                     HStack(alignment: .top, spacing: 10) {
                         GitGraphCard(cwd: session.cwd)
-                        GitCommandsCard(session: session, feedDir: feedDir)
+                        GitCommandsCard(session: session, feedDir: feedDir, suggestion: suggestion)
                             .frame(width: 250)
                     }
                     .tileSpan(.max)
-                    SkillsCard(session: session, feedDir: feedDir).tileSpan(.max)
                 }
 
                 if !children.isEmpty {
@@ -613,6 +637,7 @@ private struct WindowToolbar: View {
     let session: SessionFeed?
     let feedDir: URL
     @Binding var sidebarVisible: Bool
+    let suggestion: Suggestion?
     @State private var notice: NoticeMessage?
 
     var body: some View {
@@ -627,7 +652,8 @@ private struct WindowToolbar: View {
                     .accessibilityLabel(sidebarVisible ? "Hide sidebar" : "Show sidebar")
                     if let session {
                         ReplyBox(session: session, feedDir: feedDir, notice: $notice)
-                        ActionBar(session: session, feedDir: feedDir, notice: $notice)
+                        ActionBar(session: session, feedDir: feedDir, notice: $notice,
+                                  suggestion: suggestion)
                     } else {
                         Spacer(minLength: 0)
                     }
@@ -1551,6 +1577,7 @@ private struct ActionBar: View {
     let session: SessionFeed
     let feedDir: URL
     @Binding var notice: NoticeMessage?
+    let suggestion: Suggestion?
     @State private var hasPane = false
     @State private var confirming: SessionAction?
 
@@ -1576,7 +1603,8 @@ private struct ActionBar: View {
                         // The system's disabled dimming is too slight on glass to
                         // tell an unavailable action from an available one.
                         .opacity(reason == nil ? 1 : 0.45)
-                        .help(reason ?? action.title)
+                        .suggestedGlow(reason == nil && suggested(action))
+                        .help(reason ?? (suggested(action) ? suggestion?.reason : nil) ?? action.title)
                         .accessibilityLabel(action.title)
                     }
                 }
@@ -1602,6 +1630,11 @@ private struct ActionBar: View {
             }
             Button("Cancel", role: .cancel) { confirming = nil }
         }
+    }
+
+    private func suggested(_ action: SessionAction) -> Bool {
+        guard let text = action.promptText else { return false }
+        return suggestion?.action == .command(text)
     }
 
     private func start(_ action: SessionAction) {
@@ -1640,130 +1673,28 @@ private struct ActionBar: View {
 
 // MARK: - Suggested
 
-/// The one next step `Suggestion.next` picks, as a button with its reason.
-/// Absent when no rule holds: an empty "nothing to suggest" line is noise.
-private struct SuggestionBar: View {
-    let session: SessionFeed
-    let feedDir: URL
-    let fiveHourPct: Int?
-    let fiveHourElapsed: Double?
-    @State private var snapshot: GitSnapshot?
-    @State private var hasPane = false
-    @State private var notice: NoticeMessage?
-    @State private var confirming: GitAction?
-    @State private var running = false
-
-    private var suggestion: Suggestion? {
-        Suggestion.next(.init(
-            git: snapshot,
-            contextPercent: session.stats.contextUsedPercent,
-            contextTokens: session.contextTokens,
-            atPrompt: session.isAtPrompt,
-            idleFor: session.updated.map { Date().timeIntervalSince($0) },
-            fiveHourPct: fiveHourPct,
-            fiveHourElapsed: fiveHourElapsed,
-            installed: Set(installedShortcuts.map(\.command))))
-    }
+/// A pulsing ring around the button `Suggestion.next` picked. In place of a
+/// separate "suggested" banner: the button already sits in the card that
+/// explains it, so the glow says "this one" without a second copy of it.
+private struct GlowRing: View {
+    @State private var bright = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let suggestion {
-                HStack(spacing: 10) {
-                    Image(systemName: suggestion.action == .warning ? "exclamationmark.triangle" : "sparkle")
-                        .foregroundStyle(suggestion.action == .warning ? Color.usageAmber : Color.claude)
-                    Text("Suggested").font(.claudeMono(10)).fontWeight(.semibold)
-                        .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-                    button(suggestion)
-                    Text(suggestion.reason).font(.claudeMono(11))
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .glassEffect(.regular.tint(Color.claude.opacity(0.12)),
-                             in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .stroke(Color.claude, lineWidth: 1.5)
+            .shadow(color: Color.claude.opacity(bright ? 0.9 : 0.3), radius: bright ? 8 : 3)
+            .allowsHitTesting(false)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { bright = true }
             }
-            if let notice { Notice(notice) }
-        }
-        .task(id: session.cwd) { await poll() }
-        .task(id: session.id) {
-            let pid = session.pid
-            hasPane = await Task.detached(priority: .utility) {
-                pid != nil && SessionReplier.hasPane(session)
-            }.value
-        }
-        .confirmationDialog(confirming?.confirmation ?? "",
-                            isPresented: Binding(get: { confirming != nil },
-                                                 set: { if !$0 { confirming = nil } }),
-                            titleVisibility: .visible) {
-            if let action = confirming {
-                Button(action.title) {
-                    confirming = nil
-                    run(action)
-                }
-            }
-            Button("Cancel", role: .cancel) { confirming = nil }
-        }
     }
+}
 
-    @ViewBuilder private func button(_ suggestion: Suggestion) -> some View {
-        switch suggestion.action {
-        case .git(let action):
-            Button { start(action) } label: {
-                Label(action.title, systemImage: action.symbol).font(.claudeMono(11))
-            }
-            .buttonStyle(.glassProminent)
-            .tint(.claude)
-            .disabled(running)
-        case .command(let command):
-            let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
-            Button(command) { type(command) }
-                .font(.claudeMono(11))
-                .buttonStyle(.glassProminent)
-                .tint(.claude)
-                .disabled(reason != nil || running)
-                .help(reason ?? "Type \(command) into the session")
-        case .warning:
-            EmptyView()
-        }
-    }
-
-    private func start(_ action: GitAction) {
-        notice = nil
-        if action.confirmation != nil { confirming = action } else { run(action) }
-    }
-
-    private func run(_ action: GitAction) {
-        guard let snap = snapshot else { return }
-        running = true
-        GitActions.perform(action, snapshot: snap, cwd: session.cwd) { message in
-            notice = message
-            running = false
-            let cwd = session.cwd
-            Task {
-                await GitProbe.shared.invalidate(cwd)
-                snapshot = await GitProbe.shared.snapshot(for: cwd)
-            }
-        }
-    }
-
-    private func type(_ command: String) {
-        running = true
-        notice = nil
-        SessionReplier.reply(to: session, text: command, feedDir: feedDir) { result in
-            running = false
-            switch result {
-            case .success: notice = .init(kind: .info, text: "Sent \(command).")
-            case .failure(let error): notice = error.errorDescription.map { .init(kind: .error, text: $0) }
-            }
-        }
-    }
-
-    private func poll() async {
-        snapshot = nil
-        while !Task.isCancelled {
-            snapshot = await GitProbe.shared.snapshot(for: session.cwd)
-            try? await Task.sleep(for: .seconds(5))
-        }
+private extension View {
+    /// Glows only a button that can run: a lit-up disabled control points at
+    /// something you can't do.
+    func suggestedGlow(_ active: Bool) -> some View {
+        overlay { if active { GlowRing() } }
     }
 }
 
@@ -1789,6 +1720,7 @@ private struct CardTitle: View {
 private struct SkillsCard: View {
     let session: SessionFeed
     let feedDir: URL
+    let suggestion: Suggestion?
     @State private var notice: NoticeMessage?
 
     var body: some View {
@@ -1796,7 +1728,7 @@ private struct SkillsCard: View {
             CardTitle("Skills")
             ShortcutChips(session: session, feedDir: feedDir,
                           shortcuts: installedShortcuts.filter { $0.group == .skill },
-                          notice: $notice)
+                          suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
         }
         .detailCard()
@@ -1808,15 +1740,16 @@ private struct SkillsCard: View {
 private struct GitCommandsCard: View {
     let session: SessionFeed
     let feedDir: URL
+    let suggestion: Suggestion?
     @State private var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Git commands")
-            GitButtons(cwd: session.cwd, notice: $notice)
+            GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice)
             ShortcutChips(session: session, feedDir: feedDir,
                           shortcuts: installedShortcuts.filter { $0.group == .git },
-                          notice: $notice)
+                          suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
         }
         .detailCard()
@@ -1829,6 +1762,7 @@ private struct ShortcutChips: View {
     let session: SessionFeed
     let feedDir: URL
     let shortcuts: [SkillShortcut]
+    let suggestion: Suggestion?
     @Binding var notice: NoticeMessage?
     @State private var hasPane = false
     @State private var sending = false
@@ -1851,7 +1785,9 @@ private struct ShortcutChips: View {
                 // Lighter than the toolbar's 0.45: these carry names worth
                 // reading while the session is busy.
                 .opacity(reason == nil ? 1 : 0.7)
-                .help(reason ?? shortcut.blurb)
+                .suggestedGlow(reason == nil && suggestion?.action == .command(shortcut.command))
+                .help(reason ?? (suggestion?.action == .command(shortcut.command) ? suggestion?.reason : nil)
+                      ?? shortcut.blurb)
             }
         }
         .task(id: session.id) {
@@ -2203,6 +2139,7 @@ private struct GitCard: View {
 /// than finished. Absent when the directory isn't a repository.
 private struct GitButtons: View {
     let cwd: String
+    let suggestion: Suggestion?
     @Binding var notice: NoticeMessage?
     @State private var snapshot: GitSnapshot?
     @State private var confirming: GitAction?
@@ -2223,7 +2160,9 @@ private struct GitButtons: View {
                     .buttonStyle(.glass)
                     .disabled(block != nil || running)
                     .opacity(block == nil ? 1 : 0.7)
-                    .help(block?.reason ?? action.title)
+                    .suggestedGlow(block == nil && suggestion?.action == .git(action))
+                    .help(block?.reason ?? (suggestion?.action == .git(action) ? suggestion?.reason : nil)
+                          ?? action.title)
                 }
             }
         }
