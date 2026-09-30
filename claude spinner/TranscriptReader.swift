@@ -271,6 +271,11 @@ private final class PromptTracker: @unchecked Sendable {
             if from > 0, let cut = data.firstIndex(of: 0x0A) {
                 carry = data[..<cut]
                 data = data[data.index(after: cut)...]
+            } else if from > 0 {
+                // No newline in a whole chunk: one record over 1 MB (a pasted
+                // image). All of it is a fragment; carry it on, parse nothing.
+                carry = data
+                data = Data()
             } else {
                 carry = Data()
             }

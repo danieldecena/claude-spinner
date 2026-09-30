@@ -631,6 +631,19 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(sections[0].sessionCount, 4)
     }
 
+    /// A worktree subagent's cwd is `.../agent-<id>`; grouped by it, the panel drew
+    /// an `AGENT-<ID>` section counting 0 (seen 2026-09-30).
+    func testAWorktreeSubagentStaysInItsParentsSection() {
+        let parent = named("p", .tool, cwd: "/w/alpha", name: "parent")
+        let kid = mk("kid", .tool, cwd: "/w/alpha/.claude/worktrees/agent-a40ebd7", parentSessionId: "p")
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "p", session: parent, ids: ["p", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: kid, ids: ["kid"], depth: 1),
+        ])
+        XCTAssertEqual(sections.map(\.title), ["alpha"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["p", "kid"])
+    }
+
     func testContextTotalSumsAndIsNilWhenNothingReported() {
         let withTokens = FeedWatcher.projectSections(rows([
             named("a", .tool, cwd: "/w/alpha", name: "a", tokens: 40_000),
@@ -1395,6 +1408,18 @@ final class claude_spinnerTests: XCTestCase {
             + Array(repeating: filler, count: 10)
             + [#"{"type":"last-prompt","lastPrompt":"/compact"}"#])
         XCTAssertEqual(TranscriptReader.read(path: path, tailBytes: 2048).lastPrompt, "/goal 120")
+    }
+
+    /// A prompt with a pasted image can be one record longer than a scan chunk:
+    /// over two, so one whole chunk falls inside it and holds no newline.
+    func testATypedPromptLongerThanAScanChunkIsStillFound() {
+        let image = String(repeating: "A", count: 2 * TranscriptReader.promptChunk + 500_000)
+        let path = transcriptFile([
+            #"{"type":"user","message":{"role":"user","content":"older"}}"#,
+            #"{"type":"attachment","attachment":{"type":"queued_command","prompt":[{"type":"text","text":"look at this"},{"type":"image","data":""# + image + #""}],"origin":{"kind":"human"}}}"#,
+            #"{"type":"last-prompt","lastPrompt":"/compact"}"#,
+        ])
+        XCTAssertEqual(TranscriptReader.read(path: path, tailBytes: 2048).lastPrompt, "look at this")
     }
 
     func testAPromptAppendedLaterIsPickedUpAndAHalfWrittenOneWaits() {
