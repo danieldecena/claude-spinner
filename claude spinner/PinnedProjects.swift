@@ -1,11 +1,31 @@
 import Foundation
 
 /// A project pinned to the top of the sidebar, so it can be worked on with no
-/// session running. Hard-coded: one project, and a settings UI for it would be
-/// more code than the list.
+/// session running. Hard-coded: two projects, and a settings UI for them would
+/// be more code than the list.
 struct PinnedProject: Identifiable, Equatable {
     let name: String
     let path: String
+    /// The line under the title. The Desktop project's description lives on
+    /// Anthropic's servers, so it is copied here rather than read.
+    let summary: String
+    let topic: Topic
+    /// A second launch button that starts the session with a prompt.
+    var quickStart: QuickStart? = nil
+
+    /// What ties the user-wide skills, workflows and schedulers to this project.
+    struct Topic: Equatable {
+        /// Searched in a skill's frontmatter and a workflow's body.
+        let about: String
+        /// Looser, for schedulers: a job that names the project only by a word.
+        let words: [String]
+    }
+
+    struct QuickStart: Equatable {
+        let label: String
+        let systemImage: String
+        let prompt: String
+    }
 
     /// The selection value for its sidebar row. The selection is a session id
     /// otherwise; this prefix is what keeps the two from ever being equal.
@@ -13,9 +33,22 @@ struct PinnedProject: Identifiable, Equatable {
     var tag: String { Self.tagPrefix + name }
     var id: String { tag }
 
-    static let all = [
-        PinnedProject(name: "Job Search", path: NSHomeDirectory() + "/developer/job search"),
-    ]
+    static let jobSearch = PinnedProject(
+        name: "Job Search", path: NSHomeDirectory() + "/developer/job search",
+        summary: "Marketing and rev ops roles, remote US or LA, Bay Area, NYC and Vancouver.",
+        topic: Topic(about: "job[ -]?search|jobscout|job (application|board|alert|posting|list)|linkedin"
+                            + "|recruiter|interview|name:.*apply|work ?search",
+                     words: ["job", "scout", "career"]),
+        quickStart: QuickStart(label: "Apply next job", systemImage: "paperplane",
+                               prompt: "/anthropic-skills:apply-next-job"))
+
+    static let plans = PinnedProject(
+        name: "Plans", path: NSHomeDirectory() + "/developer/_project-knowledge",
+        summary: "Planning only: plans, research, specs and comparisons, never code. "
+            + "Each plan is saved to plans/<slug>.md and handed to the build project.",
+        topic: Topic(about: "project-knowledge", words: ["project-knowledge"]))
+
+    static let all = [jobSearch, plans]
 
     /// Session ids are UUIDs, so this is the whole test for "not a session".
     static func isPinnedTag(_ tag: String?) -> Bool { tag?.hasPrefix(tagPrefix) == true }
@@ -34,9 +67,6 @@ struct PinnedProject: Identifiable, Equatable {
     static func liveSessions(in path: String, sessions: [SessionFeed]) -> [SessionFeed] {
         sessions.filter { $0.parentSessionId == nil && contains(path, cwd: $0.cwd) }
     }
-
-    /// The plugin skill's name as Claude Code's skill list gives it.
-    static let applyNextJob = "/anthropic-skills:apply-next-job"
 }
 
 /// What a discovery source found. An empty source and an unreadable one look
@@ -78,6 +108,10 @@ nonisolated struct RecentSession: Identifiable, Equatable {
 nonisolated struct ProjectSkill: Equatable {
     let name: String
     let isProject: Bool
+    /// Set for a plugin's skill, whose slash name carries the plugin's.
+    var plugin: String? = nil
+
+    var command: String { "/" + (plugin.map { $0 + ":" } ?? "") + name }
 }
 
 nonisolated struct ScheduledJob: Equatable {
@@ -117,6 +151,18 @@ nonisolated struct ProjectExtras: Equatable {
     var scheduled = Found<ScheduledJob>()
     var workflows = Found<ProjectWorkflow>()
     var artifacts = Found<ProjectArtifact>()
+    var about = ProjectAbout()
+}
+
+/// The terminal's side of the Desktop project panel: its instructions, its
+/// memory and its folder.
+nonisolated struct ProjectAbout: Equatable {
+    /// Instruction files present in the folder.
+    var instructions: [String] = []
+    var memoryDir = ""
+    /// Memory files, not counting the MEMORY.md index. nil when the folder
+    /// exists but can't be listed; 0 when there is none.
+    var memories: Int? = 0
 }
 
 /// Everything the pinned tab reads from disk. Pure over the paths it is given,
@@ -280,12 +326,18 @@ nonisolated enum ProjectDiscovery {
         return nil
     }
 
-    /// The folder's own skills, then those of `claudeDir` that are about this
-    /// kind of work: named for applying, or saying job search in the name or
-    /// description. Body text is not searched: "apply" alone is in fifteen of
-    /// the fifty-odd here (git-push, wrap-up), none of them a job-search skill.
-    static func skills(projectRoot: String, claudeDir: String) -> Found<ProjectSkill> {
-        func read(_ dir: String, isProject: Bool) -> Found<ProjectSkill> {
+    /// The folder's own skills, then those of `claudeDir` and of the plugins
+    /// under `pluginsDir` whose frontmatter matches the topic. Body text is not
+    /// searched: "apply" alone is in fifteen of the fifty-odd here (git-push,
+    /// wrap-up), none of them a job-search skill.
+    ///
+    /// `pluginsDir` is Claude Desktop's synced skills plugin
+    /// (`<pluginsDir>/<account>/<space>/.claude-plugin/plugin.json`), which the
+    /// terminal also runs as `/anthropic-skills:<name>`. Absent means no
+    /// Desktop, not a failure.
+    static func skills(projectRoot: String, claudeDir: String, pluginsDir: String? = nil,
+                       topic: PinnedProject.Topic) -> Found<ProjectSkill> {
+        func read(_ dir: String, isProject: Bool, plugin: String? = nil) -> Found<ProjectSkill> {
             var found = Found<ProjectSkill>()
             guard let names = listing(dir) else {
                 found.unreadable = [dir]
@@ -301,31 +353,45 @@ nonisolated enum ProjectDiscovery {
                 let block = frontmatter(text) ?? ""
                 let name = frontmatterName(block) ?? entry
                 if !isProject {
-                    let about = block.range(of: "job[ -]search|jobscout",
-                                           options: [.regularExpression, .caseInsensitive]) != nil
-                    guard about || name.lowercased().contains("apply") else { continue }
+                    guard block.range(of: topic.about, options: [.regularExpression, .caseInsensitive]) != nil
+                    else { continue }
                 }
-                found.items.append(ProjectSkill(name: name, isProject: isProject))
+                found.items.append(ProjectSkill(name: name, isProject: isProject, plugin: plugin))
             }
             return found
         }
         var found = read(projectRoot + "/.claude/skills", isProject: true)
-        let user = read(claudeDir + "/skills", isProject: false)
-        let have = Set(found.items.map(\.name))
-        found.items += user.items.filter { !have.contains($0.name) }
-        found.unreadable += user.unreadable
+        var others = [read(claudeDir + "/skills", isProject: false)]
+        if let pluginsDir, FileManager.default.fileExists(atPath: pluginsDir) {
+            let manifests = find("plugin.json", under: pluginsDir, maxDepth: 4)
+            found.unreadable += manifests.unreadable
+            for manifest in manifests.paths where manifest.hasSuffix("/.claude-plugin/plugin.json") {
+                guard let data = FileManager.default.contents(atPath: manifest),
+                      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let plugin = obj["name"] as? String else {
+                    found.unreadable.append(manifest)
+                    continue
+                }
+                let root = String(manifest.dropLast("/.claude-plugin/plugin.json".count))
+                others.append(read(root + "/skills", isProject: false, plugin: plugin))
+            }
+        }
+        // The same skill synced for two accounts shows once.
+        var have = Set(found.items.map(\.command))
+        for other in others {
+            found.items += other.items.filter { have.insert($0.command).inserted }
+            found.unreadable += other.unreadable
+        }
         return found
     }
 
     // MARK: - Scheduled
 
-    private static let projectWords = ["job", "scout", "career"]
-
     /// The folder's path or one of the words that mark it. Loose on purpose: a
     /// scheduler that names the project only by a word still belongs here.
-    static func mentionsProject(_ text: String, folder: String) -> Bool {
+    static func mentionsProject(_ text: String, folder: String, topic: PinnedProject.Topic) -> Bool {
         let lower = text.lowercased()
-        return lower.contains(folder.lowercased()) || projectWords.contains { lower.contains($0) }
+        return lower.contains(folder.lowercased()) || topic.words.contains { lower.contains($0) }
     }
 
     private static let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -374,7 +440,7 @@ nonisolated enum ProjectDiscovery {
         return "on demand"
     }
 
-    static func launchdJobs(agentsDir: String, folder: String) -> Found<ScheduledJob> {
+    static func launchdJobs(agentsDir: String, folder: String, topic: PinnedProject.Topic) -> Found<ScheduledJob> {
         var found = Found<ScheduledJob>()
         guard let names = listing(agentsDir) else {
             found.unreadable = [agentsDir]
@@ -391,7 +457,7 @@ nonisolated enum ProjectDiscovery {
             let label = plist["Label"] as? String ?? String(file.dropLast(".plist".count))
             let searched = [label, (plist["ProgramArguments"] as? [String] ?? []).joined(separator: " "),
                             plist["WorkingDirectory"] as? String ?? ""].joined(separator: " ")
-            guard mentionsProject(searched, folder: folder) else { continue }
+            guard mentionsProject(searched, folder: folder, topic: topic) else { continue }
             found.items.append(ScheduledJob(name: label, schedule: launchdSchedule(plist),
                                             source: "launchd", enabled: nil))
         }
@@ -399,11 +465,11 @@ nonisolated enum ProjectDiscovery {
     }
 
     /// Crontab lines that run something in or about the project.
-    static func cronJobs(crontab: String, folder: String) -> Found<ScheduledJob> {
+    static func cronJobs(crontab: String, folder: String, topic: PinnedProject.Topic) -> Found<ScheduledJob> {
         var found = Found<ScheduledJob>()
         for raw in crontab.split(separator: "\n") {
             let line = raw.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty, !line.hasPrefix("#"), mentionsProject(line, folder: folder) else { continue }
+            guard !line.isEmpty, !line.hasPrefix("#"), mentionsProject(line, folder: folder, topic: topic) else { continue }
             let special = line.hasPrefix("@")
             let needed = special ? 2 : 6
             let fields = line.split(maxSplits: needed - 1, omittingEmptySubsequences: true,
@@ -423,7 +489,7 @@ nonisolated enum ProjectDiscovery {
     /// Claude Desktop's scheduled tasks. They sit under
     /// `<base>/<kind>-sessions/<account>/<space>/scheduled-tasks.json`; the
     /// rest of the app-support folder is browser cache.
-    static func desktopTasks(base: String, folder: String) -> Found<ScheduledJob> {
+    static func desktopTasks(base: String, folder: String, topic: PinnedProject.Topic) -> Found<ScheduledJob> {
         var found = Found<ScheduledJob>()
         guard let kinds = listing(base) else {
             found.unreadable = [base]
@@ -449,7 +515,7 @@ nonisolated enum ProjectDiscovery {
                 let places = [task["cwd"] as? String ?? ""]
                     + (task["userSelectedFolders"] as? [String] ?? [])
                 guard !id.isEmpty, seen.insert(id).inserted,
-                      mentionsProject(([id, name] + places).joined(separator: " "), folder: folder) else { continue }
+                      mentionsProject(([id, name] + places).joined(separator: " "), folder: folder, topic: topic) else { continue }
                 found.items.append(ScheduledJob(
                     name: name,
                     schedule: (task["cronExpression"] as? String).map(cronSchedule) ?? "no schedule recorded",
@@ -481,7 +547,7 @@ nonisolated enum ProjectDiscovery {
     /// `.js` workflows: every one in the folder's own `.claude/workflows`, and
     /// those in `userDir` that mention the project (the user's are shared by
     /// every project, so a mention is what ties one to this).
-    static func workflows(projectRoot: String, userDir: String) -> Found<ProjectWorkflow> {
+    static func workflows(projectRoot: String, userDir: String, topic: PinnedProject.Topic) -> Found<ProjectWorkflow> {
         var found = Found<ProjectWorkflow>()
         func read(_ dir: String, needsMention: Bool) {
             guard let names = listing(dir) else {
@@ -495,8 +561,8 @@ nonisolated enum ProjectDiscovery {
                         found.unreadable.append(path)
                         continue
                     }
-                    guard body.range(of: "job search|jobscout|job-search",
-                                     options: [.regularExpression, .caseInsensitive]) != nil else { continue }
+                    guard body.range(of: topic.about, options: [.regularExpression, .caseInsensitive]) != nil
+                    else { continue }
                 }
                 found.items.append(ProjectWorkflow(name: String(file.dropLast(".js".count))))
             }
@@ -535,20 +601,40 @@ nonisolated enum ProjectDiscovery {
         return found
     }
 
+    // MARK: - About
+
+    static let instructionFiles = ["CLAUDE.md", "PROJECT-INSTRUCTIONS.md"]
+
+    static func about(root: String, projectsDir: String) -> ProjectAbout {
+        var about = ProjectAbout()
+        about.instructions = instructionFiles.map { root + "/" + $0 }
+            .filter { FileManager.default.fileExists(atPath: $0) }
+        about.memoryDir = projectsDir + "/" + transcriptSlug(root) + "/memory"
+        if FileManager.default.fileExists(atPath: about.memoryDir) {
+            about.memories = listing(about.memoryDir).map {
+                $0.filter { $0.hasSuffix(".md") && $0 != "MEMORY.md" }.count
+            }
+        }
+        return about
+    }
+
     // MARK: - All of it
 
-    static func loadExtras(root: String, home: String) -> ProjectExtras {
+    static func loadExtras(root: String, topic: PinnedProject.Topic, home: String) -> ProjectExtras {
         var extras = ProjectExtras()
-        extras.skills = skills(projectRoot: root, claudeDir: home + "/.claude")
-        extras.workflows = workflows(projectRoot: root, userDir: home + "/.claude/workflows")
+        extras.skills = skills(projectRoot: root, claudeDir: home + "/.claude",
+                               pluginsDir: home + "/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin",
+                               topic: topic)
+        extras.workflows = workflows(projectRoot: root, userDir: home + "/.claude/workflows", topic: topic)
         extras.artifacts = artifacts(root: root)
-        var scheduled = launchdJobs(agentsDir: home + "/Library/LaunchAgents", folder: root)
+        extras.about = about(root: root, projectsDir: home + "/.claude/projects")
+        var scheduled = launchdJobs(agentsDir: home + "/Library/LaunchAgents", folder: root, topic: topic)
         if let crontab = readCrontab() {
-            scheduled.items += cronJobs(crontab: crontab, folder: root).items
+            scheduled.items += cronJobs(crontab: crontab, folder: root, topic: topic).items
         } else {
             scheduled.unreadable.append("crontab")
         }
-        let desktop = desktopTasks(base: home + "/Library/Application Support/Claude", folder: root)
+        let desktop = desktopTasks(base: home + "/Library/Application Support/Claude", folder: root, topic: topic)
         scheduled.items += desktop.items
         scheduled.unreadable += desktop.unreadable
         extras.scheduled = scheduled

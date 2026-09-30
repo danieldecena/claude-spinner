@@ -42,19 +42,29 @@ struct PinnedProjectDetail: View {
             // A dashboard: the same tile grid as a session's pane, so the two
             // read as one app. Launch and tasks share the top row, what ran and
             // what can be run the next, and each artifact takes a full row.
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.name).font(.system(size: 26, weight: .semibold, design: .serif))
+                Text(project.summary).font(.ui(12)).foregroundStyle(Color.label)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding([.horizontal, .top], 20)
             TileGrid(minimum: 220, spacing: 12) {
                 launchCard.tileSpan(1)
                 tasksCard.tileSpan(2)
                 recentCard.tileSpan(2)
+                if let extras { aboutCard(extras.about).tileSpan(1) }
                 if let extras {
                     discoveryCard("Skills", extras.skills) { skills in
                         chips(skills) { skill in
                             chip(skill.name, symbol: "wand.and.stars",
-                                 help: skill.isProject ? "Project skill" : "User skill") {
-                                start(["/" + skill.name])
+                                 help: (skill.isProject ? "Project skill" : skill.plugin.map { "\($0) plugin skill" } ?? "User skill")
+                                    + ": start a session that runs " + skill.command) {
+                                start([skill.command])
                             }
                         }
                     }
+                    .tileSpan(extras.skills.items.count > 6 ? 2 : 1)
                 }
                 if !live.isEmpty { liveCard.tileSpan(1) }
                 if let extras {
@@ -114,10 +124,10 @@ struct PinnedProjectDetail: View {
             }
         }
         .task(id: project.id) {
-            let path = project.path
+            let path = project.path, topic = project.topic
             while !Task.isCancelled {
                 extras = await Task.detached(priority: .utility) {
-                    ProjectDiscovery.loadExtras(root: path, home: NSHomeDirectory())
+                    ProjectDiscovery.loadExtras(root: path, topic: topic, home: NSHomeDirectory())
                 }.value
                 try? await Task.sleep(for: .seconds(30))
             }
@@ -136,16 +146,18 @@ struct PinnedProjectDetail: View {
 
     private var launchCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CardTitle(project.name)
+            CardTitle("Start")
             Text(project.path).font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1).truncationMode(.middle)
             HStack(spacing: 8) {
                 Button { start([]) } label: { Label("New session", systemImage: "plus") }
                     .help("Start Claude Code in \(project.path)")
-                Button { start([PinnedProject.applyNextJob]) } label: {
-                    Label("Apply next job", systemImage: "paperplane")
+                if let quick = project.quickStart {
+                    Button { start([quick.prompt]) } label: {
+                        Label(quick.label, systemImage: quick.systemImage)
+                    }
+                    .help("Start a session that runs \(quick.prompt)")
                 }
-                .help("Start a session that runs \(PinnedProject.applyNextJob)")
             }
             .buttonStyle(.glass).font(.ui(11))
             if let failure {
@@ -154,6 +166,36 @@ struct PinnedProjectDetail: View {
             }
         }
         .detailCard()
+    }
+
+    /// Desktop's project panel, from the files behind it.
+    private func aboutCard(_ about: ProjectAbout) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("Project")
+            aboutRow("Instructions", symbol: "doc.text",
+                     detail: about.instructions.isEmpty ? "none"
+                        : about.instructions.map { ($0 as NSString).lastPathComponent }.joined(separator: ", "),
+                     open: about.instructions.first)
+            aboutRow("Memory", symbol: "brain",
+                     detail: about.memories.map { $0 == 1 ? "1 memory" : "\($0) memories" } ?? "couldn't read",
+                     open: about.memories.map { $0 > 0 ? about.memoryDir : nil } ?? nil)
+            aboutRow("Folder", symbol: "folder",
+                     detail: (project.path as NSString).lastPathComponent, open: project.path)
+        }
+        .detailCard()
+    }
+
+    private func aboutRow(_ title: String, symbol: String, detail: String, open path: String?) -> some View {
+        HStack(spacing: 6) {
+            Label(title, systemImage: symbol).font(.ui(11))
+            Text(detail).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 4)
+            if let path {
+                Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+                    .buttonStyle(.link).font(.ui(10))
+                    .help("Open \(path)")
+            }
+        }
     }
 
     private var liveCard: some View {

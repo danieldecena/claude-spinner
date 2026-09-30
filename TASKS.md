@@ -7,6 +7,7 @@
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Watch the Career Hub pop-out open after sign-in
+- [ ] See the Plans tab and plugin skill chips on screen
 - [ ] Stop recording spend history nothing reads
 
 ## Completed

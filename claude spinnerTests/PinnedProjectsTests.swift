@@ -13,6 +13,7 @@ import XCTest
 
 final class PinnedProjectsTests: XCTestCase {
     private let folder = "/Users/me/developer/job search"
+    private let topic = PinnedProject.jobSearch.topic
 
     private func withTempDir(_ body: (String) throws -> Void) rethrows {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -233,7 +234,7 @@ final class PinnedProjectsTests: XCTestCase {
             write("---\nname: git-push\ndescription: push\n---\nApply the change to the job search repo", to: "\(claude)/skills/git-push/SKILL.md")
             write("---\nname: JobScout\ndescription: job search duplicate\n---\n", to: "\(claude)/skills/JobScoutCopy/SKILL.md")
 
-            let found = ProjectDiscovery.skills(projectRoot: project, claudeDir: claude)
+            let found = ProjectDiscovery.skills(projectRoot: project, claudeDir: claude, topic: topic)
             XCTAssertEqual(found.items, [ProjectSkill(name: "JobScout", isProject: true),
                                          ProjectSkill(name: "bare", isProject: true),
                                          ProjectSkill(name: "about-jobs", isProject: false),
@@ -245,12 +246,70 @@ final class PinnedProjectsTests: XCTestCase {
     func testSkillsEmptyAndUnreadable() {
         withTempDir { root in
             write("---\nname: git-push\n---\napply job search", to: "\(root)/claude/skills/git-push/SKILL.md")
-            XCTAssertTrue(ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude").isEmpty)
+            XCTAssertTrue(ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude", topic: topic).isEmpty)
 
             let file = write("x", to: "\(root)/proj/.claude/skills")
-            let found = ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude")
+            let found = ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude", topic: topic)
             XCTAssertEqual(found.unreadable, [file])
             XCTAssertTrue(found.items.isEmpty)
+        }
+    }
+
+    func testSkillsIncludeDesktopPluginSkillsOnceUnderTheirSlashName() {
+        withTempDir { root in
+            let plugins = "\(root)/plugins"
+            for space in ["acct1/space", "acct2/space"] {
+                write(#"{"name": "anthropic-skills"}"#, to: "\(plugins)/\(space)/.claude-plugin/plugin.json")
+                write("---\nname: \"apply-next-job\"\ndescription: submit one\n---\n",
+                      to: "\(plugins)/\(space)/skills/apply-next-job/SKILL.md")
+                write("---\nname: linkedin-job-list\ndescription: list LinkedIn jobs\n---\n",
+                      to: "\(plugins)/\(space)/skills/linkedin-job-list/SKILL.md")
+                write("---\nname: pdf\ndescription: read PDFs\n---\n", to: "\(plugins)/\(space)/skills/pdf/SKILL.md")
+            }
+            let found = ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude",
+                                                pluginsDir: plugins, topic: topic)
+            XCTAssertEqual(found.items.map(\.command),
+                           ["/anthropic-skills:apply-next-job", "/anthropic-skills:linkedin-job-list"])
+            XCTAssertTrue(found.unreadable.isEmpty)
+
+            let none = ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude",
+                                               pluginsDir: "\(root)/no-desktop", topic: topic)
+            XCTAssertTrue(none.items.isEmpty)
+            XCTAssertFalse(none.unreadable.contains("\(root)/no-desktop"))
+        }
+    }
+
+    func testPlansIsPinnedWithItsOwnTopicAndNoQuickStart() {
+        let plans = PinnedProject.project(forTag: PinnedProject.plans.tag)
+        XCTAssertEqual(plans?.path, NSHomeDirectory() + "/developer/_project-knowledge")
+        XCTAssertNil(plans?.quickStart)
+        XCTAssertNotNil(PinnedProject.jobSearch.quickStart)
+        withTempDir { root in
+            write("---\nname: resync\ndescription: re-index _project-knowledge\n---\n", to: "\(root)/claude/skills/resync/SKILL.md")
+            write("---\nname: about-jobs\ndescription: the job search queue\n---\n", to: "\(root)/claude/skills/about-jobs/SKILL.md")
+            let found = ProjectDiscovery.skills(projectRoot: "\(root)/proj", claudeDir: "\(root)/claude", topic: PinnedProject.plans.topic)
+            XCTAssertEqual(found.items.map(\.name), ["resync"])
+        }
+        XCTAssertFalse(ProjectDiscovery.mentionsProject("com.me.job-sync", folder: "/x/_project-knowledge",
+                                                        topic: PinnedProject.plans.topic))
+    }
+
+    func testAboutFindsInstructionsAndCountsMemories() {
+        withTempDir { root in
+            let project = "\(root)/my proj", projects = "\(root)/projects"
+            write("x", to: "\(project)/PROJECT-INSTRUCTIONS.md")
+            let memory = "\(projects)/\(ProjectDiscovery.transcriptSlug(project))/memory"
+            write("index", to: "\(memory)/MEMORY.md")
+            write("a", to: "\(memory)/one.md")
+            write("b", to: "\(memory)/two.md")
+            let about = ProjectDiscovery.about(root: project, projectsDir: projects)
+            XCTAssertEqual(about.instructions, ["\(project)/PROJECT-INSTRUCTIONS.md"])
+            XCTAssertEqual(about.memoryDir, memory)
+            XCTAssertEqual(about.memories, 2)
+
+            let bare = ProjectDiscovery.about(root: "\(root)/other", projectsDir: projects)
+            XCTAssertEqual(bare.instructions, [])
+            XCTAssertEqual(bare.memories, 0)
         }
     }
 
@@ -285,7 +344,7 @@ final class PinnedProjectsTests: XCTestCase {
             plist(["Label": "com.me.backup", "ProgramArguments": ["/bin/backup"], "RunAtLoad": true], to: "\(agents)/c.plist")
             write("ignored", to: "\(agents)/disabled/d.plist.off")
 
-            let found = ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder)
+            let found = ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder, topic: topic)
             XCTAssertEqual(found.items.map(\.name), ["com.me.nightly", "com.me.CareerSync"])
             XCTAssertEqual(found.items.map(\.schedule), ["daily 03:30", "every 1 h"])
             XCTAssertTrue(found.unreadable.isEmpty)
@@ -295,11 +354,11 @@ final class PinnedProjectsTests: XCTestCase {
     func testLaunchdEmptyAndUnreadable() {
         withTempDir { agents in
             plist(["Label": "com.me.backup", "ProgramArguments": ["/bin/backup"]], to: "\(agents)/c.plist")
-            XCTAssertTrue(ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder).isEmpty)
-            XCTAssertTrue(ProjectDiscovery.launchdJobs(agentsDir: agents + "/missing", folder: folder).isEmpty)
+            XCTAssertTrue(ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder, topic: topic).isEmpty)
+            XCTAssertTrue(ProjectDiscovery.launchdJobs(agentsDir: agents + "/missing", folder: folder, topic: topic).isEmpty)
 
             let broken = write("not a plist", to: "\(agents)/broken.plist")
-            let found = ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder)
+            let found = ProjectDiscovery.launchdJobs(agentsDir: agents, folder: folder, topic: topic)
             XCTAssertEqual(found.unreadable, [broken], "a plist that won't parse can't be ruled out")
         }
     }
@@ -313,14 +372,14 @@ final class PinnedProjectsTests: XCTestCase {
         15\t2 * * *\t/Users/me/bin/job-sync
         30 3 * * * /usr/bin/true
         """
-        let found = ProjectDiscovery.cronJobs(crontab: tab, folder: folder)
+        let found = ProjectDiscovery.cronJobs(crontab: tab, folder: folder, topic: topic)
         XCTAssertEqual(found.items.map(\.schedule), ["Mon 08:00", "@daily", "daily 02:15"])
         XCTAssertEqual(found.items.first?.name, "cd '\(folder)' && ./run.sh")
         XCTAssertTrue(found.unreadable.isEmpty)
 
-        XCTAssertTrue(ProjectDiscovery.cronJobs(crontab: "", folder: folder).isEmpty)
-        XCTAssertTrue(ProjectDiscovery.cronJobs(crontab: "PATH=/usr/bin\n0 1 * * * /usr/bin/true\n", folder: folder).isEmpty)
-        XCTAssertEqual(ProjectDiscovery.cronJobs(crontab: "0 1 job-line\n", folder: folder).unreadable.count, 1)
+        XCTAssertTrue(ProjectDiscovery.cronJobs(crontab: "", folder: folder, topic: topic).isEmpty)
+        XCTAssertTrue(ProjectDiscovery.cronJobs(crontab: "PATH=/usr/bin\n0 1 * * * /usr/bin/true\n", folder: folder, topic: topic).isEmpty)
+        XCTAssertEqual(ProjectDiscovery.cronJobs(crontab: "0 1 job-line\n", folder: folder, topic: topic).unreadable.count, 1)
     }
 
     func testDesktopTasksForTheProject() {
@@ -339,7 +398,7 @@ final class PinnedProjectsTests: XCTestCase {
             write(tasks([["id": "browser-cache", "cwd": folder]]),
                   to: "\(base)/Cache/x/y/scheduled-tasks.json")
 
-            let found = ProjectDiscovery.desktopTasks(base: base, folder: folder)
+            let found = ProjectDiscovery.desktopTasks(base: base, folder: folder, topic: topic)
             XCTAssertEqual(found.items.map(\.name).sorted(), ["elsewhere", "job-app-sync"])
             let elsewhere = found.items.first { $0.name == "elsewhere" }
             XCTAssertEqual(elsewhere?.schedule, "daily 09:00")
@@ -351,12 +410,12 @@ final class PinnedProjectsTests: XCTestCase {
 
     func testDesktopTasksEmptyAndUnreadable() {
         withTempDir { base in
-            XCTAssertTrue(ProjectDiscovery.desktopTasks(base: base + "/missing", folder: folder).isEmpty)
+            XCTAssertTrue(ProjectDiscovery.desktopTasks(base: base + "/missing", folder: folder, topic: topic).isEmpty)
             write(#"{"scheduledTasks":[]}"#, to: "\(base)/claude-code-sessions/acct/space/scheduled-tasks.json")
-            XCTAssertTrue(ProjectDiscovery.desktopTasks(base: base, folder: folder).isEmpty)
+            XCTAssertTrue(ProjectDiscovery.desktopTasks(base: base, folder: folder, topic: topic).isEmpty)
 
             let bad = write("{ nope", to: "\(base)/claude-code-sessions/acct/other/scheduled-tasks.json")
-            XCTAssertEqual(ProjectDiscovery.desktopTasks(base: base, folder: folder).unreadable, [bad])
+            XCTAssertEqual(ProjectDiscovery.desktopTasks(base: base, folder: folder, topic: topic).unreadable, [bad])
         }
     }
 
@@ -371,7 +430,7 @@ final class PinnedProjectsTests: XCTestCase {
             write("// JobScout", to: "\(user)/also.js")
             write("// lean research", to: "\(user)/lean-research.js")
 
-            let found = ProjectDiscovery.workflows(projectRoot: project, userDir: user)
+            let found = ProjectDiscovery.workflows(projectRoot: project, userDir: user, topic: topic)
             XCTAssertEqual(found.items.map(\.name), ["own", "also", "uses-it"])
             XCTAssertTrue(found.unreadable.isEmpty)
         }
@@ -380,10 +439,10 @@ final class PinnedProjectsTests: XCTestCase {
     func testWorkflowsEmptyAndUnreadable() {
         withTempDir { root in
             write("// lean research", to: "\(root)/user/lean-research.js")
-            XCTAssertTrue(ProjectDiscovery.workflows(projectRoot: "\(root)/proj", userDir: "\(root)/user").isEmpty)
+            XCTAssertTrue(ProjectDiscovery.workflows(projectRoot: "\(root)/proj", userDir: "\(root)/user", topic: topic).isEmpty)
 
             let file = write("x", to: "\(root)/proj/.claude/workflows")
-            let found = ProjectDiscovery.workflows(projectRoot: "\(root)/proj", userDir: "\(root)/user")
+            let found = ProjectDiscovery.workflows(projectRoot: "\(root)/proj", userDir: "\(root)/user", topic: topic)
             XCTAssertEqual(found.unreadable, [file])
             XCTAssertTrue(found.items.isEmpty)
         }
