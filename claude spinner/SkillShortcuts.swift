@@ -52,7 +52,7 @@ struct SkillShortcut: Identifiable, Equatable {
               builtIn: false, group: .superpower),
         .init(name: "superpower:plan", symbol: "list.number", blurb: "Spec to step-by-step plan",
               builtIn: false, group: .superpower),
-        .init(name: "superpower:tdd", symbol: "checkmark.seal", blurb: "Test first, then code",
+        .init(name: "superpower:execute", symbol: "play", blurb: "Run a written plan",
               builtIn: false, group: .superpower),
         .init(name: "superpower:debug", symbol: "ladybug", blurb: "Reproduce, isolate, fix",
               builtIn: false, group: .superpower),
