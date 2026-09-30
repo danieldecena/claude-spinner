@@ -8,9 +8,10 @@ import Foundation
 /// whether each one is installed, so a chip never types a command that isn't
 /// there. Built-ins ship with Claude Code and need no check.
 struct SkillShortcut: Identifiable, Equatable {
-    /// Which card it sits in: git work gets its own, beside the git actions.
+    /// Which card it sits in: git work gets its own, beside the git actions,
+    /// and /todo sits in the Tasks card over the TASKS.md it writes.
     /// Superpowers sit in the Skills card under their own heading.
-    enum Group { case skill, superpower, git }
+    enum Group { case skill, superpower, git, tasks }
 
     let name: String
     let symbol: String
@@ -36,7 +37,8 @@ struct SkillShortcut: Identifiable, Equatable {
         .init(name: "compact", symbol: SessionAction.compact.symbol, blurb: "Summarize and drop the transcript",
               builtIn: true),
         .init(name: "clear", symbol: SessionAction.clear.symbol, blurb: "Discard the conversation", builtIn: true),
-        .init(name: "todo", symbol: "checklist", blurb: "Turn the conversation into tasks", builtIn: false),
+        .init(name: "todo", symbol: "checklist", blurb: "Turn the conversation into tasks", builtIn: false,
+              group: .tasks),
         .init(name: "tasks", symbol: "list.bullet.rectangle", blurb: "Re-render the task box", builtIn: false),
         .init(name: "code-review", symbol: "magnifyingglass", blurb: "Review the current diff", builtIn: true,
               group: .git),

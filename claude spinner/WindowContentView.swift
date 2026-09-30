@@ -20,8 +20,11 @@ struct WindowContentView: View {
     /// The selected session's repo, read once here so the suggestion can be
     /// worked out once and handed to every card that might own its button.
     @State private var gitSnapshot: GitSnapshot?
-    /// Open items in the selected repo's TASKS.md, re-read with the snapshot.
-    @State private var projectOpenTasks: Int?
+    /// The selected repo's TASKS.md, re-read with the snapshot, and the root it
+    /// was looked for in: a root with no text is a repo without the file.
+    @State private var tasksText: String?
+    @State private var tasksRoot: String?
+    private var projectOpenTasks: Int? { tasksText.flatMap(Suggestion.openTasks(inTasksFile:)) }
     @State private var wrappedUp = false
 
     private var suggestionInput: Suggestion.Input? {
@@ -99,13 +102,14 @@ struct WindowContentView: View {
         }
         .task(id: selected?.cwd) {
             gitSnapshot = nil
-            projectOpenTasks = nil
+            tasksText = nil
+            tasksRoot = nil
             guard let cwd = selected?.cwd else { return }
             while !Task.isCancelled {
                 gitSnapshot = await GitProbe.shared.snapshot(for: cwd)
                 let root = gitSnapshot?.toplevel ?? cwd
-                projectOpenTasks = (try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8))
-                    .flatMap(Suggestion.openTasks(inTasksFile:))
+                tasksText = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8)
+                tasksRoot = root
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -174,7 +178,9 @@ struct WindowContentView: View {
                               history: feed.contextHistory[session.id] ?? [],
                               spend: feed.spendHistory[session.id] ?? [],
                               suggestion: suggestion,
-                              skillPick: skillPick)
+                              skillPick: skillPick,
+                              tasksText: tasksText,
+                              tasksRoot: tasksRoot)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -311,6 +317,8 @@ private struct SessionDetail: View {
     let suggestion: Suggestion?
     /// The Skills card's own pick, outlined there and explained under it.
     let skillPick: Suggestion?
+    let tasksText: String?
+    let tasksRoot: String?
 
     var body: some View {
         ScrollView {
@@ -324,14 +332,21 @@ private struct SessionDetail: View {
                 // Side by side where the pane is wide enough, one column where it
                 // isn't, and every card the height of the tallest in its row, so
                 // each row reads as a set of equal tiles without a short card
-                // stretched to match a chart two rows away. At three columns the
-                // two wide cards alternate sides and every row is full: the
-                // transcript's prose and the context chart are what use width,
-                // and Session and Config, both short, share one column.
+                // stretched to match a chart two rows away. The transcript, tasks
+                // and skills row and the git row each take the full width; below
+                // them, at three columns, every row of stat tiles is full.
                 TileGrid(minimum: 180, spacing: 10) {
-                    TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
-                        .tileSpan(2)
-                    SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
+                    // What was said, what is planned, and what can be run on
+                    // it, in one row: the prose and the task titles split the
+                    // width, the skill chips keep a fixed column.
+                    HStack(alignment: .top, spacing: 10) {
+                        TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
+                        TasksCard(session: session, feedDir: feedDir, text: tasksText, root: tasksRoot,
+                                  suggestion: suggestion)
+                        SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
+                            .frame(width: 320)
+                    }
+                    .tileSpan(.max)
                     // One full-width tile for everything git, straight under the
                     // transcript and skills: it is acted on, the stat tiles below
                     // are only read. The graph takes what is left beside
@@ -1945,6 +1960,58 @@ private struct SkillsCard: View {
                 Text("No skill needed right now.")
                     .font(.claudeMono(10)).foregroundStyle(Color.label.opacity(0.6))
             }
+            if let notice { Notice(notice) }
+        }
+        .detailCard()
+    }
+}
+
+/// The repo's TASKS.md: what is open, and /todo, which writes this
+/// conversation's next steps into it and offers to create the file when the
+/// repo has none. Read-only here; the file is only ever written by the skill.
+private struct TasksCard: View {
+    let session: SessionFeed
+    let feedDir: URL
+    let text: String?
+    let root: String?
+    let suggestion: Suggestion?
+    @State private var notice: NoticeMessage?
+
+    private static let shown = 8
+
+    var body: some View {
+        let tasks = text.map(Suggestion.tasks(inTasksFile:))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                CardTitle("Tasks")
+                Spacer()
+                if let tasks {
+                    Text("\(tasks.open.count) open · \(tasks.done) done")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
+                }
+            }
+            if let tasks {
+                if tasks.open.isEmpty {
+                    Text("Nothing open in TASKS.md.")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label.opacity(0.6))
+                }
+                ForEach(Array(tasks.open.prefix(Self.shown).enumerated()), id: \.offset) { _, title in
+                    Label(title, systemImage: "square")
+                        .font(.claudeMono(10))
+                        .lineLimit(1).truncationMode(.tail)
+                        .help(title)
+                }
+                if tasks.open.count > Self.shown {
+                    Text("+\(tasks.open.count - Self.shown) more")
+                        .font(.claudeMono(10)).foregroundStyle(Color.label)
+                }
+            } else if root != nil {
+                Text("No TASKS.md in this repo. /todo turns the conversation into one.")
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+            }
+            ShortcutChips(session: session, feedDir: feedDir,
+                          shortcuts: installedShortcuts.filter { $0.group == .tasks },
+                          suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
         }
         .detailCard()

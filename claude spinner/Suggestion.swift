@@ -107,13 +107,25 @@ struct Suggestion: Equatable {
 
     /// Unchecked `- [ ]` items above `## Completed`, or nil when there are none.
     static func openTasks(inTasksFile text: String) -> Int? {
-        var open = 0
+        let open = tasks(inTasksFile: text).open.count
+        return open > 0 ? open : nil
+    }
+
+    /// The titles of the open items above `## Completed`, in file order, and
+    /// how many are checked anywhere in the file.
+    static func tasks(inTasksFile text: String) -> (open: [String], done: Int) {
+        var open: [String] = []
+        var done = 0
+        var completed = false
         for line in text.split(separator: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)
-            if t.hasPrefix("## Completed") { break }
-            if t.hasPrefix("- [ ]") { open += 1 }
+            if t.hasPrefix("## Completed") { completed = true }
+            if t.hasPrefix("- [x]") || t.hasPrefix("- [X]") { done += 1 }
+            if !completed, t.hasPrefix("- [ ]") {
+                open.append(t.dropFirst(5).trimmingCharacters(in: .whitespaces))
+            }
         }
-        return open > 0 ? open : nil
+        return (open, done)
     }
 
     static func next(_ input: Input) -> Suggestion? {

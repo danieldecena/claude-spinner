@@ -3762,6 +3762,26 @@ final class claude_spinnerTests: XCTestCase {
     func testGitShortcutsAreGroupedApart() {
         let git = SkillShortcut.curated.filter { $0.group == .git }.map(\.name)
         XCTAssertEqual(git, ["code-review", "git-push"])
+        XCTAssertEqual(SkillShortcut.curated.filter { $0.group == .tasks }.map(\.name), ["todo"])
+    }
+
+    func testTasksFileListsOpenTitlesAndCountsDoneEverywhere() {
+        let text = """
+        # Tasks
+        ## Active
+        - [ ] Ship the Tasks card
+        - [x] Fix the refused compact -- 4dc133b
+          - [ ]   Indented follow-up
+        ## Completed
+        - [ ] Stale item below Completed
+        - [X] Old one
+        """
+        let tasks = Suggestion.tasks(inTasksFile: text)
+        XCTAssertEqual(tasks.open, ["Ship the Tasks card", "Indented follow-up"])
+        XCTAssertEqual(tasks.done, 2)
+        XCTAssertEqual(Suggestion.openTasks(inTasksFile: text), 2)
+        XCTAssertTrue(Suggestion.tasks(inTasksFile: "").open.isEmpty)
+        XCTAssertNil(Suggestion.openTasks(inTasksFile: "- [x] all done"))
     }
 
     // MARK: - Usage visuals
