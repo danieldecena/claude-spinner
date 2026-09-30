@@ -55,13 +55,17 @@ struct WindowContentView: View {
             }
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Opaque: only the sidebar's column shows the window's
+                // behind-window blur.
+                .background(Color(nsColor: .windowBackgroundColor))
         }
         // Across both columns, not just the detail pane: the toolbar acts on the
-        // selected session wherever you are, and the sidebar and cards both pass
-        // under the glass as they scroll.
+        // selected session wherever you are. Its strip is opaque edge to edge; a
+        // strip half blur and half pane put a seam through the reply field.
         .safeAreaInset(edge: .top, spacing: 0) {
             WindowToolbar(session: selected, feedDir: feed.feedDirectory,
                           sidebarVisible: $sidebarVisible)
+                .background(Color(nsColor: .windowBackgroundColor))
                 // Rebuilt per session so a half-typed reply or a notice about one
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
@@ -98,7 +102,9 @@ struct WindowContentView: View {
             }
             .frame(width: 250)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            // Clear, not regular: the panel should read as a pane of glass over
+            // the window, with the rows carrying the contrast.
+            .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .padding(.leading, 10).padding(.bottom, 10)
     }
 
@@ -356,7 +362,8 @@ private struct SessionDetail: View {
                 ("used", st.contextUsedPercent.map { "\($0)%" }),
                 ("tokens", session.contextTokens.map { "\($0.formatted())" }),
                 ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
-                ("over 200k", st.exceeds200k.map { $0 ? "yes" : "no" }),
+                // "over 200k" only when it is: "no" beside a 17% meter says nothing.
+                ("over 200k", st.exceeds200k == true ? "yes" : nil),
             ])
             // The bar is share of the window; the chart is absolute tokens
             // against the tint bands, capped at the window. Neither is drawn
@@ -392,8 +399,9 @@ private struct SessionDetail: View {
     private var configCard: some View {
         let st = session.stats
         return StatSection("Config", rows: [
-            ("model", session.model),
-            ("model id", st.modelID),
+            // The id only when the display name is missing: "Opus 5.5" over
+            // "claude-opus-5-5" said the same thing twice.
+            ("model", session.model ?? st.modelID),
             ("effort", st.effort),
             ("thinking", st.thinking.map { $0 ? "on" : "off" }),
             ("style", st.outputStyle),
@@ -935,16 +943,8 @@ private struct OverviewStrip: View {
                     .font(.claudeMono(10)).foregroundStyle(Color.label)
             }
 
-            Text(counts).font(.claudeMono(10)).foregroundStyle(Color.label)
-
-            if let tokens = overview.contextTokens {
-                Text("\(StatFormat.compactCount(tokens)) context in play")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-            if let diff = StatFormat.lines(added: overview.linesAdded,
-                                           removed: overview.linesRemoved) {
-                Text("\(diff) lines").font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
+            Text(liveLine).font(.claudeMono(10)).foregroundStyle(Color.label)
+                .lineLimit(2)
 
             // Headed, because every figure above counts live sessions only and
             // these count every transcript -- same words, different population.
@@ -964,10 +964,19 @@ private struct OverviewStrip: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var counts: String {
+    /// Counts, context and lines on one line: each was a line of its own, and
+    /// four one-fact lines pushed the session list half a screen down.
+    private var liveLine: String {
         var parts = ["\(overview.sessions) session\(overview.sessions == 1 ? "" : "s")"]
         if overview.working > 0 { parts.append("\(overview.working) working") }
         if overview.waiting > 0 { parts.append("\(overview.waiting) waiting") }
+        if let tokens = overview.contextTokens {
+            parts.append("\(StatFormat.compactCount(tokens)) ctx")
+        }
+        if let diff = StatFormat.lines(added: overview.linesAdded,
+                                       removed: overview.linesRemoved) {
+            parts.append("\(diff) lines")
+        }
         return parts.joined(separator: " · ")
     }
 }
@@ -1099,7 +1108,7 @@ struct UsageHistoryChart: View {
                         .stroke(Color.label, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                 }
             }
-            .frame(height: 56)
+            .frame(height: 36)
 
             if let first = samples.first, let last = samples.last, samples.count >= 2 {
                 let now = Date()
@@ -1423,6 +1432,9 @@ private struct ActionBar: View {
                         }
                         .buttonStyle(.glass)
                         .disabled(reason != nil)
+                        // The system's disabled dimming is too slight on glass to
+                        // tell an unavailable action from an available one.
+                        .opacity(reason == nil ? 1 : 0.45)
                         .help(reason ?? action.title)
                         .accessibilityLabel(action.title)
                     }

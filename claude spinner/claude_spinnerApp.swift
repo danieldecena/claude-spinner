@@ -205,9 +205,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // content is framed — that is what kept pinning one axis or the other.
             // A bare NSView has no intrinsic size and no constraints, so the window
             // is free and the hosting view just follows it via the autoresize mask.
-            let container = NSView(frame: NSRect(x: 0, y: 0,
-                                                 width: Constants.windowDefaultWidth,
-                                                 height: Constants.windowDefaultHeight))
+            // An effect view is still a bare view in that sense; behind-window
+            // blending is what lets the floating sidebar show the desktop through
+            // it. The detail pane paints its own opaque background over this.
+            let container = NSVisualEffectView(frame: NSRect(x: 0, y: 0,
+                                                             width: Constants.windowDefaultWidth,
+                                                             height: Constants.windowDefaultHeight))
+            container.material = .sidebar
+            container.blendingMode = .behindWindow
+            container.state = .followsWindowActiveState
             hosting.frame = container.bounds
             container.addSubview(hosting)
 
