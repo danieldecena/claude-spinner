@@ -140,10 +140,12 @@
 
 ## Next Up
 
-1. [code] Watch the Career Hub pop-out open (floating mini window, frame remembered). Not
-   seen yet: the embed rendered, but Daniel was mid claude.ai sign-in inside it.
-2. [code] Menu panel lists `AGENT-<id>` sections with 0 sessions (seen in an offscreen
-   render 2026-09-30); find where subagent feeds become project groups.
+1. [you] Click the Career Hub pop-out button: the embed is signed in now (seen 08:32
+   2026-09-30); the pop-out window itself is unseen.
+2. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
+   required check. Tried 2026-09-30: the switch only fires from the selected session's
+   Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
+   at once into a public main.
 
 The rest is in `TASKS.md`.
 
@@ -168,6 +170,10 @@ The rest is in `TASKS.md`.
 - Decided: the pinned dashboard's title sits above its ScrollView; inside it, the
   title slid under the toolbar strip and drew cut off. Seen fixed on screen.
 - Observed: Plans pin and the plugin skill chips on screen (Job Search tab, 08:32).
+- Decided: a worktree subagent (cwd `.../agent-<id>`) groups under its parent's
+  project; by its own cwd it drew an `AGENT-<ID>` section counting 0 (f300f26).
+- Decided: the prompt walk carries a chunk with no newline instead of dropping it
+  (verifier finding; lines here reach 1.25 MB). Test fails on the old code (3390fee).
 
 ### 2026-09-30 (notarized)
 - Decided: `./notarize.sh` ships a Developer ID signed, notarized, stapled copy to

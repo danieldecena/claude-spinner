@@ -2,11 +2,12 @@
 
 ## Tasks
 
-- [ ] Watch auto-merge switch itself on for a real open PR
-- [ ] Watch the Career Hub pop-out open after sign-in
+- [ ] [you] Watch auto-merge switch itself on for a real open PR
+- [ ] [you] Watch the Career Hub pop-out open after sign-in
 
 ## Completed
 
+- [x] Drop AGENT-id sections with 0 sessions from the menu panel -- f300f26
 - [x] Decide attention colour: kit warn or Spinner blue
 - [x] Bring the menu-bar panel onto App Kit type
 - [x] See the Plans tab and plugin skill chips on screen
