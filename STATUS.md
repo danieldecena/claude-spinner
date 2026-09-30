@@ -144,6 +144,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: Cost, Prompt cache, Session, Context and Usage became two cards,
+  This session and Usage, in `StatCards.swift`. No horizontal bars or lines:
+  ratios are rings (a tick on the limit rings marks the window's clock), history
+  is one column per time slice (`Buckets`, unit-tested). Seen on screen; 317 tests
+  pass. Left behind: `SpendChart` and `UsageChart` enums are now used only by
+  their tests.
 - Decided: subagents are listed in the sidebar under their parent session (dot,
   type, status), not as a Subagents card at the bottom of the detail pane; the
   tree drawing is deleted. Rows are not selectable: a subagent has no pane.

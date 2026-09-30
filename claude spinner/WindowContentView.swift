@@ -444,11 +444,14 @@ private struct SessionDetail: View {
                             .frame(width: 250)
                     }
                     .tileSpan(.max)
-                    costCard
-                    cacheCard
-                    sessionCard
-                    contextCard.tileSpan(2)
-                    usage
+                    // This session and the account, side by side: everything
+                    // about how the session is doing, then everything about the
+                    // limits it spends against.
+                    HStack(alignment: .top, spacing: 10) {
+                        SessionStatsCard(session: session, history: history, spend: spend)
+                        usage
+                    }
+                    .tileSpan(.max)
                 }
 
             }
@@ -468,113 +471,6 @@ private struct SessionDetail: View {
                 .font(.claudeMono(11))
                 .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var showsLinesBar: Bool {
-        guard let added = session.stats.linesAdded,
-              let removed = session.stats.linesRemoved else { return false }
-        return added + removed > 0
-    }
-
-    /// Grouped rather than one long list. These arrive from the statusLine as
-    /// four unrelated things -- what the turn cost, how full the window is, how
-    /// the cache is behaving, how this session is configured -- and reading them
-    /// as one column of twenty rows was the version that felt like a data dump.
-
-    private var sessionCard: some View {
-        let st = session.stats
-        let progress = session.todoProgress
-        return VStack(alignment: .leading, spacing: 8) {
-            StatSection("Session", rows: [
-                ("status", label(for: session)),
-                ("todos", progress.total == 0 ? nil : "\(progress.done)/\(progress.total)"),
-                ("host", session.host.isEmpty ? nil : session.host),
-                ("pid", session.pid.map(String.init)),
-                ("repo", st.repo),
-            ])
-            if progress.total > 0 {
-                ShareBar(caption: "todos done",
-                         ratio: Double(progress.done) / Double(progress.total),
-                         tint: .usageGreen)
-            }
-        }
-        .detailCard()
-    }
-
-    private var costCard: some View {
-        let st = session.stats
-        return VStack(alignment: .leading, spacing: 8) {
-            StatSection("Cost", rows: [
-                ("spend", st.costUSD.map(StatFormat.money)),
-                ("wall", st.wallSeconds.map(StatFormat.duration)),
-                ("api", st.apiSeconds.map(StatFormat.duration)),
-                ("api share", st.apiShare.map(StatFormat.percent)),
-                // The bar below labels both counts; the row stands in only when
-                // there is no bar to draw.
-                ("lines", showsLinesBar ? nil
-                    : StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
-            ])
-            if st.costUSD != nil {
-                SpendTrend(samples: spend)
-            }
-            if let share = st.apiShare {
-                ShareBar(caption: "time waiting on the api", ratio: share, tint: .claude)
-            }
-            if showsLinesBar, let added = st.linesAdded, let removed = st.linesRemoved {
-                LinesBar(added: added, removed: removed)
-            }
-        }
-        .detailCard()
-    }
-
-    private var contextCard: some View {
-        let st = session.stats
-        return VStack(alignment: .leading, spacing: 8) {
-            StatSection("Context", rows: [
-                ("used", st.contextUsedPercent.map { "\($0)%" }),
-                ("tokens", session.contextTokens.map { "\($0.formatted())" }),
-                ("window", st.contextWindowSize.map { StatFormat.compactCount($0) }),
-                // "over 200k" only when it is: "no" beside a 17% meter says nothing.
-                ("over 200k", st.exceeds200k == true ? "yes" : nil),
-            ])
-            // The bar is share of the window; the chart is absolute tokens
-            // against the tint bands, capped at the window. Neither is drawn
-            // without a window to scale against: a chart with an invented
-            // denominator is worse than the four rows above on their own.
-            if let window = st.contextWindowSize, window > 0,
-               let tokens = session.contextTokens {
-                ContextMeter(tokens: tokens, window: window)
-                ContextTrend(samples: history, window: window, tokens: tokens)
-            }
-        }
-        .detailCard()
-    }
-
-    private var cacheCard: some View {
-        let st = session.stats
-        return HStack(alignment: .top, spacing: 12) {
-            // The ring prints the hit ratio, so the rows don't.
-            StatSection("Prompt cache", rows: [
-                ("state", st.cacheWarm.map { $0 ? "warm" : "cold" }),
-                ("ttl", st.cacheTTL),
-                ("requests", st.cacheRequests.map(String.init)),
-                ("misses", st.cacheMisses.map(String.init)),
-            ])
-            if let ratio = st.cacheHitRatio {
-                Spacer(minLength: 0)
-                CacheRing(ratio: ratio)
-            }
-        }
-        .detailCard()
-    }
-
-    private func label(for session: SessionFeed) -> String {
-        switch session.status {
-        case .idle: return "idle"
-        case .thinking: return "thinking"
-        case .tool: return session.tool.isEmpty ? "running a tool" : "running \(session.tool)"
-        case .attention: return "needs input"
         }
     }
 }
@@ -743,7 +639,7 @@ private struct ReplyBox: View {
 
 // MARK: - Stat rendering
 
-private extension View {
+extension View {
     /// One section of the detail pane as a card, after the footage library's:
     /// the design system's radius-lg on a surface one step off the pane, with no
     /// border or shadow. Fills its grid column so neighbours line up at the edges.
@@ -753,7 +649,7 @@ private extension View {
     func tileSpan(_ columns: Int) -> some View { layoutValue(key: TileSpan.self, value: columns) }
 }
 
-private struct DetailCard: ViewModifier {
+struct DetailCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(12)
@@ -959,229 +855,6 @@ enum StatFormat {
 }
 
 
-// MARK: - Overview
-
-/// Totals across every session, as a card in the detail pane beside the
-/// session's context. It shows the shape of the 5h window over time, which
-/// only means anything aggregated.
-private struct OverviewStrip: View {
-    let overview: FeedWatcher.Overview
-    /// The menu bar's own resolution (poll, then a live session, then the
-    /// persisted snapshot), not the live feeds alone -- read from the feeds, the
-    /// window went blank or disagreed whenever only the poll or cache had it.
-    let fiveHour: Int?
-    let sevenDay: Int?
-    let usageStale: Bool
-    let usageHelp: String
-    let history: [UsageSample]
-    /// ccusage totals across every session, ended ones included -- the lines
-    /// above add up only the sessions that are live right now.
-    let totals: [FeedWatcher.TotalsRow]
-    let totalsStatus: String
-    let totalsDimmed: Bool
-    let totalsHelp: String
-    let fiveHourElapsed: Double?
-    let sevenDayElapsed: Double?
-    let fiveHourReset: String?
-    let sevenDayReset: String?
-    let weekBars: [UsageTotalsPoller.WeekBar]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            CardTitle("Usage")
-            // The rate-limit windows lead, not the dollar figure. On a Max plan
-            // these are the only numbers that can actually stop you; the money
-            // is a proxy for burn and is never charged.
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                // No reading is not a reading of zero. The old `?? "—"` printed a
-                // dash tinted `usageTint(0)`, so a window that had never reported
-                // drew in the green of untouched headroom.
-                if let headline = StatFormat.usageHeadline(fiveHour) {
-                    Text(headline.text)
-                        .font(.claudeMono(18)).fontWeight(.semibold)
-                        .foregroundStyle(Color.usageTint(headline.level))
-                    Text("of 5h").font(.claudeMono(10)).foregroundStyle(Color.label)
-                } else {
-                    // Scoped to the live window, not to usage in general. The
-                    // rejected wording here was the panel's own phrase about
-                    // having no usage data, which over the sparkline below --
-                    // drawing retained history -- would have been the same fault
-                    // this slice exists to remove.
-                    Text("no current 5h reading")
-                        .font(.claudeMono(11)).foregroundStyle(Color.label)
-                }
-                // Outside the branch: the two percentages are filled by separate
-                // `compactMap`s, so 7d can be known while 5h is not.
-                if let sevenDay {
-                    // The separator belongs to the 5h reading, so it goes when
-                    // that reading does -- "no current 5h reading · 40% of 7d"
-                    // would contradict itself in the same breath.
-                    Text("\(fiveHour == nil ? "" : "· ")\(sevenDay)% of 7d")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-                Spacer(minLength: 0)
-            }
-            .opacity(usageStale ? 0.5 : 1)
-            .help(usageHelp)
-
-            VStack(spacing: 4) {
-                if let fiveHour {
-                    PaceBar(label: "5h", pct: fiveHour, elapsed: fiveHourElapsed, reset: fiveHourReset)
-                }
-                if let sevenDay {
-                    PaceBar(label: "7d", pct: sevenDay, elapsed: sevenDayElapsed, reset: sevenDayReset)
-                }
-            }
-            .opacity(usageStale ? 0.5 : 1)
-
-            // Labelled for what it is. "$93.62 today" under a dollar sign reads
-            // as a bill, and on a subscription plan that is simply wrong.
-            if let spend = overview.spendUSD {
-                Text("\(StatFormat.money(spend)) api-equivalent, not billed")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-
-            Text(liveLine).font(.claudeMono(10)).foregroundStyle(Color.label)
-                .lineLimit(2)
-
-            // Headed, because every figure above counts live sessions only and
-            // these count every transcript -- same words, different population.
-            StatSection("All sessions", rows: totals.map { ($0.label, $0.value, nil) },
-                        empty: totalsStatus)
-                .padding(.top, 4)
-                .opacity(totalsDimmed ? 0.6 : 1)
-                .help(totalsHelp)
-
-            if !weekBars.isEmpty {
-                WeekChart(bars: weekBars)
-                    .opacity(totalsDimmed ? 0.6 : 1)
-            }
-
-            UsageHistoryChart(samples: history)
-                .padding(.top, 2)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("5-hour usage over time")
-                .accessibilityValue(Sparkline.spokenValue(history))
-        }
-        .detailCard()
-    }
-
-    /// Counts, context and lines on one line: each was a line of its own, and
-    /// four one-fact lines pushed the session list half a screen down.
-    private var liveLine: String {
-        var parts = ["\(overview.sessions) session\(overview.sessions == 1 ? "" : "s")"]
-        if overview.working > 0 { parts.append("\(overview.working) working") }
-        if overview.waiting > 0 { parts.append("\(overview.waiting) waiting") }
-        if let tokens = overview.contextTokens {
-            parts.append("\(StatFormat.compactCount(tokens)) ctx")
-        }
-        if let diff = StatFormat.lines(added: overview.linesAdded,
-                                       removed: overview.linesRemoved) {
-            parts.append("\(diff) lines")
-        }
-        return parts.joined(separator: " · ")
-    }
-}
-
-/// A limit window's usage against how much of the window has gone by.
-///
-/// The fill is usage; the tick is time. Fill past the tick means burning faster
-/// than the window refills, which the percentage alone cannot say: 40% is fine
-/// an hour before reset and alarming ten minutes after one.
-struct PaceBar: View {
-    let label: String
-    let pct: Int
-    let elapsed: Double?
-    let reset: String?
-
-    var body: some View {
-        let ratio = CGFloat(min(100, max(0, pct))) / 100
-        HStack(spacing: 6) {
-            Text(label).font(.claudeMono(10)).foregroundStyle(Color.label)
-                .frame(width: 16, alignment: .leading)
-            GeometryReader { geo in
-                let w = geo.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.secondary.opacity(0.22)).frame(height: 5)
-                    Capsule().fill(Color.usageTint(pct))
-                        .frame(width: max(pct > 0 ? 3 : 0, w * ratio), height: 5)
-                    if let elapsed {
-                        Capsule().fill(Color.primary.opacity(0.85))
-                            .frame(width: 2, height: 10)
-                            .offset(x: min(w - 2, max(0, w * elapsed - 1)))
-                    }
-                }
-                .frame(maxHeight: .infinity)
-            }
-            .frame(height: 10)
-            if let reset {
-                Text(reset).font(.claudeMono(10)).foregroundStyle(Color.label).fixedSize()
-            }
-        }
-        .help(helpText)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label == "5h" ? "5-hour" : "7-day") usage")
-        .accessibilityValue(helpText)
-    }
-
-    private var helpText: String {
-        var text = "\(pct)% used"
-        if let elapsed {
-            let gone = Int((elapsed * 100).rounded())
-            text += " with \(gone)% of the window gone"
-            text += Double(pct) / 100 > elapsed ? ", ahead of pace" : ", within pace"
-        }
-        if let reset { text += "; resets \(reset)" }
-        return text
-    }
-}
-
-/// Tokens per day, Monday to Sunday, from the ccusage daily rows.
-///
-/// Scaled to the week's own peak: the question is which day was heavy, and
-/// there is no limit to draw against. Days still ahead are faint stubs, not
-/// zero-height bars, so "hasn't happened" never reads as "used nothing".
-struct WeekChart: View {
-    let bars: [UsageTotalsPoller.WeekBar]
-
-    var body: some View {
-        let peak = max(1, bars.compactMap(\.tokens).max() ?? 0)
-        HStack(alignment: .bottom, spacing: 5) {
-            ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
-                VStack(spacing: 2) {
-                    GeometryReader { geo in
-                        VStack(spacing: 0) {
-                            Spacer(minLength: 0)
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(fill(bar))
-                                .frame(height: height(bar, peak: peak, box: geo.size.height))
-                        }
-                    }
-                    Text(bar.label).font(.claudeMono(9))
-                        .foregroundStyle(bar.isToday ? Color.primary : Color.label)
-                }
-                .help(bar.tokens.map { "\(FeedWatcher.formatTokens($0)) tokens" } ?? "not yet")
-            }
-        }
-        .frame(height: 40)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Tokens by day this week")
-        .accessibilityValue(bars.compactMap { bar in
-            bar.tokens.map { "\(bar.label) \(FeedWatcher.formatTokens($0))" }
-        }.joined(separator: ", "))
-    }
-
-    private func fill(_ bar: UsageTotalsPoller.WeekBar) -> Color {
-        if bar.isToday { return .claude }
-        return Color.secondary.opacity(bar.tokens == nil ? 0.15 : 0.55)
-    }
-
-    private func height(_ bar: UsageTotalsPoller.WeekBar, peak: Int, box: CGFloat) -> CGFloat {
-        guard let tokens = bar.tokens else { return 2 }
-        return max(tokens > 0 ? 2 : 0, box * CGFloat(tokens) / CGFloat(peak))
-    }
-}
-
 /// The persisted 5h utilization samples as a filled line.
 ///
 /// Scaled 0-100 rather than to its own min/max: this is a percentage of a rate
@@ -1289,60 +962,6 @@ enum UsageChart {
     }
 }
 
-/// The 5h and 7d windows over the retained samples, with the usage bands ruled
-/// in so a line's height reads against the levels its colour changes at.
-///
-/// Time-scaled, unlike the panel's `Sparkline`: at this size a gap between
-/// polls (the Mac asleep, the poller failing) is worth seeing as a gap.
-/// 7d is dashed and neutral -- it is the slower of the two and the one the
-/// tint is not about.
-struct UsageHistoryChart: View {
-    let samples: [UsageSample]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                ForEach(UsageChart.bandFloors, id: \.self) { band in
-                    let y = h * (1 - CGFloat(band) / 100)
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: w, y: y))
-                    }
-                    .stroke(Color.usageTint(band).opacity(0.4),
-                            style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                }
-                if let five = UsageChart.unitPoints(samples, { $0.pct }) {
-                    let points = five.map { CGPoint(x: $0.x * w, y: $0.y * h) }
-                    let tint = Color.usageTint(samples.last?.pct ?? 0)
-                    ChartPath.area(points, baseline: h).fill(tint.opacity(0.15))
-                    ChartPath.line(points).stroke(tint, lineWidth: 1.5)
-                } else {
-                    Text("no usage history yet")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-                if let seven = UsageChart.unitPoints(samples, { $0.sevenDayPct }) {
-                    ChartPath.line(seven.map { CGPoint(x: $0.x * w, y: $0.y * h) })
-                        .stroke(Color.label, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                }
-            }
-            .frame(height: 36)
-
-            if let first = samples.first, let last = samples.last, samples.count >= 2 {
-                let now = Date()
-                HStack(spacing: 6) {
-                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
-                    Spacer(minLength: 0)
-                    Text("─ 5h  ┄ 7d")
-                    Spacer(minLength: 0)
-                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
-                }
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-        }
-    }
-}
-
 /// A trend line and its fill, shared by every chart that draws one. The fill is
 /// the same run of points closed down to the baseline, built as its own path
 /// rather than reusing the stroked one.
@@ -1389,195 +1008,6 @@ struct ContextMeter: View {
         .accessibilityValue("\(Int((ratio * 100).rounded())) percent of the window")
     }
 }
-
-/// A captioned share-of-a-whole bar, in the meter's capsule language: the row
-/// above prints the number, this draws it as a length.
-struct ShareBar: View {
-    let caption: String
-    let ratio: Double
-    let tint: Color
-
-    var body: some View {
-        let clamped = min(1, max(0, ratio))
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.secondary.opacity(0.22))
-                    Capsule().fill(tint)
-                        .frame(width: max(clamped > 0 ? 3 : 0, geo.size.width * clamped))
-                }
-            }
-            .frame(height: 5)
-            Text(caption).font(.claudeMono(10)).foregroundStyle(Color.label)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(caption)
-        .accessibilityValue("\(Int((clamped * 100).rounded())) percent")
-    }
-}
-
-/// Lines added against lines removed, one bar split at their proportion, so a
-/// session that mostly deleted reads differently from one that mostly wrote.
-struct LinesBar: View {
-    let added: Int
-    let removed: Int
-
-    var body: some View {
-        let share = Double(added) / Double(added + removed)
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                HStack(spacing: 2) {
-                    if added > 0 {
-                        Capsule().fill(Color.usageGreen)
-                            .frame(width: max(3, (geo.size.width - 2) * share))
-                    }
-                    if removed > 0 {
-                        Capsule().fill(Color.usageRed)
-                    }
-                }
-            }
-            .frame(height: 5)
-            HStack {
-                Text("+\(added) added")
-                Spacer(minLength: 0)
-                Text("-\(removed) removed")
-            }
-            .font(.claudeMono(10)).foregroundStyle(Color.label)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Lines changed")
-        .accessibilityValue("\(added) added, \(removed) removed")
-    }
-}
-
-/// The cache hit ratio as a ring beside the rows, the one number in the card
-/// worth reading at a glance.
-struct CacheRing: View {
-    let ratio: Double
-
-    var body: some View {
-        let clamped = min(1, max(0, ratio))
-        ZStack {
-            Circle().stroke(Color.secondary.opacity(0.22), lineWidth: 5)
-            Circle().trim(from: 0, to: clamped)
-                .stroke(Color.usageGreen, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            Text("\(Int((clamped * 100).rounded()))%")
-                .font(.claudeMono(10)).fontWeight(.semibold)
-        }
-        .frame(width: 44, height: 44)
-        .padding(.top, 18)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Cache hit ratio")
-        .accessibilityValue("\(Int((clamped * 100).rounded())) percent")
-    }
-}
-
-/// Context over the session's life, on an absolute token axis.
-///
-/// Not auto-zoomed to the data: a 20k session must still draw as a crawl along
-/// the bottom, or it looks as full as a heavy one. But not the whole window
-/// either -- at 1M everything under 200k was a hairline in a box of empty
-/// space. The axis is `ContextChart.ceiling`, and the ruled band lines are the
-/// same absolute counts `contextTint` uses, so a line crossing one means what
-/// the colour means. Share of the window is the meter's job, drawn above.
-/// A compaction shows as a cliff, and is not smoothed -- it is the most
-/// informative shape the chart has.
-private struct ContextTrend: View {
-    let samples: [ContextSample]
-    let window: Int
-    let tokens: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                // The bands `contextTint` switches at, where they fall inside the
-                // window. Only the highest is labelled: on a 1M window all three
-                // sit within a few points of each other and their labels would
-                // overprint. The rule colours say which is which.
-                let top = ContextChart.ceiling(window: window, samples: samples)
-                let bands = ContextChart.bandFloors.filter { $0 < top }
-                ForEach(bands, id: \.self) { band in
-                    let y = h * (1 - CGFloat(band) / CGFloat(top))
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: w, y: y))
-                    }
-                    .stroke(Color.contextTint(band).opacity(0.4),
-                            style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                    if band == bands.last {
-                        Text(StatFormat.compactCount(band))
-                            .font(.claudeMono(9)).foregroundStyle(Color.label)
-                            .position(x: w - 14, y: max(6, y - 6))
-                    }
-                }
-                if let unit = ContextChart.unitPoints(samples, window: top) {
-                    let points = unit.map { CGPoint(x: $0.x * w, y: $0.y * h) }
-                    let tint = Color.contextTint(tokens)
-                    ChartPath.area(points, baseline: h).fill(tint.opacity(0.15))
-                    ChartPath.line(points).stroke(tint, lineWidth: 1.5)
-                } else {
-                    Text("no context history yet")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-            }
-            .frame(height: 64)
-
-            if let first = samples.first, let last = samples.last, samples.count >= 2 {
-                let now = Date()
-                HStack {
-                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
-                    Spacer(minLength: 0)
-                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
-                }
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-        }
-        .accessibilityLabel("Context over this session")
-    }
-}
-
-
-/// Cumulative spend over the session, time-scaled like `ContextTrend` so an
-/// idle stretch reads as flat and a heavy turn as a climb. The top is labelled
-/// with the peak because the axis is the session's own, not a fixed one.
-private struct SpendTrend: View {
-    let samples: [SpendSample]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                if let unit = SpendChart.unitPoints(samples),
-                   let peak = samples.map(\.usd).max() {
-                    let points = unit.map { CGPoint(x: $0.x * w, y: $0.y * h) }
-                    ChartPath.area(points, baseline: h).fill(Color.claude.opacity(0.15))
-                    ChartPath.line(points).stroke(Color.claude, lineWidth: 1.5)
-                    Text(StatFormat.money(peak))
-                        .font(.claudeMono(9)).foregroundStyle(Color.label)
-                        .position(x: 22, y: 6)
-                } else {
-                    Text("no spend history yet")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-            }
-            .frame(height: 40)
-
-            if let first = samples.first, let last = samples.last, samples.count >= 2 {
-                let now = Date()
-                HStack {
-                    Text(StatFormat.age(Date(timeIntervalSince1970: first.at), now: now) ?? "")
-                    Spacer(minLength: 0)
-                    Text(StatFormat.age(Date(timeIntervalSince1970: last.at), now: now) ?? "")
-                }
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-        }
-        .accessibilityLabel("Spend over this session")
-    }
-}
-
 
 // MARK: - What Claude is actually doing
 
@@ -1929,7 +1359,7 @@ private let installedShortcuts = SkillShortcut.available(
 
 /// A card's title, in the StatSection style. Not a StatSection itself: with no
 /// rows that would say "nothing reported yet".
-private struct CardTitle: View {
+struct CardTitle: View {
     let text: String
     init(_ text: String) { self.text = text }
 

@@ -11,6 +11,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Combine the stat cards into two and redraw the charts as rings and columns
 - [x] Move subagents from a detail card into the sidebar
 - [x] Hold the wrap-up pick to the prompt when it is size-driven
 - [x] Shrink Config to two lines, show action notices in the conversation card, drop the idle line

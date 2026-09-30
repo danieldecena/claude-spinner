@@ -3496,6 +3496,42 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(GitGraph.condense(linear(30, refs: refs), remotes: [], maxLines: 10).count, 10)
     }
 
+    // MARK: - Column buckets
+
+    private func series(_ points: [(Double, Double)]) -> [(at: Double, value: Double)] {
+        points.map { (at: $0.0, value: $0.1) }
+    }
+
+    /// A level carries across a slice with no sample, and a slice before the first stays out.
+    func testLevelBucketsCarryTheLastLevelForward() {
+        let out = Buckets.levels(series([(0, 10), (1, 30), (10, 20)]), count: 5)!
+        XCTAssertEqual(out.count, 5)
+        XCTAssertEqual(out.first, 30, "the first slice holds the last sample in it, not the first")
+        XCTAssertEqual(out[2], 30, "an empty slice carries the level before it")
+        XCTAssertEqual(out.last, 20)
+    }
+
+    func testIncreaseBucketsAddOnlyGrowth() {
+        let out = Buckets.increases(series([(0, 1), (5, 3), (10, 2)]), count: 2)!
+        XCTAssertEqual(out, [0, 2], "a total that went down adds nothing, never a negative")
+        XCTAssertEqual(Buckets.increases(series([(0, 1), (10, 4)]), count: 2)!, [0, 3])
+    }
+
+    func testBucketsNeedASpanToSlice() {
+        XCTAssertNil(Buckets.levels(series([(0, 1)]), count: 4), "one sample is a dot")
+        XCTAssertNil(Buckets.levels(series([(5, 1), (5, 2)]), count: 4), "no time between samples")
+        XCTAssertNil(Buckets.increases(series([]), count: 4))
+        XCTAssertNil(Buckets.levels(series([(0, 1), (1, 2)]), count: 0))
+    }
+
+    func testTotalsSplitIntoAFigureAndWhatGoesWithIt() {
+        XCTAssertEqual(OverviewStrip.split("329M  $154").0, "329M")
+        XCTAssertEqual(OverviewStrip.split("329M  $154").1, "$154")
+        XCTAssertEqual(OverviewStrip.split("41M → 67M · 1h56m left").0, "41M → 67M")
+        XCTAssertEqual(OverviewStrip.split("41M → 67M · 1h56m left").1, "1h56m left")
+        XCTAssertEqual(OverviewStrip.split("12M").1, nil)
+    }
+
     // MARK: - Suggestion
 
     private func suggestionInput(_ configure: (inout Suggestion.Input) -> Void = { _ in }) -> Suggestion.Input {
