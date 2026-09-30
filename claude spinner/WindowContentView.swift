@@ -1851,8 +1851,173 @@ private struct GitCommandsCard: View {
                           shortcuts: installedShortcuts.filter { $0.group == .git },
                           suggestion: suggestion, notice: $notice)
             if let notice { Notice(notice) }
+            Divider().padding(.vertical, 2)
+            AutomationToggles(cwd: session.cwd)
         }
         .detailCard()
+    }
+}
+
+/// The four automations as switches, each reading its state back from where
+/// it actually lives (GitHub, a marker file, settings.json, the app's own
+/// defaults) rather than remembering what was last clicked. Turning one on
+/// asks first and says what it will do and where; turning one off doesn't.
+private struct AutomationToggles: View {
+    let cwd: String
+    @ObservedObject private var autoPR = AutoPRWatcher.shared
+    @State private var snapshot: GitSnapshot?
+    @State private var autoCommitOn = false
+    @State private var confirm: Pending?
+    @State private var notice: NoticeMessage?
+    @State private var busy = false
+
+    private enum Pending: Equatable {
+        case autoMerge, mainPush, autoCommit, autoPR
+
+        var question: String {
+            switch self {
+            case .autoMerge:
+                return "Turn on GitHub auto-merge for this PR? GitHub squash-merges it and deletes the branch once checks pass -- straight away if they already have."
+            case .mainPush:
+                return "Let the auto-push and auto-commit hooks act on main in this repo? This creates .autocommit-main-ok at the repo root."
+            case .autoCommit:
+                return "Add the auto-commit Stop hook to ~/.claude/settings.json? Every project's sessions will commit their tracked changes at the end of each turn (Haiku writes the message) and push feature branches. settings.json is tracked in ~/.claude and ~, so both will show it modified."
+            case .autoPR:
+                return "Open pull requests automatically in this repo? When a feature branch is pushed and has no PR, the app runs gh pr create --fill -- once per branch."
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            CardTitle("Automation")
+            if let snap = snapshot, let top = snap.toplevel {
+                toggle("Auto-merge PR", isOn: snap.autoMerge == true,
+                       disabledReason: autoMergeReason(snap)) { on in
+                    if on { confirm = .autoMerge } else { setAutoMerge(false, snap) }
+                }
+                toggle("Auto-push on main", isOn: GitAutomation.mainPushEnabled(toplevel: top),
+                       disabledReason: nil) { on in
+                    if on { confirm = .mainPush } else { setMainPush(false, top) }
+                }
+                toggle("Auto-commit (all projects)", isOn: autoCommitOn, disabledReason: nil) { on in
+                    if on { confirm = .autoCommit } else { setAutoCommit(false) }
+                }
+                toggle("Auto-PR", isOn: GitAutomation.autoPREnabled(toplevel: top),
+                       disabledReason: snap.ghInstalled ? nil : "The gh CLI isn't installed.") { on in
+                    if on { confirm = .autoPR } else { GitAutomation.setAutoPR(false, toplevel: top); reread() }
+                }
+                if let result = autoPR.lastResult[top] { Notice(result) }
+            }
+            if let notice { Notice(notice) }
+        }
+        .task(id: cwd) { await poll() }
+        .confirmationDialog(confirm?.question ?? "",
+                            isPresented: Binding(get: { confirm != nil },
+                                                 set: { if !$0 { confirm = nil } }),
+                            titleVisibility: .visible) {
+            if let pending = confirm {
+                Button("Turn on") {
+                    confirm = nil
+                    turnOn(pending)
+                }
+            }
+            Button("Cancel", role: .cancel) { confirm = nil }
+        }
+    }
+
+    private func toggle(_ title: String, isOn: Bool, disabledReason: String?,
+                        set: @escaping (Bool) -> Void) -> some View {
+        Toggle(title, isOn: Binding(get: { isOn }, set: set))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .font(.claudeMono(10))
+            .disabled(disabledReason != nil || busy)
+            .help(disabledReason ?? title)
+    }
+
+    private func autoMergeReason(_ snap: GitSnapshot) -> String? {
+        guard snap.ghInstalled else { return "The gh CLI isn't installed." }
+        guard case .open(_, _, let draft) = snap.pr else { return "There is no open PR on this branch." }
+        if draft { return "The PR is a draft." }
+        // Enabling can merge at once when checks already pass, and --delete-branch
+        // then switches this checkout: the same guard as Merge.
+        if snap.isDirty, snap.autoMerge != true { return "There are uncommitted changes. Commit or stash them first." }
+        return nil
+    }
+
+    private func turnOn(_ pending: Pending) {
+        guard let snap = snapshot, let top = snap.toplevel else { return }
+        switch pending {
+        case .autoMerge: setAutoMerge(true, snap)
+        case .mainPush: setMainPush(true, top)
+        case .autoCommit: setAutoCommit(true)
+        case .autoPR:
+            GitAutomation.setAutoPR(true, toplevel: top)
+            reread()
+            Task { await AutoPRWatcher.shared.tick([cwd]) }
+        }
+    }
+
+    private func setAutoMerge(_ on: Bool, _ snap: GitSnapshot) {
+        guard let cmd = GitAutomation.autoMergeCommand(enable: on, snapshot: snap) else { return }
+        busy = true
+        notice = nil
+        let dir = cwd
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                GitProbe.run(cmd.tool, cmd.args, in: dir, timeout: GitActions.actionTimeout)
+            }.value
+            busy = false
+            if let result, result.status == 0 {
+                notice = .init(kind: .info, text: on ? "Auto-merge is on." : "Auto-merge is off.")
+            } else {
+                notice = .init(kind: .error,
+                               text: result.flatMap { GitActions.firstLine($0.err) } ?? "gh didn't report back.")
+            }
+            await GitProbe.shared.invalidate(dir)
+            snapshot = await GitProbe.shared.snapshot(for: dir)
+        }
+    }
+
+    private func setMainPush(_ on: Bool, _ top: String) {
+        do {
+            try GitAutomation.setMainPush(on, toplevel: top)
+            notice = nil
+        } catch {
+            notice = .init(kind: .error, text: error.localizedDescription)
+        }
+        reread()
+    }
+
+    private func setAutoCommit(_ on: Bool) {
+        do {
+            try GitAutomation.setAutoCommit(on)
+            notice = .init(kind: .info, text: on ? "Auto-commit hook added." : "Auto-commit hook removed.")
+        } catch {
+            notice = .init(kind: .error, text: error.localizedDescription)
+        }
+        reread()
+    }
+
+    /// Marker files and defaults are read in the view body; this nudges a
+    /// redraw and re-reads the one that lives in settings.json.
+    private func reread() {
+        autoCommitOn = (try? String(contentsOf: GitAutomation.settingsURL, encoding: .utf8))
+            .map(GitAutomation.autoCommitEnabled) ?? false
+        let current = snapshot
+        snapshot = nil
+        snapshot = current
+    }
+
+    private func poll() async {
+        snapshot = nil
+        while !Task.isCancelled {
+            snapshot = await GitProbe.shared.snapshot(for: cwd)
+            autoCommitOn = (try? String(contentsOf: GitAutomation.settingsURL, encoding: .utf8))
+                .map(GitAutomation.autoCommitEnabled) ?? false
+            try? await Task.sleep(for: .seconds(5))
+        }
     }
 }
 

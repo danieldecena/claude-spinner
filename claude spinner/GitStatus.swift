@@ -245,6 +245,12 @@ struct GitSnapshot: Equatable {
     var pr: PRState = .unknown
     var merge = MergeReadiness()
     var ci: CIState = .unknown
+    /// Whether GitHub auto-merge is on for the open PR. nil when there is no
+    /// PR that was read, which is not the same as "off".
+    var autoMerge: Bool?
+    /// The repository root, which the per-repo automations are keyed on so a
+    /// session in a subdirectory shares its repo's settings.
+    var toplevel: String?
     /// Whether the `gh` binary was found. False makes every GitHub-derived
     /// answer unavailable for a reason that names gh, rather than for one that
     /// blames the network for a tool that was never installed.
@@ -481,6 +487,14 @@ enum GitParse {
             return .running(workflow: workflow, url: url)
         }
         return .finished(workflow: workflow, conclusion: run["conclusion"] as? String ?? "unknown", url: url)
+    }
+
+    /// `autoMergeRequest` is null when auto-merge is off and an object when on.
+    /// Absent means the field wasn't read, which stays unknown.
+    static func autoMerge(json: Data) -> Bool? {
+        guard let obj = try? JSONSerialization.jsonObject(with: json) as? [String: Any],
+              let value = obj["autoMergeRequest"] else { return nil }
+        return !(value is NSNull)
     }
 
     /// Tell "this branch has no PR" from "GitHub couldn't be reached".

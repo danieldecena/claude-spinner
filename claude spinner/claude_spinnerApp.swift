@@ -55,6 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // reports as "test runner exited with code 0 before establishing
         // connection" whenever the installed app is running.
         let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        // Never in the test host: a test run must not open real pull requests.
+        if !isTestHost {
+            AutoPRWatcher.shared.start { [feed] in feed.sessions.map(\.cwd) }
+        }
         if !isTestHost, let bundleID = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).count > 1 {
             exit(0)

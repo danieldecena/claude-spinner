@@ -3341,6 +3341,81 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(SessionConfig.modelConfirmation("Sonnet").contains("uncached"))
     }
 
+    // MARK: - Git automation
+
+    private let settingsSample = """
+    {
+      "hooks": {
+        "Stop": [
+          {
+            "matcher": "",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "~/bin/context-stamp.sh"
+              },
+              {
+                "type": "command",
+                "command": "bash ~/.claude/bin/auto-push.sh"
+              }
+            ]
+          }
+        ]
+      }
+    }
+    """
+
+    /// Known-good round trip: on inserts one entry that still parses, off takes
+    /// it back out to the original text byte for byte.
+    func testAutoCommitHookRoundTripsAsATextEdit() throws {
+        let on = try XCTUnwrap(GitAutomation.enablingAutoCommit(in: settingsSample))
+        XCTAssertTrue(GitAutomation.autoCommitEnabled(settings: on))
+        XCTAssertNotNil(try JSONSerialization.jsonObject(with: Data(on.utf8)) as? [String: Any])
+        XCTAssertTrue(on.contains("        \"command\": \"bash ~/bin/auto-commit.sh\""))
+        // Already on: nothing to insert.
+        XCTAssertNil(GitAutomation.enablingAutoCommit(in: on))
+        let off = try XCTUnwrap(GitAutomation.disablingAutoCommit(in: on))
+        XCTAssertEqual(off, settingsSample)
+        XCTAssertNil(GitAutomation.disablingAutoCommit(in: settingsSample))
+    }
+
+    /// Without the auto-push anchor there is no safe place to put it.
+    func testAutoCommitNeedsTheAutoPushAnchor() {
+        XCTAssertNil(GitAutomation.enablingAutoCommit(in: #"{"hooks": {}}"#))
+    }
+
+    func testAutoMergeParseKeepsUnknownApartFromOff() {
+        XCTAssertEqual(GitParse.autoMerge(json: Data(#"{"autoMergeRequest":null}"#.utf8)), false)
+        XCTAssertEqual(GitParse.autoMerge(json: Data(#"{"autoMergeRequest":{"mergeMethod":"SQUASH"}}"#.utf8)), true)
+        XCTAssertNil(GitParse.autoMerge(json: Data(#"{"number":3}"#.utf8)))
+    }
+
+    func testAutoPROnlyForAPushedFeatureBranchWithoutAPR() {
+        var snap = GitSnapshot()
+        snap.branch = "feature"
+        snap.sync = .inSync
+        snap.pr = .none
+        XCTAssertTrue(GitAutomation.shouldCreatePR(snap))
+        snap.pr = .unknown
+        XCTAssertFalse(GitAutomation.shouldCreatePR(snap), "unknown is not none")
+        snap.pr = .none
+        snap.sync = .ahead(1)
+        XCTAssertFalse(GitAutomation.shouldCreatePR(snap), "not pushed yet")
+        snap.sync = .inSync
+        snap.isDefaultBranch = true
+        XCTAssertFalse(GitAutomation.shouldCreatePR(snap))
+    }
+
+    func testAutoMergeCommands() {
+        var snap = GitSnapshot()
+        XCTAssertNil(GitAutomation.autoMergeCommand(enable: true, snapshot: snap))
+        snap.pr = .open(number: 7, url: "u", draft: false)
+        XCTAssertEqual(GitAutomation.autoMergeCommand(enable: true, snapshot: snap)?.args,
+                       ["pr", "merge", "7", "--auto", "--squash", "--delete-branch"])
+        XCTAssertEqual(GitAutomation.autoMergeCommand(enable: false, snapshot: snap)?.args,
+                       ["pr", "merge", "7", "--disable-auto"])
+    }
+
     // MARK: - Skill shortcuts
 
     /// Built-ins always show; a skill or command shows only when its file exists.

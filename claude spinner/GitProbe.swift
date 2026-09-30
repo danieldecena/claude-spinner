@@ -102,6 +102,7 @@ actor GitProbe {
                     snap.pr = .unknown
                     snap.merge = MergeReadiness()
                     snap.ci = .unknown
+                    snap.autoMerge = nil
                 }
                 let wantRemote = remoteExpired
                     || switchedBranch
@@ -130,6 +131,8 @@ actor GitProbe {
         snap.headSHA = git(["rev-parse", "HEAD"], in: cwd)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         snap.ghInstalled = (ghPath != nil)
+        snap.toplevel = git(["rev-parse", "--show-toplevel"], in: cwd)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         let counts = GitParse.porcelain(
             git(["status", "--porcelain=v1", "--untracked-files=all"], in: cwd) ?? "")
@@ -153,7 +156,7 @@ actor GitProbe {
 
     private static func readRemote(into snap: inout GitSnapshot, cwd: String) {
         snap.sync = syncState(cwd: cwd, snap: snap)
-        (snap.pr, snap.merge) = prState(cwd: cwd)
+        (snap.pr, snap.merge, snap.autoMerge) = prState(cwd: cwd)
         snap.ci = ciState(cwd: cwd, branch: snap.branch)
     }
 
@@ -196,16 +199,17 @@ actor GitProbe {
                              aheadCount: ahead)
     }
 
-    private static func prState(cwd: String) -> (PRState, MergeReadiness) {
-        guard let gh = ghPath else { return (.unknown, MergeReadiness()) }
-        let fields = "number,state,isDraft,url,mergeable,mergeStateStatus,reviewDecision"
+    private static func prState(cwd: String) -> (PRState, MergeReadiness, Bool?) {
+        guard let gh = ghPath else { return (.unknown, MergeReadiness(), nil) }
+        let fields = "number,state,isDraft,url,mergeable,mergeStateStatus,reviewDecision,autoMergeRequest"
         let result = run(gh, ["pr", "view", "--json", fields], in: cwd)
-        guard let result else { return (.unknown, MergeReadiness()) }
+        guard let result else { return (.unknown, MergeReadiness(), nil) }
         if result.status == 0, let state = GitParse.pr(json: Data(result.out.utf8)) {
-            return (state, GitParse.mergeReadiness(json: Data(result.out.utf8)))
+            let json = Data(result.out.utf8)
+            return (state, GitParse.mergeReadiness(json: json), GitParse.autoMerge(json: json))
         }
         // Mergeability is only meaningful alongside a PR that was actually read.
-        return (GitParse.prFailure(stderr: result.err), MergeReadiness())
+        return (GitParse.prFailure(stderr: result.err), MergeReadiness(), nil)
     }
 
     /// The newest `limit` commits across local branches, remotes and tags, in
