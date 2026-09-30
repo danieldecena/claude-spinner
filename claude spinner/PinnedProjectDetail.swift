@@ -38,10 +38,9 @@ struct PinnedProjectDetail: View {
     }
 
     private var dashboard: some View {
-        ScrollView {
-            // A dashboard: the same tile grid as a session's pane, so the two
-            // read as one app. Launch and tasks share the top row, what ran and
-            // what can be run the next, and each artifact takes a full row.
+        VStack(spacing: 0) {
+            // Above the scroll, not in it: inside, the title slid up under the opaque
+            // toolbar strip and was drawn cut off at its top edge (seen 2026-09-30).
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name).font(.system(size: 26, weight: .semibold, design: .serif))
                 Text(project.summary).font(.ui(12)).foregroundStyle(Color.label)
@@ -49,59 +48,67 @@ struct PinnedProjectDetail: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .top], 20)
-            TileGrid(minimum: 220, spacing: 12) {
-                launchCard.tileSpan(1)
-                tasksCard.tileSpan(2)
-                recentCard.tileSpan(2)
-                if let extras { aboutCard(extras.about).tileSpan(1) }
-                if let extras {
-                    discoveryCard("Skills", extras.skills) { skills in
-                        chips(skills) { skill in
-                            chip(skill.name, symbol: "wand.and.stars",
-                                 help: (skill.isProject ? "Project skill" : skill.plugin.map { "\($0) plugin skill" } ?? "User skill")
-                                    + ": start a session that runs " + skill.command) {
-                                start([skill.command])
-                            }
-                        }
-                    }
-                    .tileSpan(extras.skills.items.count > 6 ? 2 : 1)
-                }
-                if !live.isEmpty { liveCard.tileSpan(1) }
-                if let extras {
-                    discoveryCard("Scheduled", extras.scheduled) { jobs in
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
-                                    Text(job.schedule + (job.enabled == false ? " · off" : "") + " · " + job.source)
-                                        .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+            ScrollView {
+                // A dashboard: the same tile grid as a session's pane, so the two
+                // read as one app. Launch and tasks share the top row, what ran and
+                // what can be run the next, and each artifact takes a full row.
+                TileGrid(minimum: 220, spacing: 12) {
+                    launchCard.tileSpan(1)
+                    tasksCard.tileSpan(2)
+                    recentCard.tileSpan(2)
+                    if let extras { aboutCard(extras.about).tileSpan(1) }
+                    if let extras {
+                        discoveryCard("Skills", extras.skills) { skills in
+                            chips(skills) { skill in
+                                chip(skill.name, symbol: "wand.and.stars",
+                                     help: (skill.isProject ? "Project skill" : skill.plugin.map { "\($0) plugin skill" } ?? "User skill")
+                                        + ": start a session that runs " + skill.command) {
+                                    start([skill.command])
                                 }
                             }
                         }
+                        .tileSpan(extras.skills.items.count > 6 ? 2 : 1)
                     }
-                    discoveryCard("Workflows", extras.workflows) { workflows in
-                        chips(workflows) { workflow in
-                            chip(workflow.name, symbol: "point.3.connected.trianglepath.dotted",
-                                 help: "Start a session that runs this workflow") {
-                                start(["Run the workflow \(workflow.name) using the Workflow tool"])
+                    if !live.isEmpty { liveCard.tileSpan(1) }
+                    if let extras {
+                        discoveryCard("Scheduled", extras.scheduled) { jobs in
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
+                                        Text(job.schedule + (job.enabled == false ? " · off" : "") + " · " + job.source)
+                                            .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+                                    }
+                                }
                             }
                         }
-                    }
-                    ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
-                        ArtifactCard(artifact: artifact) {
-                            withAnimation(.snappy) { focused = artifact }
+                        discoveryCard("Workflows", extras.workflows) { workflows in
+                            chips(workflows) { workflow in
+                                chip(workflow.name, symbol: "point.3.connected.trianglepath.dotted",
+                                     help: "Start a session that runs this workflow") {
+                                    start(["Run the workflow \(workflow.name) using the Workflow tool"])
+                                }
+                            }
                         }
-                    }
-                    if !extras.artifacts.unreadable.isEmpty {
-                        discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in
-                            EmptyView()
+                        ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
+                            ArtifactCard(artifact: artifact) {
+                                withAnimation(.snappy) { focused = artifact }
+                            }
                         }
-                        .tileSpan(3)
+                        if !extras.artifacts.unreadable.isEmpty {
+                            discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in
+                                EmptyView()
+                            }
+                            .tileSpan(3)
+                        }
                     }
                 }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // The strip above the header is the toolbar's; clip so nothing scrolls
+            // up behind the title either.
+            .clipped()
         }
         .task(id: project.id) {
             let path = project.path
