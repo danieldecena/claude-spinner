@@ -3175,6 +3175,54 @@ final class claude_spinnerTests: XCTestCase {
                        "idle 2m 0s")
     }
 
+    // MARK: - Skill shortcuts
+
+    /// Built-ins always show; a skill or command shows only when its file exists.
+    func testShortcutsHideWhatIsNotInstalled() {
+        let dir = URL(fileURLWithPath: "/c")
+        let installed: Set<String> = ["/c/skills/wrap-up/SKILL.md", "/c/commands/goal.md"]
+        let names = SkillShortcut.available(claudeDir: dir, exists: installed.contains).map(\.name)
+        XCTAssertEqual(names, ["wrap-up", "code-review", "simplify", "goal"])
+        let none = SkillShortcut.available(claudeDir: dir, exists: { _ in false }).map(\.name)
+        XCTAssertEqual(none, ["code-review", "simplify"])
+    }
+
+    // MARK: - Usage visuals
+
+    func testWindowElapsedPlacesNowInsideTheWindow() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let fiveHours: TimeInterval = 5 * 3600
+        // Reset in 1h of a 5h window: 80% through.
+        XCTAssertEqual(FeedWatcher.windowElapsed(resetsAt: 1_000_000 + 3600, length: fiveHours, now: now)!,
+                       0.8, accuracy: 0.0001)
+        XCTAssertNil(FeedWatcher.windowElapsed(resetsAt: nil, length: fiveHours, now: now))
+        // Already reset: stale, not "100% through".
+        XCTAssertNil(FeedWatcher.windowElapsed(resetsAt: 1_000_000 - 1, length: fiveHours, now: now))
+        XCTAssertNil(FeedWatcher.windowElapsed(resetsAt: 1_000_000 + fiveHours + 60, length: fiveHours, now: now))
+    }
+
+    /// Tuesday 2026-09-29: Monday has a row, today has a row, the rest are ahead.
+    func testWeekBarsRunMondayToSundayWithFutureDaysNil() {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = .current
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 12))!
+        let bars = UsageTotalsPoller.weekBars(days: [.init(period: "2026-09-28", tokens: 1000),
+                                                     .init(period: "2026-09-29", tokens: 500)],
+                                              now: now)
+        XCTAssertEqual(bars.count, 7)
+        XCTAssertEqual(bars.map(\.tokens), [1000, 500, nil, nil, nil, nil, nil])
+        XCTAssertEqual(bars.map(\.isToday), [false, true, false, false, false, false, false])
+    }
+
+    /// A past day with no ccusage row is an observed zero, not a gap.
+    func testWeekBarsCountAMissingPastDayAsZero() {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = .current
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 12))!
+        let bars = UsageTotalsPoller.weekBars(days: [.init(period: "2026-09-30", tokens: 7)], now: now)
+        XCTAssertEqual(Array(bars.map(\.tokens).prefix(3)), [0, 0, 7])
+    }
+
     // MARK: - UsageTotalsPoller.parse (ccusage JSON -> Result)
 
     private let activeBlock = Data("""
@@ -3198,6 +3246,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(r?.block?.tokens, 5000)
         XCTAssertEqual(r?.block?.projectedTokens, 9000)
         XCTAssertEqual(r?.block?.remainingMinutes, 104)
+        XCTAssertEqual(r?.days, [.init(period: "2026-09-28", tokens: 1000),
+                                 .init(period: "2026-09-29", tokens: 500)])
     }
 
     /// The 2026-09-29 flake: a model with tokens but $0 means ccusage failed to

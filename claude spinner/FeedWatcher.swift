@@ -846,6 +846,11 @@ final class UsageTotalsPoller {
         var projectedTokens: Int?
         var remainingMinutes: Int?
     }
+    /// One `daily` row, kept for the week chart rather than summed away.
+    struct Day: Equatable {
+        var period: String  // yyyy-MM-dd
+        var tokens: Int
+    }
     struct Result {
         var todayTokens: Int
         var todayCost: Double?
@@ -853,6 +858,35 @@ final class UsageTotalsPoller {
         var weekCost: Double?
         var block: Block?
         var fetchedAt: Date
+        var days: [Day] = []
+    }
+
+    /// One bar of the week chart.
+    struct WeekBar: Equatable {
+        let label: String
+        /// nil for a day still ahead: not yet happened is not zero usage.
+        let tokens: Int?
+        let isToday: Bool
+    }
+
+    /// Monday to Sunday of the ISO week the poll scans, same calendar as `poll`.
+    /// A past day ccusage has no row for used nothing, so it is an observed 0;
+    /// a day still ahead is nil.
+    static func weekBars(days: [Day], now: Date) -> [WeekBar] {
+        var cal = Calendar(identifier: .iso8601)
+        cal.timeZone = .current
+        guard let start = cal.dateInterval(of: .weekOfYear, for: now)?.start else { return [] }
+        let byPeriod = Dictionary(days.map { ($0.period, $0.tokens) }, uniquingKeysWith: +)
+        let today = cal.startOfDay(for: now)
+        let weekday = DateFormatter()
+        weekday.calendar = cal
+        weekday.dateFormat = "EEEEE"
+        return (0..<7).compactMap { offset in
+            guard let day = cal.date(byAdding: .day, value: offset, to: start) else { return nil }
+            return WeekBar(label: weekday.string(from: day),
+                           tokens: day > today ? nil : byPeriod[dayFormatter.string(from: day)] ?? 0,
+                           isToday: day == today)
+        }
     }
 
     /// Long: a daily scan costs ~11s wall and ~90s CPU across every transcript.
@@ -903,6 +937,7 @@ final class UsageTotalsPoller {
                   let tokens = num(row["totalTokens"]),
                   let cost = num(row["totalCost"]) else { return nil }
             let priced = isPriced(row)
+            result.days.append(Day(period: period, tokens: Int(tokens)))
             result.weekTokens += Int(tokens)
             result.weekCost = priced ? result.weekCost.map { $0 + cost } : nil
             if period == today {
@@ -1924,6 +1959,28 @@ final class FeedWatcher: ObservableObject {
 
     /// The 7d window's reset instant (only the poller carries it).
     private var sevenDayResetsAt: Double? { pollUsage?.sevenDayResetsAt }
+
+    /// How far through each limit window we are, for the pace marker.
+    var usageFiveHourElapsed: Double? {
+        Self.windowElapsed(resetsAt: fiveHourResetsAt, length: 5 * 3600, now: Date())
+    }
+    var usageSevenDayElapsed: Double? {
+        Self.windowElapsed(resetsAt: sevenDayResetsAt, length: 7 * 86400, now: Date())
+    }
+
+    /// 0 at the window's start, 1 at its reset. nil when the reset has already
+    /// passed (a stale reading) or sits further out than one window: either way
+    /// there is no honest position to mark.
+    static func windowElapsed(resetsAt: Double?, length: TimeInterval, now: Date) -> Double? {
+        guard let resetsAt else { return nil }
+        let left = resetsAt - now.timeIntervalSince1970
+        guard left >= 0, left <= length else { return nil }
+        return 1 - left / length
+    }
+
+    var usageWeekBars: [UsageTotalsPoller.WeekBar] {
+        usageTotals.map { UsageTotalsPoller.weekBars(days: $0.days, now: Date()) } ?? []
+    }
     var usageSevenDayReset: String? { Self.formatResetDay(sevenDayResetsAt) }
 
     /// Tooltip for the footer countdown — both windows' reset clock times when

@@ -88,7 +88,12 @@ struct WindowContentView: View {
                               totals: feed.usageTotalsRows,
                               totalsStatus: feed.usageTotalsStatus,
                               totalsDimmed: feed.usageTotals == nil || feed.usageTotalsIsStale,
-                              totalsHelp: feed.usageTotalsTooltip)
+                              totalsHelp: feed.usageTotalsTooltip,
+                              fiveHourElapsed: feed.usageFiveHourElapsed,
+                              sevenDayElapsed: feed.usageSevenDayElapsed,
+                              fiveHourReset: feed.usageFiveHourResetRelative,
+                              sevenDayReset: feed.usageSevenDayReset,
+                              weekBars: feed.usageWeekBars)
                 // Same reason the panel carries it: without this the window
                 // surface answers questions fine and silently never rings.
                 NotificationsNotice()
@@ -113,6 +118,7 @@ struct WindowContentView: View {
                 SessionDetail(session: session,
                               children: feed.sessions.filter { $0.parentSessionId == session.id },
                               asks: asks.pending.filter { $0.sessionId == session.id },
+                              feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [])
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
@@ -240,6 +246,7 @@ private struct SessionDetail: View {
     let session: SessionFeed
     let children: [SessionFeed]
     let asks: [AskRequest]
+    let feedDir: URL
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
@@ -268,6 +275,8 @@ private struct SessionDetail: View {
                     cacheCard
                     contextCard.tileSpan(2)
                     configCard
+                    // Full width at any column count; the span clamps.
+                    ShortcutsCard(session: session, feedDir: feedDir).tileSpan(.max)
                 }
 
                 if !children.isEmpty {
@@ -898,6 +907,11 @@ private struct OverviewStrip: View {
     let totalsStatus: String
     let totalsDimmed: Bool
     let totalsHelp: String
+    let fiveHourElapsed: Double?
+    let sevenDayElapsed: Double?
+    let fiveHourReset: String?
+    let sevenDayReset: String?
+    let weekBars: [UsageTotalsPoller.WeekBar]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -936,6 +950,16 @@ private struct OverviewStrip: View {
             .opacity(usageStale ? 0.5 : 1)
             .help(usageHelp)
 
+            VStack(spacing: 4) {
+                if let fiveHour {
+                    PaceBar(label: "5h", pct: fiveHour, elapsed: fiveHourElapsed, reset: fiveHourReset)
+                }
+                if let sevenDay {
+                    PaceBar(label: "7d", pct: sevenDay, elapsed: sevenDayElapsed, reset: sevenDayReset)
+                }
+            }
+            .opacity(usageStale ? 0.5 : 1)
+
             // Labelled for what it is. "$93.62 today" under a dollar sign reads
             // as a bill, and on a subscription plan that is simply wrong.
             if let spend = overview.spendUSD {
@@ -953,6 +977,11 @@ private struct OverviewStrip: View {
                 .padding(.top, 4)
                 .opacity(totalsDimmed ? 0.6 : 1)
                 .help(totalsHelp)
+
+            if !weekBars.isEmpty {
+                WeekChart(bars: weekBars)
+                    .opacity(totalsDimmed ? 0.6 : 1)
+            }
 
             UsageHistoryChart(samples: history)
                 .padding(.top, 2)
@@ -978,6 +1007,105 @@ private struct OverviewStrip: View {
             parts.append("\(diff) lines")
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// A limit window's usage against how much of the window has gone by.
+///
+/// The fill is usage; the tick is time. Fill past the tick means burning faster
+/// than the window refills, which the percentage alone cannot say: 40% is fine
+/// an hour before reset and alarming ten minutes after one.
+struct PaceBar: View {
+    let label: String
+    let pct: Int
+    let elapsed: Double?
+    let reset: String?
+
+    var body: some View {
+        let ratio = CGFloat(min(100, max(0, pct))) / 100
+        HStack(spacing: 6) {
+            Text(label).font(.claudeMono(10)).foregroundStyle(Color.label)
+                .frame(width: 16, alignment: .leading)
+            GeometryReader { geo in
+                let w = geo.size.width
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.22)).frame(height: 5)
+                    Capsule().fill(Color.usageTint(pct))
+                        .frame(width: max(pct > 0 ? 3 : 0, w * ratio), height: 5)
+                    if let elapsed {
+                        Capsule().fill(Color.primary.opacity(0.85))
+                            .frame(width: 2, height: 10)
+                            .offset(x: min(w - 2, max(0, w * elapsed - 1)))
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            }
+            .frame(height: 10)
+            if let reset {
+                Text(reset).font(.claudeMono(10)).foregroundStyle(Color.label).fixedSize()
+            }
+        }
+        .help(helpText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label == "5h" ? "5-hour" : "7-day") usage")
+        .accessibilityValue(helpText)
+    }
+
+    private var helpText: String {
+        var text = "\(pct)% used"
+        if let elapsed {
+            let gone = Int((elapsed * 100).rounded())
+            text += " with \(gone)% of the window gone"
+            text += Double(pct) / 100 > elapsed ? ", ahead of pace" : ", within pace"
+        }
+        if let reset { text += "; resets \(reset)" }
+        return text
+    }
+}
+
+/// Tokens per day, Monday to Sunday, from the ccusage daily rows.
+///
+/// Scaled to the week's own peak: the question is which day was heavy, and
+/// there is no limit to draw against. Days still ahead are faint stubs, not
+/// zero-height bars, so "hasn't happened" never reads as "used nothing".
+struct WeekChart: View {
+    let bars: [UsageTotalsPoller.WeekBar]
+
+    var body: some View {
+        let peak = max(1, bars.compactMap(\.tokens).max() ?? 0)
+        HStack(alignment: .bottom, spacing: 5) {
+            ForEach(Array(bars.enumerated()), id: \.offset) { _, bar in
+                VStack(spacing: 2) {
+                    GeometryReader { geo in
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(fill(bar))
+                                .frame(height: height(bar, peak: peak, box: geo.size.height))
+                        }
+                    }
+                    Text(bar.label).font(.claudeMono(9))
+                        .foregroundStyle(bar.isToday ? Color.primary : Color.label)
+                }
+                .help(bar.tokens.map { "\(FeedWatcher.formatTokens($0)) tokens" } ?? "not yet")
+            }
+        }
+        .frame(height: 40)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Tokens by day this week")
+        .accessibilityValue(bars.compactMap { bar in
+            bar.tokens.map { "\(bar.label) \(FeedWatcher.formatTokens($0))" }
+        }.joined(separator: ", "))
+    }
+
+    private func fill(_ bar: UsageTotalsPoller.WeekBar) -> Color {
+        if bar.isToday { return .claude }
+        return Color.secondary.opacity(bar.tokens == nil ? 0.15 : 0.55)
+    }
+
+    private func height(_ bar: UsageTotalsPoller.WeekBar, peak: Int, box: CGFloat) -> CGFloat {
+        guard let tokens = bar.tokens else { return 2 }
+        return max(tokens > 0 ? 2 : 0, box * CGFloat(tokens) / CGFloat(peak))
     }
 }
 
@@ -1493,6 +1621,73 @@ private struct ActionBar: View {
         switch result {
         case .success: return .init(kind: .info, text: sent)
         case .failure(let error): return error.errorDescription.map { .init(kind: .error, text: $0) }
+        }
+    }
+}
+
+// MARK: - Shortcuts
+
+/// One-click slash commands for the selected session, typed through the same
+/// pane as the reply field and held to the same rule: idle and in tmux, or the
+/// chip is greyed with the reason.
+private struct ShortcutsCard: View {
+    let session: SessionFeed
+    let feedDir: URL
+    @State private var hasPane = false
+    @State private var notice: NoticeMessage?
+    @State private var sending = false
+
+    private static let shortcuts = SkillShortcut.available(
+        claudeDir: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude"))
+
+    var body: some View {
+        let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
+        VStack(alignment: .leading, spacing: 8) {
+            // Not a StatSection: with no rows it would say "nothing reported yet".
+            Text("Shortcuts").font(.claudeMono(10)).fontWeight(.semibold)
+                .foregroundStyle(Color.label)
+                .textCase(.uppercase).tracking(0.8)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
+                      alignment: .leading, spacing: 6) {
+                ForEach(Self.shortcuts) { shortcut in
+                    Button { send(shortcut) } label: {
+                        Label(shortcut.command, systemImage: shortcut.symbol)
+                            .font(.claudeMono(10))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(reason != nil || sending)
+                    // Lighter than the toolbar's 0.45: these carry names worth
+                    // reading while the session is busy.
+                    .opacity(reason == nil ? 1 : 0.7)
+                    .help(reason ?? shortcut.blurb)
+                }
+            }
+            if let notice {
+                Notice(notice)
+            }
+        }
+        .detailCard()
+        .task(id: session.id) {
+            let pid = session.pid
+            hasPane = await Task.detached(priority: .utility) {
+                pid != nil && SessionReplier.hasPane(session)
+            }.value
+        }
+    }
+
+    private func send(_ shortcut: SkillShortcut) {
+        sending = true
+        notice = nil
+        SessionReplier.reply(to: session, text: shortcut.command, feedDir: feedDir) { result in
+            sending = false
+            switch result {
+            case .success:
+                notice = .init(kind: .info, text: "Sent \(shortcut.command).")
+            case .failure(let error):
+                notice = error.errorDescription.map { .init(kind: .error, text: $0) }
+            }
         }
     }
 }
