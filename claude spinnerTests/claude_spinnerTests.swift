@@ -4204,4 +4204,85 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(r?.block)
     }
 
+    // MARK: - GoalClock
+
+    private func goalLine(remaining: Int, minutes: Int, now: Date = Date(timeIntervalSince1970: 1_800_000_000)) -> GoalClock? {
+        GoalClock.parse("\(Int(now.timeIntervalSince1970) + remaining) \(minutes)\n", now: now)
+    }
+
+    func testGoalClockMidRun() {
+        let clock = goalLine(remaining: 87 * 60 + 30, minutes: 120)
+        XCTAssertEqual(clock?.minutesLeft, 87)
+        XCTAssertEqual(clock?.originalMinutes, 120)
+        XCTAssertEqual(clock?.isLanding, false)
+        XCTAssertEqual(clock?.isOverrun, false)
+        XCTAssertEqual(clock?.label, "GOAL  87 min left")
+    }
+
+    func testGoalClockReserveBoundary() {
+        // 100 minutes reserves 10.
+        XCTAssertEqual(goalLine(remaining: 11 * 60, minutes: 100)?.isLanding, false)
+        XCTAssertEqual(goalLine(remaining: 11 * 60, minutes: 100)?.label, "GOAL  11 min left")
+        XCTAssertEqual(goalLine(remaining: 10 * 60 + 59, minutes: 100)?.isLanding, true)
+        XCTAssertEqual(goalLine(remaining: 10 * 60, minutes: 100)?.label, "GOAL  landing, 10 min left")
+        XCTAssertEqual(goalLine(remaining: 9 * 60, minutes: 100)?.label, "GOAL  landing, 9 min left")
+    }
+
+    func testGoalClockReserveFloorsAtOneMinute() {
+        // 5 minutes would reserve 0 by division; the floor is 1.
+        XCTAssertEqual(goalLine(remaining: 60, minutes: 5)?.reserveMinutes, 1)
+        XCTAssertEqual(goalLine(remaining: 60, minutes: 5)?.isLanding, true)
+        XCTAssertEqual(goalLine(remaining: 2 * 60, minutes: 5)?.isLanding, false)
+    }
+
+    func testGoalClockUnderAMinuteIsNeverZero() {
+        let clock = goalLine(remaining: 59, minutes: 30)
+        XCTAssertEqual(clock?.label, "GOAL  landing, <1 min left")
+        XCTAssertEqual(clock?.isOverrun, false)
+    }
+
+    func testGoalClockOverrun() {
+        XCTAssertEqual(goalLine(remaining: 0, minutes: 30)?.label, "GOAL  over by <1 min")
+        XCTAssertEqual(goalLine(remaining: -90, minutes: 30)?.label, "GOAL  over by 1 min")
+        let clock = goalLine(remaining: -7 * 60, minutes: 30)
+        XCTAssertEqual(clock?.isOverrun, true)
+        XCTAssertEqual(clock?.isLanding, false)
+        XCTAssertEqual(clock?.label, "GOAL  over by 7 min")
+    }
+
+    func testGoalClockStaleFileIsUnknownNotOverrun() {
+        XCTAssertNil(goalLine(remaining: -GoalClock.staleAfter, minutes: 30))
+        XCTAssertNotNil(goalLine(remaining: -GoalClock.staleAfter + 60, minutes: 30))
+    }
+
+    func testGoalClockRejectsMalformedAndAcceptsWellFormed() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let future = Int(now.timeIntervalSince1970) + 3600
+        // Known-BAD: each must be unknown, never a clock.
+        for bad in [nil, "", "   \n", "abc", "\(future)", "\(future) 60 7", "\(future) sixty",
+                    "soon 60", "\(future) -60", "\(future) 0", "-5 60", "\(future) 6.5"] as [String?] {
+            XCTAssertNil(GoalClock.parse(bad, now: now), "\(bad ?? "nil") should be unknown")
+        }
+        // Known-GOOD: the same parser must yield a value, or the rejections prove nothing.
+        XCTAssertEqual(GoalClock.parse("\(future) 60", now: now)?.minutesLeft, 60)
+        XCTAssertEqual(GoalClock.parse("\(future)\t60\n", now: now)?.minutesLeft, 60)
+        XCTAssertEqual(GoalClock.parse("  \(future)  60  ", now: now)?.originalMinutes, 60)
+    }
+
+    func testGoalClockRefreshWaitLandsOnTheNextMinuteBoundary() {
+        XCTAssertEqual(goalLine(remaining: 87 * 60 + 30, minutes: 120)?.secondsUntilLabelChanges, 31)
+        XCTAssertEqual(goalLine(remaining: 87 * 60, minutes: 120)?.secondsUntilLabelChanges, 61)
+        XCTAssertEqual(goalLine(remaining: -(60 + 20), minutes: 120)?.secondsUntilLabelChanges, 41)
+    }
+
+    func testGoalDeadlineFileMissingIsNilAndPresentIsRead() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("goal-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        XCTAssertNil(GoalDeadlineFile.read(pane: "%3", in: dir))
+        try "1800000000 30\n".write(to: dir.appendingPathComponent("goal-deadline-%3"), atomically: true, encoding: .utf8)
+        XCTAssertEqual(GoalDeadlineFile.read(pane: "%3", in: dir), "1800000000 30\n")
+        XCTAssertNil(GoalDeadlineFile.read(pane: "%4", in: dir))
+    }
+
 }

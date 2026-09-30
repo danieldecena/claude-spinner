@@ -1150,7 +1150,8 @@ private struct ConversationCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Flexible: Claude's reply fills whatever height the row gives the
             // card, so the reply row sits at the foot, where a chat box is.
-            TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id, extra: extra)
+            TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id, pid: session.pid,
+                           extra: extra)
             // The answer and what runs it, on one line.
             HStack(spacing: 8) {
                 ReplyBox(session: session, feedDir: feedDir, notice: $notice)
@@ -1170,12 +1171,14 @@ private struct ConversationCard: View {
 private struct TranscriptCard: View {
     let path: String?
     let sessionID: String
+    let pid: Int?
     var extra: CGFloat = 0
     /// About four lines of the transcript face: the reply's height before the
     /// row hands it any more.
     private static let replyIdeal: CGFloat = 54
     @State private var snapshot = TranscriptSnapshot()
     @State private var expanded = false
+    @State private var goal: GoalClock?
 
     var body: some View {
         // Three things, no captions on the last: what you asked, what Claude said
@@ -1184,7 +1187,8 @@ private struct TranscriptCard: View {
         // a hole under a short reply; the row is as tall as the Skills card
         // beside it either way, so a card that resizes moves nothing.
         VStack(alignment: .leading, spacing: 10) {
-            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded)
+            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded,
+                     goal: goal)
             Labelled("claude said", snapshot.lastAssistantText, limit: nil,
                      fill: expanded ? nil : Self.replyIdeal + extra)
             if !snapshot.recentTools.isEmpty {
@@ -1197,10 +1201,34 @@ private struct TranscriptCard: View {
         // or the pane's measured ideal comes back short and it clips.
         .padding(.bottom, expanded ? extra : 0)
         .task(id: sessionID) { await refresh() }
+        .task(id: "\(sessionID)|\(pid.map(String.init) ?? "-")") { await trackGoal() }
         // Re-read on the same cadence the rows already tick at. The read is a
         // bounded tail, not the whole file, so this stays cheap.
         .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
             Task { await refresh() }
+        }
+    }
+
+    /// Re-reads the goal's deadline file each time its label can change, about
+    /// once a minute. A session with no pane, or no file, shows no sign: that is
+    /// unknown, and the sign is never drawn from a guess.
+    private func trackGoal() async {
+        goal = nil
+        while !Task.isCancelled {
+            var wait = 60.0
+            if let pid, let pane = await Task.detached(priority: .utility, operation: {
+                await GoalPaneResolver.shared.pane(sessionID: sessionID, pid: pid)
+            }).value {
+                let text = await Task.detached(priority: .utility) {
+                    GoalDeadlineFile.read(pane: pane)
+                }.value
+                let clock = GoalClock.parse(text, now: Date())
+                if clock != goal { goal = clock }
+                wait = clock?.secondsUntilLabelChanges ?? 60
+            } else if goal != nil {
+                goal = nil
+            }
+            try? await Task.sleep(for: .seconds(wait))
         }
     }
 
@@ -1226,14 +1254,17 @@ private struct Labelled: View {
     /// When given, the text asks for this height but takes whatever it is given,
     /// showing as many lines as fit and cutting the rest.
     var fill: CGFloat?
+    /// A timed `/goal` run's clock, shown beside the title.
+    var goal: GoalClock?
 
     init(_ title: String, _ body: String?, limit: Int?, expanded: Binding<Bool>? = nil,
-         fill: CGFloat? = nil) {
+         fill: CGFloat? = nil, goal: GoalClock? = nil) {
         self.title = title
         self.body_ = body
         self.limit = limit
         self.expanded = expanded
         self.fill = fill
+        self.goal = goal
     }
 
     var body: some View {
@@ -1241,6 +1272,14 @@ private struct Labelled: View {
             HStack {
                 Text(title).font(.ui(10)).fontWeight(.semibold)
                     .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+                if let goal {
+                    Text(goal.label).font(.ui(10))
+                        .foregroundStyle(goal.isLanding || goal.isOverrun ? Color.attention : Color.label)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                        .fixedSize()
+                        .help("Time left on this session's /goal run")
+                }
                 Spacer(minLength: 4)
                 if let expanded {
                     Button { expanded.wrappedValue.toggle() } label: {
