@@ -137,13 +137,13 @@
 
 ## Next Up
 
-1. [code] Ask boxes in the You asked card as well as the terminal: needs the terminal
-   box's answer keys confirmed first (tried a tmux probe; questions auto-answered
-   "Red" before a box drew, cause unexplained). Needs a live look at a real box.
-2. [you] Decide attention colour (kit warn vs Spinner blue) and whether the menu-bar
-   panel moves to App Kit type; both are palette calls.
-3. [you] Answer two offers: add /superpower:tdd, /superpower:review, /security-review,
-   /inbox, /roadmap chips; add Fact, Eyebrow and Toolbar to App Kit `conventions.md`.
+1. [you] Ask boxes in the You asked card as well as the terminal: tell me which keys
+   pick an option in the terminal question box. Tried a tmux probe; its questions were
+   auto-answered "Red" before a box drew (cause unexplained, own task).
+2. [you] Keep or drop `FeedWatcher.spendHistory`: it still records to UserDefaults and
+   nothing reads it since the charts went. Keep only if a spend chart is coming back.
+3. [you] Palette and offers: attention colour (kit warn vs Spinner blue), menu-bar panel
+   on App Kit type, five more skill chips, App Kit `conventions.md` listing 13 components.
 
 The rest is in `TASKS.md`.
 
