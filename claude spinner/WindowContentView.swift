@@ -1945,10 +1945,19 @@ private struct GitCommandsCard: View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Git commands")
             GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
-            ShortcutChips(session: session, feedDir: feedDir,
-                          shortcuts: installedShortcuts.filter { $0.group == .git },
-                          suggestion: suggestion, notice: $notice,
-                          idleReason: { SkillShortcut.idleReason($0, snapshot: snapshot) })
+            // Same rule as the buttons: a skill with nothing to act on is hidden.
+            let chips = installedShortcuts.filter {
+                $0.group == .git && SkillShortcut.idleReason($0, snapshot: snapshot) == nil
+            }
+            if !chips.isEmpty {
+                ShortcutChips(session: session, feedDir: feedDir, shortcuts: chips,
+                              suggestion: suggestion, notice: $notice)
+            } else if let snapshot, GitAction.allCases.allSatisfy({
+                $0.isTool || GitActions.unavailableReason($0, snapshot: snapshot)?.settled == true
+            }) {
+                Text("Nothing to do: clean, in sync, and no PR waiting.")
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+            }
             if let notice { Notice(notice) }
             Divider().padding(.vertical, 2)
             AutomationToggles(session: session, feedDir: feedDir)
@@ -2161,8 +2170,6 @@ private struct ShortcutChips: View {
     let shortcuts: [SkillShortcut]
     let suggestion: Suggestion?
     @Binding var notice: NoticeMessage?
-    /// Why a chip has nothing to act on even though it could be typed.
-    var idleReason: (SkillShortcut) -> String? = { _ in nil }
     /// This card's best skill: outlined, steady, beside the pane-wide glow.
     var pick: Suggestion? = nil
     @State private var hasPane = false
@@ -2174,7 +2181,6 @@ private struct ShortcutChips: View {
                   alignment: .leading, spacing: 6) {
             ForEach(shortcuts) { shortcut in
                 let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
-                    ?? idleReason(shortcut)
                 Button { start(shortcut) } label: {
                     // The name alone; the slash is implied by the card, and the
                     // tooltip and the notice still say the command typed.
@@ -2597,7 +2603,11 @@ private struct GitButtons: View {
             if let snap = snapshot {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 6)],
                           alignment: .leading, spacing: 6) {
-                    ForEach(GitAction.allCases.filter { !$0.isTool }) { action in
+                    // A settled block is a finished answer, so its button goes;
+                    // an unsettled one stays greyed with its reason.
+                    ForEach(GitAction.allCases.filter {
+                        !$0.isTool && GitActions.unavailableReason($0, snapshot: snap)?.settled != true
+                    }) { action in
                         let block = GitActions.unavailableReason(action, snapshot: snap)
                         Button { start(action) } label: {
                             Label(action.title, systemImage: action.symbol)
