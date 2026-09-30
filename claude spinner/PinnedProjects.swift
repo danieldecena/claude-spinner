@@ -185,6 +185,23 @@ nonisolated enum ProjectDiscovery {
         return Array(byId.values.sorted { $0.modified > $1.modified }.prefix(limit))
     }
 
+    /// Whether a transcript came from an interactive terminal session: its
+    /// records carry `"entrypoint":"cli"` (headless runs say `sdk-cli`, Claude
+    /// Desktop says `claude-desktop`). Read from the first few KB only; a file
+    /// that says nothing is kept, since hiding a real session is worse than
+    /// showing a stray one.
+    static func ranInTerminal(path: String) -> Bool {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return true }
+        defer { try? handle.close() }
+        let head = (try? handle.read(upToCount: 32 * 1024)) ?? Data()
+        for line in head.split(separator: UInt8(ascii: "\n")) {
+            guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+                  let entry = obj["entrypoint"] as? String else { continue }
+            return entry == "cli"
+        }
+        return true
+    }
+
     /// The project's transcripts on disk: `<uuid>.jsonl`, non-empty. Anything
     /// else in there (agent files, stray notes) isn't a session you can resume.
     static func transcripts(slug: String, projectsDir: String) -> Found<TranscriptFile> {
@@ -216,7 +233,13 @@ nonisolated enum ProjectDiscovery {
                                limit: Int = 8) -> Found<RecentSession> {
         let all = transcripts(slug: transcriptSlug(folder), projectsDir: projectsDir)
         var found = Found<RecentSession>(unreadable: all.unreadable)
-        found.items = newest(all.items, excluding: live, limit: limit).map { file in
+        // Headless runs (`claude -p`, the SDK) and Claude Desktop's own sessions
+        // are not something to resume into a terminal, and here they outnumber
+        // real sessions many to one, so they are skipped before the limit is
+        // applied rather than after.
+        let interactive = newest(all.items, excluding: live, limit: .max)
+            .lazy.filter { ranInTerminal(path: $0.path) }.prefix(limit)
+        found.items = interactive.map { file in
             let read = TranscriptReader.read(path: file.path)
             return RecentSession(id: file.id, modified: file.modified, title: read.title,
                                  lastPrompt: read.lastPrompt, lastActivity: read.lastActivity)

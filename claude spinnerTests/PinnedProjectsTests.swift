@@ -153,6 +153,40 @@ final class PinnedProjectsTests: XCTestCase {
         }
     }
 
+    /// Headless and Claude Desktop sessions are skipped before the limit, so a
+    /// pile of them cannot push the real sessions off the list. Both directions
+    /// are covered: those files are dropped, and a terminal one and one with no
+    /// `entrypoint` stay.
+    func testRecentSessionsSkipHeadlessAndDesktopRuns() {
+        withTempDir { root in
+            let slug = ProjectDiscovery.transcriptSlug("/x/job search")
+            let real = "bbbbbbbb-0000-4000-8000-000000000001"
+            let unlabelled = "bbbbbbbb-0000-4000-8000-000000000002"
+            write(#"{"type":"user","entrypoint":"cli"}"#, to: "\(root)/\(slug)/\(real).jsonl", age: 90)
+            write(#"{"type":"user"}"#, to: "\(root)/\(slug)/\(unlabelled).jsonl", age: 80)
+            var headless: [String] = []
+            for n in 0..<10 {
+                let id = String(format: "bbbbbbbb-0000-4000-8000-0000000001%02d", n)
+                headless.append(id)
+                write(#"{"type":"queue-operation"}"# + "\n" + #"{"type":"user","entrypoint":"sdk-cli"}"#,
+                      to: "\(root)/\(slug)/\(id).jsonl", age: TimeInterval(n + 1))
+            }
+            let desktop = "bbbbbbbb-0000-4000-8000-000000000003"
+            write(#"{"type":"user","entrypoint":"claude-desktop"}"#, to: "\(root)/\(slug)/\(desktop).jsonl", age: 5)
+            XCTAssertFalse(ProjectDiscovery.ranInTerminal(path: "\(root)/\(slug)/\(headless[0]).jsonl"))
+            XCTAssertFalse(ProjectDiscovery.ranInTerminal(path: "\(root)/\(slug)/\(desktop).jsonl"))
+            XCTAssertTrue(ProjectDiscovery.ranInTerminal(path: "\(root)/\(slug)/\(real).jsonl"))
+            XCTAssertTrue(ProjectDiscovery.ranInTerminal(path: "\(root)/\(slug)/\(unlabelled).jsonl"))
+            XCTAssertTrue(ProjectDiscovery.ranInTerminal(path: "\(root)/nope.jsonl"),
+                          "an unreadable file is kept: not knowing is not the same as headless")
+
+            let found = ProjectDiscovery.recentSessions(folder: "/x/job search", projectsDir: root,
+                                                         excluding: [], limit: 3)
+            XCTAssertEqual(found.items.map(\.id), [unlabelled, real],
+                           "ten newer headless runs must not crowd out the two real sessions")
+        }
+    }
+
     func testRecentSessionsAreSummarisedFromTheTranscriptTail() {
         withTempDir { root in
             let slug = ProjectDiscovery.transcriptSlug("/x/job search")
