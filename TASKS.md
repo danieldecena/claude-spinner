@@ -6,6 +6,8 @@ Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
+## Completed
+
 - [x] Stop a hung ccusage scan from freezing the totals poller -- 9387f19
 - [x] Retry only the daily ccusage call when unpriced -- 9387f19
 - [x] Count only blocked sessions as needs you in the fleet bar -- 5def87c
@@ -19,9 +21,6 @@ via `run.sh`.
 - [x] Observe the Cost trend chart on screen
 - [x] Observe the sidebar toggle and todo bar on screen
 - [x] Feed the todo bar from TaskCreate task lists
-
-## Completed
-
 - [x] Give push/pull/merge a longer timeout than status probes
 - [x] Stop Clear/Compact reporting failure when they worked
 - [x] Keep tmux/ps calls off the main thread with a timeout
