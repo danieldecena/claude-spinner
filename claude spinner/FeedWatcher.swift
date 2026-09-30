@@ -1032,7 +1032,7 @@ final class FeedWatcher: ObservableObject {
 
     private let dir: URL
     /// Where the state files live. `SessionReplier` watches one to confirm a
-    /// reply actually started a turn.
+    /// reply actually landed.
     var feedDirectory: URL { dir }
     private var source: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
@@ -1953,9 +1953,10 @@ final class FeedWatcher: ObservableObject {
         }
         return rows
     }
-    /// Shown in place of the rows before the first scan or after a failed one.
+    /// Shown in place of the rows before the first scan, after a failed one, or with polling off.
     var usageTotalsStatus: String {
-        usageTotalsError.map { "usage totals unavailable (\($0))" } ?? "usage totals loading"
+        if !usagePollingEnabled { return "usage totals off" }
+        return usageTotalsError.map { "usage totals unavailable (\($0))" } ?? "usage totals loading"
     }
     var usageTotalsIsStale: Bool {
         guard let t = usageTotals?.fetchedAt else { return false }
