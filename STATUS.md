@@ -144,6 +144,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: Config is two rows (model and effort menus, then thinking, style and
+  version on one line) with no title. Toolbar action notices (copy, reveal,
+  interrupt, compact) now show in the conversation card under the reply field,
+  cleared on a new selection. The window no longer shows the idle age line above
+  the cards; the menu panel keeps it. Seen on screen except the action notice,
+  which a Copy session id click did not raise (a local action succeeds silently).
 - Decided: You asked, the reply field and Config are one card in the top row
   (exchange, reply, then a Config subsection). The toolbar keeps only the
   sidebar toggle and session actions; a reply's notice shows in the card.

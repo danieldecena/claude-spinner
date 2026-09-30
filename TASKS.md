@@ -10,6 +10,7 @@ via `run.sh`.
 
 ## Completed
 
+- [x] Shrink Config to two lines, show action notices in the conversation card, drop the idle line
 - [x] Merge You asked, reply and Config into one card
 - [x] Style the sidebar as a card like the detail pane
 - [x] Move the usage block into a detail card -- 8c7eb4a

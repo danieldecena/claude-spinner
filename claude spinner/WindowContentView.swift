@@ -17,6 +17,10 @@ struct WindowContentView: View {
     @StateObject private var install = InstallState()
     @State private var selection: String?
     @State private var sidebarVisible = true
+    /// The last session action's outcome. Set by the toolbar, shown in the
+    /// conversation card; cleared on a new selection so a notice about one
+    /// session is never read as about the next.
+    @State private var actionNotice: NoticeMessage?
     /// The selected session's repo, read once here so the suggestion can be
     /// worked out once and handed to every card that might own its button.
     @State private var gitSnapshot: GitSnapshot?
@@ -92,12 +96,14 @@ struct WindowContentView: View {
         // strip half blur and half pane put a seam through the reply field.
         .safeAreaInset(edge: .top, spacing: 0) {
             WindowToolbar(session: selected, feedDir: feed.feedDirectory,
-                          sidebarVisible: $sidebarVisible, suggestion: suggestion)
+                          sidebarVisible: $sidebarVisible, suggestion: suggestion,
+                          notice: $actionNotice)
                 .background(Color(nsColor: .windowBackgroundColor))
                 // Rebuilt per session so a half-typed reply or a notice about one
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
         }
+        .onChange(of: selected?.id) { actionNotice = nil }
         .task(id: selected?.cwd) {
             gitSnapshot = nil
             tasksText = nil
@@ -181,7 +187,8 @@ struct WindowContentView: View {
                               skillPick: skillPick,
                               tasksText: tasksText,
                               tasksRoot: tasksRoot,
-                              usage: usageCard)
+                              usage: usageCard,
+                              notice: $actionNotice)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -379,6 +386,7 @@ private struct SessionDetail: View {
     /// Account-wide, not this session's: built by the window from the feed so
     /// the detail pane doesn't need the watcher.
     let usage: OverviewStrip
+    @Binding var notice: NoticeMessage?
 
     var body: some View {
         ScrollView {
@@ -400,7 +408,7 @@ private struct SessionDetail: View {
                     // it, in one row: the prose and the task titles split the
                     // width, the skill chips keep a fixed column.
                     HStack(alignment: .top, spacing: 10) {
-                        ConversationCard(session: session, feedDir: feedDir)
+                        ConversationCard(session: session, feedDir: feedDir, notice: $notice)
                         TasksCard(session: session, feedDir: feedDir, text: tasksText, root: tasksRoot,
                                   suggestion: suggestion)
                         SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
@@ -438,23 +446,16 @@ private struct SessionDetail: View {
     }
 
     /// No name or path: the selected sidebar row already names the session, and
-    /// the toolbar copies or reveals its folder. Only the lines no card carries.
+    /// the toolbar copies or reveals its folder. No idle age either: the Session
+    /// card carries the status. Only what asks something of you.
     @ViewBuilder private var header: some View {
-        let evidence = session.restingEvidence(now: Date())
-        if evidence != nil || session.attentionSummary != nil {
-        VStack(alignment: .leading, spacing: 3) {
-            if let evidence {
-                Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.label)
-            }
-            if let summary = session.attentionSummary {
-                // Blue only when something is genuinely blocked. A finished
-                // session that simply hasn't been typed at is not an alarm.
-                Text(summary)
-                    .font(.claudeMono(11))
-                    .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
+        if let summary = session.attentionSummary {
+            // Blue only when something is genuinely blocked. A finished
+            // session that simply hasn't been typed at is not an alarm.
+            Text(summary)
+                .font(.claudeMono(11))
+                .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -725,9 +726,8 @@ private struct AskCard: View {
 // MARK: - Free-text reply
 
 /// The window's one-row toolbar, edge to edge: the sidebar toggle and the
-/// session actions on glass, with the last outcome from any of them said
-/// underneath. Git actions live in the Git commands card, the reply field in
-/// the conversation card.
+/// session actions on glass. Their outcome is said in the conversation card,
+/// beside the reply field. Git actions live in the Git commands card.
 ///
 /// Pinned above the scroll rather than inside it, after the footage library:
 /// replying and acting on the session stay in reach however far down the cards
@@ -738,7 +738,7 @@ private struct WindowToolbar: View {
     let feedDir: URL
     @Binding var sidebarVisible: Bool
     let suggestion: Suggestion?
-    @State private var notice: NoticeMessage?
+    @Binding var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -756,10 +756,6 @@ private struct WindowToolbar: View {
                                   suggestion: suggestion)
                     }
                 }
-            }
-            if let notice {
-                Notice(notice)
-                    .background(Color.card, in: RoundedRectangle(cornerRadius: 6))
             }
         }
         .padding(.horizontal, 10)
@@ -1655,7 +1651,8 @@ private struct SpendTrend: View {
 private struct ConversationCard: View {
     let session: SessionFeed
     let feedDir: URL
-    @State private var notice: NoticeMessage?
+    /// Shared with the toolbar: a reply and a session action report in one place.
+    @Binding var notice: NoticeMessage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1865,65 +1862,65 @@ private struct ConfigCard: View {
     var body: some View {
         let st = session.stats
         let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
-        VStack(alignment: .leading, spacing: 8) {
-            CardTitle("Config")
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                GridRow {
-                    Text("model").font(.system(size: 11)).foregroundStyle(Color.label)
-                    Menu {
-                        ForEach(SessionConfig.models, id: \.alias) { model in
-                            Button {
-                                pending = (SessionConfig.modelCommand(model.alias),
-                                           SessionConfig.modelConfirmation(model.title))
-                            } label: {
-                                if SessionConfig.isCurrent(model.alias, model: session.model) {
-                                    Label(model.title, systemImage: "checkmark")
-                                } else {
-                                    Text(model.title)
-                                }
+        VStack(alignment: .leading, spacing: 6) {
+            // The two settings you can change side by side as menus, the
+            // read-only facts on one line under them: a row per fact made the
+            // section taller than the exchange it sits under.
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(SessionConfig.models, id: \.alias) { model in
+                        Button {
+                            pending = (SessionConfig.modelCommand(model.alias),
+                                       SessionConfig.modelConfirmation(model.title))
+                        } label: {
+                            if SessionConfig.isCurrent(model.alias, model: session.model) {
+                                Label(model.title, systemImage: "checkmark")
+                            } else {
+                                Text(model.title)
                             }
                         }
-                    } label: {
-                        // The id only when the display name is missing.
-                        Text(session.model ?? st.modelID ?? "unknown").font(.claudeMono(11))
                     }
-                    .fixedSize()
-                    .disabled(reason != nil || sending)
-                    .help(reason ?? "Switch model")
+                } label: {
+                    // The id only when the display name is missing.
+                    Text(session.model ?? st.modelID ?? "unknown").font(.claudeMono(10))
                 }
-                GridRow {
-                    Text("effort").font(.system(size: 11)).foregroundStyle(Color.label)
-                    Menu {
-                        ForEach(SessionConfig.efforts, id: \.self) { level in
-                            Button {
-                                pending = (SessionConfig.effortCommand(level),
-                                           SessionConfig.effortConfirmation(level))
-                            } label: {
-                                if st.effort == level {
-                                    Label(level, systemImage: "checkmark")
-                                } else {
-                                    Text(level)
-                                }
+                .fixedSize()
+                .disabled(reason != nil || sending)
+                .help(reason ?? "Switch model")
+                Menu {
+                    ForEach(SessionConfig.efforts, id: \.self) { level in
+                        Button {
+                            pending = (SessionConfig.effortCommand(level),
+                                       SessionConfig.effortConfirmation(level))
+                        } label: {
+                            if st.effort == level {
+                                Label(level, systemImage: "checkmark")
+                            } else {
+                                Text(level)
                             }
                         }
-                    } label: {
-                        Text(st.effort ?? "default").font(.claudeMono(11))
                     }
-                    .fixedSize()
-                    .disabled(reason != nil || sending)
-                    .help(reason ?? "Change effort")
+                } label: {
+                    Text(st.effort ?? "default").font(.claudeMono(10))
                 }
-                // Read-only facts, same grid so the columns line up; a nil drops its row.
-                ForEach([("thinking", st.thinking.map { $0 ? "on" : "off" }),
+                .fixedSize()
+                .disabled(reason != nil || sending)
+                .help(reason ?? "Change effort")
+            }
+            .controlSize(.small)
+            // A nil drops its fact.
+            let facts = [("thinking", st.thinking.map { $0 ? "on" : "off" }),
                          ("style", st.outputStyle),
-                         ("claude", st.claudeVersion)], id: \.0) { key, value in
-                    if let value {
-                        GridRow {
-                            Text(key).font(.system(size: 11)).foregroundStyle(Color.label)
-                            Text(value).font(.claudeMono(11)).lineLimit(1)
-                        }
-                    }
+                         ("", st.claudeVersion.map { "v" + $0 })]
+                .compactMap { key, value in value.map { (key, $0) } }
+            if !facts.isEmpty {
+                facts.enumerated().reduce(Text("")) { line, item in
+                    line + Text(item.offset == 0 ? "" : " · ").foregroundStyle(Color.label)
+                        + Text(item.element.0.isEmpty ? "" : item.element.0 + " ")
+                            .foregroundStyle(Color.label)
+                        + Text(item.element.1)
                 }
+                .font(.claudeMono(10)).lineLimit(1).minimumScaleFactor(0.8)
             }
             if let notice { Notice(notice) }
         }
