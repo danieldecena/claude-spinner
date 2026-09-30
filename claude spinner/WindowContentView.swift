@@ -240,22 +240,28 @@ private struct SessionDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 header
 
                 ForEach(asks) { ask in
                     AskCard(ask: ask)
                 }
 
-                TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
-
                 // Side by side where the pane is wide enough, one column where it
                 // isn't, and every card the height of the tallest in its row, so
                 // each row reads as a set of equal tiles without a short card
-                // stretched to match a chart two rows away.
-                TileGrid(minimum: 250, spacing: 12) {
+                // stretched to match a chart two rows away. At three columns the
+                // two wide cards alternate sides and every row is full: the
+                // transcript's prose and the context chart are what use width.
+                TileGrid(minimum: 180, spacing: 10) {
+                    TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
+                        .tileSpan(2)
+                    sessionCard
                     GitCard(cwd: session.cwd)
-                    stats
+                    costCard
+                    cacheCard
+                    contextCard.tileSpan(2)
+                    configCard
                 }
 
                 if !children.isEmpty {
@@ -263,16 +269,18 @@ private struct SessionDetail: View {
                         .detailCard()
                 }
             }
-            .padding(20)
+            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var header: some View {
+    /// No name or path: the selected sidebar row already names the session, and
+    /// the toolbar copies or reveals its folder. Only the lines no card carries.
+    @ViewBuilder private var header: some View {
+        let evidence = session.restingEvidence(now: Date())
+        if evidence != nil || session.attentionSummary != nil {
         VStack(alignment: .leading, spacing: 3) {
-            Text(session.distinctName).font(.claudeMono(18)).fontWeight(.semibold)
-            Text(session.displayPath).font(.claudeMono(11)).foregroundStyle(Color.label)
-            if let evidence = session.restingEvidence(now: Date()) {
+            if let evidence {
                 Text(evidence).font(.claudeMono(11)).foregroundStyle(Color.label)
             }
             if let summary = session.attentionSummary {
@@ -284,17 +292,24 @@ private struct SessionDetail: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        }
+    }
+
+    private var showsLinesBar: Bool {
+        guard let added = session.stats.linesAdded,
+              let removed = session.stats.linesRemoved else { return false }
+        return added + removed > 0
     }
 
     /// Grouped rather than one long list. These arrive from the statusLine as
     /// four unrelated things -- what the turn cost, how full the window is, how
     /// the cache is behaving, how this session is configured -- and reading them
     /// as one column of twenty rows was the version that felt like a data dump.
-    @ViewBuilder private var stats: some View {
+
+    private var sessionCard: some View {
         let st = session.stats
         let progress = session.todoProgress
-
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             StatSection("Session", rows: [
                 ("status", label(for: session)),
                 ("todos", progress.total == 0 ? nil : "\(progress.done)/\(progress.total)"),
@@ -309,25 +324,34 @@ private struct SessionDetail: View {
             }
         }
         .detailCard()
+    }
 
-        VStack(alignment: .leading, spacing: 8) {
+    private var costCard: some View {
+        let st = session.stats
+        return VStack(alignment: .leading, spacing: 8) {
             StatSection("Cost", rows: [
                 ("spend", st.costUSD.map(StatFormat.money)),
                 ("wall", st.wallSeconds.map(StatFormat.duration)),
                 ("api", st.apiSeconds.map(StatFormat.duration)),
                 ("api share", st.apiShare.map(StatFormat.percent)),
-                ("lines", StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
+                // The bar below labels both counts; the row stands in only when
+                // there is no bar to draw.
+                ("lines", showsLinesBar ? nil
+                    : StatFormat.lines(added: st.linesAdded, removed: st.linesRemoved)),
             ])
             if let share = st.apiShare {
                 ShareBar(caption: "time waiting on the api", ratio: share, tint: .claude)
             }
-            if let added = st.linesAdded, let removed = st.linesRemoved, added + removed > 0 {
+            if showsLinesBar, let added = st.linesAdded, let removed = st.linesRemoved {
                 LinesBar(added: added, removed: removed)
             }
         }
         .detailCard()
+    }
 
-        VStack(alignment: .leading, spacing: 8) {
+    private var contextCard: some View {
+        let st = session.stats
+        return VStack(alignment: .leading, spacing: 8) {
             StatSection("Context", rows: [
                 ("used", st.contextUsedPercent.map { "\($0)%" }),
                 ("tokens", session.contextTokens.map { "\($0.formatted())" }),
@@ -345,10 +369,13 @@ private struct SessionDetail: View {
             }
         }
         .detailCard()
+    }
 
-        HStack(alignment: .top, spacing: 12) {
+    private var cacheCard: some View {
+        let st = session.stats
+        return HStack(alignment: .top, spacing: 12) {
+            // The ring prints the hit ratio, so the rows don't.
             StatSection("Prompt cache", rows: [
-                ("hit ratio", st.cacheHitRatio.map(StatFormat.percent)),
                 ("state", st.cacheWarm.map { $0 ? "warm" : "cold" }),
                 ("ttl", st.cacheTTL),
                 ("requests", st.cacheRequests.map(String.init)),
@@ -360,8 +387,11 @@ private struct SessionDetail: View {
             }
         }
         .detailCard()
+    }
 
-        StatSection("Config", rows: [
+    private var configCard: some View {
+        let st = session.stats
+        return StatSection("Config", rows: [
             ("model", session.model),
             ("model id", st.modelID),
             ("effort", st.effort),
@@ -631,12 +661,15 @@ private extension View {
     /// the design system's radius-lg on a surface one step off the pane, with no
     /// border or shadow. Fills its grid column so neighbours line up at the edges.
     func detailCard() -> some View { modifier(DetailCard()) }
+
+    /// How many `TileGrid` columns this card takes.
+    func tileSpan(_ columns: Int) -> some View { layoutValue(key: TileSpan.self, value: columns) }
 }
 
 private struct DetailCard: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(16)
+            .padding(12)
             // Unbounded height takes whatever the tile grid places it at; outside
             // the grid the scroll view proposes no height, so the card keeps its own.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -647,30 +680,36 @@ private struct DetailCard: ViewModifier {
 /// Columns at least `minimum` wide, as many as fit, and each row as tall as its
 /// tallest card. LazyVGrid can't do the last part: it sizes rows but leaves each
 /// cell at its own height, and the grid holds six cards, so laziness buys nothing.
+///
+/// A card may span several columns (`tileSpan`), clamped to however many there
+/// are; one that doesn't fit what is left of a row starts the next.
 private struct TileGrid: Layout {
     let minimum: CGFloat
     let spacing: CGFloat
 
+    private struct Slot {
+        let index: Int
+        let column: Int
+        let span: Int
+    }
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.replacingUnspecifiedDimensions().width
-        let rows = rowHeights(width: width, subviews: subviews)
+        let heights = rows(width: width, subviews: subviews).map(\.height)
         return CGSize(width: width,
-                      height: rows.reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0)))
+                      height: heights.reduce(0, +) + spacing * CGFloat(max(heights.count - 1, 0)))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let (columns, columnWidth) = grid(width: bounds.width)
-        let rows = rowHeights(width: bounds.width, subviews: subviews)
+        let columnWidth = grid(width: bounds.width).columnWidth
         var y = bounds.minY
-        for (row, height) in rows.enumerated() {
-            for column in 0..<columns {
-                let index = row * columns + column
-                guard index < subviews.count else { break }
-                subviews[index].place(
-                    at: CGPoint(x: bounds.minX + CGFloat(column) * (columnWidth + spacing), y: y),
-                    proposal: ProposedViewSize(width: columnWidth, height: height))
+        for row in rows(width: bounds.width, subviews: subviews) {
+            for slot in row.slots {
+                subviews[slot.index].place(
+                    at: CGPoint(x: bounds.minX + CGFloat(slot.column) * (columnWidth + spacing), y: y),
+                    proposal: ProposedViewSize(width: width(slot.span, columnWidth), height: row.height))
             }
-            y += height + spacing
+            y += row.height + spacing
         }
     }
 
@@ -679,14 +718,35 @@ private struct TileGrid: Layout {
         return (columns, (width - spacing * CGFloat(columns - 1)) / CGFloat(columns))
     }
 
-    private func rowHeights(width: CGFloat, subviews: Subviews) -> [CGFloat] {
+    private func width(_ span: Int, _ columnWidth: CGFloat) -> CGFloat {
+        columnWidth * CGFloat(span) + spacing * CGFloat(span - 1)
+    }
+
+    private func rows(width: CGFloat, subviews: Subviews) -> [(slots: [Slot], height: CGFloat)] {
         let (columns, columnWidth) = grid(width: width)
-        return stride(from: 0, to: subviews.count, by: columns).map { start in
-            subviews[start..<min(start + columns, subviews.count)]
-                .map { $0.sizeThatFits(ProposedViewSize(width: columnWidth, height: nil)).height }
-                .max() ?? 0
+        var packed: [[Slot]] = []
+        var used = columns
+        for index in subviews.indices {
+            let span = min(max(1, subviews[index][TileSpan.self]), columns)
+            if used + span > columns {
+                packed.append([])
+                used = 0
+            }
+            packed[packed.count - 1].append(Slot(index: index, column: used, span: span))
+            used += span
+        }
+        return packed.map { slots in
+            (slots, slots.map {
+                subviews[$0.index]
+                    .sizeThatFits(ProposedViewSize(width: self.width($0.span, columnWidth), height: nil))
+                    .height
+            }.max() ?? 0)
         }
     }
+}
+
+private struct TileSpan: LayoutValueKey {
+    static let defaultValue = 1
 }
 
 /// A titled group of key/value rows. A nil value drops its row entirely rather
@@ -720,7 +780,8 @@ private struct StatSection: View {
         let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Text(title).font(.claudeMono(10)).foregroundStyle(Color.label)
+                Text(title).font(.claudeMono(10)).fontWeight(.semibold)
+                    .foregroundStyle(Color.label)
                     .textCase(.uppercase).tracking(0.8)
                 if let refresh {
                     Button("Refresh", action: refresh)
@@ -1170,14 +1231,14 @@ struct CacheRing: View {
     var body: some View {
         let clamped = min(1, max(0, ratio))
         ZStack {
-            Circle().stroke(Color.secondary.opacity(0.22), lineWidth: 6)
+            Circle().stroke(Color.secondary.opacity(0.22), lineWidth: 5)
             Circle().trim(from: 0, to: clamped)
-                .stroke(Color.usageGreen, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .stroke(Color.usageGreen, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Text("\(Int((clamped * 100).rounded()))%")
-                .font(.claudeMono(11)).fontWeight(.semibold)
+                .font(.claudeMono(10)).fontWeight(.semibold)
         }
-        .frame(width: 56, height: 56)
+        .frame(width: 44, height: 44)
         .padding(.top, 18)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Cache hit ratio")
@@ -1314,7 +1375,7 @@ private struct Labelled: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.claudeMono(10))
+            Text(title).font(.claudeMono(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase)
             Text(body_ ?? "not recorded")
                 .font(.claudeMono(11))

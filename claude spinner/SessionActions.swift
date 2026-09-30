@@ -39,7 +39,7 @@ enum SessionAction: String, CaseIterable, Identifiable {
     /// and the accessibility label.
     var symbol: String {
         switch self {
-        case .focus: return "macwindow"
+        case .focus: return "arrow.up.forward.app"
         case .interrupt: return "stop.circle"
         case .compact: return "arrow.down.right.and.arrow.up.left"
         case .clear: return "eraser"
