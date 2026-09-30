@@ -16,6 +16,7 @@ via `run.sh`.
 - [x] Draw detail-pane sections as cards
 - [x] Hold the transcript card at one height
 - [x] Pin a glass toolbar above the detail pane
+- [x] Equalize detail card heights per row
 
 ## Completed
 

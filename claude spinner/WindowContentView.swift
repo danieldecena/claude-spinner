@@ -206,7 +206,6 @@ private struct SessionDetail: View {
     /// This session's context over time. Passed in rather than read from the
     /// watcher, the way `OverviewStrip` already receives `usageHistory`.
     let history: [ContextSample]
-    @State private var cardHeight: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -220,16 +219,13 @@ private struct SessionDetail: View {
                 TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
 
                 // Side by side where the pane is wide enough, one column where it
-                // isn't, and every card the height of the tallest so the grid
-                // reads as a set of equal tiles rather than a ragged row.
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 12,
-                                             alignment: .top)],
-                          alignment: .leading, spacing: 12) {
+                // isn't, and every card the height of the tallest in its row, so
+                // each row reads as a set of equal tiles without a short card
+                // stretched to match a chart two rows away.
+                TileGrid(minimum: 250, spacing: 12) {
                     GitCard(cwd: session.cwd)
                     stats
                 }
-                .environment(\.cardHeight, cardHeight)
-                .onPreferenceChange(CardHeightKey.self) { cardHeight = $0 }
 
                 if !children.isEmpty {
                     SubagentTree(parent: session, children: children)
@@ -576,32 +572,59 @@ private extension View {
     func detailCard() -> some View { modifier(DetailCard()) }
 }
 
-/// The tallest card's natural height, shared so every card in the grid can take it.
-private struct CardHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-private extension EnvironmentValues {
-    /// Zero outside the stat grid, so a full-width card keeps its own height.
-    @Entry var cardHeight: CGFloat = 0
-}
-
 private struct DetailCard: ViewModifier {
-    @Environment(\.cardHeight) private var height
-
     func body(content: Content) -> some View {
         content
             .padding(16)
-            // Measured before the shared height is applied: reading it after would
-            // report the tallest card back to itself, and the grid could only grow.
-            .background(GeometryReader { proxy in
-                Color.clear.preference(key: CardHeightKey.self, value: proxy.size.height)
-            })
-            .frame(maxWidth: .infinity, minHeight: height, alignment: .topLeading)
+            // Unbounded height takes whatever the tile grid places it at; outside
+            // the grid the scroll view proposes no height, so the card keeps its own.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+/// Columns at least `minimum` wide, as many as fit, and each row as tall as its
+/// tallest card. LazyVGrid can't do the last part: it sizes rows but leaves each
+/// cell at its own height, and the grid holds six cards, so laziness buys nothing.
+private struct TileGrid: Layout {
+    let minimum: CGFloat
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.replacingUnspecifiedDimensions().width
+        let rows = rowHeights(width: width, subviews: subviews)
+        return CGSize(width: width,
+                      height: rows.reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0)))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let (columns, columnWidth) = grid(width: bounds.width)
+        let rows = rowHeights(width: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        for (row, height) in rows.enumerated() {
+            for column in 0..<columns {
+                let index = row * columns + column
+                guard index < subviews.count else { break }
+                subviews[index].place(
+                    at: CGPoint(x: bounds.minX + CGFloat(column) * (columnWidth + spacing), y: y),
+                    proposal: ProposedViewSize(width: columnWidth, height: height))
+            }
+            y += height + spacing
+        }
+    }
+
+    private func grid(width: CGFloat) -> (columns: Int, columnWidth: CGFloat) {
+        let columns = max(1, Int((width + spacing) / (minimum + spacing)))
+        return (columns, (width - spacing * CGFloat(columns - 1)) / CGFloat(columns))
+    }
+
+    private func rowHeights(width: CGFloat, subviews: Subviews) -> [CGFloat] {
+        let (columns, columnWidth) = grid(width: width)
+        return stride(from: 0, to: subviews.count, by: columns).map { start in
+            subviews[start..<min(start + columns, subviews.count)]
+                .map { $0.sizeThatFits(ProposedViewSize(width: columnWidth, height: nil)).height }
+                .max() ?? 0
+        }
     }
 }
 

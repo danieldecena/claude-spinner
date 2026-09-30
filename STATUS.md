@@ -146,6 +146,15 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
 
+### 2026-09-29 (detail tiles equal per row, not across the grid)
+- Decided: the stat grid equalises card heights per row with a custom
+  `TileGrid` Layout, replacing the grid-wide tallest-card PreferenceKey. The
+  global rule stretched Git and Session to the Context chart's height, half
+  empty; per-row keeps every row reading as equal tiles without that dead
+  space. LazyVGrid can't do it (cells keep their own height), and six cards
+  gain nothing from laziness. Seen on screen: the Git/Session row is now
+  roughly two thirds the height of Cost/Context, with no empty band.
+
 ### 2026-09-29 (Clear/Compact landing observed live; git action timeout)
 - Observed against a throwaway `claude` in a detached tmux pane, keys sent
   exactly as the app sends them: neither `/clear` nor `/compact` fires
