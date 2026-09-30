@@ -1112,6 +1112,9 @@ private struct ConversationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
+            // The card is as tall as the Skills card beside it; the reply row sits
+            // at its foot, where a chat box is, and the exchange stays at the top.
+            Spacer(minLength: 0)
             // The answer and what runs it, on one line.
             HStack(spacing: 8) {
                 ReplyBox(session: session, feedDir: feedDir, notice: $notice)

@@ -152,6 +152,8 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the reply row (field, Send, model and effort menus) is pinned to the foot of
+  the You asked card; the exchange stays at the top. Seen on screen.
 - Decided: the Usage card is the two limit rings only; the All sessions totals (today,
   week, block) and the api-equivalent and live-session footer lines are hidden (Daniel:
   "maybe hide this data"). The ccusage poll and `OverviewStrip.split` stay for when
