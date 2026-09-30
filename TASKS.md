@@ -7,10 +7,14 @@ not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 - [ ] Watch a refused /compact report on a live short session
 - [ ] Watch auto-merge switch itself on for a real open PR
+- [ ] Decide attention colour: kit warn or Spinner blue
+- [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Check You asked shows full text on hover in the top row
 
 ## Completed
 
+- [x] Adopt App Kit type, surfaces, chart colour, spacing and Send in the window
+- [x] Move the Tasks card into the sidebar under its project
 - [x] Move git commands into Skills and Automation under the Git card
 - [x] Combine the stat cards into two and redraw the charts as rings and columns
 - [x] Move subagents from a detail card into the sidebar

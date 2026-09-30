@@ -27,7 +27,6 @@ struct WindowContentView: View {
     /// The selected repo's TASKS.md, re-read with the snapshot, and the root it
     /// was looked for in: a root with no text is a repo without the file.
     @State private var tasksText: String?
-    @State private var tasksRoot: String?
     private var projectOpenTasks: Int? { tasksText.flatMap(Suggestion.openTasks(inTasksFile:)) }
     @State private var wrappedUp = false
 
@@ -89,7 +88,7 @@ struct WindowContentView: View {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.pane)
         // Across both columns, not just the detail pane: the toolbar acts on the
         // selected session wherever you are. Its strip is opaque edge to edge; a
         // strip half blur and half pane put a seam through the reply field.
@@ -97,7 +96,7 @@ struct WindowContentView: View {
             WindowToolbar(session: selected, feedDir: feed.feedDirectory,
                           sidebarVisible: $sidebarVisible, suggestion: suggestion,
                           notice: $actionNotice)
-                .background(Color(nsColor: .windowBackgroundColor))
+                .background(Color.pane)
                 // Rebuilt per session so a half-typed reply or a notice about one
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
@@ -106,13 +105,11 @@ struct WindowContentView: View {
         .task(id: selected?.cwd) {
             gitSnapshot = nil
             tasksText = nil
-            tasksRoot = nil
             guard let cwd = selected?.cwd else { return }
             while !Task.isCancelled {
                 gitSnapshot = await GitProbe.shared.snapshot(for: cwd)
                 let root = gitSnapshot?.toplevel ?? cwd
                 tasksText = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8)
-                tasksRoot = root
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -154,7 +151,7 @@ struct WindowContentView: View {
             .background(Color.card)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             // The detail pane's own padding, so the top edges line up.
-            .padding([.leading, .top, .bottom], 14)
+            .padding([.leading, .top, .bottom], 20)
     }
 
     private var usageCard: OverviewStrip {
@@ -184,8 +181,6 @@ struct WindowContentView: View {
                               spend: feed.spendHistory[session.id] ?? [],
                               suggestion: suggestion,
                               skillPick: skillPick,
-                              tasksText: tasksText,
-                              tasksRoot: tasksRoot,
                               usage: usageCard,
                               notice: $actionNotice)
                 .id(session.id)
@@ -206,6 +201,10 @@ private struct SessionSidebar: View {
     let children: [SessionFeed]
     let asks: [AskRequest]
     @Binding var selection: String?
+    /// Each project section's TASKS.md, read from its first session's folder.
+    @State private var tasks: [String: (open: [String], done: Int)] = [:]
+
+    private static let shownTasks = 5
 
     /// One section per project, with anything blocked on a human pinned above them.
     ///
@@ -271,10 +270,10 @@ private struct SessionSidebar: View {
                             HStack(spacing: 6) {
                                 Circle().fill(tint(child)).frame(width: 6, height: 6)
                                 Text(child.agentType ?? "subagent")
-                                    .font(.claudeMono(10)).lineLimit(1)
+                                    .font(.ui(10)).lineLimit(1)
                                 Spacer(minLength: 0)
                                 Text(child.statusLabel)
-                                    .font(.claudeMono(10)).foregroundStyle(tint(child))
+                                    .font(.ui(10)).foregroundStyle(tint(child))
                                     .lineLimit(1)
                             }
                             .padding(.leading, 16)
@@ -282,6 +281,7 @@ private struct SessionSidebar: View {
                             .accessibilityElement(children: .combine)
                         }
                     }
+                    if let file = tasks[section.id] { tasksRows(file) }
                 } header: {
                     SectionHeader(section: section)
                 }
@@ -290,6 +290,61 @@ private struct SessionSidebar: View {
         .listStyle(.sidebar)
         // The card is the background; the list's own would sit on top of it.
         .scrollContentBackground(.hidden)
+        // Keyed on the folders, not the sections: a section's id is its project
+        // name, and two sessions can swap folders under one.
+        .task(id: tasksKey) {
+            while !Task.isCancelled {
+                let folders = tasksFolders
+                tasks = await Task.detached(priority: .utility) {
+                    folders.reduce(into: [:]) { out, entry in
+                        if let root = Suggestion.tasksRoot(startingAt: entry.value),
+                           let text = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8) {
+                            out[entry.key] = Suggestion.tasks(inTasksFile: text)
+                        }
+                    }
+                }.value
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+    }
+
+    /// Where to look for each project's TASKS.md: the folder of its first session.
+    private var tasksFolders: [String: String] {
+        Dictionary(uniqueKeysWithValues: groups.compactMap { section in
+            section.id == "needs-you" ? nil
+                : section.items.first.map { (section.id, $0.session.cwd) }
+        })
+    }
+
+    private var tasksKey: String {
+        tasksFolders.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "|")
+    }
+
+    /// The project's open tasks under its sessions. Not selectable: they are a
+    /// read-out, and /todo (in the Skills card) is what writes the file.
+    @ViewBuilder private func tasksRows(_ file: (open: [String], done: Int)) -> some View {
+        HStack {
+            Text("Tasks").font(.ui(10)).fontWeight(.semibold)
+                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+            Spacer(minLength: 4)
+            Text("\(file.open.count) open · \(file.done) done")
+                .font(.ui(10)).foregroundStyle(Color.label)
+        }
+        .selectionDisabled()
+        if file.open.isEmpty {
+            Text("Nothing open in TASKS.md.").font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
+                .selectionDisabled()
+        }
+        ForEach(Array(file.open.prefix(Self.shownTasks).enumerated()), id: \.offset) { _, title in
+            Label { Text(title) } icon: { Image(systemName: "square").foregroundStyle(Color.label) }
+                .font(.ui(10)).lineLimit(1).truncationMode(.tail)
+                .help(title)
+                .selectionDisabled()
+        }
+        if file.open.count > Self.shownTasks {
+            Text("+\(file.open.count - Self.shownTasks) more")
+                .font(.ui(10)).foregroundStyle(Color.label).selectionDisabled()
+        }
     }
 
     private func rowLabel(_ session: SessionFeed) -> String {
@@ -333,7 +388,7 @@ private struct NewSessionBar: View {
                 .help("New Claude Code session in a project")
             }
             if let failure {
-                Text(failure).font(.claudeMono(10)).foregroundStyle(Color.attention)
+                Text(failure).font(.ui(10)).foregroundStyle(Color.attention)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -369,14 +424,14 @@ private struct SectionHeader: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(section.title).lineLimit(1)
-                .font(.claudeMono(10)).fontWeight(.semibold)
+                .font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label)
             Spacer(minLength: 4)
             Text("\(section.sessionCount)")
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .font(.ui(10)).foregroundStyle(Color.label)
             if let total = section.contextTotal {
                 Text(FeedWatcher.formatTokens(total))
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+                    .font(.ui(10)).foregroundStyle(Color.label)
             }
         }
     }
@@ -397,8 +452,6 @@ private struct SessionDetail: View {
     let suggestion: Suggestion?
     /// The Skills card's own pick, outlined there and explained under it.
     let skillPick: Suggestion?
-    let tasksText: String?
-    let tasksRoot: String?
     /// Account-wide, not this session's: built by the window from the feed so
     /// the detail pane doesn't need the watcher.
     let usage: OverviewStrip
@@ -419,14 +472,12 @@ private struct SessionDetail: View {
                 // stretched to match a chart two rows away. The transcript, tasks
                 // and skills row and the git row each take the full width; below
                 // them, at three columns, every row of stat tiles is full.
-                TileGrid(minimum: 180, spacing: 10) {
+                TileGrid(minimum: 180, spacing: 12) {
                     // What was said, what is planned, and what can be run on
                     // it, in one row: the prose and the task titles split the
                     // width, the skill chips keep a fixed column.
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: 12) {
                         ConversationCard(session: session, feedDir: feedDir, notice: $notice)
-                        TasksCard(session: session, feedDir: feedDir, text: tasksText, root: tasksRoot,
-                                  suggestion: suggestion)
                         SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
                             .frame(width: 320)
                     }
@@ -437,9 +488,9 @@ private struct SessionDetail: View {
                     // a fixed-width status column with its automation switches under it,
                     // so the state sits next to the history. The git commands
                     // themselves live in the Skills card.
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: 12) {
                         GitGraphCard(cwd: session.cwd)
-                        VStack(spacing: 10) {
+                        VStack(spacing: 12) {
                             GitCard(cwd: session.cwd)
                             AutomationToggles(session: session, feedDir: feedDir)
                                 .detailCard()
@@ -450,7 +501,7 @@ private struct SessionDetail: View {
                     // This session and the account, side by side: everything
                     // about how the session is doing, then everything about the
                     // limits it spends against.
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: 12) {
                         SessionStatsCard(session: session, history: history, spend: spend)
                         usage
                     }
@@ -458,7 +509,7 @@ private struct SessionDetail: View {
                 }
 
             }
-            .padding(14)
+            .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -471,7 +522,7 @@ private struct SessionDetail: View {
             // Blue only when something is genuinely blocked. A finished
             // session that simply hasn't been typed at is not an alarm.
             Text(summary)
-                .font(.claudeMono(11))
+                .font(.ui(11))
                 .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -487,8 +538,8 @@ private struct AskCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(ask.kind == .permission ? "Permission needed" : (ask.question?.header ?? "Question"))
-                .font(.claudeMono(11)).foregroundStyle(Color.attention)
-            Text(prompt).font(.claudeMono(13)).fontWeight(.semibold).fixedSize(horizontal: false, vertical: true)
+                .font(.ui(11)).foregroundStyle(Color.attention)
+            Text(prompt).font(.ui(13)).fontWeight(.semibold).fixedSize(horizontal: false, vertical: true)
 
             // What the tool would actually do. Without this the card asks you to
             // approve a command it never shows, which is the one place this
@@ -501,11 +552,11 @@ private struct AskCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(6)
                     .background(Color.claudeDim.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 4))
+                                in: RoundedRectangle(cornerRadius: 6))
             }
 
             if let answered {
-                Text("Answered: \(answered)").font(.claudeMono(11)).foregroundStyle(Color.label)
+                Text("Answered: \(answered)").font(.ui(11)).foregroundStyle(Color.label)
             } else {
                 // Full labels *and* their descriptions — the reason this surface
                 // exists. A banner shows two buttons and no descriptions at all.
@@ -513,9 +564,9 @@ private struct AskCard: View {
                     ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
                         Button { answer(choice.answer, label: choice.label) } label: {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(choice.label).font(.claudeMono(11))
+                                Text(choice.label).font(.ui(11))
                                 if let detail = choice.detail {
-                                    Text(detail).font(.claudeMono(10))
+                                    Text(detail).font(.ui(10))
                                         .foregroundStyle(Color.label)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
@@ -613,12 +664,13 @@ private struct ReplyBox: View {
                 .font(.claudeMono(11))
                 .onSubmit(send)
             Button(sending ? "Sending…" : "Send", action: send)
-                .font(.claudeMono(11))
-                .buttonStyle(.borderless)
+                .font(.ui(11))
+                .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(.accentColor)
+                .controlSize(.small)
                 .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.leading, 12).padding(.trailing, 10).padding(.vertical, 7)
-        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func send() {
@@ -655,7 +707,7 @@ extension View {
 struct DetailCard: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(12)
+            .padding(16)
             // Unbounded height takes whatever the tile grid places it at; outside
             // the grid the scroll view proposes no height, so the card keeps its own.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -769,23 +821,23 @@ private struct StatSection: View {
         let present = rows.compactMap { key, value, note in value.map { (key, $0, note) } }
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Text(title).font(.claudeMono(10)).fontWeight(.semibold)
+                Text(title).font(.ui(10)).fontWeight(.semibold)
                     .foregroundStyle(Color.label)
                     .textCase(.uppercase).tracking(0.8)
                 if let refresh {
                     Button("Refresh", action: refresh)
-                        .font(.claudeMono(10)).buttonStyle(.link)
+                        .font(.ui(10)).buttonStyle(.link)
                 }
             }
             if present.isEmpty {
-                Text(empty).font(.claudeMono(11)).foregroundStyle(Color.label)
+                Text(empty).font(.ui(11)).foregroundStyle(Color.label)
             } else {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
                     ForEach(present, id: \.0) { key, value, note in
                         GridRow {
                             // Proportional labels against monospaced values, so the
                             // eye separates the two columns by face as well as by gap.
-                            Text(key).font(.system(size: 11)).foregroundStyle(Color.label)
+                            Text(key).font(.ui(11)).foregroundStyle(Color.label)
                                 .gridColumnAlignment(.leading)
                             HStack(spacing: 8) {
                                 // Cut in the middle, not wrapped: in a card-width
@@ -794,7 +846,7 @@ private struct StatSection: View {
                                 Text(value).font(.claudeMono(11)).textSelection(.enabled)
                                     .lineLimit(1).truncationMode(.middle).help(value)
                                 if let note {
-                                    Text(note).font(.claudeMono(10))
+                                    Text(note).font(.ui(10))
                                         .foregroundStyle(Color.label)
                                 }
                             }
@@ -888,7 +940,7 @@ struct Sparkline: View {
                 ChartPath.line(points).stroke(tint, lineWidth: 1.5)
             } else {
                 Text("no usage history yet")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+                    .font(.ui(10)).foregroundStyle(Color.label)
             }
         }
     }
@@ -1060,7 +1112,7 @@ private struct TranscriptCard: View {
                          ? nil : snapshot.recentTools.joined(separator: " · "),
                      limit: expanded ? nil : 1)
             Button(expanded ? "Show less" : "Show more") { expanded.toggle() }
-                .font(.claudeMono(10)).buttonStyle(.link)
+                .font(.ui(10)).buttonStyle(.link)
         }
         .task(id: sessionID) { await refresh() }
         // Re-read on the same cadence the rows already tick at. The read is a
@@ -1096,7 +1148,7 @@ private struct Labelled: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.claudeMono(10)).fontWeight(.semibold)
+            Text(title).font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase)
             Text(body_ ?? "not recorded")
                 .font(.claudeMono(11))
@@ -1252,7 +1304,7 @@ private struct ConfigCard: View {
                     }
                 } label: {
                     // The id only when the display name is missing.
-                    Text(session.model ?? st.modelID ?? "unknown").font(.claudeMono(10))
+                    Text(session.model ?? st.modelID ?? "unknown").font(.ui(10))
                 }
                 .fixedSize()
                 .disabled(reason != nil || sending)
@@ -1271,7 +1323,7 @@ private struct ConfigCard: View {
                         }
                     }
                 } label: {
-                    Text(st.effort ?? "default").font(.claudeMono(10))
+                    Text(st.effort ?? "default").font(.ui(10))
                 }
                 .fixedSize()
                 .disabled(reason != nil || sending)
@@ -1290,7 +1342,7 @@ private struct ConfigCard: View {
                             .foregroundStyle(Color.label)
                         + Text(item.element.1)
                 }
-                .font(.claudeMono(10)).lineLimit(1).minimumScaleFactor(0.8)
+                .font(.ui(10)).lineLimit(1).minimumScaleFactor(0.8)
             }
             if let notice { Notice(notice) }
         }
@@ -1337,7 +1389,7 @@ private struct GlowRing: View {
     @State private var bright = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 9, style: .continuous)
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
             .stroke(Color.claude, lineWidth: 1.5)
             .shadow(color: Color.claude.opacity(bright ? 0.9 : 0.3), radius: bright ? 8 : 3)
             .allowsHitTesting(false)
@@ -1367,7 +1419,7 @@ struct CardTitle: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text).font(.claudeMono(10)).fontWeight(.semibold)
+        Text(text).font(.ui(10)).fontWeight(.semibold)
             .foregroundStyle(Color.label)
             .textCase(.uppercase).tracking(0.8)
     }
@@ -1386,11 +1438,11 @@ private struct SkillsCard: View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Skills")
             ShortcutChips(session: session, feedDir: feedDir,
-                          shortcuts: installedShortcuts.filter { $0.group == .skill },
+                          shortcuts: installedShortcuts.filter { $0.group == .skill || $0.group == .tasks },
                           suggestion: suggestion, notice: $notice, pick: pick)
             let superpowers = installedShortcuts.filter { $0.group == .superpower }
             if !superpowers.isEmpty {
-                Text("Superpowers").font(.claudeMono(9)).foregroundStyle(Color.label)
+                Text("Superpowers").font(.ui(9)).foregroundStyle(Color.label)
                     .textCase(.uppercase).tracking(0.8)
                 ShortcutChips(session: session, feedDir: feedDir, shortcuts: superpowers,
                               suggestion: suggestion, notice: $notice, pick: pick)
@@ -1400,12 +1452,12 @@ private struct SkillsCard: View {
             // when the turn ends.
             if let pick, case .command(let command) = pick.action {
                 (Text(command).foregroundStyle(Color.claude) + Text("  \(pick.reason)"))
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+                    .font(.ui(10)).foregroundStyle(Color.label)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 // Said out loud so a missing outline reads as a verdict, not a fault.
                 Text("No skill needed right now.")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label.opacity(0.6))
+                    .font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
             }
             if let notice { Notice(notice) }
         }
@@ -1415,7 +1467,7 @@ private struct SkillsCard: View {
     /// The repo's git buttons and the git skills, under the other skills: they
     /// are the same kind of thing, one click that acts on the session.
     @ViewBuilder private var gitCommands: some View {
-        Text("Git").font(.claudeMono(9)).foregroundStyle(Color.label)
+        Text("Git").font(.ui(9)).foregroundStyle(Color.label)
             .textCase(.uppercase).tracking(0.8)
         GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
         // Same rule as the buttons: a skill with nothing to act on is hidden,
@@ -1430,60 +1482,8 @@ private struct SkillsCard: View {
             $0.isTool || GitActions.unavailableReason($0, snapshot: snapshot)?.settled == true
         }) {
             Text("Nothing to do: clean, in sync, and no PR waiting.")
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .font(.ui(10)).foregroundStyle(Color.label)
         }
-    }
-}
-
-/// The repo's TASKS.md: what is open, and /todo, which writes this
-/// conversation's next steps into it and offers to create the file when the
-/// repo has none. Read-only here; the file is only ever written by the skill.
-private struct TasksCard: View {
-    let session: SessionFeed
-    let feedDir: URL
-    let text: String?
-    let root: String?
-    let suggestion: Suggestion?
-    @State private var notice: NoticeMessage?
-
-    private static let shown = 8
-
-    var body: some View {
-        let tasks = text.map(Suggestion.tasks(inTasksFile:))
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                CardTitle("Tasks")
-                Spacer()
-                if let tasks {
-                    Text("\(tasks.open.count) open · \(tasks.done) done")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-            }
-            if let tasks {
-                if tasks.open.isEmpty {
-                    Text("Nothing open in TASKS.md.")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label.opacity(0.6))
-                }
-                ForEach(Array(tasks.open.prefix(Self.shown).enumerated()), id: \.offset) { _, title in
-                    Label(title, systemImage: "square")
-                        .font(.claudeMono(10))
-                        .lineLimit(1).truncationMode(.tail)
-                        .help(title)
-                }
-                if tasks.open.count > Self.shown {
-                    Text("+\(tasks.open.count - Self.shown) more")
-                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                }
-            } else if root != nil {
-                Text("No TASKS.md in this repo. /todo turns the conversation into one.")
-                    .font(.claudeMono(10)).foregroundStyle(Color.label)
-            }
-            ShortcutChips(session: session, feedDir: feedDir,
-                          shortcuts: installedShortcuts.filter { $0.group == .tasks },
-                          suggestion: suggestion, notice: $notice)
-            if let notice { Notice(notice) }
-        }
-        .detailCard()
     }
 }
 
@@ -1531,7 +1531,7 @@ private struct AutomationToggles: View {
                     if on { confirm = .autoMerge } else { setAutoMerge(false, snap) }
                 }
                 if let mergeReason {
-                    Text(mergeReason).font(.claudeMono(9)).foregroundStyle(Color.label.opacity(0.6))
+                    Text(mergeReason).font(.ui(9)).foregroundStyle(Color.label.opacity(0.6))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 toggle("Auto-push on main", isOn: GitAutomation.mainPushEnabled(toplevel: top),
@@ -1550,7 +1550,7 @@ private struct AutomationToggles: View {
                     ?? SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
                 Button { confirm = .autoFix } label: {
                     Label("Auto-fix CI & comments", systemImage: "wrench.and.screwdriver")
-                        .font(.claudeMono(10)).lineLimit(1)
+                        .font(.ui(10)).lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.glass)
@@ -1587,7 +1587,7 @@ private struct AutomationToggles: View {
         Toggle(title, isOn: Binding(get: { isOn }, set: set))
             .toggleStyle(.switch)
             .controlSize(.mini)
-            .font(.claudeMono(10))
+            .font(.ui(10))
             .disabled(disabledReason != nil || busy)
             .help(disabledReason ?? title)
     }
@@ -1716,7 +1716,7 @@ private struct ShortcutChips: View {
                     // The name alone; the slash is implied by the card, and the
                     // tooltip and the notice still say the command typed.
                     Label(shortcut.label, systemImage: shortcut.symbol)
-                        .font(.claudeMono(10))
+                        .font(.ui(10))
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -1727,7 +1727,7 @@ private struct ShortcutChips: View {
                 .opacity(reason == nil ? 1 : 0.7)
                 .overlay {
                     if reason == nil, pick?.action == .command(shortcut.command) {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(Color.claude, lineWidth: 1.2)
                             .allowsHitTesting(false)
                     }
@@ -1826,7 +1826,7 @@ private struct GitGraphCard: View {
                 }
             } else {
                 Text(history != nil ? "no commits yet" : read ? "history couldn't be read" : "reading…")
-                    .font(.claudeMono(11)).foregroundStyle(Color.label)
+                    .font(.ui(11)).foregroundStyle(Color.label)
             }
         }
         .detailCard()
@@ -1897,7 +1897,7 @@ private struct GitGraphCard: View {
                                                  width: radius * 2, height: radius * 2))
                 if row.commit.parents.count > 1 {
                     // A merge commit is a ring, so it reads as a join, not a step.
-                    context.fill(dot, with: .color(Color(nsColor: .windowBackgroundColor)))
+                    context.fill(dot, with: .color(Color.card))
                     context.stroke(dot, with: .color(color(row.column)), lineWidth: 1.6)
                 } else {
                     context.fill(dot, with: .color(color(row.column)))
@@ -1914,7 +1914,7 @@ private struct GitGraphCard: View {
         case .commit(let row): label(row)
         case .gap(let count, _):
             Text("\u{22EF} \(count) commit\(count == 1 ? "" : "s")")
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .font(.ui(10)).foregroundStyle(Color.label)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -1977,11 +1977,11 @@ private struct GitStatusRow: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 11))
+            Image(systemName: symbol).font(.ui(11))
                 .foregroundStyle(tint).frame(width: 14)
-            Text(label).font(.system(size: 11)).foregroundStyle(Color.label)
+            Text(label).font(.ui(11)).foregroundStyle(Color.label)
                 .frame(width: 46, alignment: .leading)
-            Text(value).font(.claudeMono(11))
+            Text(value).font(.ui(11))
                 .foregroundStyle(tone == .neutral ? Color.label : Color.primary)
                 .lineLimit(1).truncationMode(.middle).help(value)
         }
@@ -2042,13 +2042,13 @@ private struct GitCard: View {
                     Text(snap.branchLabel).font(.claudeMono(12)).fontWeight(.semibold)
                         .lineLimit(1).truncationMode(.middle)
                     if snap.isDefaultBranch {
-                        Text("default").font(.claudeMono(9)).foregroundStyle(Color.label)
+                        Text("default").font(.ui(9)).foregroundStyle(Color.label)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.secondary.opacity(0.18), in: Capsule())
                     }
                     if let isPrivate = snap.isPrivate {
                         Label(isPrivate ? "private" : "public", systemImage: isPrivate ? "lock" : "globe")
-                            .font(.claudeMono(9)).foregroundStyle(Color.label)
+                            .font(.ui(9)).foregroundStyle(Color.label)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Color.secondary.opacity(0.18), in: Capsule())
                             .help(isPrivate ? "Private repository on GitHub" : "Public repository on GitHub")
@@ -2071,7 +2071,7 @@ private struct GitCard: View {
                 // Two clocks, said once each, under everything they date.
                 Text([local.map { "local read \($0) ago" }, remote.map { "remote \($0) ago" }]
                         .compactMap { $0 }.joined(separator: " · "))
-                    .font(.claudeMono(9)).foregroundStyle(Color.label)
+                    .font(.ui(9)).foregroundStyle(Color.label)
                     .fixedSize(horizontal: false, vertical: true)
             }
         } else {
@@ -2084,9 +2084,9 @@ private struct GitCard: View {
     /// things, and on the title line they were cut off at card width.
     private var header: some View {
         HStack(spacing: 10) {
-            Text("Git").font(.claudeMono(10)).fontWeight(.semibold)
+            Text("Git").font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-            Button("Refresh", action: reload).font(.claudeMono(10)).buttonStyle(.link)
+            Button("Refresh", action: reload).font(.ui(10)).buttonStyle(.link)
         }
     }
 
@@ -2108,7 +2108,7 @@ private struct GitCard: View {
         }
         ForEach(unsettled) { item in
             Text("\(item.action.title.lowercased()): \(item.reason)")
-                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                .font(.ui(10)).foregroundStyle(Color.label)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -2182,7 +2182,7 @@ private struct GitButtons: View {
                         let block = GitActions.unavailableReason(action, snapshot: snap)
                         Button { start(action) } label: {
                             Label(action.title, systemImage: action.symbol)
-                                .font(.claudeMono(10))
+                                .font(.ui(10))
                                 .lineLimit(1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }

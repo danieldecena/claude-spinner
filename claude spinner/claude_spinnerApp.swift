@@ -695,6 +695,16 @@ extension Color {
     /// translucent material over the desktop, so the light figures are the
     /// optimistic ones -- over a mid-tone wallpaper the true ratio is lower.
     enum Ink {
+        /// The window's pane behind the cards: App Kit's `ground`, so the cards
+        /// (its `surface`) sit lighter than it in both appearances.
+        static let paneLight = (0.949, 0.949, 0.969)  // #F2F2F7
+        static let paneDark = (0.0, 0.0, 0.0)
+        /// App Kit's chart greys and its first series colour: every mark of a
+        /// chart that is not the point takes `chartBase`, the point takes one hue.
+        static let chartBaseLight = (0.780, 0.780, 0.800)
+        static let chartBaseDark = (0.282, 0.282, 0.290)
+        static let series1Light = (0.0, 0.522, 0.459)
+        static let series1Dark = (0.0, 0.855, 0.765)
         static let groundLight = (1.0, 1.0, 1.0)
         static let groundDark = (0.118, 0.122, 0.125)
         /// The panel's own light ground, a touch warmer than the white window.
@@ -703,8 +713,8 @@ extension Color {
         /// way the footage library separates its panels -- by surface, not shadow.
         /// Darker than the pane in light, lighter in dark, so the card reads as
         /// raised in both; text on it is re-measured in the tests.
-        static let cardLight = (0.961, 0.961, 0.969)  // #F5F5F7
-        static let cardDark = (0.165, 0.165, 0.173)   // #2A2A2C
+        static let cardLight = (1.0, 1.0, 1.0)  // App Kit `surface`
+        static let cardDark = (0.110, 0.110, 0.118)   // App Kit `surface`, #1C1C1E
 
         // Accent and attention are the Decena Apps design system's `clay` and
         // `signal` (claude.ai/artifact/Vd5LAqkkX2HHeAFMSB556u), shared with
@@ -729,14 +739,14 @@ extension Color {
         static let usageGreenLight = (0.247, 0.561, 0.278)  // #3F8F47
         static let usageGreenDark = (0.55, 0.85, 0.55)
 
-        /// Ink for a row label: a warm neutral, not the accent. Labels were a
+        /// Ink for a row label: App Kit's neutral `ink-soft`, not the accent. Labels were a
         /// darkened clay, which put orange on every section head, total and
         /// resting age, so orange no longer meant "working" -- the one thing the
         /// accent is reserved for. The panel critique of 2026-09-29 traced the
         /// orange overload to this token. Both halves are the design system's
         /// secondary ink and clear 4.5:1 (about 6.7 on white, 7.0 on the dark ground).
-        static let labelLight = (0.373, 0.357, 0.333)  // #5F5B55
-        static let labelDark = (0.659, 0.643, 0.616)   // #A8A49D
+        static let labelLight = (0.388, 0.388, 0.400)  // App Kit `ink-soft`, #636366
+        static let labelDark = (0.596, 0.596, 0.616)   // App Kit `ink-soft`, #98989D
 
         /// The four identity hues, each shared by one model and one host: purple for
         /// Opus and a desktop app, cyan for Sonnet and the web, jade for Haiku and a
@@ -789,6 +799,9 @@ extension Color {
     static let panelGround = dynamic(light: Ink.panelGroundLight, dark: Ink.groundDark)
     /// The fill behind each section card in the window's detail pane.
     static let card = dynamic(light: Ink.cardLight, dark: Ink.cardDark)
+    static let pane = dynamic(light: Ink.paneLight, dark: Ink.paneDark)
+    static let chartBase = dynamic(light: Ink.chartBaseLight, dark: Ink.chartBaseDark)
+    static let series1 = dynamic(light: Ink.series1Light, dark: Ink.series1Dark)
     /// Quiet neutral ink for row labels; orange is left to `claude` alone.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a
@@ -1170,5 +1183,23 @@ extension Font {
 
     static func claudeMono(_ size: CGFloat) -> Font {
         .custom(claudeFontName, size: size)
+    }
+
+    /// App Kit type (app-kit README, "Type"): SF, nothing under 11pt. `legacy` is
+    /// the monospaced size a call site used before the window moved to the kit, so
+    /// its place in the hierarchy carries over: 9 and 10 become 11, 11 becomes 12,
+    /// 12 becomes 13, and 13 and up are unchanged.
+    static func ui(_ legacy: CGFloat) -> Font { .system(size: kitSize(legacy)) }
+
+    /// The same scale in the kit's rounded design, for figures.
+    static func figure(_ legacy: CGFloat) -> Font { .system(size: kitSize(legacy), design: .rounded) }
+
+    private static func kitSize(_ legacy: CGFloat) -> CGFloat {
+        switch legacy {
+        case ...10: return 11
+        case ...11: return 12
+        case ...12: return 13
+        default: return legacy
+        }
     }
 }

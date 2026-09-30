@@ -144,6 +144,25 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the window follows App Kit (audit of 2026-09-30, Daniel chose "everything
+  including type"). Type: SF at the kit's 11pt floor via `Font.ui` (9 and 10 -> 11,
+  11 -> 12, 12 -> 13) and `Font.figure` (rounded) for figures; Menlo stays only for
+  terminal echo (session names and glyphs, the reply field, transcript prose, ask
+  command text, shas, refs, branch name, StatSection values). Colour: pane is the
+  kit's `ground`, cards its `surface`, `label` its `ink-soft`. Charts: columns are
+  `chartBase` grey with only the latest column coloured (heat band for context and
+  5h usage, `series1` for spend); cache and spend rings use `series1`. Spacing: card
+  padding 16, grid gap 12, page and sidebar inset 20, radii 10 and 6. Send is a
+  tinted capsule. Seen on screen; 319 tests pass, with a pane contrast test added.
+- Decided: NOT done from the audit: attention -> `warn`. Spinner's blue "needs you"
+  and clay-orange "working" are a deliberate pair; the kit's warn (#C73300) sits next
+  to clay and would blur them, and the kit's answer (working = accent blue) inverts
+  the palette. Also not done: renaming `usage*` to `heat*` (same values, churn only)
+  and the menu-bar panel, which still uses Menlo at 9 to 11pt.
+- Decided: the repo's open TASKS.md items are listed in the sidebar under their
+  project (5 shown, then +N), read from the nearest TASKS.md at or above the
+  session's folder; the Tasks card is gone and /todo is a chip in Skills. The
+  panel-less read is not selectable.
 - Decided: the git buttons and git skill chips live in the Skills card under a Git
   label, and the Automation switches sit in their own card under the Git status
   card; the Git commands card is gone. History takes the width it freed. Seen on

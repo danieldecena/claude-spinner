@@ -86,7 +86,7 @@ struct Ring: View {
                     .stroke(Color.primary.opacity(0.85), lineWidth: line + 4)
                     .rotationEffect(.degrees(-90))
             }
-            Text(value).font(.claudeMono(13)).fontWeight(.semibold)
+            Text(value).font(.figure(13)).fontWeight(.semibold)
                 .foregroundStyle(ratio == nil ? Color.label : Color.primary)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.horizontal, line + 2)
@@ -110,10 +110,10 @@ struct RingMetric: View {
     var body: some View {
         VStack(spacing: 5) {
             Ring(ratio: ratio, tint: tint, pace: pace, value: value)
-            Text(caption).font(.claudeMono(9)).fontWeight(.semibold)
+            Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
             if let detail {
-                Text(detail).font(.claudeMono(10)).foregroundStyle(Color.label)
+                Text(detail).font(.ui(10)).foregroundStyle(Color.label)
                     .multilineTextAlignment(.center).lineLimit(2)
             }
         }
@@ -123,11 +123,14 @@ struct RingMetric: View {
     }
 }
 
-/// One column per time slice, each as tall as its share of the top. A nil slice
-/// is a faint stub: "nothing yet" must not read as "used nothing".
+/// One column per time slice, each as tall as its share of the top. Grey with
+/// one highlight, after App Kit's chart rule: every column but the latest is
+/// `chartBase`, and the latest carries the colour, so a chart's alarm is where
+/// it ends. A nil slice is a fainter stub: "nothing yet" must not read as
+/// "used nothing".
 struct Columns: View {
     let shares: [Double?]
-    let tints: [Color]
+    let highlight: Color
     var height: CGFloat = 44
 
     var body: some View {
@@ -136,7 +139,8 @@ struct Columns: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                        .fill(share == nil ? Color.secondary.opacity(0.15) : tints[index])
+                        .fill(share == nil ? Color.chartBase.opacity(0.5)
+                              : index == shares.count - 1 ? highlight : Color.chartBase)
                         .frame(height: share.map { max($0 > 0 ? 2 : 0, height * CGFloat(min(1, $0))) } ?? 2)
                 }
             }
@@ -151,7 +155,7 @@ struct TrendColumns: View {
     let title: String
     let now: String
     let shares: [Double]?
-    let tints: [Color]
+    let highlight: Color
     let first: Double?
     let last: Double?
     var empty = "no history yet"
@@ -159,13 +163,13 @@ struct TrendColumns: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.claudeMono(9)).fontWeight(.semibold)
+                Text(title).font(.ui(9)).fontWeight(.semibold)
                     .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
                 Spacer(minLength: 4)
-                Text(now).font(.claudeMono(11)).fontWeight(.semibold).lineLimit(1)
+                Text(now).font(.ui(11)).fontWeight(.semibold).lineLimit(1)
             }
             if let shares {
-                Columns(shares: shares, tints: tints)
+                Columns(shares: shares, highlight: highlight)
                 if let first, let last {
                     let clock = Date()
                     HStack {
@@ -173,10 +177,10 @@ struct TrendColumns: View {
                         Spacer(minLength: 0)
                         Text(StatFormat.age(Date(timeIntervalSince1970: last), now: clock) ?? "")
                     }
-                    .font(.claudeMono(9)).foregroundStyle(Color.label)
+                    .font(.ui(9)).foregroundStyle(Color.label)
                 }
             } else {
-                Text(empty).font(.claudeMono(10)).foregroundStyle(Color.label)
+                Text(empty).font(.ui(10)).foregroundStyle(Color.label)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
         }
@@ -195,11 +199,11 @@ private struct Figure: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(caption).font(.claudeMono(9)).fontWeight(.semibold)
+            Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-            Text(main).font(.claudeMono(13)).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.7)
+            Text(main).font(.figure(13)).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.7)
             if let sub {
-                Text(sub).font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
+                Text(sub).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -224,7 +228,7 @@ struct SessionStatsCard: View {
             HStack {
                 CardTitle("This session")
                 Spacer(minLength: 4)
-                Text(statusLabel).font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
+                Text(statusLabel).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
             }
             HStack(alignment: .top, spacing: 8) {
                 if let window = st.contextWindowSize, window > 0, let tokens = session.contextTokens {
@@ -236,11 +240,11 @@ struct SessionStatsCard: View {
                 }
                 if let hit = st.cacheHitRatio {
                     RingMetric(caption: "cache", value: "\(Int((min(1, max(0, hit)) * 100).rounded()))%",
-                               ratio: hit, tint: .usageGreen, detail: cacheDetail)
+                               ratio: hit, tint: .series1, detail: cacheDetail)
                 }
                 if let cost = st.costUSD {
                     RingMetric(caption: "spend", value: StatFormat.money(cost),
-                               ratio: st.apiShare, tint: .claude, detail: costDetail)
+                               ratio: st.apiShare, tint: .series1, detail: costDetail)
                 }
             }
             HStack(alignment: .top, spacing: 16) {
@@ -248,7 +252,7 @@ struct SessionStatsCard: View {
                 spendTrend
             }
             if let facts = facts {
-                Text(facts).font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(2)
+                Text(facts).font(.ui(10)).foregroundStyle(Color.label).lineLimit(2)
                     .truncationMode(.middle)
             }
         }
@@ -295,7 +299,7 @@ struct SessionStatsCard: View {
         let top = Double(st.contextWindowSize.map { ContextChart.ceiling(window: $0, samples: history) } ?? 0)
         TrendColumns(title: "context", now: session.contextTokens.map(StatFormat.compactCount) ?? "",
                      shares: top > 0 ? levels?.map { $0 / top } : nil,
-                     tints: (levels ?? []).map { Color.contextTint(Int($0)) },
+                     highlight: .contextTint(session.contextTokens ?? 0),
                      first: history.first?.at, last: history.last?.at,
                      empty: "no context history yet")
     }
@@ -306,7 +310,7 @@ struct SessionStatsCard: View {
         let peak = steps?.max() ?? 0
         TrendColumns(title: "spend", now: session.stats.costUSD.map(StatFormat.money) ?? "",
                      shares: peak > 0 ? steps?.map { $0 / peak } : nil,
-                     tints: Array(repeating: .claude, count: Self.slices),
+                     highlight: .series1,
                      first: spend.first?.at, last: spend.last?.at,
                      empty: "no spend history yet")
     }
@@ -373,7 +377,7 @@ struct OverviewStrip: View {
             VStack(alignment: .leading, spacing: 6) {
                 CardTitle("All sessions")
                 if totals.isEmpty {
-                    Text(totalsStatus).font(.claudeMono(11)).foregroundStyle(Color.label)
+                    Text(totalsStatus).font(.ui(11)).foregroundStyle(Color.label)
                 } else {
                     HStack(alignment: .top, spacing: 12) {
                         ForEach(totals, id: \.self) { row in
@@ -401,7 +405,7 @@ struct OverviewStrip: View {
                 }
                 Text(liveLine)
             }
-            .font(.claudeMono(10)).foregroundStyle(Color.label)
+            .font(.ui(10)).foregroundStyle(Color.label)
         }
         .detailCard()
     }
@@ -429,7 +433,7 @@ struct OverviewStrip: View {
         let levels = Buckets.levels(history.map { (at: $0.at, value: Double($0.pct)) }, count: slices)
         TrendColumns(title: "5h usage", now: fiveHour.map { "\($0)%" } ?? "",
                      shares: levels?.map { min(1, max(0, $0 / 100)) },
-                     tints: (levels ?? []).map { Color.usageTint(Int($0)) },
+                     highlight: .usageTint(fiveHour ?? 0),
                      first: history.first?.at, last: history.last?.at,
                      empty: "no usage history yet")
             .accessibilityValue(Sparkline.spokenValue(history))
@@ -477,11 +481,11 @@ struct WeekChart: View {
         let peak = max(1, bars.compactMap(\.tokens).max() ?? 0)
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("tokens by day").font(.claudeMono(9)).fontWeight(.semibold)
+                Text("tokens by day").font(.ui(9)).fontWeight(.semibold)
                     .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
                 Spacer(minLength: 4)
                 if let today = bars.first(where: \.isToday)?.tokens {
-                    Text(FeedWatcher.formatTokens(today)).font(.claudeMono(11)).fontWeight(.semibold)
+                    Text(FeedWatcher.formatTokens(today)).font(.ui(11)).fontWeight(.semibold)
                 }
             }
             HStack(alignment: .bottom, spacing: 6) {
@@ -495,7 +499,7 @@ struct WeekChart: View {
                                     .frame(height: height(bar, peak: peak, box: geo.size.height))
                             }
                         }
-                        Text(bar.label).font(.claudeMono(9))
+                        Text(bar.label).font(.ui(9))
                             .foregroundStyle(bar.isToday ? Color.primary : Color.label)
                     }
                     .help(bar.tokens.map { "\(FeedWatcher.formatTokens($0)) tokens" } ?? "not yet")
@@ -511,8 +515,8 @@ struct WeekChart: View {
     }
 
     private func fill(_ bar: UsageTotalsPoller.WeekBar) -> Color {
-        if bar.isToday { return .claude }
-        return Color.secondary.opacity(bar.tokens == nil ? 0.15 : 0.55)
+        if bar.isToday { return .series1 }
+        return Color.chartBase.opacity(bar.tokens == nil ? 0.5 : 1)
     }
 
     private func height(_ bar: UsageTotalsPoller.WeekBar, peak: Int, box: CGFloat) -> CGFloat {

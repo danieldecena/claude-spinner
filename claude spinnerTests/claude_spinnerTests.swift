@@ -3496,6 +3496,20 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(GitGraph.condense(linear(30, refs: refs), remotes: [], maxLines: 10).count, 10)
     }
 
+    /// The window's pane is App Kit's ground now, and the cards sit lighter than it.
+    func testLabelAndMarksClearContrastOnThePane() {
+        XCTAssertGreaterThanOrEqual(contrastRatio(Color.Ink.labelLight, Color.Ink.paneLight), 4.5)
+        XCTAssertGreaterThanOrEqual(contrastRatio(Color.Ink.labelDark, Color.Ink.paneDark), 4.5)
+        for mark in Color.Ink.marks {
+            XCTAssertGreaterThanOrEqual(contrastRatio(mark.light, Color.Ink.paneLight), 3, "\(mark.name) light")
+            XCTAssertGreaterThanOrEqual(contrastRatio(mark.dark, Color.Ink.paneDark), 3, "\(mark.name) dark")
+        }
+        for (light, dark) in [(Color.Ink.series1Light, Color.Ink.series1Dark)] {
+            XCTAssertGreaterThanOrEqual(contrastRatio(light, Color.Ink.cardLight), 3, "series1 on the card, light")
+            XCTAssertGreaterThanOrEqual(contrastRatio(dark, Color.Ink.cardDark), 3, "series1 on the card, dark")
+        }
+    }
+
     // MARK: - Column buckets
 
     private func series(_ points: [(Double, Double)]) -> [(at: Double, value: Double)] {

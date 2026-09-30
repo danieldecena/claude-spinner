@@ -107,6 +107,22 @@ struct Suggestion: Equatable {
         return nil
     }
 
+    /// The folder whose TASKS.md belongs to a session started in `cwd`: `cwd`
+    /// itself, or the nearest parent that has one. Stops at a repo root, so a
+    /// session in a repo with no TASKS.md does not pick up a parent's, and never
+    /// looks above the home folder.
+    static func tasksRoot(startingAt cwd: String) -> String? {
+        let fm = FileManager.default
+        let home = NSHomeDirectory()
+        var dir = URL(fileURLWithPath: cwd)
+        for _ in 0..<8 where dir.path != "/" && dir.path != home {
+            if fm.fileExists(atPath: dir.appendingPathComponent("TASKS.md").path) { return dir.path }
+            if fm.fileExists(atPath: dir.appendingPathComponent(".git").path) { return nil }
+            dir.deleteLastPathComponent()
+        }
+        return nil
+    }
+
     /// Unchecked `- [ ]` items above `## Completed`, or nil when there are none.
     static func openTasks(inTasksFile text: String) -> Int? {
         let open = tasks(inTasksFile: text).open.count
