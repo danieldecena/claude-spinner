@@ -1817,9 +1817,17 @@ final class FeedWatcher: ObservableObject {
 
         let waitingIds = Set(waiting.map(\.id))
         var byProject: [String: [SessionRowItem]] = [:]
-        for item in items where !waitingIds.contains(item.id) {
-            // A child rides with its parent's project, not its own row's grouping.
-            byProject[item.session.projectName, default: []].append(item)
+        // A child rides with its parent's project, not its own row's grouping: a
+        // subagent in a worktree has a cwd of its own (`agent-<id>`), which made
+        // an extra section counting 0 sessions. Children follow their parent in
+        // `items`, so the last root seen is the parent.
+        var parentProject: String?
+        for item in items {
+            if item.depth == 0 { parentProject = item.session.projectName }
+            guard !waitingIds.contains(item.id) else { continue }
+            byProject[item.depth == 0 ? item.session.projectName
+                                      : parentProject ?? item.session.projectName,
+                      default: []].append(item)
         }
         func newest(_ name: String) -> Date {
             byProject[name]!.compactMap(\.session.updated).max() ?? .distantPast
