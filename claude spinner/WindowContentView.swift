@@ -823,6 +823,12 @@ private struct ReplyBox: View {
     private func send() {
         let message = text.trimmingCharacters(in: .whitespaces)
         guard !message.isEmpty, !sending else { return }
+        // A session holding a question reads as working in the feed, so the
+        // replier's refusal said "mid-turn" about a session waiting on you.
+        if AskInbox.shared.pending.contains(where: { $0.sessionId == session.id }) {
+            notice = .init(kind: .error, text: "That session is waiting on the question above. Answer it first.")
+            return
+        }
         sending = true
         notice = nil
         SessionReplier.reply(to: session, text: message, feedDir: feedDir) { result in
@@ -2171,12 +2177,18 @@ private struct GitGraphCard: View {
                 .frame(height: Self.rowHeight)
             HStack(spacing: 4) {
                 ForEach(GitGraph.shownRefs(row.commit.refs), id: \.self) { ref in
+                    // Capped and cut in the middle, never fixed: two long branch
+                    // names at their full width made the row wider than the card,
+                    // which then drew out over the sidebar (2026-09-30).
                     Text(ref).font(.claudeMono(9))
                         .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
+                        .lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: 150)
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Color.secondary.opacity(0.12), in: Capsule())
-                        .fixedSize()
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(height: Self.rowHeight)
+                        .help(ref)
                 }
             }
             // The subject takes what the SHA, refs and age leave: a hash alone
