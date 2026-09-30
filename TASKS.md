@@ -13,8 +13,11 @@ via `run.sh`.
 
 ## Completed
 
-- [x] Adopt App Kit type, surfaces, chart colour, spacing and Send in the window
-- [x] Move the Tasks card into the sidebar under its project
+- [x] Adopt App Kit type in the window: SF chrome, rounded figures, mono only for terminal echo -- 2cc52b1
+- [x] Adopt App Kit colour: warn for attention, kit surfaces and neutral label, heat names -- 2cc52b1 (surfaces, label only)
+- [x] Draw charts grey with one highlight, fix cache and spend ring colour -- 2cc52b1
+- [x] Adopt kit spacing, radii and tinted Send button -- 2cc52b1
+- [x] Move the Tasks card into the sidebar under its project -- 2cc52b1
 - [x] Move git commands into Skills and Automation under the Git card
 - [x] Combine the stat cards into two and redraw the charts as rings and columns
 - [x] Move subagents from a detail card into the sidebar
