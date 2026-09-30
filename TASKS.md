@@ -11,10 +11,13 @@ via `run.sh`.
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Explain why a probe session auto-answered AskUserQuestion
+- [ ] Fill the You asked card and hand leftover height to the top row
+- [ ] Apply critique to Skills, History, sidebar, Git and toolbar
 - [ ] Check You asked shows full text on hover in the top row
 
 ## Completed
 
+- [x] Make spend a plain figure and tint the context ring by share -- 5326012
 - [x] Make Git status and Automation one card with a single row of switches
 - [x] Adopt App Kit type in the window: SF chrome, rounded figures, mono only for terminal echo -- 2cc52b1
 - [x] Adopt App Kit colour: warn for attention, kit surfaces and neutral label, heat names -- 2cc52b1 (surfaces, label only)
@@ -254,7 +257,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-30 05:40.
+Plan approved 2026-09-30 06:47.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -263,7 +266,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 97eb3b30-ec31-412d-aea9-7625bafa3db9
+    claude --resume ce296d8d-9d52-4b3c-9a71-ac535092ea9d
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
