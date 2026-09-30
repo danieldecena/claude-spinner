@@ -6,6 +6,18 @@ Notarization was dropped 2026-07-21 (needs a paid Developer Program account;
 not being pursued) — the app ships as a locally-built, ad-hoc-signed `.app`
 via `run.sh`.
 
+- [ ] Stop a hung ccusage scan from freezing the totals poller
+- [ ] Retry only the daily ccusage call when unpriced
+- [ ] Count only blocked sessions as needs you in the fleet bar
+- [ ] Show context tokens on idle rows
+- [ ] Report a git action that did not report back honestly
+- [ ] Stop the reply notice claiming a turn for clear and compact
+- [ ] Show usage totals off when polling is disabled
+- [ ] Check the build exists before run-sh replaces the app
+- [ ] Untrack the regenerable ds-bundle files
+
+## Completed
+
 - [x] Give push/pull/merge a longer timeout than status probes
 - [x] Stop Clear/Compact reporting failure when they worked
 - [x] Keep tmux/ps calls off the main thread with a timeout
@@ -17,9 +29,6 @@ via `run.sh`.
 - [x] Hold the transcript card at one height
 - [x] Pin a glass toolbar above the detail pane
 - [x] Equalize detail card heights per row
-
-## Completed
-
 - [x] Authenticate Figma and create the UI spec file -- figma, no commit
 - [x] Check Figma has a mono font (Menlo or SF Mono) -- figma, no commit
 - [x] Build unified tokens page (state, usage, menubar) -- figma, no commit
@@ -219,7 +228,7 @@ via `run.sh`.
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-29 10:17.
+Plan approved 2026-09-29 18:53.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -228,7 +237,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 682ebba9-8126-44b5-837b-dc5c69aa75f7
+    claude --resume 63f99cc7-7bdf-49f4-8d65-63c0009d7128
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
