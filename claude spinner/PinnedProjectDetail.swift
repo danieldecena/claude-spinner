@@ -58,6 +58,8 @@ struct PinnedProjectDetail: View {
                     launchCard.tileSpan(1)
                     tasksCard.tileSpan(2)
                     recentCard.tileSpan(2)
+                    // Beside the two-wide recent card, so the row has no hole.
+                    if !live.isEmpty { liveCard.tileSpan(1) }
                     if let extras {
                         discoveryCard("Skills", extras.skills) { skills in
                             chips(skills) { skill in
@@ -70,7 +72,6 @@ struct PinnedProjectDetail: View {
                         }
                         .tileSpan(extras.skills.items.count > 6 ? 2 : 1)
                     }
-                    if !live.isEmpty { liveCard.tileSpan(1) }
                     if let extras {
                         discoveryCard("Workflows", extras.workflows) { workflows in
                             chips(workflows) { workflow in
@@ -148,15 +149,11 @@ struct PinnedProjectDetail: View {
             CardTitle("Start")
             Text(project.path).font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1).truncationMode(.middle)
-            HStack(spacing: 8) {
-                Button { start([]) } label: { Label("New session", systemImage: "plus") }
-                    .help("Start Claude Code in \(project.path)")
-                if let quick = project.quickStart {
-                    Button { start([quick.prompt]) } label: {
-                        Label(quick.label, systemImage: quick.systemImage)
-                    }
-                    .help("Start a session that runs \(quick.prompt)")
-                }
+            // Side by side when both fit, else stacked: beside the rail the card
+            // is a third of the main column and cut both labels short.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { launchButtons }
+                VStack(alignment: .leading, spacing: 6) { launchButtons }
             }
             .buttonStyle(.glass).font(.ui(11))
             if let failure {
@@ -165,6 +162,17 @@ struct PinnedProjectDetail: View {
             }
         }
         .detailCard()
+    }
+
+    @ViewBuilder private var launchButtons: some View {
+        Button { start([]) } label: { Label("New session", systemImage: "plus").fixedSize() }
+            .help("Start Claude Code in \(project.path)")
+        if let quick = project.quickStart {
+            Button { start([quick.prompt]) } label: {
+                Label(quick.label, systemImage: quick.systemImage).fixedSize()
+            }
+            .help("Start a session that runs \(quick.prompt)")
+        }
     }
 
     /// Desktop's right-hand panel, from the files behind it: one row per part
@@ -194,7 +202,8 @@ struct PinnedProjectDetail: View {
                         detail: about.memories.map { $0 == 1 ? "1 memory" : "\($0) memories" } ?? "couldn't read",
                         action: about.memories.map { $0 > 0 ? ("View", about.memoryDir) : nil } ?? nil)
                 railRow("Scheduled", symbol: "clock",
-                        detail: extras.scheduled.items.first.map { $0.name } ?? "none") {
+                        detail: extras.scheduled.items.isEmpty ? "none"
+                            : extras.scheduled.items.count == 1 ? "1 task" : "\(extras.scheduled.items.count) tasks") {
                     ForEach(Array(extras.scheduled.items.enumerated()), id: \.offset) { _, job in
                         VStack(alignment: .leading, spacing: 1) {
                             Text(job.name).font(.ui(11)).lineLimit(1).truncationMode(.middle)
@@ -227,7 +236,7 @@ struct PinnedProjectDetail: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: symbol).frame(width: 16).foregroundStyle(Color.label)
-                Text(title).font(.ui(12))
+                Text(title).font(.ui(12)).fixedSize()
                 Text(detail).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 4)
                 if let action {
