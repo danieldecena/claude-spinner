@@ -166,6 +166,8 @@ nonisolated struct ProjectAbout: Equatable {
     /// The folders Desktop gives this project's sessions: the root first, then
     /// any others linked beside it. Just the root when Desktop has no record.
     var folders: [String] = []
+    /// Desktop session records that exist but would not parse.
+    var foldersUnreadable: [String] = []
     /// Docs in the root that sessions read for context. Desktop's uploaded
     /// project files are not on this Mac, so they are not counted here.
     var context: [String] = []
@@ -394,10 +396,14 @@ nonisolated enum ProjectDiscovery {
     // MARK: - Scheduled
 
     /// The folder's path or one of the words that mark it. Loose on purpose: a
-    /// scheduler that names the project only by a word still belongs here.
+    /// scheduler that names the project only by a word still belongs here. A
+    /// word counts only where a word starts ("jobscout", "jobs"), so "cronjob"
+    /// or "boyscout" don't pull an unrelated job in.
     static func mentionsProject(_ text: String, folder: String, topic: PinnedProject.Topic) -> Bool {
         let lower = text.lowercased()
-        return lower.contains(folder.lowercased()) || topic.words.contains { lower.contains($0) }
+        return lower.contains(folder.lowercased())
+            || topic.words.contains { lower.range(of: #"\b"# + NSRegularExpression.escapedPattern(for: $0),
+                                                   options: .regularExpression) != nil }
     }
 
     private static let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -541,6 +547,9 @@ nonisolated enum ProjectDiscovery {
         task.standardOutput = out
         task.standardError = err
         do { try task.run() } catch { return nil }
+        // A hung crontab would stall this refresh loop for good and leave the
+        // rail showing old jobs; killed, it reads as "couldn't read" instead.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) { if task.isRunning { task.terminate() } }
         let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         let said = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         task.waitUntilExit()
@@ -580,7 +589,7 @@ nonisolated enum ProjectDiscovery {
 
     // MARK: - Artifacts
 
-    private static let skippedDirs: Set<String> = [".worktrees", "node_modules", ".git", ".venv"]
+    private static let skippedDirs: Set<String> = [".worktrees", "node_modules", ".git", ".venv", "target"]
 
     /// Every `artifact.json` in the folder, up to `maxDepth` levels down, that
     /// records a URL. Only the file is read; nothing is fetched.
@@ -616,25 +625,37 @@ nonisolated enum ProjectDiscovery {
     /// Desktop keeps no local list of a project's linked folders, but it records
     /// the folders each session was given. The newest record holding the root is
     /// the project's current set (2026-09-30: job search + job search/Resume/artifact,
-    /// matching the project page's "2 folders").
-    static func desktopFolders(root: String, spacesFiles: [String]) -> [String] {
+    /// matching the project page's "2 folders"). Entries carry no timestamp, so
+    /// files are taken oldest-modified first and the last match wins. A missing
+    /// file is normal (not every space has one); one that won't parse is reported.
+    static func desktopFolders(root: String, spacesFiles: [String]) -> Found<String> {
+        var found = Found<String>()
         var newest: [String]?
-        for file in spacesFiles {
-            guard let data = FileManager.default.contents(atPath: file),
+        let fm = FileManager.default
+        func modified(_ file: String) -> Date {
+            (try? fm.attributesOfItem(atPath: file)[.modificationDate] as? Date) ?? .distantPast
+        }
+        for file in spacesFiles.filter({ fm.fileExists(atPath: $0) }).sorted(by: { modified($0) < modified($1) }) {
+            guard let data = fm.contents(atPath: file),
                   let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let entries = obj["entries"] as? [[String: Any]] else { continue }
+                  let entries = obj["entries"] as? [[String: Any]] else {
+                found.unreadable.append(file)
+                continue
+            }
             // Appended as sessions start, so the last match is the newest.
             if let last = entries.last(where: { ($0["folders"] as? [String])?.contains(root) == true }) {
                 newest = last["folders"] as? [String]
             }
         }
-        guard let folders = newest else { return [root] }
-        return [root] + folders.filter { $0 != root }
+        found.items = [root] + (newest ?? []).filter { $0 != root }
+        return found
     }
 
     static func about(root: String, projectsDir: String, spacesFiles: [String] = []) -> ProjectAbout {
         var about = ProjectAbout()
-        about.folders = desktopFolders(root: root, spacesFiles: spacesFiles)
+        let folders = desktopFolders(root: root, spacesFiles: spacesFiles)
+        about.folders = folders.items
+        about.foldersUnreadable = folders.unreadable
         about.context = contextFiles.map { root + "/" + $0 }
             .filter { FileManager.default.fileExists(atPath: $0) }
         about.instructions = instructionFiles.map { root + "/" + $0 }

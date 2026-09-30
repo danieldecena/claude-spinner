@@ -325,11 +325,38 @@ final class PinnedProjectsTests: XCTestCase {
               {"sessionId": "c", "folders": ["/p/other"]}
             ]}
             """#, to: spaces)
-            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/job search", spacesFiles: [spaces]),
+            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/job search", spacesFiles: [spaces]).items,
                            ["/p/job search", "/p/job search/Resume/artifact"])
-            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/none", spacesFiles: [spaces]), ["/p/none"],
+            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/none", spacesFiles: [spaces]).items, ["/p/none"],
                            "no record: just the root")
-            XCTAssertEqual(ProjectDiscovery.desktopFolders(root: "/p/x", spacesFiles: ["\(root)/missing.json"]), ["/p/x"])
+            let missing = ProjectDiscovery.desktopFolders(root: "/p/x", spacesFiles: ["\(root)/missing.json"])
+            XCTAssertEqual(missing, Found(items: ["/p/x"]), "a missing record is normal, not unreadable")
+        }
+    }
+
+    func testLinkedFoldersPreferTheNewestFileAndReportOneThatWontParse() {
+        withTempDir { root in
+            let older = "\(root)/a/remote-session-spaces.json", newer = "\(root)/b/remote-session-spaces.json"
+            let broken = "\(root)/c/remote-session-spaces.json"
+            write(#"{"entries": [{"folders": ["/p/j", "/p/j/new"]}]}"#, to: newer)
+            write(#"{"entries": [{"folders": ["/p/j", "/p/j/old"]}]}"#, to: older)
+            write("{not json", to: broken)
+            try? FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)],
+                                                   ofItemAtPath: older)
+            // The newer file is listed first: directory order must not decide.
+            let found = ProjectDiscovery.desktopFolders(root: "/p/j", spacesFiles: [newer, older, broken])
+            XCTAssertEqual(found.items, ["/p/j", "/p/j/new"])
+            XCTAssertEqual(found.unreadable, [broken])
+        }
+    }
+
+    func testTopicWordsMatchOnlyWhereAWordStarts() {
+        let topic = PinnedProject.jobSearch.topic
+        for hit in ["com.me.jobscout-control", "run-jobs.sh", "career-sync"] {
+            XCTAssertTrue(ProjectDiscovery.mentionsProject(hit, folder: "/x/job search", topic: topic), hit)
+        }
+        for miss in ["com.me.cronjob", "boyscout-alerts", "com.apple.backup"] {
+            XCTAssertFalse(ProjectDiscovery.mentionsProject(miss, folder: "/x/job search", topic: topic), miss)
         }
     }
 

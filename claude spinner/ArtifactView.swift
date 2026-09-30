@@ -114,16 +114,18 @@ struct ArtifactCard: View {
                         .lineLimit(1)
                     Text(host).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
                 }
-                Spacer(minLength: 4)
-                if let url = URL(string: artifact.url) {
-                    HStack(spacing: 4) {
-                        ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand",
-                                           action: onExpand)
-                        ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
-                            popouts.show(title: artifact.title, url: url)
-                        }
-                        ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
+                Spacer(minLength: 0)
+            }
+            // Own row: beside the title, three buttons left a one-column tile
+            // about 40pt for the name, which drew as "C".
+            if let url = URL(string: artifact.url) {
+                HStack(spacing: 4) {
+                    ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand",
+                                       action: onExpand)
+                    ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
+                        popouts.show(title: artifact.title, url: url)
                     }
+                    ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
                 }
             }
 

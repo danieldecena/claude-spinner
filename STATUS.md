@@ -152,6 +152,19 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-09-30 (Job Search tab review)
+- Decided: fixed seven review findings. Layout: rail/Running-now names get layout
+  priority (the Spacer took half the row: "CLA...E.md"), the Start path is ~-abbreviated,
+  and the artifact card's three buttons move to their own row (the title drew as "C").
+  Discovery: topic words match only at a word start (`cronjob` no longer counts),
+  Desktop spaces files are taken oldest-modified first and an unparseable one is shown
+  as "Couldn't read", `crontab -l` is killed after 5s, and the artifact walk skips `target`.
+  Two new tests, both mutation-checked. Seen on screen 11:04: CLAUDE.md whole,
+  `~/developer/job search`. Not seen: the artifact card (the window jumped back to the
+  session needing input before the scroll landed).
+- Observed: the window follows a session that needs you. A likely cause for the 09:23
+  probe's "selection moved on its own"; unconfirmed.
+
 ### 2026-09-30 (pop-out probe by coordinates)
 - Tried: driving the Career Hub Pop out from a session (09:22-09:23). SwiftUI rows and
   tile buttons are absent from the AX tree, so `cliclick` by coordinate. The window's

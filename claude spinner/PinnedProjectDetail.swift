@@ -149,7 +149,7 @@ struct PinnedProjectDetail: View {
     private var launchCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Start")
-            Text(project.path).font(.claudeMono(10)).foregroundStyle(Color.label)
+            Text((project.path as NSString).abbreviatingWithTildeInPath).font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1).truncationMode(.middle)
             TextField("New session in \(project.name)", text: $draft)
                 .textFieldStyle(.plain).font(.ui(12))
@@ -210,6 +210,11 @@ struct PinnedProjectDetail: View {
                                     : String(folder.dropFirst(project.path.count + 1)),
                                  path: folder)
                     }
+                    if !about.foldersUnreadable.isEmpty {
+                        Text("Couldn't read " + about.foldersUnreadable.joined(separator: ", "))
+                            .font(.ui(10)).foregroundStyle(Color.attention)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 railRow("Memory", symbol: "brain",
                         detail: about.memories.map { $0 == 1 ? "1 memory" : "\($0) memories" } ?? "couldn't read",
@@ -251,6 +256,7 @@ struct PinnedProjectDetail: View {
                 Image(systemName: symbol).frame(width: 16).foregroundStyle(Color.label)
                 Text(title).font(.ui(12)).fixedSize()
                 Text(detail).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1).truncationMode(.middle)
+                    .layoutPriority(1)
                 Spacer(minLength: 4)
                 if let action {
                     Button(action.label) { NSWorkspace.shared.open(URL(fileURLWithPath: action.path)) }
@@ -271,7 +277,7 @@ struct PinnedProjectDetail: View {
 
     private func railItem(_ label: String, path: String) -> some View {
         HStack(spacing: 6) {
-            Text(label).font(.ui(11)).lineLimit(1).truncationMode(.middle)
+            Text(label).font(.ui(11)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
             Spacer(minLength: 4)
             Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
                 .buttonStyle(.link).font(.ui(10))
@@ -285,7 +291,7 @@ struct PinnedProjectDetail: View {
             ForEach(live) { session in
                 Button { select(session.id) } label: {
                     HStack(spacing: 6) {
-                        Text(session.distinctName).font(.claudeMono(11)).lineLimit(1)
+                        Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
                         Spacer(minLength: 4)
                         Text(session.statusLabel).font(.ui(10)).lineLimit(1)
                             .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
