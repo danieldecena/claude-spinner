@@ -2009,6 +2009,55 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(SessionReplier.landed(.turnStarted, baseline: nil, current: thinking))
     }
 
+    /// A /compact on a session too short to compact leaves the state file alone
+    /// and says so only in the transcript. Lines copied from a real refusal,
+    /// 2026-09-30 (Claude Code 2.1.285).
+    func testARefusedCompactEndsTheWaitWithClaudeCodesOwnWords() throws {
+        let refusal = #"{"type":"system","subtype":"local_command","content":"<local-command-stdout>Not enough messages to compact.</local-command-stdout>","commandRun":{"command":"compact","args":""}}"#
+        let ran = #"{"type":"system","subtype":"local_command","content":"<local-command-stdout>Compacted (ctrl+o to see full summary)</local-command-stdout>","commandRun":{"command":"compact","args":""}}"#
+        let other = #"{"type":"system","subtype":"local_command","content":"<local-command-stdout>Set model to opus</local-command-stdout>","commandRun":{"command":"model","args":"opus"}}"#
+        let prompt = #"{"type":"user","message":{"role":"user","content":"<command-name>/compact</command-name>"}}"#
+
+        XCTAssertEqual(SessionReplier.compactRefusal(in: Data((prompt + "\n" + refusal + "\n").utf8)),
+                       "Not enough messages to compact.")
+        XCTAssertNil(SessionReplier.compactRefusal(in: Data((prompt + "\n" + ran + "\n").utf8)))
+        XCTAssertNil(SessionReplier.compactRefusal(in: Data((other + "\n").utf8)))
+        XCTAssertNil(SessionReplier.compactRefusal(in: Data()))
+
+        // End to end: the state file never moves, the refusal lands in the
+        // transcript, and the wait ends on it instead of running out the clock.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let state = Data(#"{"status":"idle","turn_start":null,"last_seed":1790720321}"#.utf8)
+        try state.write(to: dir.appendingPathComponent("s.state.json"))
+        let transcript = dir.appendingPathComponent("t.jsonl")
+        let earlier = Data((refusal + "\n").utf8)  // an old refusal, before the send
+        try earlier.write(to: transcript)
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) {
+            let h = try? FileHandle(forWritingTo: transcript)
+            _ = try? h?.seekToEnd()
+            try? h?.write(contentsOf: Data((prompt + "\n" + refusal + "\n").utf8))
+            try? h?.close()
+        }
+        let start = Date()
+        let result = SessionReplier.observe(.compacted, sessionID: "s", feedDir: dir, baseline: state,
+                                            transcriptTail: (transcript, UInt64(earlier.count)),
+                                            timeout: 10, poll: 0.05)
+        if case .failure(let f) = result { XCTAssertEqual(f, .refused("Not enough messages to compact.")) }
+        else { XCTFail("expected a refusal, got \(result)") }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 3)
+
+        // The same wait with nothing appended reads only past the offset, so
+        // the earlier refusal is not mistaken for this one.
+        let quiet = SessionReplier.observe(.compacted, sessionID: "s", feedDir: dir, baseline: state,
+                                           transcriptTail: (transcript, UInt64(try Data(contentsOf: transcript).count)),
+                                           timeout: 0.5, poll: 0.05)
+        if case .failure(let f) = quiet { XCTAssertEqual(f, .notObserved) }
+        else { XCTFail("expected not observed, got \(quiet)") }
+    }
+
     // MARK: - AskInbox (the notification round-trip)
 
     private func makeAsk(kind: String = "question",

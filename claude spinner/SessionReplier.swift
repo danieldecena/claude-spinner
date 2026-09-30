@@ -20,6 +20,8 @@ enum SessionReplier {
         case busy
         case sendFailed
         case notObserved
+        /// Claude Code answered the command itself and did nothing, in its own words.
+        case refused(String)
 
         var errorDescription: String? {
             switch self {
@@ -31,6 +33,8 @@ enum SessionReplier {
                 return "tmux wouldn't take the keys."
             case .notObserved:
                 return "Sent, but the session never showed it landing. Check it by hand."
+            case .refused(let said):
+                return "Claude Code didn't run it: \(said)"
             }
         }
     }
@@ -156,6 +160,7 @@ enum SessionReplier {
         guard session.isAtPrompt else { return done(.failure(.busy)) }
         let landing = Landing(typed: text)
         let file = stateFile(sessionID: session.id, feedDir: feedDir)
+        let transcript = session.stats.transcriptPath.map { URL(fileURLWithPath: $0) }
         DispatchQueue.global(qos: .userInitiated).async {
             // Resolving the pane shells out to ps and tmux, so it stays off the
             // main thread with the sends.
@@ -164,6 +169,11 @@ enum SessionReplier {
             // Read before sending: /clear and /compact are only visible as a
             // change from this.
             let baseline = try? Data(contentsOf: file)
+            // A refused /compact ("Not enough messages to compact.") never
+            // touches the state file; its only trace is a transcript line, so
+            // the transcript is watched from where it ends now.
+            let tail = landing == .compacted
+                ? transcript.flatMap { t in fileSize(t).map { (t, $0) } } : nil
             // Three calls, and `-l` is not optional: without it tmux reads words
             // like "Enter" or "Space" in the text as key names and sends
             // keypresses instead of characters.
@@ -176,8 +186,8 @@ enum SessionReplier {
                 return done(.failure(.sendFailed))
             }
             if landing == .unobservable { return done(.success(())) }
-            done(observe(landing, sessionID: session.id, feedDir: feedDir, baseline: baseline)
-                 ? .success(()) : .failure(.notObserved))
+            done(observe(landing, sessionID: session.id, feedDir: feedDir, baseline: baseline,
+                         transcriptTail: tail))
         }
     }
 
@@ -188,25 +198,52 @@ enum SessionReplier {
                                    feedDir: URL,
                                    timeout: TimeInterval = 4,
                                    poll: TimeInterval = 0.15) -> Bool {
-        observe(.turnStarted, sessionID: sessionID, feedDir: feedDir,
-                baseline: nil, timeout: timeout, poll: poll)
+        if case .success = observe(.turnStarted, sessionID: sessionID, feedDir: feedDir,
+                                   baseline: nil, timeout: timeout, poll: poll) { return true }
+        return false
     }
 
     static func observe(_ landing: Landing,
                         sessionID: String,
                         feedDir: URL,
                         baseline: Data?,
+                        transcriptTail: (URL, UInt64)? = nil,
                         timeout: TimeInterval? = nil,
-                        poll: TimeInterval = 0.15) -> Bool {
+                        poll: TimeInterval = 0.15) -> Result<Void, Failure> {
         let file = stateFile(sessionID: sessionID, feedDir: feedDir)
         let deadline = Date().addingTimeInterval(timeout ?? landing.timeout)
         while Date() < deadline {
             if landed(landing, baseline: baseline, current: try? Data(contentsOf: file)) {
-                return true
+                return .success(())
+            }
+            if let (url, offset) = transcriptTail, let data = read(url, from: offset),
+               let said = compactRefusal(in: data) {
+                return .failure(.refused(said))
             }
             Thread.sleep(forTimeInterval: poll)
         }
-        return false
+        return .failure(.notObserved)
+    }
+
+    /// What Claude Code printed when it declined a `/compact`, from transcript
+    /// lines written after the send. It records that as a `local_command`
+    /// system line carrying the command, and a compaction that ran writes none
+    /// (checked across every transcript on this machine, 2026-09-30), so any
+    /// such line not reporting "Compacted" is a refusal.
+    static func compactRefusal(in data: Data) -> String? {
+        var said: String?
+        for line in data.split(separator: UInt8(ascii: "\n")) {
+            guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+                  obj["subtype"] as? String == "local_command",
+                  (obj["commandRun"] as? [String: Any])?["command"] as? String == "compact",
+                  let content = obj["content"] as? String,
+                  !content.contains("Compacted") else { continue }
+            said = content
+                .replacingOccurrences(of: #"</?local-command-std(out|err)>"#, with: "",
+                                      options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return said
     }
 
     /// Whether the state file now shows `landing`, given what it held before
@@ -228,6 +265,17 @@ enum SessionReplier {
         case .unobservable:
             return false
         }
+    }
+
+    private static func fileSize(_ url: URL) -> UInt64? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value
+    }
+
+    private static func read(_ url: URL, from offset: UInt64) -> Data? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        try? handle.seek(toOffset: offset)
+        return try? handle.readToEnd()
     }
 
     private static func stateFile(sessionID: String, feedDir: URL) -> URL {
