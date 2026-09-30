@@ -140,8 +140,9 @@
 
 ## Next Up
 
-1. [you] Click the Career Hub pop-out button: the embed is signed in now (seen 08:32
-   2026-09-30); the pop-out window itself is unseen.
+1. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
+   buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
+   unseen. Driving it by coordinates failed, see the 09:23 log entry.
 2. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
    required check. Tried 2026-09-30: the switch only fires from the selected session's
    Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
@@ -150,6 +151,14 @@
 The rest is in `TASKS.md`.
 
 ## Decision log
+
+### 2026-09-30 (pop-out probe by coordinates)
+- Tried: driving the Career Hub Pop out from a session (09:22-09:23). SwiftUI rows and
+  tile buttons are absent from the AX tree, so `cliclick` by coordinate. The window's
+  selection moved between shots (CI errors -> claude-spinner -> Job Search -> CI
+  errors) not matching my clicks, so the Pop out click landed on the wrong pane; no panel
+  opened (AX lists one window). Cause of the jumps unknown: Daniel, or the app
+  following the active session. Unverified which.
 
 ### 2026-09-30 (Desktop-shaped project page)
 - Decided: pinned projects get Desktop's right rail (Instructions, Context, Folder,
