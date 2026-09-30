@@ -301,14 +301,11 @@ private struct SessionDetail: View {
                     TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
                         .tileSpan(2)
                     SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion)
-                    costCard
-                    cacheCard
-                    sessionCard
-                    contextCard.tileSpan(2)
-                    ConfigCard(session: session, feedDir: feedDir)
-                    // One full-width tile for everything git: the graph takes what
-                    // is left beside fixed-width status and command columns, so
-                    // the state and the actions sit next to the history.
+                    // One full-width tile for everything git, straight under the
+                    // transcript and skills: it is acted on, the stat tiles below
+                    // are only read. The graph takes what is left beside
+                    // fixed-width status and command columns, so the state and the
+                    // actions sit next to the history.
                     HStack(alignment: .top, spacing: 10) {
                         GitGraphCard(cwd: session.cwd)
                         GitCard(cwd: session.cwd)
@@ -317,6 +314,11 @@ private struct SessionDetail: View {
                             .frame(width: 250)
                     }
                     .tileSpan(.max)
+                    costCard
+                    cacheCard
+                    sessionCard
+                    contextCard.tileSpan(2)
+                    ConfigCard(session: session, feedDir: feedDir)
                 }
 
                 if !children.isEmpty {
