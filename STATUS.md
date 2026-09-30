@@ -137,14 +137,22 @@
 
 ## Next Up
 
-No open tasks. Two small findings from the chip test, neither filed yet:
-`/compact` on a session too short to compact keeps the Skills chips greyed
-for the full 180 s observe window, then reports not-observed; and a folder
-that is not a git repo still shows the code-review and git-push chips.
+No open tasks. One small finding, not filed: `/compact` on a session too
+short to compact keeps the Skills chips greyed for the full 180 s observe
+window, then reports not-observed (Claude Code's "Not enough messages" never
+changes the state file).
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
 ## Decision log
+
+### 2026-09-30 (skill pick covers the common idle states)
+- Decided: most sessions matched no pick rule, so the Skills card outlined
+  nothing and read as broken. Added an idle session with open todos -> /goal,
+  and idle 10m+ with changed lines, clean and in sync -> /wrap-up; when still
+  nothing fits the card says "No skill needed right now." Observed both the
+  caption (working session) and the wrap-up outline (osmo, idle 11m). `4bb1971`.
+  Git skill chips also hide with no snapshot (non-repo). `c69294e`.
 
 ### 2026-09-29 (chip confirmation observed; idle git actions hidden)
 - Decided: the Git commands grid now honours `GitActions.Block.settled`
