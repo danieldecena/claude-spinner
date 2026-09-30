@@ -699,9 +699,13 @@ private struct AskCard: View {
     private func answer(_ value: AskAnswer, label: String) {
         // False means ask.sh already gave up and Claude Code is showing its own
         // prompt. Say that rather than reporting an answer that went nowhere.
-        answered = AskInbox.shared.answer(ask, with: value)
-            ? label
-            : "expired — answer it in the terminal"
+        // A question is only typed into the terminal box; the card leaves once
+        // the session shows the box took it.
+        let sent = AskInbox.shared.answer(ask, with: value)
+        answered = ask.blocking
+            ? (sent ? label : "expired — answer it in the terminal")
+            : (sent ? "\(label), typed into the terminal"
+                    : "couldn't type into this session — answer it in the terminal")
         AskInbox.shared.rescan()
     }
 }

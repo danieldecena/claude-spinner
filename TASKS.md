@@ -9,6 +9,7 @@ via `run.sh`.
 - [ ] Decide attention colour: kit warn or Spinner blue
 - [ ] Bring the menu-bar panel onto App Kit type
 - [ ] Show ask boxes in the You asked card and the terminal
+- [ ] Arm ask card options 0,8s after the card appears
 - [ ] Stop recording spend history nothing reads
 
 ## Completed

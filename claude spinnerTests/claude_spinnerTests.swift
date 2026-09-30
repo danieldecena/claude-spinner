@@ -2118,6 +2118,64 @@ final class claude_spinnerTests: XCTestCase {
 
     /// Both halves: a request whose hook is gone is dropped, one whose hook is
     /// alive is kept, and one with no readable pid is kept rather than guessed dead.
+    private func makeQuestionAsk(waits: Bool?, created: Double = 100,
+                                 pid: String = "null") -> AskRequest {
+        let waitsField = waits.map { ",\"waits\":\($0)" } ?? ""
+        let json = """
+        {"req":"sid-100-7","kind":"question","session_id":"sid","cwd":"/tmp/proj",
+         "created":\(created)\(waitsField),"session_pid":\(pid),
+         "questions":[{"question":"Which one?","options":[{"label":"Alpha"},{"label":"Beta"}]}]}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    /// Files written before questions stopped blocking have no `waits`; they
+    /// did wait, so they keep the hook-pid rules.
+    func testAskWithoutWaitsFieldIsBlocking() {
+        XCTAssertTrue(makeQuestionAsk(waits: nil).blocking)
+        XCTAssertTrue(makeQuestionAsk(waits: true).blocking)
+        XCTAssertFalse(makeQuestionAsk(waits: false).blocking)
+        XCTAssertEqual(makeQuestionAsk(waits: false, pid: "4242").sessionPID, 4242)
+    }
+
+    /// A question's hook exits at once by design, so its dead pid must not read
+    /// as an orphan -- or every card would vanish on the first rescan.
+    func testOrphanedKeepsNonWaitingQuestions() {
+        let blocking = makeQuestionAsk(waits: true)
+        let question = makeQuestionAsk(waits: false)
+        let orphans = AskInbox.orphaned([blocking, question], isAlive: { _ in false })
+        XCTAssertEqual(orphans.map(\.waits), [true])
+    }
+
+    private func state(_ status: String, tool: String = "", updated: Double) -> Data {
+        Data(#"{"status":"\#(status)","tool":"\#(tool)","updated":\#(updated)}"#.utf8)
+    }
+
+    /// Each way a question's box can still be up, and each way it is over.
+    func testSettledReadsTheSessionState() {
+        let ask = makeQuestionAsk(waits: false, created: 100)
+        XCTAssertTrue(AskInbox.settled(ask, state: nil), "no state file: the session ended")
+        XCTAssertFalse(AskInbox.settled(ask, state: state("tool", tool: "AskUserQuestion", updated: 101)))
+        XCTAssertFalse(AskInbox.settled(ask, state: state("attention", updated: 130)),
+                       "a Notification while the box waits is not an answer")
+        XCTAssertFalse(AskInbox.settled(ask, state: state("thinking", updated: 100)),
+                       "a write from the same second can predate the tool call")
+        XCTAssertTrue(AskInbox.settled(ask, state: state("thinking", updated: 101)))
+        XCTAssertTrue(AskInbox.settled(ask, state: state("tool", tool: "Bash", updated: 105)))
+        XCTAssertTrue(AskInbox.settled(ask, state: state("idle", updated: 105)))
+        XCTAssertFalse(AskInbox.settled(ask, state: Data("not json".utf8)),
+                       "an unreadable state is not evidence the box closed")
+    }
+
+    /// The terminal numbers options from 1; a digit picks at once.
+    func testDigitIsTheOptionsOneBasedPosition() {
+        let ask = makeQuestionAsk(waits: false)
+        XCTAssertEqual(AskInbox.digit(for: .option("Alpha"), in: ask), "1")
+        XCTAssertEqual(AskInbox.digit(for: .option("Beta"), in: ask), "2")
+        XCTAssertNil(AskInbox.digit(for: .option("Gamma"), in: ask))
+        XCTAssertNil(AskInbox.digit(for: .allow, in: ask))
+    }
+
     func testOrphanedDropsOnlyRequestsWhoseHookIsGone() {
         let live = makeAsk(req: "sid-1-100")
         let dead = makeAsk(req: "sid-1-200")
@@ -2198,7 +2256,7 @@ final class claude_spinnerTests: XCTestCase {
     /// file (so the terminal draws its own box), and with anything else in front
     /// it must reach the wait. The second half is what shows the first isn't a
     /// guard that always exits.
-    func testAskScriptLeavesTheQuestionToAFrontmostTerminal() throws {
+    func testAskScriptLeavesThePermissionToAFrontmostTerminal() throws {
         let script = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("claude spinner/Scripts/ask.sh")
@@ -2217,14 +2275,14 @@ final class claude_spinnerTests: XCTestCase {
                 }
                 let hook = Process()
                 hook.executableURL = URL(fileURLWithPath: "/bin/sh")
-                hook.arguments = [script.path, "question"]
+                hook.arguments = [script.path, "permission"]
                 hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
                                     "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": host]
                 let stdin = Pipe()
                 hook.standardInput = stdin
                 try hook.run()
                 stdin.fileHandleForWriting.write(Data(
-                    #"{"session_id":"sid","tool_input":{"questions":[{"question":"q","options":[]}]}}"#.utf8))
+                    #"{"session_id":"sid","tool_name":"Bash"}"#.utf8))
                 try stdin.fileHandleForWriting.close()
 
                 func askFiles() -> [String] {
@@ -2238,12 +2296,68 @@ final class claude_spinnerTests: XCTestCase {
                     hook.terminate()
                 } else {
                     while hook.isRunning && Date() < deadline { usleep(50_000) }
-                    XCTAssertFalse(hook.isRunning, "a frontmost terminal must get the question at once")
+                    XCTAssertFalse(hook.isRunning, "a frontmost terminal must get the permission prompt at once")
                     XCTAssertEqual(askFiles(), [])
                     if hook.isRunning { hook.terminate() }
                 }
                 hook.waitUntilExit()
             }
+        }
+    }
+
+    /// A question never blocks: whatever is in front, the hook returns at once
+    /// so the terminal draws its box, and leaves a non-waiting ask behind for the
+    /// card. The frontmost stub says the terminal is NOT in front, the case where
+    /// the old hook blocked, so a fast exit here is the new behaviour and not the
+    /// frontmost guard firing.
+    func testAskScriptHandsAQuestionOverWithoutWaiting() throws {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        try withTempDir { home in
+            let asks = home.appendingPathComponent(".claude/spinnerfeed/asks")
+            let bin = home.appendingPathComponent("bin")
+            try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+            let stubs = ["pgrep": "#!/bin/sh\nexit 0\n",
+                         "lsappinfo": "#!/bin/sh\n[ \"$1\" = front ] && echo ASN:0x0-0x1 && exit 0\n"
+                             + "echo '    bundleID=\"com.example.other\"'\n"]
+            for (name, body) in stubs {
+                let url = bin.appendingPathComponent(name)
+                try Data(body.utf8).write(to: url)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            }
+            let hook = Process()
+            hook.executableURL = URL(fileURLWithPath: "/bin/sh")
+            hook.arguments = [script.path, "question"]
+            hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
+                                "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": "com.example.term"]
+            let stdin = Pipe()
+            let out = Pipe()
+            hook.standardInput = stdin
+            hook.standardOutput = out
+            try hook.run()
+            stdin.fileHandleForWriting.write(Data(
+                #"{"session_id":"sid","tool_input":{"questions":[{"question":"q","options":[{"label":"a"}]}]}}"#.utf8))
+            try stdin.fileHandleForWriting.close()
+
+            let deadline = Date().addingTimeInterval(5)
+            while hook.isRunning && Date() < deadline { usleep(50_000) }
+            XCTAssertFalse(hook.isRunning, "a question must not wait for the app")
+            if hook.isRunning { hook.terminate() }
+            hook.waitUntilExit()
+            XCTAssertEqual(hook.terminationStatus, 0)
+            XCTAssertEqual(out.fileHandleForReading.readDataToEndOfFile(), Data(),
+                           "a question hook must print nothing, or it decides the tool call")
+
+            let names = ((try? FileManager.default.contentsOfDirectory(atPath: asks.path)) ?? [])
+                .filter { $0.hasSuffix(".ask.json") }
+            XCTAssertEqual(names.count, 1, "the ask file must outlive the hook for the card")
+            guard let name = names.first else { return }
+            let req = try JSONDecoder().decode(AskRequest.self,
+                                               from: Data(contentsOf: asks.appendingPathComponent(name)))
+            XCTAssertEqual(req.waits, false)
+            XCTAssertFalse(req.blocking)
+            XCTAssertEqual(req.question?.options?.first?.label, "a")
         }
     }
 

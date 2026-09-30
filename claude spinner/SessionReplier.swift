@@ -126,6 +126,14 @@ enum SessionReplier {
 
     // MARK: - Sending
 
+    /// Type `keys` literally into the pane `pid` runs in, with no Escape before
+    /// and no Enter after: a question box takes a bare digit, and Escape would
+    /// cancel it. True means tmux took the keys, not that they landed.
+    static func sendKeys(_ keys: String, toPID pid: Int) -> Bool {
+        guard let tmux = tmuxPath, let pane = paneID(forPID: pid) else { return false }
+        return run(tmux, ["send-keys", "-t", pane, "-l", "--", keys]) != nil
+    }
+
     /// Cancel the current turn. Escape alone, and deliberately no Enter: this
     /// interrupts what is running rather than submitting anything.
     static func interrupt(_ session: SessionFeed,

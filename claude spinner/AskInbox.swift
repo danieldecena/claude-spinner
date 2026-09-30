@@ -49,12 +49,14 @@ struct ToolInput: Decodable, Equatable {
     }
 }
 
-/// A prompt `ask.sh` is blocking on, read from `<req>.ask.json`.
+/// A prompt `ask.sh` handed over, read from `<req>.ask.json`.
 ///
-/// The hook is sitting in a poll loop the whole time one of these exists, so the
-/// file's lifetime *is* the window in which an answer counts. It disappearing
-/// means the deadline passed and the terminal took over — any answer written
-/// after that lands nowhere, which is why every write checks first.
+/// For a permission the hook is sitting in a poll loop the whole time one of
+/// these exists, so the file's lifetime *is* the window in which an answer
+/// counts. It disappearing means the deadline passed and the terminal took over
+/// — any answer written after that lands nowhere, which is why every write
+/// checks first. A question does not wait (`waits` false): its box is already in
+/// the terminal, and the answer is the option's digit typed into that pane.
 struct AskRequest: Decodable, Identifiable, Equatable {
     enum Kind: String, Decodable { case question, permission }
 
@@ -63,11 +65,16 @@ struct AskRequest: Decodable, Identifiable, Equatable {
     let sessionId: String
     let cwd: String
     let created: Double
+    /// Nil in files written before questions stopped blocking; those waited.
+    let waits: Bool?
+    /// The owning `claude` process, whose pane a non-waiting question is typed into.
+    let sessionPID: Int?
     let toolName: String?
     let toolInput: ToolInput?
     let questions: [AskQuestion]?
 
     var id: String { req }
+    var blocking: Bool { waits ?? true }
 
     /// Keys that name what a tool would actually do, most specific first.
     ///
@@ -102,8 +109,9 @@ struct AskRequest: Decodable, Identifiable, Equatable {
     var question: AskQuestion? { questions?.first }
 
     enum CodingKeys: String, CodingKey {
-        case req, kind, cwd, created, questions
+        case req, kind, cwd, created, questions, waits
         case sessionId = "session_id"
+        case sessionPID = "session_pid"
         case toolName = "tool_name"
         case toolInput = "tool_input"
     }
@@ -211,6 +219,17 @@ final class AskInbox: ObservableObject {
             try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(req).ask.json"))
         }
         found.removeAll { orphans.contains($0.req) }
+        // Nothing removes a question's file on its way out, so the session's own
+        // state is what says the terminal box was answered (there or from here).
+        let feed = dir.deletingLastPathComponent()
+        let settled = Set(found.filter { request in
+            !request.blocking && Self.settled(request, state: try? Data(contentsOf:
+                feed.appendingPathComponent("\(request.sessionId).state.json")))
+        }.map(\.req))
+        for req in settled {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(req).ask.json"))
+        }
+        found.removeAll { settled.contains($0.req) }
         // An answer written after its hook died has no reader either, and it
         // outlived its ask forever: nothing else ever deletes an answer file.
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
@@ -262,9 +281,25 @@ final class AskInbox: ObservableObject {
     nonisolated static func orphaned(_ found: [AskRequest],
                                      isAlive: (pid_t) -> Bool) -> [AskRequest] {
         found.filter { request in
-            guard let pid = hookPID(request.req) else { return false }
+            guard request.blocking, let pid = hookPID(request.req) else { return false }
             return !isAlive(pid)
         }
+    }
+
+    /// Whether a non-waiting question is over, from its session's state file.
+    /// No file means the session ended. Otherwise it is over once the state was
+    /// written after the ask and is no longer on AskUserQuestion; `attention` is
+    /// the same box still waiting (a Notification fires while it sits there).
+    /// Strictly later: `created` is whole seconds, and a write from the second
+    /// before the tool call would otherwise read as its answer.
+    nonisolated static func settled(_ request: AskRequest, state: Data?) -> Bool {
+        guard let state else { return true }
+        guard let obj = try? JSONSerialization.jsonObject(with: state) as? [String: Any],
+              let updated = obj["updated"] as? Double, updated > request.created
+        else { return false }
+        let status = obj["status"] as? String
+        if status == "attention" { return false }
+        return !(status == "tool" && obj["tool"] as? String == "AskUserQuestion")
     }
 
     /// Answer files whose hook has exited, by name. Same rule as `orphaned`: an
@@ -287,7 +322,27 @@ final class AskInbox: ObservableObject {
     /// would claim an answer landed somewhere it did not.
     @discardableResult
     func answer(_ req: AskRequest, with answer: AskAnswer) -> Bool {
-        Self.write(answer, for: req, in: dir)
+        guard !req.blocking else { return Self.write(answer, for: req, in: dir) }
+        // Going to the session instead leaves the box where it already is.
+        if answer == .passthrough { return true }
+        guard FileManager.default.fileExists(
+                  atPath: dir.appendingPathComponent("\(req.req).ask.json").path),
+              let digit = Self.digit(for: answer, in: req),
+              let pid = req.sessionPID
+        else { return false }
+        // The file stays: the rescan drops it once the state shows the box took
+        // the key, which is the observation a clean send-keys exit is not.
+        return SessionReplier.sendKeys(digit, toPID: pid)
+    }
+
+    /// The key that picks `answer` in the terminal box: options are numbered
+    /// from 1, and a digit selects at once with no Enter (seen 2026-09-30).
+    nonisolated static func digit(for answer: AskAnswer, in req: AskRequest) -> String? {
+        guard case .option(let label) = answer,
+              let index = req.question?.options?.firstIndex(where: { $0.label == label }),
+              index < 9
+        else { return nil }
+        return String(index + 1)
     }
 
     nonisolated static func write(_ answer: AskAnswer, for req: AskRequest, in dir: URL) -> Bool {
