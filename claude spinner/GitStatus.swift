@@ -235,6 +235,9 @@ struct GitSnapshot: Equatable {
     /// that repo look alarming forever (`~/CLAUDE.md`).
     var dirty: Int = 0
     var staged: Int = 0
+    /// Lines added plus removed in the uncommitted diff against HEAD, tracked
+    /// files only (untracked files have no diff to count).
+    var dirtyLines: Int = 0
     var untracked: Int = 0
     var upstream: String?
     /// Where the upstream's remote points, from `git remote get-url`.
@@ -483,6 +486,16 @@ enum GitParse {
     /// Column 1 is the index status and column 2 the worktree status, so a file
     /// both staged and edited since counts once in each -- that is two facts
     /// about one file, not double counting.
+    /// Added plus removed lines from `git diff --numstat`. A binary file shows
+    /// "-\t-" and counts nothing: it has no lines to simplify.
+    static func numstatLines(_ out: String) -> Int {
+        out.split(separator: "\n").reduce(0) { total, line in
+            let cols = line.split(separator: "\t", maxSplits: 2)
+            guard cols.count >= 2 else { return total }
+            return total + (Int(cols[0]) ?? 0) + (Int(cols[1]) ?? 0)
+        }
+    }
+
     static func porcelain(_ out: String) -> (dirty: Int, staged: Int, untracked: Int) {
         var dirty = 0, staged = 0, untracked = 0
         for line in out.split(separator: "\n", omittingEmptySubsequences: true) {

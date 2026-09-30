@@ -83,7 +83,9 @@ struct Suggestion: Equatable {
            let s = pick("/wrap-up", "Every task in this session is done and the work isn't committed.") {
             return s
         }
-        if let lines = input.linesChanged, lines >= 100, input.git?.isDirty == true,
+        // The uncommitted diff, not the session's lifetime count: a session that
+        // committed 600 lines and has 3 left dirty has nothing to simplify.
+        if let lines = input.git?.dirtyLines, lines >= 100, input.git?.isDirty == true,
            let s = pick("/simplify", "\(lines) lines changed and not committed yet: clean up first.") {
             return s
         }
@@ -202,7 +204,7 @@ struct Suggestion: Equatable {
             return .init(action: .command("/start-up"), reason: "A fresh session.")
         }
         if let pct = input.fiveHourPct, let elapsed = input.fiveHourElapsed,
-           Double(pct) / 100 > elapsed + 0.15 {
+           StatFormat.aheadOfPace(pct: pct, elapsed: elapsed, margin: 0.15) {
             return .init(action: .warning,
                          reason: "5h usage is at \(pct)% with \(Int((elapsed * 100).rounded()))% of the window gone.")
         }

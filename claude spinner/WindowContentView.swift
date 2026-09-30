@@ -977,6 +977,13 @@ enum StatFormat {
     static func usageHeadline(_ pct: Int?) -> (text: String, level: Int)? {
         pct.map { ("\($0)%", $0) }
     }
+
+    /// Whether a limit window is being used faster than it refills. Not judged in
+    /// the first 5% of a window: right after a reset any use at all is "ahead"
+    /// of a clock that has barely moved, and 1% flagged as ahead of pace.
+    static func aheadOfPace(pct: Int, elapsed: Double, margin: Double = 0) -> Bool {
+        elapsed >= 0.05 && Double(pct) / 100 > elapsed + margin
+    }
 }
 
 

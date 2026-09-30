@@ -152,6 +152,12 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (logic fixes 1-3): pace is not judged in the first 5% of a limit window
+  (`StatFormat.aheadOfPace`; 1% just after a reset read "ahead of pace"); the /simplify
+  pick uses the uncommitted diff size (`GitSnapshot.dirtyLines` from `git diff HEAD
+  --numstat`), not the session's lifetime line count; Claude said re-reads an 8x tail
+  (2MB) for that one field when the 256KB tail holds no assistant text (tool output had
+  pushed it out). 329 tests pass; seen: 2% 5h ring "within pace" after a reset.
 - Decided (critique slice 3): Skills shows one line while the session works (git buttons
   stay); History rows carry the commit subject and drop `origin/HEAD`; finished
   subagents collapse to "N finished" (`SubagentSplit`); the section header reads

@@ -384,7 +384,7 @@ struct OverviewStrip: View {
         var detail = reset.map { "resets \($0)" } ?? ""
         if let pct, let elapsed {
             detail += (detail.isEmpty ? "" : " · ")
-                + (Double(pct) / 100 > elapsed ? "ahead of pace" : "within pace")
+                + (StatFormat.aheadOfPace(pct: pct, elapsed: elapsed) ? "ahead of pace" : "within pace")
         }
         return RingMetric(caption: name, value: pct.map { "\($0)%" } ?? "—",
                           ratio: pct.map { Double($0) / 100 },

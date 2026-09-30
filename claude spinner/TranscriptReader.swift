@@ -48,7 +48,21 @@ enum TranscriptReader {
         guard let handle = FileHandle(forReadingAtPath: path) else { return TranscriptSnapshot() }
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()).map(Int.init) ?? 0
-        let offset = max(0, size - tailBytes)
+        var out = tail(handle, size: size, bytes: tailBytes)
+        // A tool-heavy turn fills the tail with command output and pushes Claude's
+        // last sentence out of it, which read as "not recorded". Look further back
+        // for that one field only; the rest stays the cheap tail's.
+        if out.lastAssistantText == nil, size > tailBytes {
+            out.lastAssistantText = tail(handle, size: size, bytes: tailBytes * farTailMultiple).lastAssistantText
+        }
+        return out
+    }
+
+    /// How much further back the second look for Claude's last text goes.
+    static let farTailMultiple = 8
+
+    private static func tail(_ handle: FileHandle, size: Int, bytes: Int) -> TranscriptSnapshot {
+        let offset = max(0, size - bytes)
         try? handle.seek(toOffset: UInt64(offset))
         let data = (try? handle.readToEnd()) ?? Data()
         return parse(String(decoding: data, as: UTF8.self), droppingFirstLine: offset > 0)

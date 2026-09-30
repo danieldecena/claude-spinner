@@ -3510,6 +3510,40 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    // MARK: - Logic fixes
+
+    func testPaceIsNotJudgedInTheFirstMomentsOfAWindow() {
+        XCTAssertFalse(StatFormat.aheadOfPace(pct: 1, elapsed: 0.005), "1% just after a reset")
+        XCTAssertTrue(StatFormat.aheadOfPace(pct: 40, elapsed: 0.2))
+        XCTAssertFalse(StatFormat.aheadOfPace(pct: 10, elapsed: 0.2))
+        XCTAssertFalse(StatFormat.aheadOfPace(pct: 30, elapsed: 0.2, margin: 0.15), "inside the margin")
+    }
+
+    func testNumstatSumsAddedAndRemovedAndSkipsBinaries() {
+        XCTAssertEqual(GitParse.numstatLines("10\t2\ta.swift\n-\t-\timg.png\n3\t0\tb.md\n"), 15)
+        XCTAssertEqual(GitParse.numstatLines(""), 0)
+    }
+
+    /// Claude's last sentence sits further back than the cheap tail when a turn
+    /// filled it with tool output; the reader looks again for that field.
+    func testTranscriptFindsClaudesTextBeyondTheTail() throws {
+        let said = #"{"type":"assistant","message":{"content":[{"type":"text","text":"Far back."}]}}"#
+        let tool = #"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}"#
+        let filler = #"{"type":"user","message":{"content":"\#(String(repeating: "x", count: 4000))"}}"#
+        let lines = [said] + Array(repeating: filler, count: 20) + [tool]
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("far-tail-\(UUID().uuidString).jsonl")
+        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+        // The setup has to put the text outside the first tail, or this proves nothing.
+        let data = try Data(contentsOf: url)
+        XCTAssertNil(TranscriptReader.parse(String(decoding: data.suffix(20_000), as: UTF8.self),
+                                            droppingFirstLine: true).lastAssistantText)
+        XCTAssertEqual(TranscriptReader.read(path: url.path, tailBytes: 20_000).lastAssistantText, "Far back.")
+        XCTAssertNil(TranscriptReader.read(path: url.path, tailBytes: 2_000).lastAssistantText,
+                     "beyond even the far tail stays not recorded")
+    }
+
     // MARK: - Critique helpers
 
     func testShownRefsDropOnlyTheRemoteHead() {
@@ -3659,7 +3693,7 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(picked(skillInput { $0.contextTokens = 5_000 }), "/start-up")
         XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 3; $0.git = self.repo { $0.dirty = 2 } }),
                        "/wrap-up")
-        XCTAssertEqual(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 2 } }), "/simplify")
+        XCTAssertEqual(picked(skillInput { $0.git = self.repo { $0.dirty = 2; $0.dirtyLines = 240 } }), "/simplify")
         XCTAssertEqual(picked(skillInput { $0.projectOpenTasks = 4 }), "/goal")
         XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 1 }), "/goal")
         XCTAssertEqual(picked(skillInput { $0.idleFor = 12 * 60; $0.linesChanged = 30; $0.git = self.repo { _ in } }),
@@ -3673,8 +3707,10 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { _ in } }))
         XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.atPrompt = false }))
         XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.todoTotal = 2; $0.todoDone = 2 }))
-        XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 1 }
+        XCTAssertNil(picked(skillInput { $0.git = self.repo { $0.dirty = 1; $0.dirtyLines = 240 }
                                          $0.installed = ["/wrap-up"] }))
+        // A big session with a small uncommitted diff has nothing to simplify.
+        XCTAssertNil(picked(skillInput { $0.linesChanged = 600; $0.git = self.repo { $0.dirty = 1; $0.dirtyLines = 3 } }))
         XCTAssertNil(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 1; $0.atPrompt = false }))
         XCTAssertNil(picked(skillInput { $0.contextTokens = 120_000; $0.atPrompt = false }))
         XCTAssertNil(picked(skillInput { $0.contextTokens = 90_000 }))

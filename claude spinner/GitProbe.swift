@@ -155,6 +155,9 @@ actor GitProbe {
         snap.dirty = counts.dirty
         snap.staged = counts.staged
         snap.untracked = counts.untracked
+        if snap.isDirty {
+            snap.dirtyLines = GitParse.numstatLines(git(["diff", "HEAD", "--numstat"], in: cwd) ?? "")
+        }
 
         snap.upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
                             in: cwd)?.trimmingCharacters(in: .whitespacesAndNewlines)
