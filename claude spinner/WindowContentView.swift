@@ -1945,8 +1945,9 @@ private struct GitCommandsCard: View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle("Git commands")
             GitButtons(cwd: session.cwd, suggestion: suggestion, notice: $notice, snapshot: $snapshot)
-            // Same rule as the buttons: a skill with nothing to act on is hidden.
-            let chips = installedShortcuts.filter {
+            // Same rule as the buttons: a skill with nothing to act on is hidden,
+            // and outside a repo (no snapshot) there is nothing to act on.
+            let chips = snapshot == nil ? [] : installedShortcuts.filter {
                 $0.group == .git && SkillShortcut.idleReason($0, snapshot: snapshot) == nil
             }
             if !chips.isEmpty {
