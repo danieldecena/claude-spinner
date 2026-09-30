@@ -20,10 +20,12 @@ struct WindowContentView: View {
     /// The selected session's repo, read once here so the suggestion can be
     /// worked out once and handed to every card that might own its button.
     @State private var gitSnapshot: GitSnapshot?
+    /// Open items in the selected repo's TASKS.md, re-read with the snapshot.
+    @State private var projectOpenTasks: Int?
 
-    private var suggestion: Suggestion? {
+    private var suggestionInput: Suggestion.Input? {
         guard let session = selected else { return nil }
-        return Suggestion.next(.init(
+        return .init(
             git: gitSnapshot,
             contextPercent: session.stats.contextUsedPercent,
             contextTokens: session.contextTokens,
@@ -31,8 +33,15 @@ struct WindowContentView: View {
             idleFor: session.updated.map { Date().timeIntervalSince($0) },
             fiveHourPct: feed.usageFiveHourPct,
             fiveHourElapsed: feed.usageFiveHourElapsed,
-            installed: Set(installedShortcuts.map(\.command))))
+            installed: Set(installedShortcuts.map(\.command)),
+            linesChanged: session.stats.linesAdded.map { $0 + (session.stats.linesRemoved ?? 0) },
+            todoTotal: session.todoTotal,
+            todoDone: session.todoDone,
+            projectOpenTasks: projectOpenTasks)
     }
+
+    private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
+    private var skillPick: Suggestion? { suggestionInput.flatMap(Suggestion.skill) }
 
     /// Roots only. Children are shown under their parent in the detail pane,
     /// where there is room for them.
@@ -88,9 +97,13 @@ struct WindowContentView: View {
         }
         .task(id: selected?.cwd) {
             gitSnapshot = nil
+            projectOpenTasks = nil
             guard let cwd = selected?.cwd else { return }
             while !Task.isCancelled {
                 gitSnapshot = await GitProbe.shared.snapshot(for: cwd)
+                let root = gitSnapshot?.toplevel ?? cwd
+                projectOpenTasks = (try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8))
+                    .flatMap(Suggestion.openTasks(inTasksFile:))
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -145,7 +158,8 @@ struct WindowContentView: View {
                               feedDir: feed.feedDirectory,
                               history: feed.contextHistory[session.id] ?? [],
                               spend: feed.spendHistory[session.id] ?? [],
-                              suggestion: suggestion)
+                              suggestion: suggestion,
+                              skillPick: skillPick)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
             } else {
@@ -280,6 +294,8 @@ private struct SessionDetail: View {
     let spend: [SpendSample]
     /// Shown as a glow on the button it names, in whichever card owns it.
     let suggestion: Suggestion?
+    /// The Skills card's own pick, outlined there and explained under it.
+    let skillPick: Suggestion?
 
     var body: some View {
         ScrollView {
@@ -300,7 +316,7 @@ private struct SessionDetail: View {
                 TileGrid(minimum: 180, spacing: 10) {
                     TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
                         .tileSpan(2)
-                    SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion)
+                    SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
                     // One full-width tile for everything git, straight under the
                     // transcript and skills: it is acted on, the stat tiles below
                     // are only read. The graph takes what is left beside
@@ -1887,6 +1903,7 @@ private struct SkillsCard: View {
     let session: SessionFeed
     let feedDir: URL
     let suggestion: Suggestion?
+    let pick: Suggestion?
     @State private var notice: NoticeMessage?
 
     var body: some View {
@@ -1894,7 +1911,21 @@ private struct SkillsCard: View {
             CardTitle("Skills")
             ShortcutChips(session: session, feedDir: feedDir,
                           shortcuts: installedShortcuts.filter { $0.group == .skill },
-                          suggestion: suggestion, notice: $notice)
+                          suggestion: suggestion, notice: $notice, pick: pick)
+            let superpowers = installedShortcuts.filter { $0.group == .superpower }
+            if !superpowers.isEmpty {
+                Text("Superpowers").font(.claudeMono(9)).foregroundStyle(Color.label)
+                    .textCase(.uppercase).tracking(0.8)
+                ShortcutChips(session: session, feedDir: feedDir, shortcuts: superpowers,
+                              suggestion: suggestion, notice: $notice, pick: pick)
+            }
+            // Said even while the chips are greyed mid-turn: it is what to run
+            // when the turn ends.
+            if let pick, case .command(let command) = pick.action {
+                (Text(command).foregroundStyle(Color.claude) + Text("  \(pick.reason)"))
+                    .font(.claudeMono(10)).foregroundStyle(Color.label)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let notice { Notice(notice) }
         }
         .detailCard()
@@ -2132,6 +2163,8 @@ private struct ShortcutChips: View {
     @Binding var notice: NoticeMessage?
     /// Why a chip has nothing to act on even though it could be typed.
     var idleReason: (SkillShortcut) -> String? = { _ in nil }
+    /// This card's best skill: outlined, steady, beside the pane-wide glow.
+    var pick: Suggestion? = nil
     @State private var hasPane = false
     @State private var sending = false
     @State private var confirming: SkillShortcut?
@@ -2145,7 +2178,7 @@ private struct ShortcutChips: View {
                 Button { start(shortcut) } label: {
                     // The name alone; the slash is implied by the card, and the
                     // tooltip and the notice still say the command typed.
-                    Label(shortcut.name, systemImage: shortcut.symbol)
+                    Label(shortcut.label, systemImage: shortcut.symbol)
                         .font(.claudeMono(10))
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2155,8 +2188,16 @@ private struct ShortcutChips: View {
                 // Lighter than the toolbar's 0.45: these carry names worth
                 // reading while the session is busy.
                 .opacity(reason == nil ? 1 : 0.7)
+                .overlay {
+                    if reason == nil, pick?.action == .command(shortcut.command) {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(Color.claude, lineWidth: 1.2)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .suggestedGlow(reason == nil && suggestion?.action == .command(shortcut.command))
                 .help(reason ?? (suggestion?.action == .command(shortcut.command) ? suggestion?.reason : nil)
+                      ?? (pick?.action == .command(shortcut.command) ? pick?.reason : nil)
                       ?? shortcut.blurb)
             }
         }

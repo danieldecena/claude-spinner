@@ -9,7 +9,8 @@ import Foundation
 /// there. Built-ins ship with Claude Code and need no check.
 struct SkillShortcut: Identifiable, Equatable {
     /// Which card it sits in: git work gets its own, beside the git actions.
-    enum Group { case skill, git }
+    /// Superpowers sit in the Skills card under their own heading.
+    enum Group { case skill, superpower, git }
 
     let name: String
     let symbol: String
@@ -19,6 +20,9 @@ struct SkillShortcut: Identifiable, Equatable {
 
     var id: String { name }
     var command: String { "/" + name }
+    /// The chip's text: a namespaced command drops its namespace, which the
+    /// heading above it already says.
+    var label: String { name.split(separator: ":").last.map(String.init) ?? name }
 
     /// The toolbar action this chip duplicates, whose confirmation it inherits:
     /// /clear and /compact discard context whichever button types them.
@@ -42,6 +46,18 @@ struct SkillShortcut: Identifiable, Equatable {
         .init(name: "recall", symbol: "brain", blurb: "Search past decisions", builtIn: false),
         .init(name: "goal", symbol: "flag.checkered", blurb: "Work autonomously toward a goal", builtIn: false),
         .init(name: "checkup", symbol: "stethoscope", blurb: "Health-check the Claude config", builtIn: false),
+        // The superpowers workflow, one chip per stage. Each command hands off
+        // to the plugin skill, and asks what it applies to when typed bare.
+        .init(name: "superpower:brainstorm", symbol: "lightbulb", blurb: "Shape an idea before building",
+              builtIn: false, group: .superpower),
+        .init(name: "superpower:plan", symbol: "list.number", blurb: "Spec to step-by-step plan",
+              builtIn: false, group: .superpower),
+        .init(name: "superpower:tdd", symbol: "checkmark.seal", blurb: "Test first, then code",
+              builtIn: false, group: .superpower),
+        .init(name: "superpower:debug", symbol: "ladybug", blurb: "Reproduce, isolate, fix",
+              builtIn: false, group: .superpower),
+        .init(name: "superpower:verify", symbol: "checkmark.shield", blurb: "Prove it works",
+              builtIn: false, group: .superpower),
     ]
 
     /// The curated shortcuts that are installed. `exists` is injected so the
@@ -50,9 +66,11 @@ struct SkillShortcut: Identifiable, Equatable {
                           exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) })
         -> [SkillShortcut] {
         curated.filter { shortcut in
-            shortcut.builtIn
-                || exists(claudeDir.appendingPathComponent("skills/\(shortcut.name)/SKILL.md").path)
-                || exists(claudeDir.appendingPathComponent("commands/\(shortcut.name).md").path)
+            // "superpower:debug" is commands/superpower/debug.md.
+            let path = shortcut.name.replacingOccurrences(of: ":", with: "/")
+            return shortcut.builtIn
+                || exists(claudeDir.appendingPathComponent("skills/\(path)/SKILL.md").path)
+                || exists(claudeDir.appendingPathComponent("commands/\(path).md").path)
         }
     }
 

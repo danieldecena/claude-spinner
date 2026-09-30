@@ -3376,6 +3376,47 @@ final class claude_spinnerTests: XCTestCase {
         return input
     }
 
+    private func skillInput(_ configure: (inout Suggestion.Input) -> Void) -> Suggestion.Input {
+        suggestionInput {
+            $0.installed = ["/wrap-up", "/start-up", "/simplify", "/goal"]
+            configure(&$0)
+        }
+    }
+
+    private func picked(_ input: Suggestion.Input) -> String? {
+        guard case .command(let c)? = Suggestion.skill(input)?.action else { return nil }
+        return c
+    }
+
+    /// Each rule fires on its own facts, in priority order.
+    func testSkillPickFollowsTheSessionsState() {
+        XCTAssertEqual(picked(skillInput { $0.contextPercent = 90 }), "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.contextPercent = 70 }), "/compact")
+        XCTAssertEqual(picked(skillInput { $0.idleFor = 40 * 60 }), "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.contextTokens = 5_000 }), "/start-up")
+        XCTAssertEqual(picked(skillInput { $0.todoTotal = 3; $0.todoDone = 3; $0.git = self.repo { $0.dirty = 2 } }),
+                       "/wrap-up")
+        XCTAssertEqual(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 2 } }), "/simplify")
+        XCTAssertEqual(picked(skillInput { $0.projectOpenTasks = 4 }), "/goal")
+    }
+
+    /// Known-good: a mid-sized, committed, taskless session picks nothing, and
+    /// the rules that need a dirty tree or an idle prompt don't fire without one.
+    func testSkillPickStaysQuietWithoutAReason() {
+        XCTAssertNil(picked(skillInput { _ in }))
+        XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { _ in } }))
+        XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.atPrompt = false }))
+        XCTAssertNil(picked(skillInput { $0.projectOpenTasks = 4; $0.todoTotal = 2 }))
+        XCTAssertNil(picked(skillInput { $0.linesChanged = 240; $0.git = self.repo { $0.dirty = 1 }
+                                         $0.installed = ["/wrap-up"] }))
+    }
+
+    func testOpenTasksStopAtCompleted() {
+        let text = "## Tasks\n- [ ] a\n- [x] b\n  - [ ] c\n## Completed\n- [ ] stale\n"
+        XCTAssertEqual(Suggestion.openTasks(inTasksFile: text), 2)
+        XCTAssertNil(Suggestion.openTasks(inTasksFile: "## Tasks\n- [x] done\n"))
+    }
+
     private func repo(_ configure: (inout GitSnapshot) -> Void) -> GitSnapshot {
         var snap = GitSnapshot()
         snap.branch = "main"
@@ -3578,6 +3619,17 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(SkillShortcut.idleReason(review, snapshot: snap))
         let simplify = SkillShortcut.curated.first { $0.name == "simplify" }!
         XCTAssertNil(SkillShortcut.idleReason(simplify, snapshot: snap))
+    }
+
+    /// A namespaced command is found in its subdirectory and labelled without
+    /// the namespace.
+    func testSuperpowerShortcutsResolveTheirSubdirectory() {
+        let dir = URL(fileURLWithPath: "/c")
+        let installed: Set<String> = ["/c/commands/superpower/debug.md"]
+        let found = SkillShortcut.available(claudeDir: dir, exists: installed.contains)
+            .filter { $0.group == .superpower }
+        XCTAssertEqual(found.map(\.command), ["/superpower:debug"])
+        XCTAssertEqual(found.first?.label, "debug")
     }
 
     func testGitShortcutsAreGroupedApart() {

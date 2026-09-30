@@ -29,6 +29,59 @@ struct Suggestion: Equatable {
         /// Slash commands that exist (skills and commands found on disk, plus
         /// built-ins), so a suggestion never names one that isn't there.
         var installed: Set<String>
+        /// Lines this session added plus removed.
+        var linesChanged: Int? = nil
+        /// The session's own task list, from TodoWrite or TaskCreate.
+        var todoTotal: Int? = nil
+        var todoDone: Int? = nil
+        /// Unchecked items in the project's TASKS.md, nil when it has none.
+        var projectOpenTasks: Int? = nil
+    }
+
+    /// The Skills card's pick: the one skill most worth running in this
+    /// session now, whatever `next` chose for the pane as a whole. Same
+    /// discipline as `next` -- facts on screen, first rule that holds wins.
+    /// Nothing is picked for /recall, /checkup or /clear: nothing on screen
+    /// says when those are due.
+    static func skill(_ input: Input) -> Suggestion? {
+        func pick(_ command: String, _ reason: String) -> Suggestion? {
+            command == "/compact" || input.installed.contains(command)
+                ? .init(action: .command(command), reason: reason) : nil
+        }
+        let tokens = input.contextTokens ?? 0
+
+        if let pct = input.contextPercent, pct >= 85,
+           let s = pick("/wrap-up", "Context is at \(pct)%. Wrap up, then /clear.") { return s }
+        if let pct = input.contextPercent, pct >= 60,
+           let s = pick("/compact", "Context is at \(pct)% of the window.") { return s }
+        if let idle = input.idleFor, idle >= 30 * 60, tokens >= 50_000,
+           let s = pick("/wrap-up", "Idle for \(Int(idle / 60))m with a loaded context.") { return s }
+        if input.contextTokens != nil, tokens < 20_000,
+           let s = pick("/start-up", "A fresh session: survey the repo and start the top task.") { return s }
+        if let total = input.todoTotal, total > 0, (input.todoDone ?? 0) >= total, input.git?.isDirty == true,
+           let s = pick("/wrap-up", "Every task in this session is done and the work isn't committed.") {
+            return s
+        }
+        if let lines = input.linesChanged, lines >= 100, input.git?.isDirty == true,
+           let s = pick("/simplify", "\(lines) lines changed and not committed yet: clean up first.") {
+            return s
+        }
+        if let open = input.projectOpenTasks, open > 0, input.atPrompt, (input.todoTotal ?? 0) == 0,
+           let s = pick("/goal", "\(open) open task\(open == 1 ? "" : "s") in TASKS.md and the session is idle.") {
+            return s
+        }
+        return nil
+    }
+
+    /// Unchecked `- [ ]` items above `## Completed`, or nil when there are none.
+    static func openTasks(inTasksFile text: String) -> Int? {
+        var open = 0
+        for line in text.split(separator: "\n") {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("## Completed") { break }
+            if t.hasPrefix("- [ ]") { open += 1 }
+        }
+        return open > 0 ? open : nil
     }
 
     static func next(_ input: Input) -> Suggestion? {
