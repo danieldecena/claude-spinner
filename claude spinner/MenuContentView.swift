@@ -199,7 +199,7 @@ enum SessionBreakdown {
     /// busy session outweigh three idle ones.
     static func byStatus(_ sessions: [SessionFeed]) -> [BreakdownSegment] {
         let roots = sessions.filter { $0.parentSessionId == nil }
-        let waiting = roots.filter { $0.status == .attention }.count
+        let waiting = roots.filter(\.isBlockedOnYou).count
         let working = roots.filter(\.isWorking).count
         return [
             BreakdownSegment(label: "needs you", count: waiting, tint: .attention),

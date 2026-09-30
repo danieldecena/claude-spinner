@@ -1419,6 +1419,16 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(SessionFeed(id: "s").attentionSummary, "not waiting at all")
     }
 
+    /// emit.sh writes idle_prompt 60s after any finished turn, so counting every
+    /// .attention as "needs you" lit the fleet bar for sessions nobody owed.
+    func testFleetBarCountsOnlyBlockedSessionsAsNeedsYou() {
+        func counts(_ s: [SessionFeed]) -> [String: Int] {
+            Dictionary(uniqueKeysWithValues: SessionBreakdown.byStatus(s).map { ($0.label, $0.count) })
+        }
+        XCTAssertEqual(counts([attention("idle_prompt")]), ["idle": 1])
+        XCTAssertEqual(counts([attention("permission_prompt")]), ["needs you": 1])
+    }
+
     // MARK: - Which session the window opens on
 
     private func root(_ id: String, model: String? = nil,
