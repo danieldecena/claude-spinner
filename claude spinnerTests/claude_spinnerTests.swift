@@ -644,6 +644,23 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(sections[0].items.map(\.id), ["p", "kid"])
     }
 
+    /// Review finding on f300f26: left in the project section, a waiting parent's
+    /// subagent nested under the root before it ("a" here).
+    func testAWaitingSessionsSubagentGoesWithItIntoNeedsYou() {
+        let other = named("a", .tool, cwd: "/w/alpha", name: "a-first")
+        let parent = named("p", .tool, cwd: "/w/alpha", name: "parent")
+        let kid = mk("kid", .tool, cwd: "/w/alpha/.claude/worktrees/agent-1", parentSessionId: "p")
+        let sections = FeedWatcher.projectSections([
+            SessionRowItem(id: "a", session: other, ids: ["a"], depth: 0),
+            SessionRowItem(id: "p", session: parent, ids: ["p", "kid"], depth: 0, subagentCount: 1),
+            SessionRowItem(id: "kid", session: kid, ids: ["kid"], depth: 1),
+        ], asked: ["p"])
+        XCTAssertEqual(sections.map(\.id), ["needs-you", "project:alpha"])
+        XCTAssertEqual(sections[0].items.map(\.id), ["p", "kid"])
+        XCTAssertEqual(sections[0].sessionCount, 1)
+        XCTAssertEqual(sections[1].items.map(\.id), ["a"])
+    }
+
     func testContextTotalSumsAndIsNilWhenNothingReported() {
         let withTokens = FeedWatcher.projectSections(rows([
             named("a", .tool, cwd: "/w/alpha", name: "a", tokens: 40_000),
@@ -1430,6 +1447,17 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(TranscriptReader.read(path: path).lastPrompt, "first", "half a record is not read yet")
         append(String(record.dropFirst(30)) + "\n", to: path)
         XCTAssertEqual(TranscriptReader.read(path: path).lastPrompt, "second")
+    }
+
+    /// Shapes the review found in real transcripts: a `!` command is the prompt,
+    /// its output and app-injected notices are not.
+    func testAShellCommandIsAPromptButItsOutputIsNot() {
+        XCTAssertEqual(lastPrompt([
+            #"{"type":"user","message":{"role":"user","content":"<bash-input>git status</bash-input>"}}"#,
+            #"{"type":"user","message":{"role":"user","content":"<bash-stdout>On branch main</bash-stdout><bash-stderr></bash-stderr>"}}"#,
+            #"{"type":"user","message":{"role":"user","content":"<ci-monitor-event>CI passed</ci-monitor-event>"}}"#,
+            #"{"type":"user","message":{"role":"user","content":"The app was quit while you were working. Please continue from where you left off."}}"#,
+        ]), "! git status")
     }
 
     func testHarnessUserRecordsAreNotPrompts() {

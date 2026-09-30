@@ -1809,7 +1809,15 @@ final class FeedWatcher: ObservableObject {
         }
 
         var sections: [ProjectSection] = []
-        let waiting = items.filter { $0.depth == 0 && needsYou($0) }
+        // A waiting session's subagents go with it: left behind, they were nested
+        // under whichever root preceded them in the project section, or made a
+        // section of their own with no root at all.
+        var waiting: [SessionRowItem] = []
+        var parentWaits = false
+        for item in items {
+            if item.depth == 0 { parentWaits = needsYou(item) }
+            if parentWaits { waiting.append(item) }
+        }
         if !waiting.isEmpty {
             sections.append(makeSection(id: "needs-you", title: "Needs you",
                                         items: ordered(waiting, byRecency: byRecency)))

@@ -2180,17 +2180,25 @@ private struct GitGraphCard: View {
                     // Capped and cut in the middle, never fixed: two long branch
                     // names at their full width made the row wider than the card,
                     // which then drew out over the sidebar (2026-09-30).
-                    Text(ref).font(.claudeMono(9))
-                        .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
-                        .lineLimit(1).truncationMode(.middle)
-                        .frame(maxWidth: 150)
-                        .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(Color.secondary.opacity(0.12), in: Capsule())
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(height: Self.rowHeight)
-                        .help(ref)
+                    // Its own width when that fits, else cut to 150. A bare
+                    // `frame(maxWidth:)` is flexible and stretched every chip,
+                    // `main` included, to take what the row offered.
+                    ViewThatFits(in: .horizontal) {
+                        Text(ref).fixedSize()
+                        Text(ref).lineLimit(1).truncationMode(.middle).frame(maxWidth: 150)
+                    }
+                    .font(.claudeMono(9))
+                    .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
+                    .padding(.horizontal, 4).padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(height: Self.rowHeight)
+                    .help(ref)
                 }
             }
+            // Served before the subject: at equal priority the row handed the
+            // chips too little to fit and cut even `HEAD -> main`.
+            .layoutPriority(1)
             // The subject takes what the SHA, refs and age leave: a hash alone
             // says nothing about what the commit was.
             Text(row.commit.subject).font(.ui(11)).foregroundStyle(Color.primary)

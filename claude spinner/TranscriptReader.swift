@@ -210,7 +210,11 @@ enum TranscriptReader {
         if let name = tag("command-name", in: text) {
             return [name, tag("command-args", in: text)].compactMap { $0 }.joined(separator: " ")
         }
-        for noise in ["[Request interrupted", "<local-command", "<task-notification", "<system-reminder"]
+        if let command = tag("bash-input", in: text) { return "! " + command }
+        // Written as user records by the CLI (`!` output) and the desktop app.
+        for noise in ["[Request interrupted", "<local-command", "<task-notification", "<system-reminder",
+                      "<bash-stdout", "<bash-stderr", "<ci-monitor-event",
+                      "The app was quit while you were working"]
         where text.hasPrefix(noise) { return nil }
         return text
     }
