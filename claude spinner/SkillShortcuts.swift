@@ -20,9 +20,18 @@ struct SkillShortcut: Identifiable, Equatable {
     var id: String { name }
     var command: String { "/" + name }
 
+    /// The toolbar action this chip duplicates, whose confirmation it inherits:
+    /// /clear and /compact discard context whichever button types them.
+    var sessionAction: SessionAction? {
+        SessionAction.allCases.first { $0.promptText == command }
+    }
+
     static let curated: [SkillShortcut] = [
         .init(name: "start-up", symbol: "sunrise", blurb: "Survey the repo and start the top task", builtIn: false),
         .init(name: "wrap-up", symbol: "moon.zzz", blurb: "Commit, update STATUS, hand off", builtIn: false),
+        .init(name: "compact", symbol: SessionAction.compact.symbol, blurb: "Summarize and drop the transcript",
+              builtIn: true),
+        .init(name: "clear", symbol: SessionAction.clear.symbol, blurb: "Discard the conversation", builtIn: true),
         .init(name: "todo", symbol: "checklist", blurb: "Turn the conversation into tasks", builtIn: false),
         .init(name: "tasks", symbol: "list.bullet.rectangle", blurb: "Re-render the task box", builtIn: false),
         .init(name: "code-review", symbol: "magnifyingglass", blurb: "Review the current diff", builtIn: true,

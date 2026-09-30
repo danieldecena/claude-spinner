@@ -3484,9 +3484,17 @@ final class claude_spinnerTests: XCTestCase {
         let dir = URL(fileURLWithPath: "/c")
         let installed: Set<String> = ["/c/skills/wrap-up/SKILL.md", "/c/commands/goal.md"]
         let names = SkillShortcut.available(claudeDir: dir, exists: installed.contains).map(\.name)
-        XCTAssertEqual(names, ["wrap-up", "code-review", "simplify", "goal"])
+        XCTAssertEqual(names, ["wrap-up", "compact", "clear", "code-review", "simplify", "goal"])
         let none = SkillShortcut.available(claudeDir: dir, exists: { _ in false }).map(\.name)
-        XCTAssertEqual(none, ["code-review", "simplify"])
+        XCTAssertEqual(none, ["compact", "clear", "code-review", "simplify"])
+    }
+
+    /// The card's /clear and /compact ask first, like the toolbar's; skills don't.
+    func testDestructiveShortcutsConfirm() {
+        let confirming = SkillShortcut.curated.filter { $0.sessionAction?.isDestructive == true }.map(\.name)
+        XCTAssertEqual(confirming, ["compact", "clear"])
+        XCTAssertEqual(SkillShortcut.curated.first { $0.name == "clear" }?.sessionAction?.confirmation,
+                       SessionAction.clear.confirmation)
     }
 
     func testGitShortcutsAreGroupedApart() {

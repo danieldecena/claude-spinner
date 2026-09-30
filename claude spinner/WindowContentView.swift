@@ -2128,13 +2128,14 @@ private struct ShortcutChips: View {
     @Binding var notice: NoticeMessage?
     @State private var hasPane = false
     @State private var sending = false
+    @State private var confirming: SkillShortcut?
 
     var body: some View {
         let reason = SkillShortcut.unavailableReason(session: session, hasPane: hasPane)
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
                   alignment: .leading, spacing: 6) {
             ForEach(shortcuts) { shortcut in
-                Button { send(shortcut) } label: {
+                Button { start(shortcut) } label: {
                     // The name alone; the slash is implied by the card, and the
                     // tooltip and the notice still say the command typed.
                     Label(shortcut.name, systemImage: shortcut.symbol)
@@ -2158,6 +2159,22 @@ private struct ShortcutChips: View {
                 pid != nil && SessionReplier.hasPane(session)
             }.value
         }
+        .confirmationDialog(confirming?.sessionAction?.confirmation ?? "",
+                            isPresented: Binding(get: { confirming != nil },
+                                                 set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible) {
+            if let shortcut = confirming, let action = shortcut.sessionAction {
+                Button(action.title, role: .destructive) {
+                    confirming = nil
+                    send(shortcut)
+                }
+            }
+            Button("Cancel", role: .cancel) { confirming = nil }
+        }
+    }
+
+    private func start(_ shortcut: SkillShortcut) {
+        if shortcut.sessionAction?.isDestructive == true { confirming = shortcut } else { send(shortcut) }
     }
 
     private func send(_ shortcut: SkillShortcut) {
