@@ -106,10 +106,19 @@ struct RingMetric: View {
     let tint: Color
     var pace: Double?
     var detail: String?
+    /// The value as a figure in the ring's slot, with no ring: for a number that
+    /// is not a share of anything. A ring around "$30" reads as a dollar gauge.
+    var plain = false
 
     var body: some View {
         VStack(spacing: 3) {
-            Ring(ratio: ratio, tint: tint, pace: pace, value: value)
+            if plain {
+                Text(value).font(.figure(15)).fontWeight(.semibold)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .frame(width: 72, height: 56)
+            } else {
+                Ring(ratio: ratio, tint: tint, pace: pace, value: value)
+            }
             Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
             if let detail {
@@ -235,7 +244,9 @@ struct SessionStatsCard: View {
                     let share = min(1, Double(tokens) / Double(window))
                     RingMetric(caption: "context",
                                value: st.contextUsedPercent.map { "\($0)%" } ?? "\(Int((share * 100).rounded()))%",
-                               ratio: share, tint: .contextTint(tokens),
+                               // Tinted by the share the arc draws, not by the token
+                               // count: a red ring half full said two things at once.
+                               ratio: share, tint: .usageTint(Int((share * 100).rounded())),
                                detail: "\(StatFormat.compactCount(tokens)) of \(StatFormat.compactCount(window))")
                 }
                 if let hit = st.cacheHitRatio {
@@ -244,7 +255,7 @@ struct SessionStatsCard: View {
                 }
                 if let cost = st.costUSD {
                     RingMetric(caption: "spend", value: StatFormat.money(cost),
-                               ratio: st.apiShare, tint: .series1, detail: costDetail)
+                               ratio: nil, tint: .label, detail: costDetail, plain: true)
                 }
             }
         }

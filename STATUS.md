@@ -152,6 +152,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (critique slice 1): spend is a plain figure, not a ring (the arc was API share
+  under a dollar label), and the context ring is tinted by the share its arc draws
+  (`usageTint`), not by token count (`contextTint` made a half-full ring red). Seen on
+  screen: 53% context ring yellow, spend "$33.46" with no ring.
 - Decided: the reply row (field, Send, model and effort menus) is pinned to the foot of
   the You asked card; the exchange stays at the top. Seen on screen.
 - Decided: the Usage card is the two limit rings only; the All sessions totals (today,
