@@ -3510,6 +3510,32 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    // MARK: - Pane fit
+
+    func testPaneFitGivesLeftoverHeightToTheTopRowWhenItFits() {
+        let fit = PaneFit.fit(available: 900, ideal: 700)
+        XCTAssertEqual(fit.scale, 1)
+        XCTAssertEqual(fit.extra, 200)
+    }
+
+    func testPaneFitShrinksATallPaneAndHandsOutNothing() {
+        let fit = PaneFit.fit(available: 600, ideal: 800)
+        XCTAssertEqual(fit.scale, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(fit.extra, 0)
+    }
+
+    func testPaneFitStopsAtTheFloor() {
+        let fit = PaneFit.fit(available: 100, ideal: 1000)
+        XCTAssertEqual(fit.scale, PaneFit.floor)
+        XCTAssertEqual(fit.extra, 0)
+    }
+
+    /// Before the first layout there is no ideal to fit against.
+    func testPaneFitWithNoIdealYetDrawsAtFullSize() {
+        XCTAssertEqual(PaneFit.fit(available: 900, ideal: 0).scale, 1)
+        XCTAssertEqual(PaneFit.fit(available: 900, ideal: 0).extra, 0)
+    }
+
     // MARK: - Column buckets
 
     private func series(_ points: [(Double, Double)]) -> [(at: Double, value: Double)] {

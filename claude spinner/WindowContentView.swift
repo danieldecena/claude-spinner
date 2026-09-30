@@ -439,6 +439,23 @@ private struct SectionHeader: View {
 
 // MARK: - Detail
 
+/// How the detail pane fits the window without scrolling. Pure so the edges are
+/// testable without laying out a view.
+enum PaneFit {
+    /// Under this the text stops being readable; the bottom clips instead.
+    static let floor: CGFloat = 0.55
+
+    /// `scale`: how much of its ideal size the pane is drawn at, never above 1
+    /// (a tall window does not blow the cards up) and never below the floor.
+    /// `extra`: the window height left over when the pane fits at full size,
+    /// which goes to the top row so no empty band sits under the last one.
+    static func fit(available: CGFloat, ideal: CGFloat) -> (scale: CGFloat, extra: CGFloat) {
+        guard ideal > 0, available > 0 else { return (1, 0) }
+        let scale = min(1, max(floor, available / ideal))
+        return (scale, scale < 1 ? 0 : available - ideal)
+    }
+}
+
 private struct SessionDetail: View {
     let session: SessionFeed
     let asks: [AskRequest]
@@ -456,9 +473,10 @@ private struct SessionDetail: View {
     /// the detail pane doesn't need the watcher.
     let usage: OverviewStrip
     @Binding var notice: NoticeMessage?
-    /// The pane's height at the width it is currently laid out at, read back from
-    /// the layout so the scale that fits it can be worked out.
-    @State private var naturalHeight: CGFloat = 0
+    /// The pane's height at the width it is laid out at, without the top row's
+    /// share of leftover height, read back from the layout so the fit can be
+    /// worked out.
+    @State private var idealHeight: CGFloat = 0
 
     var body: some View {
         // No scrolling: the whole pane is laid out at its natural height and, when
@@ -466,14 +484,17 @@ private struct SessionDetail: View {
         // the window's width divided by the scale, not the window's width, so the
         // cards use the room that shrinking frees instead of leaving a margin.
         GeometryReader { geo in
-            let scale = fitScale(available: geo.size.height)
-            content
+            let fit = PaneFit.fit(available: geo.size.height, ideal: idealHeight)
+            let scale = fit.scale
+            content(extra: fit.extra)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)
                 .fixedSize(horizontal: false, vertical: true)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                    // Only a real change: a 1pt wobble would re-lay the pane out
-                    // at a new width and chase its own tail.
-                    if abs(height - naturalHeight) > 2 { naturalHeight = height }
+                    // The top row grew by exactly `extra`, so taking it back off
+                    // leaves the ideal. Only a real change: a 1pt wobble would
+                    // re-lay the pane out at a new width and chase its own tail.
+                    let ideal = height - fit.extra
+                    if abs(ideal - idealHeight) > 2 { idealHeight = ideal }
                 }
                 .scaleEffect(scale, anchor: .topLeading)
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -481,15 +502,9 @@ private struct SessionDetail: View {
         }
     }
 
-    /// How much of its natural size the pane is drawn at. Never above 1 (a tall
-    /// window does not blow the cards up) and never below the floor, under which
-    /// the text stops being readable and the pane should be scrolled instead.
-    private func fitScale(available: CGFloat) -> CGFloat {
-        guard naturalHeight > 0 else { return 1 }
-        return min(1, max(0.55, available / naturalHeight))
-    }
-
-    private var content: some View {
+    /// `extra` is leftover window height; both top-row cards take all of it, so
+    /// the row, and the pane, grow by exactly that much.
+    private func content(extra: CGFloat) -> some View {
             VStack(alignment: .leading, spacing: 12) {
                 header
 
@@ -508,8 +523,9 @@ private struct SessionDetail: View {
                     // it, in one row: the prose and the task titles split the
                     // width, the skill chips keep a fixed column.
                     HStack(alignment: .top, spacing: 12) {
-                        ConversationCard(session: session, feedDir: feedDir, notice: $notice)
-                        SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick)
+                        ConversationCard(session: session, feedDir: feedDir, notice: $notice, extra: extra)
+                        SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick,
+                                   extra: extra)
                             .frame(width: 380)
                     }
                     .tileSpan(.max)
@@ -1108,13 +1124,14 @@ private struct ConversationCard: View {
     let feedDir: URL
     /// Shared with the toolbar: a reply and a session action report in one place.
     @Binding var notice: NoticeMessage?
+    /// Leftover window height; Claude's reply takes it.
+    var extra: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id)
-            // The card is as tall as the Skills card beside it; the reply row sits
-            // at its foot, where a chat box is, and the exchange stays at the top.
-            Spacer(minLength: 0)
+            // Flexible: Claude's reply fills whatever height the row gives the
+            // card, so the reply row sits at the foot, where a chat box is.
+            TranscriptCard(path: session.stats.transcriptPath, sessionID: session.id, extra: extra)
             // The answer and what runs it, on one line.
             HStack(spacing: 8) {
                 ReplyBox(session: session, feedDir: feedDir, notice: $notice)
@@ -1134,6 +1151,10 @@ private struct ConversationCard: View {
 private struct TranscriptCard: View {
     let path: String?
     let sessionID: String
+    var extra: CGFloat = 0
+    /// About four lines of the transcript face: the reply's height before the
+    /// row hands it any more.
+    private static let replyIdeal: CGFloat = 54
     @State private var snapshot = TranscriptSnapshot()
     @State private var expanded = false
 
@@ -1145,7 +1166,8 @@ private struct TranscriptCard: View {
         // beside it either way, so a card that resizes moves nothing.
         VStack(alignment: .leading, spacing: 10) {
             Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded)
-            Labelled("claude said", snapshot.lastAssistantText, limit: expanded ? nil : 4)
+            Labelled("claude said", snapshot.lastAssistantText, limit: nil,
+                     fill: expanded ? nil : Self.replyIdeal + extra)
             if !snapshot.recentTools.isEmpty {
                 Text("ran " + snapshot.recentTools.joined(separator: " · "))
                     .font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
@@ -1178,12 +1200,17 @@ private struct Labelled: View {
     let limit: Int?
     /// When given, a chevron beside the title opens the block out.
     var expanded: Binding<Bool>?
+    /// When given, the text asks for this height but takes whatever it is given,
+    /// showing as many lines as fit and cutting the rest.
+    var fill: CGFloat?
 
-    init(_ title: String, _ body: String?, limit: Int?, expanded: Binding<Bool>? = nil) {
+    init(_ title: String, _ body: String?, limit: Int?, expanded: Binding<Bool>? = nil,
+         fill: CGFloat? = nil) {
         self.title = title
         self.body_ = body
         self.limit = limit
         self.expanded = expanded
+        self.fill = fill
     }
 
     var body: some View {
@@ -1200,12 +1227,17 @@ private struct Labelled: View {
                     .help(expanded.wrappedValue ? "Show less" : "Show the full text")
                 }
             }
-            Text(body_ ?? "not recorded")
+            let text = Text(body_ ?? "not recorded")
                 .font(.claudeMono(11))
                 .foregroundStyle(body_ == nil ? Color.label : Color.primary)
-                .lineLimit(limit ?? Int.max)
                 .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            if let fill {
+                text.frame(maxWidth: .infinity, minHeight: 0, idealHeight: fill, maxHeight: .infinity,
+                           alignment: .topLeading)
+            } else {
+                text.lineLimit(limit ?? Int.max)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -1464,6 +1496,8 @@ private struct SkillsCard: View {
     let feedDir: URL
     let suggestion: Suggestion?
     let pick: Suggestion?
+    /// Leftover window height, taken as bottom space so the row grows evenly.
+    var extra: CGFloat = 0
     @State private var notice: NoticeMessage?
     @State private var snapshot: GitSnapshot?
 
@@ -1494,6 +1528,7 @@ private struct SkillsCard: View {
             }
             if let notice { Notice(notice) }
         }
+        .padding(.bottom, extra)
         .detailCard()
     }
 

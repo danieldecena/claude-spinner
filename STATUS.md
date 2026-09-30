@@ -152,6 +152,11 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided (critique slice 2): Claude said fills the You asked card (a flexible block with
+  a 4-line ideal, cut to what fits; the chevron still opens the full text), and when the
+  pane fits at full size the leftover window height goes to both top-row cards, so no
+  empty band sits under the last row. The math is `PaneFit.fit(available:ideal:)`, pure
+  and unit-tested. Seen on screen at 1243x977 and 1000x760.
 - Decided (critique slice 1): spend is a plain figure, not a ring (the arc was API share
   under a dollar label), and the context ring is tinted by the share its arc draws
   (`usageTint`), not by token count (`contextTint` made a half-full ring red). Seen on
