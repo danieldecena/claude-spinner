@@ -137,10 +137,7 @@
 
 ## Next Up
 
-No open tasks. One small finding, not filed: `/compact` on a session too
-short to compact keeps the Skills chips greyed for the full 180 s observe
-window, then reports not-observed (Claude Code's "Not enough messages" never
-changes the state file).
+No open tasks.
 
 The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 
