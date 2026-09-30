@@ -11,6 +11,7 @@ via `run.sh`.
 - [ ] Show ask boxes in the You asked card and the terminal
 - [ ] Arm ask card options 0,8s after the card appears
 - [ ] Pin Job Search as a hub tab in the sidebar
+- [ ] Show a goal sign with minutes left in the You asked card
 - [ ] Stop recording spend history nothing reads
 
 ## Completed
