@@ -1886,10 +1886,9 @@ private struct GitGraphCard: View {
         .task(id: cwd) { await poll() }
     }
 
-    /// Text lines a row takes: its refs stack one per line, so a commit
-    /// carrying three refs is three lines tall.
+    /// Text lines a row takes: one. Refs sit beside the SHA on its line, so a
+    /// commit carrying three of them is no taller than one carrying none.
     private static func span(_ line: GraphLine) -> Int {
-        if case .commit(let row) = line { return max(1, row.commit.refs.count) }
         return 1
     }
 
@@ -1975,7 +1974,7 @@ private struct GitGraphCard: View {
     private func label(_ row: GraphRow) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Text(row.commit.shortSHA).foregroundStyle(Color.label).frame(height: Self.rowHeight)
-            VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4) {
                 ForEach(row.commit.refs, id: \.self) { ref in
                     Text(ref).font(.claudeMono(9))
                         .foregroundStyle(ref.hasPrefix("HEAD") ? Color.usageGreen : Color.identityCyan)
@@ -2029,15 +2028,15 @@ private struct GitStatusRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol).font(.ui(11))
-                .foregroundStyle(tint).frame(width: 14)
+        HStack(spacing: 4) {
+            Image(systemName: symbol).font(.ui(11)).foregroundStyle(tint)
             Text(label).font(.ui(11)).foregroundStyle(Color.label)
-                .frame(width: 46, alignment: .leading)
             Text(value).font(.ui(11))
                 .foregroundStyle(tone == .neutral ? Color.label : Color.primary)
                 .lineLimit(1).truncationMode(.middle).help(value)
         }
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(Color.secondary.opacity(0.12), in: Capsule())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
     }
@@ -2110,7 +2109,8 @@ private struct GitCard: View {
                     }
                 }
                 .help(snap.upstream.map { "tracks \($0)" } ?? "no upstream")
-                VStack(alignment: .leading, spacing: 5) {
+                // Four facts as pills that wrap, not four rows: state at a glance.
+                ChipFlow(spacing: 6) {
                     GitStatusRow("tree", changesLabel(snap) ?? "clean",
                                  symbol: snap.isDirty ? "pencil" : "checkmark.circle",
                                  tone: snap.changesTone)

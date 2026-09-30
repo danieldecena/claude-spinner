@@ -152,6 +152,10 @@ The app ships as a locally-built, ad-hoc-signed `.app` via `run.sh`.
 ## Decision log
 
 ### 2026-09-30 (refused /compact; Tasks card; + new session)
+- Decided: the History and Git row is redesigned. Refs sit beside the SHA on the
+  commit's own line (every graph row is one line; the stacked-refs rule from aaceb05 is
+  reversed), and the Git card's four status rows are pills that wrap. Seen on screen.
+  Daniel's request was the single word "redesign" after a screenshot of this row.
 - Decided: the two stat cards are circles only for now (Daniel: smaller, lighter,
   compact). Rings are 52pt with a 5pt stroke; the column charts (context, spend,
   tokens by day, 5h usage) and the facts line are out of the cards. `Columns`,
