@@ -930,6 +930,11 @@ extension View {
             // Plain draws a hairline under every row; the section headings are
             // what separate things here.
             .listRowSeparator(.hidden)
+            // The whole row selects, not just the glyph and the name. Sidebar
+            // style painted a full-width target; plain hit-tests the content,
+            // and a row is mostly the Spacer between its name and its marks, so
+            // clicking anywhere but the text did nothing.
+            .contentShape(Rectangle())
     }
 
     /// How many `TileGrid` columns this card takes.
