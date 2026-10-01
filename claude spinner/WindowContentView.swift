@@ -965,10 +965,44 @@ struct TileGrid: Layout {
     /// a fourth let them wrap into a row with one card and a gap.
     var maxColumns = 3
 
-    private struct Slot {
+    struct Slot: Equatable {
         let index: Int
         let column: Int
         let span: Int
+    }
+
+    /// Which card lands in which row and column, from spans and measured heights
+    /// alone. Pure, because the two rules in it are the ones that went wrong on
+    /// screen and a layout cannot be looked at from a test.
+    ///
+    /// A card measuring zero drew nothing and takes no row: an absent Graph card
+    /// otherwise packed an empty tile and left a bare spacing-height row under
+    /// the grid.
+    static func pack(spans: [Int], heights: [CGFloat], columns: Int) -> [[Slot]] {
+        var packed: [[Slot]] = []
+        var used = columns
+        for index in spans.indices where heights[index] > 0 {
+            let span = min(max(1, spans[index]), columns)
+            if used + span > columns {
+                packed.append([])
+                used = 0
+            }
+            packed[packed.count - 1].append(Slot(index: index, column: used, span: span))
+            used += span
+        }
+        return packed
+    }
+
+    /// The height each row is placed at. Everything the grid was handed beyond
+    /// its content goes to the last row, so a short page ends in a tall card
+    /// rather than in blank pane; a grid sized to its content has none to give.
+    static func placedHeights(rows: [CGFloat], spacing: CGFloat, available: CGFloat) -> [CGFloat] {
+        guard let last = rows.indices.last else { return [] }
+        let content = rows.reduce(0, +) + spacing * CGFloat(rows.count - 1)
+        let slack = max(0, available - content)
+        var heights = rows
+        heights[last] += slack
+        return heights
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -993,14 +1027,10 @@ struct TileGrid: Layout {
         let columnWidth = grid(width: bounds.width).columnWidth
         var y = bounds.minY
         let packed = rows(width: bounds.width, subviews: subviews)
-        // Any height the grid was given beyond its content goes to the last row,
-        // so a short page ends in a tall card rather than in blank pane. Nothing
-        // to give when the grid is sized to its content, which is the usual case.
-        let content = packed.map(\.height).reduce(0, +)
-            + spacing * CGFloat(max(packed.count - 1, 0))
-        let slack = max(0, bounds.height - content)
+        let placed = Self.placedHeights(rows: packed.map(\.height), spacing: spacing,
+                                        available: bounds.height)
         for (index, row) in packed.enumerated() {
-            let height = index == packed.count - 1 ? row.height + slack : row.height
+            let height = placed[index]
             for slot in row.slots {
                 subviews[slot.index].place(
                     at: CGPoint(x: bounds.minX + CGFloat(slot.column) * (columnWidth + spacing), y: y),
@@ -1021,22 +1051,11 @@ struct TileGrid: Layout {
 
     private func rows(width: CGFloat, subviews: Subviews) -> [(slots: [Slot], height: CGFloat)] {
         let (columns, columnWidth) = grid(width: width)
-        var packed: [[Slot]] = []
-        var used = columns
-        for index in subviews.indices {
-            // A tile that drew nothing takes no row: the Graph card is absent for
-            // a repo with no graph, and packing its empty body left a bare
-            // spacing-height row under the grid.
-            if subviews[index].sizeThatFits(ProposedViewSize(width: columnWidth, height: nil))
-                .height == 0 { continue }
-            let span = min(max(1, subviews[index][TileSpan.self]), columns)
-            if used + span > columns {
-                packed.append([])
-                used = 0
-            }
-            packed[packed.count - 1].append(Slot(index: index, column: used, span: span))
-            used += span
+        let measured = subviews.indices.map {
+            subviews[$0].sizeThatFits(ProposedViewSize(width: columnWidth, height: nil)).height
         }
+        let packed = Self.pack(spans: subviews.indices.map { subviews[$0][TileSpan.self] },
+                               heights: measured, columns: columns)
         return packed.map { slots in
             (slots, slots.map {
                 subviews[$0.index]

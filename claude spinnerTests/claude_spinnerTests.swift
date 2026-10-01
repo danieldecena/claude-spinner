@@ -4511,6 +4511,46 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(GraphSummary.path(forRepo: "/x/y"), "/x/y/graphify-out/graph.json")
     }
 
+    // MARK: - TileGrid packing
+
+    func testACardThatDrewNothingTakesNoRow() {
+        // The control: the same three spans with every card drawn occupy two
+        // rows, so a test that always reported one row would fail here.
+        let drawn = TileGrid.pack(spans: [3, 3, 3], heights: [100, 100, 100], columns: 3)
+        XCTAssertEqual(drawn.count, 3)
+
+        let absent = TileGrid.pack(spans: [3, 3, 3], heights: [100, 0, 100], columns: 3)
+        XCTAssertEqual(absent.count, 2, "an empty tile must not pack a row of its own")
+        XCTAssertEqual(absent.flatMap { $0 }.map(\.index), [0, 2])
+    }
+
+    func testCardsFillARowBeforeWrapping() {
+        let packed = TileGrid.pack(spans: [1, 2, 1, 1], heights: [10, 10, 10, 10], columns: 3)
+        XCTAssertEqual(packed.map { $0.map(\.index) }, [[0, 1], [2, 3]])
+        XCTAssertEqual(packed[0].map(\.column), [0, 1])
+        XCTAssertEqual(packed[1].map(\.column), [0, 1])
+    }
+
+    func testASpanWiderThanTheGridIsClampedToIt() {
+        let packed = TileGrid.pack(spans: [9], heights: [10], columns: 3)
+        XCTAssertEqual(packed.first?.first?.span, 3)
+    }
+
+    func testLeftoverHeightGoesToTheLastRow() {
+        let placed = TileGrid.placedHeights(rows: [100, 100], spacing: 12, available: 400)
+        XCTAssertEqual(placed, [100, 288], "212 of slack belongs to the last row alone")
+        XCTAssertEqual(placed.reduce(0, +) + 12, 400, accuracy: 0.001)
+    }
+
+    func testAGridSizedToItsContentKeepsEveryRowHeight() {
+        // The known-good input: without it, a helper that always stretched the
+        // last row would pass the test above and still be wrong everywhere else.
+        let exact = TileGrid.placedHeights(rows: [100, 100], spacing: 12, available: 212)
+        XCTAssertEqual(exact, [100, 100])
+        let squeezed = TileGrid.placedHeights(rows: [100, 100], spacing: 12, available: 50)
+        XCTAssertEqual(squeezed, [100, 100], "a grid given less than it needs scrolls, it does not shrink")
+    }
+
     // MARK: - GoalClock
 
     private func goalLine(remaining: Int, minutes: Int, now: Date = Date(timeIntervalSince1970: 1_800_000_000)) -> GoalClock? {
