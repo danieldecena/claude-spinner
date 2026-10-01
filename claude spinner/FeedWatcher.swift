@@ -1281,10 +1281,11 @@ final class FeedWatcher: ObservableObject {
         // never renders as a phantom idle row.
         let cutoff = Date().addingTimeInterval(-Constants.staleCutoff)
         let recent = byId.values.filter { ($0.updated ?? .distantPast) > cutoff }
-        // Prune an idle session whose owning claude process has died without firing
-        // SessionEnd (e.g. the terminal was force-quit). Restricted to idle sessions
-        // with a captured pid, so a live/working session is never dropped on a bad
-        // or missing pid — the process check only ever *removes* a truly-dead one.
+        // Prune a session whose owning claude process has died without firing
+        // SessionEnd (e.g. the terminal was force-quit): every idle one with a
+        // captured pid, and a working one only once it has also stopped writing
+        // for `deadGrace`. A session waiting on you is never pruned here, and a
+        // missing pid never prunes anything.
         let live = Self.excludingOrphanIdleChildren(
             Self.excludingDeadPidIdle(recent, pidAlive: Self.pidAlive))
         let liveIds = Set(live.map(\.id))
@@ -1686,47 +1687,64 @@ final class FeedWatcher: ObservableObject {
         return "\(base) \(String(aid.suffix(4)))"
     }
 
-    /// Drop idle root sessions whose captured pid is dead. Children are
-    /// exempt — their pid is the parent's, so a dead pid would otherwise
-    /// vanish finished children while a working parent stays until
-    /// `staleCutoff`. `pidAlive` is injected so tests don't probe the
-    /// process table. Pure; `performRescan` uses this before
-    /// `excludingOrphanIdleChildren`.
-    /// A session whose last state said "running Bash" and whose process is gone
-    /// did not keep running: the terminal was closed or force-quit mid-tool, and
-    /// no SessionEnd fired. Restricting this to idle sessions left those rows
-    /// claiming to work for the whole 12-hour prune window (two of them, 1h and
-    /// 2h stale, both still "running Read", 2026-10-01).
-    ///
-    /// A working session writes state on every tool call, so one that has
-    /// written nothing for `deadGrace` and has no process is certainly dead. The
-    /// grace is what keeps a just-started session, whose captured pid may be a
+    /// How long a session that is not idle may say nothing before its dead pid
+    /// is believed. A working session writes state on every tool call, so
+    /// silence this long with no process is death, not a long tool call; the
+    /// window is what keeps a session seconds old, whose captured pid may be a
     /// hook's subshell rather than claude itself, from being dropped on a bad
     /// pid read.
     static let deadGrace: TimeInterval = 120
 
+    /// Drop root sessions whose captured pid is dead: every idle one, and any
+    /// working one that has also been silent for `deadGrace`. A terminal closed
+    /// mid-tool fires no SessionEnd, and while this covered idle sessions only,
+    /// those rows claimed to be running for the whole 12-hour `staleCutoff`
+    /// (two of them, 1h and 2h stale, both still "running Read", 2026-10-01).
+    ///
+    /// Children are exempt — their pid is the parent's, so a dead pid would
+    /// otherwise vanish finished children while a working parent stays;
+    /// `excludingOrphanIdleChildren` is what drops them, once the parent has
+    /// gone.
+    ///
+    /// A session at `.attention` is exempt too. It is waiting for a person,
+    /// which is silence of any length by definition, and it is the one row that
+    /// must not disappear: dropping it also pulls the "Claude needs you" banner,
+    /// leaving a genuinely blocked session with no trace anywhere. If its
+    /// process really is gone, `staleCutoff` still clears it.
+    ///
+    /// `pidAlive` is injected so tests don't probe the process table. Pure;
+    /// `performRescan` uses this before `excludingOrphanIdleChildren`.
     static func excludingDeadPidIdle(_ sessions: [SessionFeed], pidAlive: (Int) -> Bool,
                                      now: Date = Date()) -> [SessionFeed] {
         sessions.filter { s in
             guard !s.isChild, let pid = s.pid else { return true }
             if s.status != .idle {
+                guard s.status != .attention else { return true }
                 guard let updated = s.updated, now.timeIntervalSince(updated) > deadGrace else { return true }
             }
             return pidAlive(pid)
         }
     }
 
-    /// Drop an idle child whose parent is not in the live set. Working /
-    /// attention orphans stay (the panel promotes them to depth 0). Roots
-    /// always stay. Pure so prune is testable without I/O; `performRescan`
-    /// uses this on the in-memory live set, after which the existing mtime
-    /// walker deletes files that dropped out.
-    static func excludingOrphanIdleChildren(_ sessions: [SessionFeed]) -> [SessionFeed] {
+    /// Drop an idle child whose parent is not in the live set, and a working one
+    /// that has gone as quiet as a dead root. Attention orphans stay, for the
+    /// reason `excludingDeadPidIdle` gives.
+    ///
+    /// A subagent cannot outlive the session that spawned it, so a working
+    /// orphan is only ever believed while it is still writing: without the
+    /// silence test, force-quitting a terminal mid-subagent left the child
+    /// promoted to a depth-0 row reading "running Read" for the full
+    /// `staleCutoff`, which is the same lie one level down.
+    static func excludingOrphanIdleChildren(_ sessions: [SessionFeed],
+                                            now: Date = Date()) -> [SessionFeed] {
         let rootIds = Set(sessions.filter { $0.parentSessionId == nil }.map(\.id))
         return sessions.filter { s in
             guard let parent = s.parentSessionId else { return true }
             if rootIds.contains(parent) { return true }
-            return s.isWorking || s.status == .attention
+            if s.status == .attention { return true }
+            guard s.isWorking else { return false }
+            guard let updated = s.updated else { return true }
+            return now.timeIntervalSince(updated) <= deadGrace
         }
     }
 

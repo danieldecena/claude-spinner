@@ -451,6 +451,29 @@ final class claude_spinnerTests: XCTestCase {
                        ["s"])
     }
 
+    func testASessionWaitingOnYouIsNeverPrunedOnItsPid() {
+        let now = Date()
+        // Waiting is silence by definition, and dropping the row takes the
+        // "Claude needs you" banner with it.
+        var waiting = mk("w", .attention, cwd: "/x", updated: now.addingTimeInterval(-7200))
+        waiting.pid = 4242
+        XCTAssertEqual(FeedWatcher.excludingDeadPidIdle([waiting], pidAlive: { _ in false }, now: now).map(\.id),
+                       ["w"])
+    }
+
+    func testAWorkingOrphanChildStopsBeingWorkingOnceItGoesQuiet() {
+        let now = Date()
+        let fresh = mk("gone.a1", .tool, cwd: "/x", updated: now,
+                       parentSessionId: "gone", agentId: "a1", agentType: "Explore")
+        let quiet = mk("gone.a2", .tool, cwd: "/x", updated: now.addingTimeInterval(-600),
+                       parentSessionId: "gone", agentId: "a2", agentType: "Explore")
+        let waiting = mk("gone.a3", .attention, cwd: "/x", updated: now.addingTimeInterval(-600),
+                         parentSessionId: "gone", agentId: "a3", agentType: "Explore")
+        let kept = FeedWatcher.excludingOrphanIdleChildren([fresh, quiet, waiting], now: now)
+        XCTAssertEqual(Set(kept.map(\.id)), ["gone.a1", "gone.a3"],
+                       "a subagent cannot outlive its session, but a live one must survive the rule")
+    }
+
     func testMenuBarStaysWorkingWhenOnlyChildrenWork() {
         let now = Date()
         let parent = mk("p", .idle, updated: now, lastDuration: 10)
