@@ -451,6 +451,39 @@ final class claude_spinnerTests: XCTestCase {
                        ["s"])
     }
 
+    func testASessionThatHasWanderedStillBelongsToWhereItStarted() {
+        // The real case: this session started in the repo and a Bash `cd` moved
+        // its reported cwd into a subfolder of ~/.claude.
+        XCTAssertEqual(
+            SessionFeed.startCwd(
+                transcriptPath: "/Users/home/.claude/projects/-Users-home-developer-claude-spinner/s.jsonl",
+                cwd: "/Users/home/developer/claude-spinner/claude spinner"),
+            "/Users/home/developer/claude-spinner")
+        // A dot in the path is a "-" in the folder name, like a slash.
+        XCTAssertEqual(
+            SessionFeed.startCwd(transcriptPath: "/p/-Users-home--claude/s.jsonl",
+                                 cwd: "/Users/home/.claude/spinnerfeed"),
+            "/Users/home/.claude")
+    }
+
+    func testAWanderedSessionIsNeverGuessedAHome() {
+        // Walked clean out of the tree it started in: there is nothing to match,
+        // and the caller falls back to the cwd rather than inventing a project.
+        XCTAssertNil(SessionFeed.startCwd(transcriptPath: "/p/-Users-home-developer-elsewhere/s.jsonl",
+                                          cwd: "/tmp/scratch"))
+        XCTAssertNil(SessionFeed.startCwd(transcriptPath: nil, cwd: "/Users/home/developer/claude-spinner"))
+        // A path that cannot be shortened answers the walk with itself. Without
+        // the guard this did not fail, it hung, and the test host was killed
+        // mid-run with no failing assertion to read.
+        XCTAssertNil(SessionFeed.startCwd(transcriptPath: "/p/-x/s.jsonl", cwd: "//"))
+        XCTAssertNil(SessionFeed.startCwd(transcriptPath: "/p/-x/s.jsonl", cwd: "relative"))
+        // The known-good input: a session that never moved resolves to its own cwd.
+        XCTAssertEqual(
+            SessionFeed.startCwd(transcriptPath: "/p/-Users-home-developer-claude-spinner/s.jsonl",
+                                 cwd: "/Users/home/developer/claude-spinner"),
+            "/Users/home/developer/claude-spinner")
+    }
+
     func testASessionWaitingOnYouIsNeverPrunedOnItsPid() {
         let now = Date()
         // Waiting is silence by definition, and dropping the row takes the

@@ -563,8 +563,70 @@ struct SessionFeed: Identifiable {
         return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
     }
 
+    /// The folder the session was started in, which is what it belongs to. A run
+    /// that `cd`s elsewhere keeps reporting its shell's directory, so grouping on
+    /// `cwd` moved live sessions between sidebar projects mid-run (one sat under
+    /// "Resume", then ".claude", then "claude-in-safari", 2026-10-01).
+    ///
+    /// Claude Code keeps a session's transcript in a folder named for the
+    /// directory it started in and never moves it, so that name is the record.
+    /// It cannot be decoded, because both "/" and "." become "-", so it is
+    /// matched against the directories `cwd` actually sits in.
+    /// Resolved once by the watcher, off the main thread. Nil until then, and
+    /// for a session with no transcript, which falls back to its current cwd.
+    var startDir: String?
+
+    var startCwd: String {
+        startDir ?? SessionFeed.startCwd(transcriptPath: stats.transcriptPath, cwd: cwd) ?? cwd
+    }
+
+    /// The directory a transcript's own records say the session began in. The
+    /// folder name cannot be decoded (both "/" and "." become "-"), so when the
+    /// session has walked above its start directory and no ancestor matches,
+    /// this is the only record of where it belongs. Read once per session and
+    /// cached by the watcher; nil when the file cannot be read or says nothing.
+    static func startCwdFromTranscript(_ path: String, maxLines: Int = 40) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        // The first records are small; the cwd appeared on line 3 of every
+        // transcript looked at, and a session that never records one gets nil.
+        guard let head = try? handle.read(upToCount: 64 * 1024), !head.isEmpty else { return nil }
+        for line in String(decoding: head, as: UTF8.self).split(separator: "\n").prefix(maxLines) {
+            guard let data = line.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cwd = object["cwd"] as? String, !cwd.isEmpty else { continue }
+            return cwd
+        }
+        return nil
+    }
+
+    /// nil when the transcript is unknown, or when the session has walked out of
+    /// the tree it started in and nothing can be matched -- never a guess.
+    static func startCwd(transcriptPath: String?, cwd: String) -> String? {
+        guard let transcriptPath else { return nil }
+        let slug = ((transcriptPath as NSString).deletingLastPathComponent as NSString).lastPathComponent
+        guard !slug.isEmpty else { return nil }
+        var candidate = cwd
+        while !candidate.isEmpty, candidate != "/" {
+            if encode(candidate).compare(slug, options: .caseInsensitive) == .orderedSame {
+                return candidate
+            }
+            // A path that cannot be shortened any further ends the walk: "//" and
+            // a relative path both answer with themselves, which would spin.
+            let parent = (candidate as NSString).deletingLastPathComponent
+            if parent == candidate { return nil }
+            candidate = parent
+        }
+        return nil
+    }
+
+    /// The transcript folder's spelling of a path: every "/" and "." a "-".
+    private static func encode(_ path: String) -> String {
+        String(path.map { $0 == "/" || $0 == "." ? "-" : $0 })
+    }
+
     var projectName: String {
-        let name = (cwd as NSString).lastPathComponent
+        let name = (startCwd as NSString).lastPathComponent
         return name.isEmpty ? "session" : name
     }
 
@@ -1245,6 +1307,10 @@ final class FeedWatcher: ObservableObject {
         return nil
     }
 
+    /// Where each session began, by session id. Touched on `ioQueue` only, and
+    /// never invalidated: a session cannot start twice.
+    private var startDirCache: [String: String] = [:]
+
     /// Runs on `ioQueue`: read + parse the directory, prune stale/orphan files
     /// from disk, then publish the live session list back on the main thread.
     private func performRescan() {
@@ -1273,6 +1339,19 @@ final class FeedWatcher: ObservableObject {
                 s.applyStatus(sf)
                 byId[id] = s
             }
+        }
+
+        // Where each session began, resolved here because it reads a file and the
+        // row that needs it is drawn on the main thread. Cheap after the first
+        // pass: the answer never changes for a session id.
+        for (id, session) in byId {
+            if let cached = startDirCache[id] { byId[id]?.startDir = cached; continue }
+            let matched = SessionFeed.startCwd(transcriptPath: session.stats.transcriptPath,
+                                               cwd: session.cwd)
+            let read = session.stats.transcriptPath.flatMap { SessionFeed.startCwdFromTranscript($0) }
+            guard let resolved = matched ?? read else { continue }
+            startDirCache[id] = resolved
+            byId[id]?.startDir = resolved
         }
 
         // Live = a real session (state file present, so `updated` is set) touched
