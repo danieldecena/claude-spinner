@@ -228,12 +228,18 @@ private struct SessionSidebar: View {
             byRecency: true)
     }
 
+    private var homeGroups: [ProjectSection] { groups.filter { $0.id == Self.homeSection } }
+    private var otherGroups: [ProjectSection] { groups.filter { $0.id != Self.homeSection } }
+    private static let homeSection = "project:home"
+
     private func asksFor(_ session: SessionFeed) -> Bool {
         asks.contains { $0.sessionId == session.id }
     }
 
     var body: some View {
         List(selection: $selection) {
+            // Home first: the session at ~ is the one every other starts from.
+            ForEach(homeGroups) { section in sectionView(section) }
             Section {
                 ForEach(PinnedProject.all) { project in
                     let live = PinnedProject.liveSessions(in: project.path, sessions: sessions).count
@@ -253,72 +259,7 @@ private struct SessionSidebar: View {
             } header: {
                 Text("Pinned").font(.ui(10)).fontWeight(.semibold).foregroundStyle(Color.label)
             }
-            ForEach(groups) { section in
-                Section {
-                    ForEach(section.items) { item in
-                        let session = item.session
-                        HStack(spacing: 6) {
-                            // The glyph, not a dot: a dot said which state only by
-                            // hue. Motion now says "working" and the row's spoken
-                            // label says the rest.
-                            if session.isWorking {
-                                TimelineView(.periodic(from: .now, by: 1 / Constants.spinnerFPS)) { context in
-                                    Text(Spinner.frame(at: context.date))
-                                        .font(.claudeMono(11)).foregroundStyle(tint(session))
-                                }
-                            } else {
-                                Text(Spinner.idle)
-                                    .font(.claudeMono(11)).foregroundStyle(tint(session))
-                            }
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(session.distinctName)
-                                    .font(.claudeMono(11)).lineLimit(1)
-                                // Under a project heading the project name is already
-                                // overhead; only the pinned section needs it spelled out.
-                                if section.id == "needs-you" {
-                                    Text(session.projectName)
-                                        .font(.claudeMono(10)).foregroundStyle(Color.label)
-                                        .lineLimit(1)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                            if asksFor(session) {
-                                Image(systemName: "questionmark.circle.fill")
-                                    .foregroundStyle(Color.attention)
-                            }
-                        }
-                        .help(session.statusLabel)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(rowLabel(session))
-                        .tag(session.id)
-                        // Not selectable: the detail pane shows root sessions, and a
-                        // subagent has no pane of its own to show.
-                        let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
-                        ForEach(split.live) { child in childRow(child) }
-                        // Finished ones as a count that opens out: six "done" rows
-                        // outweighed the session they belonged to.
-                        if !split.finished.isEmpty {
-                            let open = showFinished.contains(session.id)
-                            Button {
-                                if open { showFinished.remove(session.id) } else { showFinished.insert(session.id) }
-                            } label: {
-                                Label("\(split.finished.count) finished",
-                                      systemImage: open ? "chevron.down" : "chevron.right")
-                                    .font(.ui(10)).foregroundStyle(Color.label)
-                            }
-                            .buttonStyle(.borderless)
-                            .padding(.leading, 16)
-                            .selectionDisabled()
-                            if open {
-                                ForEach(split.finished) { child in childRow(child) }
-                            }
-                        }
-                    }
-                    if let file = tasks[section.id] { tasksRows(file) }
-                } header: {
-                    SectionHeader(section: section)
-                }
-            }
+            ForEach(otherGroups) { section in sectionView(section) }
         }
         .listStyle(.sidebar)
         // The card is the background; the list's own would sit on top of it.
@@ -339,6 +280,75 @@ private struct SessionSidebar: View {
                 }.value
                 try? await Task.sleep(for: .seconds(5))
             }
+        }
+    }
+
+    /// One project's heading and rows. Shared by the home group above Pinned and
+    /// the rest below it.
+    @ViewBuilder private func sectionView(_ section: ProjectSection) -> some View {
+        Section {
+            ForEach(section.items) { item in
+                let session = item.session
+                HStack(spacing: 6) {
+                    // The glyph, not a dot: a dot said which state only by
+                    // hue. Motion now says "working" and the row's spoken
+                    // label says the rest.
+                    if session.isWorking {
+                        TimelineView(.periodic(from: .now, by: 1 / Constants.spinnerFPS)) { context in
+                            Text(Spinner.frame(at: context.date))
+                                .font(.claudeMono(11)).foregroundStyle(tint(session))
+                        }
+                    } else {
+                        Text(Spinner.idle)
+                            .font(.claudeMono(11)).foregroundStyle(tint(session))
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(session.distinctName)
+                            .font(.claudeMono(11)).lineLimit(1)
+                        // Under a project heading the project name is already
+                        // overhead; only the pinned section needs it spelled out.
+                        if section.id == "needs-you" {
+                            Text(session.projectName)
+                                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    if asksFor(session) {
+                        Image(systemName: "questionmark.circle.fill")
+                            .foregroundStyle(Color.attention)
+                    }
+                }
+                .help(session.statusLabel)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(rowLabel(session))
+                .tag(session.id)
+                // Not selectable: the detail pane shows root sessions, and a
+                // subagent has no pane of its own to show.
+                let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
+                ForEach(split.live) { child in childRow(child) }
+                // Finished ones as a count that opens out: six "done" rows
+                // outweighed the session they belonged to.
+                if !split.finished.isEmpty {
+                    let open = showFinished.contains(session.id)
+                    Button {
+                        if open { showFinished.remove(session.id) } else { showFinished.insert(session.id) }
+                    } label: {
+                        Label("\(split.finished.count) finished",
+                              systemImage: open ? "chevron.down" : "chevron.right")
+                            .font(.ui(10)).foregroundStyle(Color.label)
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.leading, 16)
+                    .selectionDisabled()
+                    if open {
+                        ForEach(split.finished) { child in childRow(child) }
+                    }
+                }
+            }
+            if let file = tasks[section.id] { tasksRows(file) }
+        } header: {
+            SectionHeader(section: section)
         }
     }
 
@@ -629,11 +639,9 @@ private struct SessionDetail: View {
                         .detailCard()
                     }
                     .tileSpan(.max)
-                    // This session, then the account and this Mac, each on a row
-                    // of its own: the Usage card's five rings need the width.
-                    SessionStatsCard(session: session)
-                        .tileSpan(.max)
-                    usage
+                    // This session, the account and this Mac in one row of rings:
+                    // the card needs the full width.
+                    usage.including(session)
                         .tileSpan(.max)
                 }
 

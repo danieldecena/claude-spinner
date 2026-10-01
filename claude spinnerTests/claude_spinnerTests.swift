@@ -3050,6 +3050,21 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(SystemStats.cpuShare(from: ticks(100, 50, 400), to: ticks(90, 60, 460)))
     }
 
+    func testCPUSplitAddsUpToTheShareAndCountsNiceAsUser() {
+        // 30 user + 5 nice, 10 system, 55 idle, of 100 ticks.
+        let split = SystemStats.cpuSplit(from: ticks(100, 50, 400, 10), to: ticks(130, 60, 455, 15))!
+        XCTAssertEqual(split.user, 0.35, accuracy: 1e-9)
+        XCTAssertEqual(split.system, 0.10, accuracy: 1e-9)
+        let whole = SystemStats.cpuShare(from: ticks(100, 50, 400, 10), to: ticks(130, 60, 455, 15))!
+        XCTAssertEqual(split.user + split.system, whole, accuracy: 1e-9)
+    }
+
+    func testCPUSplitRefusesWhatTheShareRefuses() {
+        XCTAssertNil(SystemStats.cpuSplit(from: nil, to: ticks(1, 1, 1)))
+        XCTAssertNil(SystemStats.cpuSplit(from: ticks(5, 5, 5), to: ticks(5, 5, 5)))
+        XCTAssertNil(SystemStats.cpuSplit(from: ticks(100, 50, 400), to: ticks(90, 60, 460)))
+    }
+
     func testMemoryAndDiskSharesAreUnknownWhenUnread() {
         XCTAssertEqual(SystemStats.share(used: 8, of: 16)!, 0.5, accuracy: 1e-9)
         XCTAssertNil(SystemStats.share(used: nil, of: 16))

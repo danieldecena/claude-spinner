@@ -716,6 +716,18 @@ extension Color {
         static let chartBaseDark = (0.282, 0.282, 0.290)
         static let series1Light = (0.0, 0.522, 0.459)
         static let series1Dark = (0.0, 0.855, 0.765)
+        /// The parts of one ring, in fixed order: magenta, violet, aqua. Run through
+        /// the dataviz validator on 2026-10-01 against its default surfaces: all
+        /// checks pass in both modes on adjacent pairs. Light magenta and aqua sit
+        /// at 2.62 and 2.74:1, under the 3:1 a mark owes, so every segmented ring
+        /// prints a legend and is not in `marks`. Chosen off the status ramp, the
+        /// identity hues and the accent, which each already mean something.
+        static let segment1Light = (0.910, 0.482, 0.643)  // #E87BA4
+        static let segment1Dark = (0.835, 0.318, 0.506)   // #D55181
+        static let segment2Light = (0.290, 0.227, 0.655)  // #4A3AA7
+        static let segment2Dark = (0.565, 0.522, 0.914)   // #9085E9
+        static let segment3Light = (0.106, 0.686, 0.478)  // #1BAF7A
+        static let segment3Dark = (0.098, 0.620, 0.439)   // #199E70
         static let groundLight = (1.0, 1.0, 1.0)
         static let groundDark = (0.118, 0.122, 0.125)
         /// The panel's own light ground, a touch warmer than the white window.
@@ -813,6 +825,9 @@ extension Color {
     static let pane = dynamic(light: Ink.paneLight, dark: Ink.paneDark)
     static let chartBase = dynamic(light: Ink.chartBaseLight, dark: Ink.chartBaseDark)
     static let series1 = dynamic(light: Ink.series1Light, dark: Ink.series1Dark)
+    static let segment1 = dynamic(light: Ink.segment1Light, dark: Ink.segment1Dark)
+    static let segment2 = dynamic(light: Ink.segment2Light, dark: Ink.segment2Dark)
+    static let segment3 = dynamic(light: Ink.segment3Light, dark: Ink.segment3Dark)
     /// Quiet neutral ink for row labels; orange is left to `claude` alone.
     static let label = dynamic(light: Ink.labelLight, dark: Ink.labelDark)
     /// The accent as a translucent fill, for the tinted grounds behind a

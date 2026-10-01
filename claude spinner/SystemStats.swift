@@ -8,7 +8,14 @@ import Foundation
 /// zero -- the CPU share needs two samples, so it is nil until the second.
 final class SystemStats: ObservableObject {
     @Published private(set) var cpu: Double?
+    /// The two parts of `cpu`: user work (nice included) and the kernel's.
+    @Published private(set) var cpuUser: Double?
+    @Published private(set) var cpuSystem: Double?
     @Published private(set) var memory: Double?
+    /// The three parts of `memory`, each a share of physical memory.
+    @Published private(set) var memoryActive: Double?
+    @Published private(set) var memoryWired: Double?
+    @Published private(set) var memoryCompressed: Double?
     @Published private(set) var memoryUsedBytes: UInt64?
     @Published private(set) var disk: Double?
     @Published private(set) var diskFreeBytes: Int64?
@@ -41,11 +48,18 @@ final class SystemStats: ObservableObject {
     private func sample() {
         let ticks = Self.readCPUTicks()
         cpu = Self.cpuShare(from: lastTicks, to: ticks)
+        let split = Self.cpuSplit(from: lastTicks, to: ticks)
+        cpuUser = split?.user
+        cpuSystem = split?.system
         lastTicks = ticks
 
-        let used = Self.readMemoryUsed()
+        let parts = Self.readMemoryParts()
+        let used = parts.map { $0.active + $0.wired + $0.compressed }
         memoryUsedBytes = used
         memory = Self.share(used: used, of: memoryTotalBytes)
+        memoryActive = Self.share(used: parts?.active, of: memoryTotalBytes)
+        memoryWired = Self.share(used: parts?.wired, of: memoryTotalBytes)
+        memoryCompressed = Self.share(used: parts?.compressed, of: memoryTotalBytes)
 
         let volume = Self.readVolume()
         diskFreeBytes = volume?.free
@@ -64,6 +78,18 @@ final class SystemStats: ObservableObject {
             + Double(new.nice - old.nice)
         let total = busy + Double(new.idle - old.idle)
         return total > 0 ? busy / total : nil
+    }
+
+    /// `cpuShare` as its user and system parts, with the same refusals. Nice time
+    /// counts as user.
+    static func cpuSplit(from old: CPUTicks?, to new: CPUTicks?) -> (user: Double, system: Double)? {
+        guard let old, let new,
+              new.user >= old.user, new.system >= old.system,
+              new.idle >= old.idle, new.nice >= old.nice else { return nil }
+        let user = Double(new.user - old.user) + Double(new.nice - old.nice)
+        let system = Double(new.system - old.system)
+        let total = user + system + Double(new.idle - old.idle)
+        return total > 0 ? (user / total, system / total) : nil
     }
 
     static func share(used: UInt64?, of total: UInt64) -> Double? {
@@ -93,9 +119,9 @@ final class SystemStats: ObservableObject {
                         idle: info.cpu_ticks.2, nice: info.cpu_ticks.3)
     }
 
-    /// Active + wired + compressed pages: what Activity Monitor's "Memory Used"
-    /// counts, leaving cached files out.
-    private static func readMemoryUsed() -> UInt64? {
+    /// Active, wired and compressed pages in bytes: what Activity Monitor's
+    /// "Memory Used" adds up, leaving cached files out.
+    private static func readMemoryParts() -> (active: UInt64, wired: UInt64, compressed: UInt64)? {
         var info = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size
             / MemoryLayout<integer_t>.size)
@@ -105,9 +131,9 @@ final class SystemStats: ObservableObject {
             }
         }
         guard status == KERN_SUCCESS else { return nil }
-        let pages = UInt64(info.active_count) + UInt64(info.wire_count)
-            + UInt64(info.compressor_page_count)
-        return pages * UInt64(getpagesize())
+        let page = UInt64(getpagesize())
+        return (UInt64(info.active_count) * page, UInt64(info.wire_count) * page,
+                UInt64(info.compressor_page_count) * page)
     }
 
     private static func readVolume() -> (total: Int64, free: Int64)? {

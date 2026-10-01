@@ -4,10 +4,15 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
-- [ ] See the new Usage card on screen and design-review it
+- [ ] Watch home sit above Pinned once a home session is live
+- [ ] Improve spinner speed and performance
 
 ## Completed
 
+- [x] See the new Usage card on screen: seen 2026-10-01, text 6.51:1 on card
+- [x] Fit every ring into the one Usage card
+- [x] Split the CPU and memory rings into coloured parts with a hover key
+- [x] Move ring detail text into a hover popover
 - [x] Add a SystemStats sampler for CPU, memory and disk -- 08e439b
 - [x] Put every Usage ring in one wide horizontal card -- 08e439b
 - [x] Give the Session and Usage cards a full-width row each -- 08e439b

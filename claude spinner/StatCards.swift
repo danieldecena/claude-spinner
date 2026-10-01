@@ -1,7 +1,7 @@
 import SwiftUI
 
-// The detail pane's two stat cards: this session, and the account's limits
-// beside this Mac's own load.
+// The detail pane's stat card: this session's rings, the account's limits and
+// this Mac's own load, in one row.
 //
 // Ratios are rings and history is columns, never a horizontal bar or line: a
 // ring reads "how full" at a glance whatever the card's width, and a column
@@ -10,23 +10,46 @@ import SwiftUI
 
 // MARK: - Marks
 
+/// One named part of a ring. `share` is of the whole circle, not of the fill.
+struct RingSegment: Identifiable {
+    let label: String
+    let share: Double
+    let color: Color
+    var id: String { label }
+}
+
 /// A share of a whole as a ring, with its reading in the middle. `pace` puts a
 /// tick where the limit window's clock stands, so fill past the tick means
 /// burning faster than the window refills. A nil ratio is an unknown, drawn as
-/// an empty track and never as zero.
+/// an empty track and never as zero. `segments` replace the single arc with its
+/// parts, laid end to end from the top with a gap between them, so `ratio` is
+/// still the whole fill and `tint` is unused.
 struct Ring: View {
     let ratio: Double?
     let tint: Color
     var pace: Double?
+    var segments: [RingSegment] = []
     let value: String
 
     private let line: CGFloat = 5
+    /// 2pt on the 47pt-diameter circle's 148pt circumference.
+    private let gap = 2.0 / 148
 
     var body: some View {
         let share = min(1, max(0, ratio ?? 0))
         ZStack {
             Circle().stroke(Color.secondary.opacity(0.22), lineWidth: line)
-            if ratio != nil {
+            if ratio != nil, !segments.isEmpty {
+                ForEach(Array(segments.enumerated()), id: \.element.id) { index, part in
+                    let start = segments[..<index].reduce(0) { $0 + $1.share }
+                    let end = start + part.share
+                    if part.share > gap {
+                        Circle().trim(from: start + gap / 2, to: end - gap / 2)
+                            .stroke(part.color, style: StrokeStyle(lineWidth: line))
+                            .rotationEffect(.degrees(-90))
+                    }
+                }
+            } else if ratio != nil {
                 // A sliver for a tiny non-zero share, so a fresh session does not
                 // read as an empty ring.
                 Circle().trim(from: 0, to: share > 0 ? max(0.012, share) : 0)
@@ -58,10 +81,13 @@ struct RingMetric: View {
     let ratio: Double?
     let tint: Color
     var pace: Double?
+    var segments: [RingSegment] = []
     var detail: String?
     /// The value as a figure in the ring's slot, with no ring: for a number that
     /// is not a share of anything. A ring around "$30" reads as a dollar gauge.
     var plain = false
+
+    @State private var hovering = false
 
     var body: some View {
         VStack(spacing: 3) {
@@ -70,66 +96,78 @@ struct RingMetric: View {
                     .lineLimit(1).minimumScaleFactor(0.6)
                     .frame(width: 72, height: 56)
             } else {
-                Ring(ratio: ratio, tint: tint, pace: pace, value: value)
+                Ring(ratio: ratio, tint: tint, pace: pace, segments: segments, value: value)
             }
             Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-            if let detail {
-                Text(detail).font(.ui(10)).foregroundStyle(Color.label)
-                    .multilineTextAlignment(.center).lineLimit(2)
-            }
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 && (detail != nil || !segments.isEmpty) }
+        .popover(isPresented: $hovering, arrowEdge: .top) { info }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(caption)
+        .accessibilityValue(detail?.replacingOccurrences(of: "\n", with: ", ") ?? "")
+    }
+
+    /// What used to sit under the ring: its detail lines, then each part with its
+    /// share. Swatch beside the words, which stay in label ink.
+    private var info: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(caption).font(.ui(9)).fontWeight(.semibold)
+                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+            if let detail {
+                Text(detail).font(.ui(11)).fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(segments) { part in
+                HStack(spacing: 6) {
+                    Circle().fill(part.color).frame(width: 7, height: 7)
+                    Text(part.label).font(.ui(11))
+                    Spacer(minLength: 8)
+                    Text("\(Int((part.share * 100).rounded()))%").font(.figure(11))
+                }
+            }
+        }
+        .padding(10)
+        .frame(minWidth: 140, alignment: .leading)
     }
 }
 
 // MARK: - This session
 
-/// Cost, prompt cache, context and the session's own facts as one card: three
-/// rings for the three shares, two column charts for how the two that grow have
-/// grown, and a line of the rest.
-struct SessionStatsCard: View {
+/// Context, prompt cache and cost for one session: two rings for the shares and
+/// a figure for the spend. Unframed, for the Usage card's row.
+struct SessionRings: View {
     let session: SessionFeed
+
+    /// A session that has reported none of the three draws nothing, and the card
+    /// leaves out the divider that would have followed it.
+    var isEmpty: Bool {
+        let st = session.stats
+        let hasContext = (st.contextWindowSize ?? 0) > 0 && session.contextTokens != nil
+        return !hasContext && st.cacheHitRatio == nil && st.costUSD == nil
+    }
 
     var body: some View {
         let st = session.stats
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CardTitle("This session")
-                Spacer(minLength: 4)
-                Text(statusLabel).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+        HStack(alignment: .top, spacing: 8) {
+            if let window = st.contextWindowSize, window > 0, let tokens = session.contextTokens {
+                let share = min(1, Double(tokens) / Double(window))
+                RingMetric(caption: "context",
+                           value: st.contextUsedPercent.map { "\($0)%" } ?? "\(Int((share * 100).rounded()))%",
+                           // Tinted by the share the arc draws, not by the token
+                           // count: a red ring half full said two things at once.
+                           ratio: share, tint: .contextTint(tokens: tokens, window: window),
+                           detail: "\(StatFormat.compactCount(tokens)) of \(StatFormat.compactCount(window))")
             }
-            HStack(alignment: .top, spacing: 8) {
-                if let window = st.contextWindowSize, window > 0, let tokens = session.contextTokens {
-                    let share = min(1, Double(tokens) / Double(window))
-                    RingMetric(caption: "context",
-                               value: st.contextUsedPercent.map { "\($0)%" } ?? "\(Int((share * 100).rounded()))%",
-                               // Tinted by the share the arc draws, not by the token
-                               // count: a red ring half full said two things at once.
-                               ratio: share, tint: .contextTint(tokens: tokens, window: window),
-                               detail: "\(StatFormat.compactCount(tokens)) of \(StatFormat.compactCount(window))")
-                }
-                if let hit = st.cacheHitRatio {
-                    RingMetric(caption: "cache", value: "\(Int((min(1, max(0, hit)) * 100).rounded()))%",
-                               ratio: hit, tint: .series1, detail: cacheDetail)
-                }
-                if let cost = st.costUSD {
-                    RingMetric(caption: "spend", value: StatFormat.money(cost),
-                               ratio: nil, tint: .label, detail: costDetail, plain: true)
-                }
+            if let hit = st.cacheHitRatio {
+                RingMetric(caption: "cache", value: "\(Int((min(1, max(0, hit)) * 100).rounded()))%",
+                           ratio: hit, tint: .series1, detail: cacheDetail)
             }
-        }
-        .detailCard()
-    }
-
-    private var statusLabel: String {
-        switch session.status {
-        case .idle: return "idle"
-        case .thinking: return "thinking"
-        case .tool: return session.tool.isEmpty ? "running a tool" : "running \(session.tool)"
-        case .attention: return "needs input"
+            if let cost = st.costUSD {
+                RingMetric(caption: "spend", value: StatFormat.money(cost),
+                           ratio: nil, tint: .label, detail: costDetail, plain: true)
+            }
         }
     }
 
@@ -171,9 +209,9 @@ struct SessionStatsCard: View {
 
 // MARK: - Usage
 
-/// Totals across every session, as a card in the detail pane beside this
-/// session's. The two limit windows lead, as rings with the window's clock
-/// ticked on them; the totals and the history follow.
+/// The detail pane's one card of rings: the selected session's, then the
+/// account's two limit windows with the window's clock ticked on them, then this
+/// Mac's load. Dividers mark the three groups.
 struct OverviewStrip: View {
     /// The menu bar's own resolution (poll, then a live session, then the
     /// persisted snapshot), not the live feeds alone -- read from the feeds, the
@@ -186,8 +224,16 @@ struct OverviewStrip: View {
     let sevenDayElapsed: Double?
     let fiveHourReset: String?
     let sevenDayReset: String?
+    /// The selected session, whose rings lead the row. Nil outside a session.
+    var session: SessionFeed?
 
     @StateObject private var system = SystemStats()
+
+    func including(_ session: SessionFeed) -> OverviewStrip {
+        var copy = self
+        copy.session = session
+        return copy
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -198,6 +244,10 @@ struct OverviewStrip: View {
             // is a proxy for burn and is never charged. This Mac's own load
             // follows them in the same row.
             HStack(alignment: .top, spacing: 8) {
+                if let session, !SessionRings(session: session).isEmpty {
+                    SessionRings(session: session)
+                    Divider().frame(height: 80)
+                }
                 HStack(alignment: .top, spacing: 8) {
                     limit("5h window", pct: fiveHour, elapsed: fiveHourElapsed, reset: fiveHourReset)
                     limit("7d window", pct: sevenDay, elapsed: sevenDayElapsed, reset: sevenDayReset)
@@ -207,8 +257,14 @@ struct OverviewStrip: View {
 
                 Divider().frame(height: 80)
 
-                machine("cpu", share: system.cpu, detail: "all cores")
+                machine("cpu", share: system.cpu,
+                        segments: parts([("user", system.cpuUser, .segment1),
+                                         ("system", system.cpuSystem, .segment2)]),
+                        detail: "all cores")
                 machine("memory", share: system.memory,
+                        segments: parts([("active", system.memoryActive, .segment1),
+                                         ("wired", system.memoryWired, .segment2),
+                                         ("compressed", system.memoryCompressed, .segment3)]),
                         detail: system.memoryUsedBytes.map {
                             "\(StatFormat.gigabytes($0)) of \(StatFormat.gigabytes(system.memoryTotalBytes))"
                         })
@@ -223,13 +279,22 @@ struct OverviewStrip: View {
         .onDisappear { system.stop() }
     }
 
+    /// The parts of a reading, or none when any part could not be read: a ring
+    /// whose parts do not add up to its fill would be a wrong picture.
+    private func parts(_ named: [(String, Double?, Color)]) -> [RingSegment] {
+        let known = named.compactMap { n in n.1.map { RingSegment(label: n.0, share: $0, color: n.2) } }
+        return known.count == named.count ? known : []
+    }
+
     /// One reading of this Mac. Unknown is an empty ring and a dash, as for the
     /// limit windows.
-    private func machine(_ name: String, share: Double?, detail: String?) -> some View {
+    private func machine(_ name: String, share: Double?, segments: [RingSegment] = [],
+                         detail: String?) -> some View {
         RingMetric(caption: name,
                    value: share.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
                    ratio: share,
                    tint: share.map { Color.usageTint(Int(($0 * 100).rounded())) } ?? .label,
+                   segments: share == nil ? [] : segments,
                    detail: share == nil ? "no reading yet" : detail)
     }
 
