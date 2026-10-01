@@ -4,9 +4,11 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
+- [ ] Watch the Graph card reload across a two-repo session switch
 
 ## Completed
 
+- [x] Fill the Home pane so it uses the window -- 867d5ca
 - [x] Watch home sit above Pinned once a home session is live -- seen 12:03, 76461ca
 - [x] Add a Graph card to the session pane -- 88c1cc5
 - [x] Drop the dollar figures (Max plan) -- 88c1cc5

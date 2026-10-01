@@ -1001,3 +1001,63 @@ directly -- so it was created rather than assumed.
   compiles both ways. (The first run of that check compiled an empty file and
   passed everything: the snippet lacked `import Foundation`.)
 - Full suite 249/0, run beside the live app.
+
+### 2026-09-29 (chip confirmation observed; idle git actions hidden)
+- Decided: the Git commands grid now honours `GitActions.Block.settled`
+  (hide a finished "nothing to do", keep unsettled ones greyed), and git
+  skills with an idle reason hide too, with one line when nothing is left.
+  A clean pushed main read as a dead card. `569804c`, observed on screen.
+- Observed: compact chip on a throwaway tmux session. Dialog opens, Cancel
+  sends nothing, Compact delivers (the test session's transcript has `/compact`
+  at 06:50:34Z and nothing during the Cancel). Counting `❯ /compact` lines in
+  `capture-pane` is not a delivery check: Claude Code redraws and the count
+  stayed 1 across two real sends. Read the transcript instead.
+
+### 2026-09-29 (/compact and /clear chips in the Skills card)
+- Decided: both were reachable only as toolbar icons; the Skills card now
+  carries them after `wrap-up`. `SkillShortcut.sessionAction` maps a chip to
+  the toolbar action typing the same text, so the chips reuse its symbol and
+  its confirmation rather than restating either. `5fca153`.
+- Observed: 292 tests pass, including `testDestructiveShortcutsConfirm`. The
+  window captured by id at 20:35 shows both chips, greyed because the session
+  was mid-turn. Not observed: the dialog itself, since clicking needs an idle
+  real session and a slip clears it.
+
+### 2026-09-29 (todo bar fed from TaskCreate lists; sidebar toggle observed)
+- Found: the todo bar could never draw on a Claude Code build that has
+  TaskCreate/TaskUpdate instead of TodoWrite. `emit.sh` only counted
+  `.tool_input.todos` on a TodoWrite PostToolUse, and TaskCreate carries one
+  task, not the list.
+- Decided: read `~/.claude/tasks/<session_id>/*.json` (one file per task, with
+  `status`) on every root event, after the TodoWrite branch. Every event, not just
+  after a task tool, because that list outlives a turn and the per-prompt
+  reset would otherwise blank the bar until the next task call. Root only:
+  subagents share the parent's session id and would inherit its list. One jq
+  call, assigned only on success, so a file caught mid-write keeps the
+  carried-over counts (shell-reviewer finding).
+- Observed, script: against a scratch HOME -- tasks 3/1, no dir null, empty
+  dir null, subagent null, TodoWrite 2/1, half-written file keeps 3/1 with
+  empty stderr. Live: this session's state file read `3/2` at 20:31:04,
+  matching its task panel.
+- Observed, screen: Session card `todos 2/3` with the green "todos done" bar
+  (20:31:10); sidebar hidden in that frame, shown after a click on the toggle
+  (20:31:26, System Events named the hit as button 1 of the app's window).
+
+### 2026-09-29 (spend history and the Cost trend chart)
+- Decided: spend gets its own per-session series (`spendHistory`,
+  `SpendSample`) beside `contextHistory`, recorded on the same rescan with the
+  same rules: unchanged total appends nothing, a change inside the 15s gap
+  rewrites the last point, 240-point cap, dropped with the session.
+- Decided: the chart's y-axis runs 0 to the session's own peak. Unlike context
+  there is no window to be a share of, so any fixed ceiling would be invented;
+  the floor stays at 0 so a small rise draws small. The peak is printed at the
+  top because the axis differs per session.
+- Observed: recording, not rendering. `spendHistory` in the app's defaults held
+  two samples for this session ($1.061 -> $1.109, 35s apart) within 40s of
+  relaunch. The chart itself is unobserved: `screencapture -l` of the window
+  returned a blank frame twice (window parked on another Space).
+- Observed: the chart, 20:29:40, once the window was on the current Space.
+  Cost card for this session: `$1.77` peak label top-left, the orange line
+  climbing with its fill from `3m ago` to `2s ago`, starting about 60% up the
+  box as $1.06 of $1.77 should. `screencapture -l` of an off-Space window
+  returns a blank frame with exit 0, not an error.

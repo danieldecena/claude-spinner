@@ -3,12 +3,18 @@
 ## Confirmed working
 
 - The window detail pane carries the whole statusLine payload, not the eight
-  fields the app used to decode: spend (labelled api-equivalent, since nothing
-  here is billed on a Max plan), wall vs API time, lines changed, context and
+  fields the app used to decode: wall vs API time, lines changed, context and
   window size, prompt-cache hit ratio and warmth, effort, thinking, model id,
-  Claude Code version and repo. An overview strip totals them and leads with the
-  5h/7d rate-limit windows, which are the only numbers that can actually stop a
-  Max session.
+  Claude Code version and repo. No dollar figures anywhere (2026-10-01): nothing
+  is billed on a Max plan, and the api-equivalent number read as though it were.
+  One Usage card holds every ring -- the session's context and cache, the 5h/7d
+  rate-limit windows, and this Mac's CPU, memory and disk -- with each ring's
+  detail and its colour key on hover. CPU and memory draw their parts.
+- The window opens on a Home tab: the Usage rings, every session as a row
+  (status, context, wall time, click to open) and the open TASKS.md items per
+  project. A session's own pane also carries a Graph card for any repo with a
+  `graphify-out/graph.json`: its size and a bar per community. A checkered flag
+  marks any session on a timed `/goal` run. All observed on screen 2026-10-01.
 - `TranscriptReader` shows what a session is *doing* — the last thing Claude
   said, what you last asked, and what it just ran — read from the last 256KB of
   its own transcript. Observed on screen 2026-09-04 against a live 4.7MB file.
@@ -140,10 +146,15 @@
 
 ## Next Up
 
-1. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
+1. [code] Watch the Graph card reload when the selection moves between two repos
+   that both have a graph. The `looked` guard that blocked it is gone and the
+   parser is tested, but the switch itself is unobserved: the sidebar reorders by
+   recency, so scripted clicks by coordinate kept landing on Home. Select by
+   keyboard, or key the capture off the row's text rather than its position.
+2. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
    buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
    unseen. Driving it by coordinates failed, see the 09:23 log entry.
-2. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
+3. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
    required check. Tried 2026-09-30: the switch only fires from the selected session's
    Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
    at once into a public main.
@@ -186,6 +197,41 @@ The rest is in `TASKS.md`.
   to open), and the open TASKS.md items per project. `HomeTab.tag` is a third
   kind of selection beside a session id and a pinned tag, and resolves to no
   session so the dashboard never sits on top of a session's probes.
+
+- Decided: a checkered flag marks a session on a timed `/goal` run, at the
+  trailing edge of the sidebar row and of the dashboard row. `GoalWatcher` reads
+  every pane's deadline file on a 20s pass, coarser than the detail chip's own
+  clock, because a row only says whether there is a run. A stale file from a
+  killed run still shows a flag: the file is the only signal, and `staleAfter`
+  (24h) is the whole guard.
+- Decided: the sidebar uses `.listStyle(.plain)`. `listRowInsets`,
+  `defaultMinListRowHeight` and `controlSize(.small)` were each tried first and
+  each changed nothing measurable -- captures either side of all three put every
+  row at the same y. Row pitch went 50pt -> 36pt, which is what fits four
+  projects and their task lists without scrolling.
+- Decided: no dollar figures anywhere. Nothing is charged on a Max plan, and an
+  api-equivalent figure printed beside real numbers read as if it were. The
+  session's SPEND tile is now TIME (wall clock, api share on hover), the Home
+  dashboard's last column follows, and the menu bar's today/week totals are
+  tokens alone. `costUSD` is still parsed; nothing draws it.
+- Decided: the session pane carries a Graph card for any repo with a
+  `graphify-out/graph.json`: size, and a bar per community, largest first. Not a
+  node-link drawing -- 2,099 nodes in a 300pt card is a hairball, and the size
+  and the clustering are what a drawing would be read for. One hue across the
+  bars, since these are names rather than magnitudes of one thing. It says when
+  the graph was built at a different commit than HEAD and never says it is
+  current: the file records a commit, and matching it does not mean the working
+  tree has not moved.
+- Observed, a bug of this session's own making: the Graph card had a `looked`
+  guard against re-reading when the summary arrived and swapped the card's whole
+  body (which changed view identity and re-ran the task). The guard also blocked
+  the read for the *next* session's repo. One `Group` with the condition inside
+  keeps identity stable, so the guard went, and `load` clears the summary first.
+  Not seen on screen: the reload across a session switch -- the sidebar reorders
+  by recency and scripted clicks kept landing on Home.
+- Decided: the Home pane's two list cards share the leftover height; Usage keeps
+  its natural height, since its rings are fixed and it was holding the space
+  under them blank. Five open titles per project rather than three.
 
 ### 2026-09-30 (Job Search tab review)
 - Decided: fixed seven review findings. Layout: rail/Running-now names get layout
@@ -498,64 +544,3 @@ The rest is in `TASKS.md`.
   nothing fits the card says "No skill needed right now." Observed both the
   caption (working session) and the wrap-up outline (osmo, idle 11m). `4bb1971`.
   Git skill chips also hide with no snapshot (non-repo). `c69294e`.
-
-### 2026-09-29 (chip confirmation observed; idle git actions hidden)
-- Decided: the Git commands grid now honours `GitActions.Block.settled`
-  (hide a finished "nothing to do", keep unsettled ones greyed), and git
-  skills with an idle reason hide too, with one line when nothing is left.
-  A clean pushed main read as a dead card. `569804c`, observed on screen.
-- Observed: compact chip on a throwaway tmux session. Dialog opens, Cancel
-  sends nothing, Compact delivers (the test session's transcript has `/compact`
-  at 06:50:34Z and nothing during the Cancel). Counting `❯ /compact` lines in
-  `capture-pane` is not a delivery check: Claude Code redraws and the count
-  stayed 1 across two real sends. Read the transcript instead.
-
-### 2026-09-29 (/compact and /clear chips in the Skills card)
-- Decided: both were reachable only as toolbar icons; the Skills card now
-  carries them after `wrap-up`. `SkillShortcut.sessionAction` maps a chip to
-  the toolbar action typing the same text, so the chips reuse its symbol and
-  its confirmation rather than restating either. `5fca153`.
-- Observed: 292 tests pass, including `testDestructiveShortcutsConfirm`. The
-  window captured by id at 20:35 shows both chips, greyed because the session
-  was mid-turn. Not observed: the dialog itself, since clicking needs an idle
-  real session and a slip clears it.
-
-### 2026-09-29 (todo bar fed from TaskCreate lists; sidebar toggle observed)
-- Found: the todo bar could never draw on a Claude Code build that has
-  TaskCreate/TaskUpdate instead of TodoWrite. `emit.sh` only counted
-  `.tool_input.todos` on a TodoWrite PostToolUse, and TaskCreate carries one
-  task, not the list.
-- Decided: read `~/.claude/tasks/<session_id>/*.json` (one file per task, with
-  `status`) on every root event, after the TodoWrite branch. Every event, not just
-  after a task tool, because that list outlives a turn and the per-prompt
-  reset would otherwise blank the bar until the next task call. Root only:
-  subagents share the parent's session id and would inherit its list. One jq
-  call, assigned only on success, so a file caught mid-write keeps the
-  carried-over counts (shell-reviewer finding).
-- Observed, script: against a scratch HOME -- tasks 3/1, no dir null, empty
-  dir null, subagent null, TodoWrite 2/1, half-written file keeps 3/1 with
-  empty stderr. Live: this session's state file read `3/2` at 20:31:04,
-  matching its task panel.
-- Observed, screen: Session card `todos 2/3` with the green "todos done" bar
-  (20:31:10); sidebar hidden in that frame, shown after a click on the toggle
-  (20:31:26, System Events named the hit as button 1 of the app's window).
-
-### 2026-09-29 (spend history and the Cost trend chart)
-- Decided: spend gets its own per-session series (`spendHistory`,
-  `SpendSample`) beside `contextHistory`, recorded on the same rescan with the
-  same rules: unchanged total appends nothing, a change inside the 15s gap
-  rewrites the last point, 240-point cap, dropped with the session.
-- Decided: the chart's y-axis runs 0 to the session's own peak. Unlike context
-  there is no window to be a share of, so any fixed ceiling would be invented;
-  the floor stays at 0 so a small rise draws small. The peak is printed at the
-  top because the axis differs per session.
-- Observed: recording, not rendering. `spendHistory` in the app's defaults held
-  two samples for this session ($1.061 -> $1.109, 35s apart) within 40s of
-  relaunch. The chart itself is unobserved: `screencapture -l` of the window
-  returned a blank frame twice (window parked on another Space).
-- Observed: the chart, 20:29:40, once the window was on the current Space.
-  Cost card for this session: `$1.77` peak label top-left, the orange line
-  climbing with its fill from `3m ago` to `2s ago`, starting about 60% up the
-  box as $1.06 of $1.77 should. `screencapture -l` of an off-Space window
-  returns a blank frame with exit 0, not an error.
-
