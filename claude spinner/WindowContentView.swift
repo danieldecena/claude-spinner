@@ -226,7 +226,8 @@ struct WindowContentView: View {
                               tasks: tasks, goals: goals.goals) { selection = $0 }
             } else if let project = PinnedProject.project(forTag: selection) {
                 PinnedProjectDetail(project: project, sessions: roots,
-                                    asks: asks.pending) { selection = $0 }
+                                    asks: asks.pending, feedDir: feed.feedDirectory,
+                                    notice: $actionNotice) { selection = $0 }
                     .id(project.id)
             } else if let session = selected {
                 SessionDetail(session: session,
@@ -1321,7 +1322,7 @@ struct ContextMeter: View {
 ///
 /// Everything said to and by the session in one card: the last exchange, a
 /// field to answer it, and the model and effort the next turn runs on.
-private struct ConversationCard: View {
+struct ConversationCard: View {
     let session: SessionFeed
     let feedDir: URL
     /// Shared with the toolbar: a reply and a session action report in one place.

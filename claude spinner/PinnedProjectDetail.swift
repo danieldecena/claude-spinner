@@ -10,6 +10,10 @@ struct PinnedProjectDetail: View {
     let sessions: [SessionFeed]
     /// Every pending question, filtered here to this project's own sessions.
     let asks: [AskRequest]
+    /// Where the feed files live, for the reply field to write into.
+    let feedDir: URL
+    /// Shared with the window: a reply and a session action report in one place.
+    @Binding var notice: NoticeMessage?
     /// Selects a live session's row.
     let select: (String) -> Void
 
@@ -75,11 +79,12 @@ struct PinnedProjectDetail: View {
                     launchCard.tileSpan(1)
                     // Beside Start, because it is the same question answered in
                     // order: what you run here, and in which order you run it.
-                    if !project.workflow.isEmpty || !pending.isEmpty { workflowCard.tileSpan(2) }
+                    if !project.workflow.isEmpty { workflowCard.tileSpan(2) }
+                    // Full width, directly under them: it carries a conversation
+                    // and a reply field now, not a name and a word.
+                    if !live.isEmpty { liveCard.tileSpan(3) }
                     tasksCard.tileSpan(2)
                     recentCard.tileSpan(2)
-                    // Beside the two-wide recent card, so the row has no hole.
-                    if !live.isEmpty { liveCard.tileSpan(1) }
                     if let extras {
                         discoveryCard("Skills", extras.skills) { skills in
                             chips(skills) { skill in
@@ -309,31 +314,11 @@ struct PinnedProjectDetail: View {
         }
     }
 
-    /// The project's routine, and above it whatever its sessions are waiting on.
-    ///
-    /// The questions are the point: a run parked on "fill or skip?" is answered
-    /// here, with the same full labels and descriptions the session's own pane
-    /// gives, instead of switching to the terminal the run happens to be in.
+    /// The project's routine, in the order it is worked. The questions a run is
+    /// waiting on live in the Running now card, beside the run that asked them.
     private var workflowCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CardTitle("Workflow")
-                Spacer(minLength: 4)
-                if !pending.isEmpty {
-                    Text(pending.count == 1 ? "1 waiting on you" : "\(pending.count) waiting on you")
-                        .font(.ui(10)).foregroundStyle(Color.attention)
-                }
-            }
-            ForEach(pending, id: \.req) { ask in
-                VStack(alignment: .leading, spacing: 4) {
-                    if let name = live.first(where: { $0.id == ask.sessionId })?.distinctName {
-                        Button(name) { select(ask.sessionId) }
-                            .buttonStyle(.link).font(.claudeMono(10))
-                            .help("Open this session")
-                    }
-                    AskCard(ask: ask)
-                }
-            }
+            CardTitle("Workflow")
             ForEach(project.workflow) { step in self.step(step) }
             Spacer(minLength: 0)
         }
@@ -373,40 +358,55 @@ struct PinnedProjectDetail: View {
         return argument.isEmpty ? step.command : step.command + " " + argument
     }
 
+    /// What the project's runs are actually doing, in full: the status line, the
+    /// last exchange, whatever question is waiting, and a field to answer in.
+    ///
+    /// The pinned pane used to say only a name and a word here, which told you
+    /// to go and look somewhere else. Everything below is the same view the
+    /// session's own pane draws, so there is nothing to go and look at.
     private var liveCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            CardTitle("Running now")
-            // A name and a word was all this said, in a card as tall as the two
-            // beside it. The second line is what you would click through for:
-            // whether it is moving, how full its context is, how long it has run.
-            ForEach(live) { session in
-                Button { select(session.id) } label: {
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 6) {
-                            Text(session.isWorking ? Spinner.frame(at: Date()) : Spinner.idle)
-                                .font(.claudeMono(11)).frame(width: 14)
-                                .foregroundStyle(session.isBlockedOnYou ? Color.attention
-                                                    : session.isWorking ? Color.claude : Color.secondary)
-                            Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
-                            Spacer(minLength: 4)
-                            Text(session.statusLabel).font(.ui(10)).lineLimit(1)
-                                .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
-                        }
-                        let detail = liveDetail(session)
-                        if !detail.isEmpty {
-                            Text(detail).font(.ui(10)).foregroundStyle(Color.label)
-                                .lineLimit(1).padding(.leading, 20)
-                        }
-                    }
-                    .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                CardTitle("Running now")
+                Spacer(minLength: 4)
+                if !pending.isEmpty {
+                    Text(pending.count == 1 ? "1 waiting on you" : "\(pending.count) waiting on you")
+                        .font(.ui(10)).foregroundStyle(Color.attention)
                 }
-                .buttonStyle(.plain)
-                .help("Open this session")
+            }
+            ForEach(live) { session in
+                VStack(alignment: .leading, spacing: 8) {
+                    Button { select(session.id) } label: { liveHeader(session) }
+                        .buttonStyle(.plain)
+                        .help("Open this session's own pane")
+                    // The question boxes, with their real options: a run parked
+                    // on "fill or skip?" is answered here rather than in
+                    // whichever terminal it happens to be in.
+                    ForEach(pending.filter { $0.sessionId == session.id }, id: \.req) { ask in
+                        AskCard(ask: ask)
+                    }
+                    ConversationCard(session: session, feedDir: feedDir, notice: $notice)
+                }
             }
             Spacer(minLength: 0)
         }
         .detailCard()
         .frame(maxHeight: .infinity)
+    }
+
+    private func liveHeader(_ session: SessionFeed) -> some View {
+        HStack(spacing: 6) {
+            Text(session.isWorking ? Spinner.frame(at: Date()) : Spinner.idle)
+                .font(.claudeMono(11)).frame(width: 14)
+                .foregroundStyle(session.isBlockedOnYou ? Color.attention
+                                    : session.isWorking ? Color.claude : Color.secondary)
+            Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
+            Text(session.statusLabel).font(.ui(10)).lineLimit(1)
+                .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
+            Spacer(minLength: 4)
+            Text(liveDetail(session)).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+        }
+        .contentShape(Rectangle())
     }
 
     /// Context and elapsed time for a running session, each left out when the
