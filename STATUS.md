@@ -165,6 +165,24 @@ The rest is in `TASKS.md`.
 
 ### 2026-10-01
 
+- Found: the dense sidebar rows stopped selecting anywhere but their text. The
+  switch from `.listStyle(.sidebar)` to `.plain` is what did it: sidebar style
+  paints a full-width selection target, plain hit-tests the row's own content,
+  and a row is mostly the `Spacer` between its name and its marks. `denseRow()`
+  now carries `.contentShape(Rectangle())`. Do not drop it when touching the
+  row metrics again.
+- Decided: a limit ring's hover says the clock before the verdict. "Ahead of
+  pace" was the warning case but read as good news on a ring already drawn red;
+  it now reads "61% of the window has passed, spending faster than that".
+- Decided: a session whose transcript could not be read collapses to one
+  "conversation / not recorded" line. The height it used to reserve is the
+  pane's own fill, which hands leftover window height to the top row on
+  purpose, so a session with no transcript and no repo still shows a tall card.
+- Found: `TileGrid` answered `sizeThatFits` with its content height whatever
+  was proposed, so a flexible frame around it centred a short grid instead of
+  stretching it. It now takes a proposed height when one is given; inside a
+  scroll view the proposal is nil, so session panes are unchanged. Unobserved
+  on screen.
 - Decided: one card of rings, not two. The session's context, cache and spend
   join the account limits and this Mac's load in the Usage card, divided into
   three groups. A session that has reported none of the three draws nothing and
