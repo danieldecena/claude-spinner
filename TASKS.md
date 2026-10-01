@@ -4,9 +4,14 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
+- [ ] See the new Usage card on screen and design-review it
 
 ## Completed
 
+- [x] Add a SystemStats sampler for CPU, memory and disk -- 08e439b
+- [x] Put every Usage ring in one wide horizontal card -- 08e439b
+- [x] Give the Session and Usage cards a full-width row each -- 08e439b
+- [x] Test SystemStats math and the wide card layout -- 08e439b
 - [x] See the Career Hub card title whole in the Job Search tab -- 3d61817
 - [x] Fix the Job Search tab review findings (7)
 - [x] See the tidied Job Search rail after the next relaunch
@@ -279,7 +284,7 @@
 
 <!-- resume-footer -->
 ---
-Plan approved 2026-09-30 07:40.
+Plan approved 2026-10-01 11:34.
 
 Sessions start in "plan" (permissions.defaultMode in
 ~/.claude/settings.json). Bypass is reachable in the Shift+Tab cycle only
@@ -288,7 +293,7 @@ when launched via `cb` (--allow-dangerously-skip-permissions); `yolo`
 
 Only if Claude Code actually closed:
 
-    claude --resume 184766ef-95a1-4698-89d9-ad88706268b4
+    claude --resume 929b495c-b900-46f7-bb60-0c9717eb223b
 
 (`-c` resumes the most recent session; bare `--resume` opens a searchable picker.)
 <!-- /resume-footer -->
