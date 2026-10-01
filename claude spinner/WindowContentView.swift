@@ -234,6 +234,7 @@ struct WindowContentView: View {
                               suggestion: suggestion,
                               skillPick: skillPick,
                               usage: usageCard,
+                              headSHA: gitSnapshot?.headSHA,
                               notice: $actionNotice)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
@@ -358,11 +359,8 @@ private struct SessionSidebar: View {
                             .font(.claudeMono(11)).foregroundStyle(tint(session))
                     }
                     VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 4) {
-                            Text(session.distinctName)
-                                .font(.claudeMono(11)).lineLimit(1)
-                            GoalFlag(goal: goals[session.id])
-                        }
+                        Text(session.distinctName)
+                            .font(.claudeMono(11)).lineLimit(1)
                         // Under a project heading the project name is already
                         // overhead; only the pinned section needs it spelled out.
                         if section.id == "needs-you" {
@@ -372,6 +370,10 @@ private struct SessionSidebar: View {
                         }
                     }
                     Spacer(minLength: 0)
+                    // At the row's trailing edge, with the other marks: the name
+                    // is what the eye scans down, and a glyph inside it broke
+                    // that column.
+                    GoalFlag(goal: goals[session.id])
                     if asksFor(session) {
                         Image(systemName: "questionmark.circle.fill")
                             .foregroundStyle(Color.attention)
@@ -607,6 +609,8 @@ private struct SessionDetail: View {
     /// Account-wide, not this session's: built by the window from the feed so
     /// the detail pane doesn't need the watcher.
     let usage: OverviewStrip
+    /// The repo's HEAD, for the Graph card to say whether the graph is behind it.
+    let headSHA: String?
     @Binding var notice: NoticeMessage?
     /// The pane's height at the width it is laid out at, without the top row's
     /// share of leftover height, read back from the layout so the fit can be
@@ -695,6 +699,9 @@ private struct SessionDetail: View {
                     // This session, the account and this Mac in one row of rings:
                     // the card needs the full width.
                     usage.including(session)
+                        .tileSpan(.max)
+                    // Only drawn for a repo that has a graphify-out/graph.json.
+                    GraphifyCard(cwd: session.cwd, headSHA: headSHA)
                         .tileSpan(.max)
                 }
 

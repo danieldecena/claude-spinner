@@ -4447,6 +4447,61 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(r?.block)
     }
 
+    // MARK: - Graph card
+
+    private func graphJSON(_ communities: [String: Int], links: Int = 2,
+                           commit: String? = "abc1234") -> Data {
+        var nodes: [[String: Any]] = []
+        for (name, count) in communities {
+            for _ in 0..<count { nodes.append(["id": "n", "community_name": name]) }
+        }
+        var root: [String: Any] = ["nodes": nodes,
+                                   "links": Array(repeating: ["source": "a", "target": "b"], count: links)]
+        if let commit { root["built_at_commit"] = commit }
+        return try! JSONSerialization.data(withJSONObject: root)
+    }
+
+    func testGraphSummaryCountsAndRanksCommunities() {
+        let summary = try! XCTUnwrap(GraphSummary.parse(
+            graphJSON(["Equatable": 5, "FeedWatcher": 3, "Tiny": 1]), topCommunities: 2))
+        XCTAssertEqual(summary.nodes, 9)
+        XCTAssertEqual(summary.links, 2)
+        XCTAssertEqual(summary.builtAtCommit, "abc1234")
+        // Largest first, and cut to the top N.
+        XCTAssertEqual(summary.communities.map(\.name), ["Equatable", "FeedWatcher"])
+        XCTAssertEqual(summary.communities.map(\.count), [5, 3])
+    }
+
+    /// A node with no community is counted in `nodes` but into no bar: an
+    /// "unknown" bar the size of everything unclustered would say nothing.
+    func testGraphSummaryLeavesUnclusteredNodesOutOfTheBars() {
+        let data = try! JSONSerialization.data(withJSONObject: [
+            "nodes": [["id": "a", "community_name": "One"], ["id": "b"], ["id": "c", "community_name": ""]],
+            "links": [],
+        ])
+        let summary = try! XCTUnwrap(GraphSummary.parse(data))
+        XCTAssertEqual(summary.nodes, 3)
+        XCTAssertEqual(summary.communities.map(\.name), ["One"])
+    }
+
+    /// Anything that is not a graph is nil, never a summary of zeroes -- a card
+    /// reading "0 nodes" would be a claim about the repo rather than about the
+    /// read. An empty graph is a different case and does summarise.
+    func testGraphSummaryRefusesWhatIsNotAGraph() {
+        XCTAssertNil(GraphSummary.parse(Data("not json".utf8)))
+        XCTAssertNil(GraphSummary.parse(Data("[1,2,3]".utf8)))
+        XCTAssertNil(GraphSummary.parse(Data(#"{"links":[]}"#.utf8)))
+        XCTAssertNil(GraphSummary.parse(Data(#"{"nodes":[]}"#.utf8)))
+        let empty = try! XCTUnwrap(GraphSummary.parse(Data(#"{"nodes":[],"links":[]}"#.utf8)))
+        XCTAssertEqual(empty.nodes, 0)
+        XCTAssertTrue(empty.communities.isEmpty)
+        XCTAssertNil(empty.builtAtCommit)
+    }
+
+    func testGraphPathIsInsideTheWorkingDirectory() {
+        XCTAssertEqual(GraphSummary.path(forCWD: "/x/y"), "/x/y/graphify-out/graph.json")
+    }
+
     // MARK: - GoalClock
 
     private func goalLine(remaining: Int, minutes: Int, now: Date = Date(timeIntervalSince1970: 1_800_000_000)) -> GoalClock? {

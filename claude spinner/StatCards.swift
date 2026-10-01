@@ -150,7 +150,7 @@ struct SessionRings: View {
     var isEmpty: Bool {
         let st = session.stats
         let hasContext = (st.contextWindowSize ?? 0) > 0 && session.contextTokens != nil
-        return !hasContext && st.cacheHitRatio == nil && st.costUSD == nil
+        return !hasContext && st.cacheHitRatio == nil && st.wallSeconds == nil
     }
 
     var body: some View {
@@ -169,9 +169,12 @@ struct SessionRings: View {
                 RingMetric(caption: "cache", value: "\(Int((min(1, max(0, hit)) * 100).rounded()))%",
                            ratio: hit, tint: .series1, detail: cacheDetail)
             }
-            if let cost = st.costUSD {
-                RingMetric(caption: "spend", value: StatFormat.money(cost),
-                           ratio: nil, tint: .label, detail: costDetail, plain: true)
+            // Time, not money. The figure used to be the api-equivalent dollar
+            // cost, which is never charged on a Max plan and read as if it were:
+            // what a session actually spends there is wall time.
+            if let wall = st.wallSeconds {
+                RingMetric(caption: "time", value: StatFormat.duration(wall),
+                           ratio: nil, tint: .label, detail: timeDetail, plain: true)
             }
         }
     }
@@ -188,7 +191,7 @@ struct SessionRings: View {
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
-    private var costDetail: String {
+    private var timeDetail: String {
         let st = session.stats
         var lines: [String] = []
         if let wall = st.wallSeconds { lines.append("\(StatFormat.duration(wall)) wall") }

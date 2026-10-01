@@ -89,19 +89,19 @@ struct HomeDashboard: View {
                 .font(.claudeMono(11)).foregroundStyle(tint(session))
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    Text(session.distinctName).font(.claudeMono(11)).lineLimit(1)
-                    GoalFlag(goal: goals[session.id])
-                }
+                Text(session.distinctName).font(.claudeMono(11)).lineLimit(1)
                 Text(session.projectName).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
             }
             Spacer(minLength: 8)
+            GoalFlag(goal: goals[session.id])
             Text(session.statusLabel).font(.ui(10)).foregroundStyle(tint(session)).lineLimit(1)
             // Fixed widths so the three figures line up down the card rather than
             // drifting with each name's length.
             Text(contextLabel(session)).font(.figure(10)).foregroundStyle(Color.label)
                 .frame(width: 70, alignment: .trailing)
-            Text(session.stats.costUSD.map(StatFormat.money) ?? "—")
+            // Wall time, not an api-equivalent dollar figure: nothing here is
+            // charged on a Max plan, and a column of money said it was.
+            Text(session.stats.wallSeconds.map(StatFormat.duration) ?? "—")
                 .font(.figure(10)).foregroundStyle(Color.label)
                 .frame(width: 56, alignment: .trailing)
         }

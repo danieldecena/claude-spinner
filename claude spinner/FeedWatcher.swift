@@ -2013,17 +2013,17 @@ final class FeedWatcher: ObservableObject {
         return "Usage as of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)"
     }
 
-    /// One totals row: a label and its value, e.g. `today` / `329M  $154`.
+    /// One totals row: a label and its value, e.g. `today` / `329M`.
     struct TotalsRow: Hashable { let label: String; let value: String }
 
-    /// ccusage totals as rows: today, week, then the active block (tokens only).
+    /// ccusage totals as rows: today, week, then the active block. Tokens only:
+    /// the dollar figures ccusage prices these at are not charged on a Max plan,
+    /// and a running total in dollars beside them read as if they were.
     /// Empty until the first scan lands; `usageTotalsStatus` covers that gap.
     var usageTotalsRows: [TotalsRow] {
         guard let t = usageTotals else { return [] }
-        // "$?" not "$0": an unpriced run is a failed read, never a zero spend.
-        func cost(_ c: Double?) -> String { c.map(StatFormat.money) ?? "$?" }
-        var rows = [TotalsRow(label: "today", value: "\(Self.formatTokens(t.todayTokens))  \(cost(t.todayCost))"),
-                    TotalsRow(label: "week", value: "\(Self.formatTokens(t.weekTokens))  \(cost(t.weekCost))")]
+        var rows = [TotalsRow(label: "today", value: Self.formatTokens(t.todayTokens)),
+                    TotalsRow(label: "week", value: Self.formatTokens(t.weekTokens))]
         if let b = t.block {
             var value = Self.formatTokens(b.tokens)
             if let p = b.projectedTokens { value += " → \(Self.formatTokens(p))" }

@@ -123,7 +123,7 @@ struct GoalFlag: View {
     var body: some View {
         if let goal {
             Image(systemName: "flag.checkered")
-                .font(.ui(10))
+                .font(.ui(8))
                 .foregroundStyle(goal.isLanding || goal.isOverrun ? Color.attention : Color.series1)
                 .help(goal.label)
                 .accessibilityLabel("on a goal run, \(goal.label)")
