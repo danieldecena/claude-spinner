@@ -225,7 +225,8 @@ struct WindowContentView: View {
                 HomeDashboard(sessions: roots, asks: asks.pending, usage: usageCard,
                               tasks: tasks, goals: goals.goals) { selection = $0 }
             } else if let project = PinnedProject.project(forTag: selection) {
-                PinnedProjectDetail(project: project, sessions: roots) { selection = $0 }
+                PinnedProjectDetail(project: project, sessions: roots,
+                                    asks: asks.pending) { selection = $0 }
                     .id(project.id)
             } else if let session = selected {
                 SessionDetail(session: session,
@@ -731,7 +732,7 @@ private struct SessionDetail: View {
 
 // MARK: - A pending question, in full
 
-private struct AskCard: View {
+struct AskCard: View {
     let ask: AskRequest
     @State private var answered: String?
     /// The options ignore clicks until this long after the card appears. The card

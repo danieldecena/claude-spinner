@@ -27,6 +27,24 @@ struct PinnedProject: Identifiable, Equatable {
         let prompt: String
     }
 
+    /// The project's own routine, in the order it is worked. Named here rather
+    /// than discovered: the Skills card already lists every skill the folder can
+    /// reach, and a list of thirty is not a routine.
+    var workflow: [Step] = []
+
+    struct Step: Equatable, Identifiable {
+        let label: String
+        let systemImage: String
+        let command: String
+        /// One line on what the step does, under its name.
+        let detail: String
+        /// Placeholder for the one thing the command needs, when it needs one.
+        /// A step with no argument starts straight from its button.
+        var argument: String? = nil
+
+        var id: String { command }
+    }
+
     /// The selection value for its sidebar row. The selection is a session id
     /// otherwise; this prefix is what keeps the two from ever being equal.
     static let tagPrefix = "pinned:"
@@ -40,7 +58,16 @@ struct PinnedProject: Identifiable, Equatable {
                             + "|recruiter|interview|name:.*apply|work ?search",
                      words: ["job", "scout", "career"]),
         quickStart: QuickStart(label: "Apply next job", systemImage: "paperplane",
-                               prompt: "/anthropic-skills:apply-next-job"))
+                               prompt: "/anthropic-skills:apply-next-job"),
+        workflow: [
+            Step(label: "List the jobs on a page", systemImage: "list.bullet.rectangle",
+                 command: "/anthropic-skills:linkedin-job-list",
+                 detail: "Pages 1-3 of a LinkedIn search, deduped and grouped by role.",
+                 argument: "Paste the LinkedIn search link"),
+            Step(label: "Apply to the next one", systemImage: "paperplane",
+                 command: "/anthropic-skills:apply-next-job",
+                 detail: "Works the queue: fills the next job, hands off, logs it."),
+        ])
 
     static let plans = PinnedProject(
         name: "Plans", path: NSHomeDirectory() + "/developer/_project-knowledge",

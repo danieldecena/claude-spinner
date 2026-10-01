@@ -8,6 +8,8 @@ struct PinnedProjectDetail: View {
     let project: PinnedProject
     /// Root sessions, as the sidebar lists them.
     let sessions: [SessionFeed]
+    /// Every pending question, filtered here to this project's own sessions.
+    let asks: [AskRequest]
     /// Selects a live session's row.
     let select: (String) -> Void
 
@@ -22,12 +24,21 @@ struct PinnedProjectDetail: View {
     @State private var failure: String?
     /// Desktop's "New session in <project>" box: a first prompt to start with.
     @State private var draft = ""
+    /// What has been typed for each workflow step that takes an argument.
+    @State private var arguments: [String: String] = [:]
     /// An artifact expanded to fill the pane in place of the dashboard.
     @State private var focused: ProjectArtifact?
 
     private static let shownTasks = 5
 
     private var live: [SessionFeed] { PinnedProject.liveSessions(in: project.path, sessions: sessions) }
+
+    /// The questions this project's own sessions are waiting on, oldest first so
+    /// the one that has been blocking longest is answered first.
+    private var pending: [AskRequest] {
+        let ids = Set(live.map(\.id))
+        return asks.filter { ids.contains($0.sessionId) }
+    }
 
     var body: some View {
         if let focused {
@@ -62,6 +73,9 @@ struct PinnedProjectDetail: View {
                 HStack(alignment: .top, spacing: 16) {
                 TileGrid(minimum: 220, spacing: 12) {
                     launchCard.tileSpan(1)
+                    // Beside Start, because it is the same question answered in
+                    // order: what you run here, and in which order you run it.
+                    if !project.workflow.isEmpty || !pending.isEmpty { workflowCard.tileSpan(2) }
                     tasksCard.tileSpan(2)
                     recentCard.tileSpan(2)
                     // Beside the two-wide recent card, so the row has no hole.
@@ -293,6 +307,70 @@ struct PinnedProjectDetail: View {
                 .buttonStyle(.link).font(.ui(10))
                 .help("Open \(path)")
         }
+    }
+
+    /// The project's routine, and above it whatever its sessions are waiting on.
+    ///
+    /// The questions are the point: a run parked on "fill or skip?" is answered
+    /// here, with the same full labels and descriptions the session's own pane
+    /// gives, instead of switching to the terminal the run happens to be in.
+    private var workflowCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                CardTitle("Workflow")
+                Spacer(minLength: 4)
+                if !pending.isEmpty {
+                    Text(pending.count == 1 ? "1 waiting on you" : "\(pending.count) waiting on you")
+                        .font(.ui(10)).foregroundStyle(Color.attention)
+                }
+            }
+            ForEach(pending, id: \.req) { ask in
+                VStack(alignment: .leading, spacing: 4) {
+                    if let name = live.first(where: { $0.id == ask.sessionId })?.distinctName {
+                        Button(name) { select(ask.sessionId) }
+                            .buttonStyle(.link).font(.claudeMono(10))
+                            .help("Open this session")
+                    }
+                    AskCard(ask: ask)
+                }
+            }
+            ForEach(project.workflow) { step in self.step(step) }
+            Spacer(minLength: 0)
+        }
+        .detailCard()
+        .frame(maxHeight: .infinity)
+    }
+
+    private func step(_ step: PinnedProject.Step) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Label(step.label, systemImage: step.systemImage).font(.ui(11)).fixedSize()
+                Spacer(minLength: 4)
+                Button("Start") { start([command(step)]) }
+                    .buttonStyle(.bordered).font(.ui(11))
+                    .help("Start a session in \(project.name) running \(command(step))")
+            }
+            Text(step.detail).font(.ui(10)).foregroundStyle(Color.label)
+                .fixedSize(horizontal: false, vertical: true)
+            if let placeholder = step.argument {
+                // Started without it the skill only asks for it in the terminal,
+                // which is the switch this card exists to avoid.
+                TextField(placeholder, text: Binding(get: { arguments[step.id] ?? "" },
+                                                     set: { arguments[step.id] = $0 }))
+                    .textFieldStyle(.plain).font(.ui(11))
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .onSubmit { start([command(step)]) }
+            }
+        }
+    }
+
+    /// The step's command with whatever was typed for it, which is how the skill
+    /// receives the link rather than having to ask for it.
+    private func command(_ step: PinnedProject.Step) -> String {
+        let argument = (arguments[step.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return argument.isEmpty ? step.command : step.command + " " + argument
     }
 
     private var liveCard: some View {
