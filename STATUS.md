@@ -152,6 +152,41 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-10-01
+
+- Decided: one card of rings, not two. The session's context, cache and spend
+  join the account limits and this Mac's load in the Usage card, divided into
+  three groups. A session that has reported none of the three draws nothing and
+  its divider is left out.
+- Decided: a ring with parts draws them, in `segment1..3` (magenta, violet,
+  aqua). CPU splits into user and system, memory into active, wired and
+  compressed; the limit and context rings stay single because they measure one
+  thing. The three hues went through the dataviz validator against its default
+  surfaces and pass every check in both modes on adjacent pairs; light magenta
+  (2.62:1) and aqua (2.74:1) sit under the 3:1 a mark owes, so a segmented ring
+  always prints its key and the hues are deliberately not in `Ink.marks`.
+- Decided: the text under each ring moves into a popover on hover. Five rings
+  with two lines each under them were a paragraph across the bottom of the card;
+  the reading is the ring and the figure, and the rest is on demand.
+- Observed: the Usage card on screen 2026-10-01 11:39, then the merged card at
+  11:43 and the hover popover at 11:44 (7D ring: "resets Mon 3:00 PM, ahead of
+  pace"). Every label and sublabel measures 6.51:1 against the card's #252528,
+  the ring figures 13.06:1.
+- Observed, performance: `sample` of the running Debug app put
+  `WindowContentView.body.getter` at 182 of 1875 main-thread samples and
+  `Suggestion.openTasks` at 86 -- the 20KB TASKS.md was re-parsed inside a
+  computed property the suggestion inputs build several times per render, and
+  `glyphPhase` published from `FeedWatcher` re-evaluated every view observing the
+  feed ten times a second. After moving the count to the read, the tick to its
+  own `GlyphClock`, and `readVolume` to every 30s: 4 and 2 samples. What is left
+  on the main thread is AppKit's own status-item bitmap capture, which is the
+  animation itself and not ours to remove.
+- Decided: the window opens on a Home tab, not on a guessed session. Three
+  cards: the Usage rings, every session as a row (status, context, spend, click
+  to open), and the open TASKS.md items per project. `HomeTab.tag` is a third
+  kind of selection beside a session id and a pinned tag, and resolves to no
+  session so the dashboard never sits on top of a session's probes.
+
 ### 2026-09-30 (Job Search tab review)
 - Decided: fixed seven review findings. Layout: rail/Running-now names get layout
   priority (the Spacer took half the row: "CLA...E.md"), the Start path is ~-abbreviated,

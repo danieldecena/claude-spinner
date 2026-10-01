@@ -8,12 +8,13 @@
 
 ## Completed
 
-- [x] Add a Home tab that opens the window on a dashboard of everything
-- [x] Cut the window's render cost: TASKS.md reparse and the 10 Hz tick
-- [x] See the new Usage card on screen: seen 2026-10-01, text 6.51:1 on card
-- [x] Fit every ring into the one Usage card
-- [x] Split the CPU and memory rings into coloured parts with a hover key
-- [x] Move ring detail text into a hover popover
+- [x] Add a Home tab that opens the window on a dashboard of everything -- f3b3a03
+- [x] Improve spinner speed and performance -- 113cf49
+- [x] See the new Usage card on screen and design-review it -- 78824e8
+- [x] Fit every ring into the one Usage card -- 76461ca
+- [x] Add segmented colour indicators to the rings -- 76461ca
+- [x] Move ring detail text into a hover popover -- 76461ca
+- [x] Put home on top of the sidebar -- 76461ca
 - [x] Add a SystemStats sampler for CPU, memory and disk -- 08e439b
 - [x] Put every Usage ring in one wide horizontal card -- 08e439b
 - [x] Give the Session and Usage cards a full-width row each -- 08e439b
