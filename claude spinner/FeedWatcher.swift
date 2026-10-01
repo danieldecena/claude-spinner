@@ -970,19 +970,16 @@ final class UsageTotalsPoller {
         let since = Self.dayFormatter.string(from: weekStart).replacingOccurrences(of: "-", with: "")
         let today = Self.dayFormatter.string(from: now)
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let dailyArgs = ["daily", "--json", "--since", since]
-            let (daily, err1) = Self.run(dailyArgs)
+            let (daily, err1) = Self.run(["daily", "--json", "--since", since])
             let (blocks, err2) = daily == nil ? (nil, nil) : Self.run(["blocks", "--active", "--json"])
             func parse(_ daily: Data?) -> Result? {
                 daily.flatMap { d in blocks.flatMap { Self.parse(daily: d, blocks: $0, today: today, now: Date()) } }
             }
-            var result = parse(daily)
+            let result = parse(daily)
+            // No retry for an unpriced run: the prices are parsed but nothing
+            // displays them, and the retry was a second full transcript scan for
+            // a figure no surface reads.
             var err = err1 ?? err2
-            // An unpriced run is usually the flaky price lookup; one retry often lands.
-            // Only `daily` carries prices, so the blocks scan is not repeated.
-            if result != nil, result?.weekCost == nil, let again = parse(Self.run(dailyArgs).0), again.weekCost != nil {
-                result = again
-            }
             if result == nil { err = err ?? "unreadable output" }
             DispatchQueue.main.async {
                 guard let self else { return }
