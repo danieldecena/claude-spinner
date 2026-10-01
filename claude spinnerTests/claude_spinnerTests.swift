@@ -1610,6 +1610,19 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(picked?.id, "reported")
     }
 
+    /// The Home tab is not a session, so the pane must not fall through to one:
+    /// doing that would put a session's toolbar and probes behind the dashboard.
+    func testTheHomeTagResolvesToNoSession() {
+        let roots = [root("reported", model: "Opus 5", updated: Date())]
+        XCTAssertNil(WindowContentView.resolveSelection(HomeTab.tag, roots: roots, asks: []))
+        XCTAssertTrue(HomeTab.isHomeTag(HomeTab.tag))
+        XCTAssertFalse(HomeTab.isHomeTag(PinnedProject.jobSearch.tag))
+        XCTAssertFalse(HomeTab.isHomeTag("reported"))
+        // A real id still resolves, so the dashboard's rows can open a session.
+        XCTAssertEqual(WindowContentView.resolveSelection("reported", roots: roots, asks: [])?.id,
+                       "reported")
+    }
+
     func testWaitingBeatsRecency() {
         let picked = WindowContentView.defaultSelection(roots: [
             root("reported", model: "Opus 5", updated: Date()),

@@ -15,7 +15,8 @@ struct WindowContentView: View {
     @ObservedObject var feed: FeedWatcher
     @ObservedObject private var asks = AskInbox.shared
     @StateObject private var install = InstallState()
-    @State private var selection: String?
+    /// The window opens on the Home dashboard rather than guessing a session.
+    @State private var selection: String? = HomeTab.tag
     @State private var sidebarVisible = true
     /// The last session action's outcome. Set by the toolbar, shown in the
     /// conversation card; cleared on a new selection so a notice about one
@@ -29,6 +30,9 @@ struct WindowContentView: View {
     /// suggestion inputs are built several times per render and the file is 20KB.
     @State private var projectOpenTasks: Int?
     @State private var wrappedUp = false
+    /// Each project's TASKS.md, read here because both the sidebar and the Home
+    /// dashboard list it.
+    @State private var tasks: [String: (open: [String], done: Int, path: String)] = [:]
 
     private var suggestionInput: Suggestion.Input? {
         guard let session = selected else { return nil }
@@ -51,6 +55,21 @@ struct WindowContentView: View {
     private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
     private var skillPick: Suggestion? { suggestionInput.flatMap(Suggestion.skill) }
 
+    /// Where to look for each project's TASKS.md: the folder of its first session.
+    private var tasksFolders: [String: String] {
+        let sections = FeedWatcher.projectSections(
+            roots.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) },
+            asked: Set(asks.pending.map(\.sessionId)), byRecency: true)
+        return Dictionary(uniqueKeysWithValues: sections.compactMap { section in
+            section.id == "needs-you" ? nil
+                : section.items.first.map { (section.id, $0.session.cwd) }
+        })
+    }
+
+    private var tasksKey: String {
+        tasksFolders.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "|")
+    }
+
     /// Roots only. Children are listed under their parent in the sidebar.
     private var roots: [SessionFeed] {
         feed.sessions.filter { $0.parentSessionId == nil }
@@ -71,7 +90,7 @@ struct WindowContentView: View {
     /// through to the default here would put a session's toolbar, git probe and
     /// transcript loops behind the project's pane.
     static func resolveSelection(_ selection: String?, roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
-        if PinnedProject.isPinnedTag(selection) { return nil }
+        if HomeTab.isHomeTag(selection) || PinnedProject.isPinnedTag(selection) { return nil }
         if let selection, let picked = roots.first(where: { $0.id == selection }) { return picked }
         return defaultSelection(roots: roots, asks: asks)
     }
@@ -114,6 +133,23 @@ struct WindowContentView: View {
         // the toolbar inset, so the toolbar counts as part of the content.
         .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
+        // Keyed on the folders, not the sections: a section's id is its project
+        // name, and two sessions can swap folders under one.
+        .task(id: tasksKey) {
+            while !Task.isCancelled {
+                let folders = tasksFolders
+                tasks = await Task.detached(priority: .utility) {
+                    folders.reduce(into: [:]) { out, entry in
+                        if let root = Suggestion.tasksRoot(startingAt: entry.value),
+                           let text = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8) {
+                            let file = Suggestion.tasks(inTasksFile: text)
+                            out[entry.key] = (file.open, file.done, root + "/TASKS.md")
+                        }
+                    }
+                }.value
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
         .task(id: selected?.cwd) {
             gitSnapshot = nil
             projectOpenTasks = nil
@@ -158,7 +194,7 @@ struct WindowContentView: View {
                 Divider()
                 NewSessionBar()
                 SessionSidebar(sessions: roots, children: feed.sessions.filter { $0.parentSessionId != nil },
-                               asks: asks.pending, selection: $selection)
+                               asks: asks.pending, tasks: tasks, selection: $selection)
             }
             .frame(width: 250)
             .background(Color.card)
@@ -179,7 +215,10 @@ struct WindowContentView: View {
     }
 
     @ViewBuilder private var detail: some View {
-            if let project = PinnedProject.project(forTag: selection) {
+            if HomeTab.isHomeTag(selection) {
+                HomeDashboard(sessions: roots, asks: asks.pending, usage: usageCard,
+                              tasks: tasks) { selection = $0 }
+            } else if let project = PinnedProject.project(forTag: selection) {
                 PinnedProjectDetail(project: project, sessions: roots) { selection = $0 }
                     .id(project.id)
             } else if let session = selected {
@@ -207,9 +246,10 @@ private struct SessionSidebar: View {
     /// Subagents, listed under the session that spawned them.
     let children: [SessionFeed]
     let asks: [AskRequest]
+    /// Each project section's TASKS.md, read by the window: the Home dashboard
+    /// lists it too.
+    let tasks: [String: (open: [String], done: Int, path: String)]
     @Binding var selection: String?
-    /// Each project section's TASKS.md, read from its first session's folder.
-    @State private var tasks: [String: (open: [String], done: Int, path: String)] = [:]
     /// Parent sessions whose finished subagents are opened out.
     @State private var showFinished: Set<String> = []
 
@@ -239,7 +279,15 @@ private struct SessionSidebar: View {
 
     var body: some View {
         List(selection: $selection) {
-            // Home first: the session at ~ is the one every other starts from.
+            // The dashboard first, and the window opens on it: what every session
+            // is doing is the question you have before you pick one.
+            HStack(spacing: 6) {
+                Image(systemName: "square.grid.2x2").font(.ui(10)).foregroundStyle(Color.label)
+                Text("Home").font(.claudeMono(11))
+            }
+            .accessibilityLabel("Home, every session at once")
+            .tag(HomeTab.tag)
+            // Then the home project group: the session at ~ others start from.
             ForEach(homeGroups) { section in sectionView(section) }
             Section {
                 ForEach(PinnedProject.all) { project in
@@ -265,23 +313,6 @@ private struct SessionSidebar: View {
         .listStyle(.sidebar)
         // The card is the background; the list's own would sit on top of it.
         .scrollContentBackground(.hidden)
-        // Keyed on the folders, not the sections: a section's id is its project
-        // name, and two sessions can swap folders under one.
-        .task(id: tasksKey) {
-            while !Task.isCancelled {
-                let folders = tasksFolders
-                tasks = await Task.detached(priority: .utility) {
-                    folders.reduce(into: [:]) { out, entry in
-                        if let root = Suggestion.tasksRoot(startingAt: entry.value),
-                           let text = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8) {
-                            let file = Suggestion.tasks(inTasksFile: text)
-                            out[entry.key] = (file.open, file.done, root + "/TASKS.md")
-                        }
-                    }
-                }.value
-                try? await Task.sleep(for: .seconds(5))
-            }
-        }
     }
 
     /// One project's heading and rows. Shared by the home group above Pinned and
@@ -351,18 +382,6 @@ private struct SessionSidebar: View {
         } header: {
             SectionHeader(section: section)
         }
-    }
-
-    /// Where to look for each project's TASKS.md: the folder of its first session.
-    private var tasksFolders: [String: String] {
-        Dictionary(uniqueKeysWithValues: groups.compactMap { section in
-            section.id == "needs-you" ? nil
-                : section.items.first.map { (section.id, $0.session.cwd) }
-        })
-    }
-
-    private var tasksKey: String {
-        tasksFolders.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "|")
     }
 
     /// The project's open tasks under its sessions. Not selectable: they are a

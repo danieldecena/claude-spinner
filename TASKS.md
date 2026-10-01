@@ -5,10 +5,11 @@
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
 - [ ] Watch home sit above Pinned once a home session is live
-- [ ] Improve spinner speed and performance
 
 ## Completed
 
+- [x] Add a Home tab that opens the window on a dashboard of everything
+- [x] Cut the window's render cost: TASKS.md reparse and the 10 Hz tick
 - [x] See the new Usage card on screen: seen 2026-10-01, text 6.51:1 on card
 - [x] Fit every ring into the one Usage card
 - [x] Split the CPU and memory rings into coloured parts with a hover key
