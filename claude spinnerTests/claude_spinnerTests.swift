@@ -3028,6 +3028,72 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
+    // MARK: - System stats
+
+    private func ticks(_ user: UInt32, _ system: UInt32, _ idle: UInt32, _ nice: UInt32 = 0) -> SystemStats.CPUTicks {
+        .init(user: user, system: system, idle: idle, nice: nice)
+    }
+
+    func testCPUShareIsBusyOverTotalBetweenSamples() {
+        // 30 user + 10 system busy, 60 idle: 40 of 100 ticks.
+        XCTAssertEqual(SystemStats.cpuShare(from: ticks(100, 50, 400), to: ticks(130, 60, 460))!, 0.4, accuracy: 1e-9)
+        // All idle is a real zero, not an unknown.
+        XCTAssertEqual(SystemStats.cpuShare(from: ticks(1, 1, 1), to: ticks(1, 1, 51))!, 0, accuracy: 1e-9)
+    }
+
+    func testCPUShareIsUnknownWithoutAUsableBaseline() {
+        XCTAssertNil(SystemStats.cpuShare(from: nil, to: ticks(1, 1, 1)))
+        XCTAssertNil(SystemStats.cpuShare(from: ticks(1, 1, 1), to: nil))
+        // No time elapsed.
+        XCTAssertNil(SystemStats.cpuShare(from: ticks(5, 5, 5), to: ticks(5, 5, 5)))
+        // A counter that went backwards is a wrap or a reset, not a negative load.
+        XCTAssertNil(SystemStats.cpuShare(from: ticks(100, 50, 400), to: ticks(90, 60, 460)))
+    }
+
+    func testMemoryAndDiskSharesAreUnknownWhenUnread() {
+        XCTAssertEqual(SystemStats.share(used: 8, of: 16)!, 0.5, accuracy: 1e-9)
+        XCTAssertNil(SystemStats.share(used: nil, of: 16))
+        XCTAssertNil(SystemStats.share(used: 8, of: 0))
+        XCTAssertEqual(SystemStats.diskShare(total: 1000, available: 250)!, 0.75, accuracy: 1e-9)
+        XCTAssertNil(SystemStats.diskShare(total: nil, available: 250))
+        XCTAssertNil(SystemStats.diskShare(total: 1000, available: nil))
+        XCTAssertNil(SystemStats.diskShare(total: 0, available: 0))
+    }
+
+    /// The real reads, on this machine: the second CPU sample must produce a
+    /// share, and memory and disk must read as shares of something. This is the
+    /// known-good input the arithmetic tests above cannot be.
+    @MainActor func testTheLiveSamplerReadsThisMachine() async throws {
+        let stats = SystemStats()
+        stats.start()
+        defer { stats.stop() }
+        XCTAssertNil(stats.cpu, "the first sample has no baseline")
+        try await Task.sleep(for: .seconds(2.5))
+        let cpu = try XCTUnwrap(stats.cpu)
+        XCTAssertTrue((0...1).contains(cpu))
+        let memory = try XCTUnwrap(stats.memory)
+        XCTAssertTrue(memory > 0 && memory <= 1)
+        let disk = try XCTUnwrap(stats.disk)
+        XCTAssertTrue(disk > 0 && disk <= 1)
+    }
+
+    func testGigabytesAreBinaryWithOneDecimalBelowAHundred() {
+        XCTAssertEqual(StatFormat.gigabytes(8_589_934_592), "8.0 GB")
+        XCTAssertEqual(StatFormat.gigabytes(UInt64(212) * 1_073_741_824), "212 GB")
+    }
+
+    /// The Usage card's five rings in one row must lay out at a finite size.
+    @MainActor func testTheWideUsageCardLaysOut() {
+        let card = OverviewStrip(fiveHour: 40, sevenDay: 87, usageStale: false, usageHelp: "",
+                                 fiveHourElapsed: 0.5, sevenDayElapsed: 0.7,
+                                 fiveHourReset: "2h37m", sevenDayReset: "Mon 3:00 PM")
+        let host = NSHostingView(rootView: card)
+        host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertTrue(host.fittingSize.width.isFinite)
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
+    }
+
     // MARK: - Sparkline spoken value
 
     /// VoiceOver hears the line's endpoints, since the shape itself says nothing.

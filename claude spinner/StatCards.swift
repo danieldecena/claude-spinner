@@ -1,6 +1,7 @@
 import SwiftUI
 
-// The detail pane's two stat cards: this session, and the account's limits.
+// The detail pane's two stat cards: this session, and the account's limits
+// beside this Mac's own load.
 //
 // Ratios are rings and history is columns, never a horizontal bar or line: a
 // ring reads "how full" at a glance whatever the card's width, and a column
@@ -186,21 +187,50 @@ struct OverviewStrip: View {
     let fiveHourReset: String?
     let sevenDayReset: String?
 
+    @StateObject private var system = SystemStats()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             CardTitle("Usage")
 
             // The rate-limit windows lead, not the dollar figure. On a Max plan
             // these are the only numbers that can actually stop you; the money
-            // is a proxy for burn and is never charged.
+            // is a proxy for burn and is never charged. This Mac's own load
+            // follows them in the same row.
             HStack(alignment: .top, spacing: 8) {
-                limit("5h window", pct: fiveHour, elapsed: fiveHourElapsed, reset: fiveHourReset)
-                limit("7d window", pct: sevenDay, elapsed: sevenDayElapsed, reset: sevenDayReset)
+                HStack(alignment: .top, spacing: 8) {
+                    limit("5h window", pct: fiveHour, elapsed: fiveHourElapsed, reset: fiveHourReset)
+                    limit("7d window", pct: sevenDay, elapsed: sevenDayElapsed, reset: sevenDayReset)
+                }
+                .opacity(usageStale ? 0.5 : 1)
+                .help(usageHelp)
+
+                Divider().frame(height: 80)
+
+                machine("cpu", share: system.cpu, detail: "all cores")
+                machine("memory", share: system.memory,
+                        detail: system.memoryUsedBytes.map {
+                            "\(StatFormat.gigabytes($0)) of \(StatFormat.gigabytes(system.memoryTotalBytes))"
+                        })
+                machine("disk", share: system.disk,
+                        detail: system.diskFreeBytes.map {
+                            "\(StatFormat.gigabytes(UInt64(max(0, $0)))) free"
+                        })
             }
-            .opacity(usageStale ? 0.5 : 1)
-            .help(usageHelp)
         }
         .detailCard()
+        .onAppear { system.start() }
+        .onDisappear { system.stop() }
+    }
+
+    /// One reading of this Mac. Unknown is an empty ring and a dash, as for the
+    /// limit windows.
+    private func machine(_ name: String, share: Double?, detail: String?) -> some View {
+        RingMetric(caption: name,
+                   value: share.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
+                   ratio: share,
+                   tint: share.map { Color.usageTint(Int(($0 * 100).rounded())) } ?? .label,
+                   detail: share == nil ? "no reading yet" : detail)
     }
 
     /// One limit window. No reading is not a reading of zero: an unknown window

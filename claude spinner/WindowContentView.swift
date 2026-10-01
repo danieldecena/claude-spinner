@@ -629,14 +629,12 @@ private struct SessionDetail: View {
                         .detailCard()
                     }
                     .tileSpan(.max)
-                    // This session and the account, side by side: everything
-                    // about how the session is doing, then everything about the
-                    // limits it spends against.
-                    HStack(alignment: .top, spacing: 12) {
-                        SessionStatsCard(session: session)
-                        usage
-                    }
-                    .tileSpan(.max)
+                    // This session, then the account and this Mac, each on a row
+                    // of its own: the Usage card's five rings need the width.
+                    SessionStatsCard(session: session)
+                        .tileSpan(.max)
+                    usage
+                        .tileSpan(.max)
                 }
 
             }
@@ -1021,6 +1019,12 @@ enum StatFormat {
     /// Always two decimals: a session starts in the cents, and a rounded "$0"
     /// would read as free.
     static func money(_ usd: Double) -> String { String(format: "$%.2f", usd) }
+
+    /// Binary gigabytes, the unit Activity Monitor and Finder's storage bar use.
+    static func gigabytes(_ bytes: UInt64) -> String {
+        let gb = Double(bytes) / 1_073_741_824
+        return gb >= 100 ? String(format: "%.0f GB", gb) : String(format: "%.1f GB", gb)
+    }
 
     static func duration(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())
