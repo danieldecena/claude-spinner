@@ -978,8 +978,15 @@ struct TileGrid: Layout {
         // the app on open (2026-09-30). Answer with the widest useful grid.
         if !width.isFinite { width = CGFloat(maxColumns) * (minimum + spacing) - spacing }
         let heights = rows(width: width, subviews: subviews).map(\.height)
-        return CGSize(width: width,
-                      height: heights.reduce(0, +) + spacing * CGFloat(max(heights.count - 1, 0)))
+        let content = heights.reduce(0, +) + spacing * CGFloat(max(heights.count - 1, 0))
+        // A height was proposed only where the grid sits in a flexible frame that
+        // means it to fill; a grid in a scroll view is proposed nil and keeps its
+        // content height. Taking the proposal is what lets placeSubviews hand the
+        // slack to the last row instead of the frame centring a short grid.
+        if let height = proposal.height, height.isFinite, height > content {
+            return CGSize(width: width, height: height)
+        }
+        return CGSize(width: width, height: content)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
