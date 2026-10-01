@@ -50,6 +50,22 @@ Unit target only — `claude spinnerUITests` is intentionally not in the scheme
 (matches CI). CI runs on a **self-hosted** runner: the project is Xcode 27 format
 110, which GitHub-hosted runners can't open.
 
+## Design review
+
+This is a CLI-driven app with no tap coverage, so a UI change ends in a look, not
+a green run. Judgement alone is not review: run the skill and say which skill
+produced which finding.
+
+- `design:design-critique` on a side-by-side screenshot, for hierarchy and spacing.
+- `design:accessibility-review` for contrast and target sizes. Measure the ratio;
+  do not eyeball it.
+- `design:design-system` before adding or changing a token or component, for
+  naming and state parity with App Kit.
+- `dataviz` before restyling any chart, meter or stat tile.
+
+Take the screenshot before the review, and remember a test run relaunches the app
+(see Test above), so capture first and relaunch second.
+
 ## Gotchas
 
 - **Sources are a synchronized group** — a new `.swift` file auto-joins the Xcode
