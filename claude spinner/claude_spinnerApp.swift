@@ -723,16 +723,20 @@ extension Color {
         static let series1Light = (0.0, 0.522, 0.459)
         static let series1Dark = (0.0, 0.855, 0.765)
         /// The parts of one ring, in fixed order: magenta, violet, aqua. Run through
-        /// the dataviz validator on 2026-10-01 against its default surfaces: all
-        /// checks pass in both modes on adjacent pairs. Light magenta and aqua sit
-        /// at 2.62 and 2.74:1, under the 3:1 a mark owes, so every segmented ring
-        /// prints a legend and is not in `marks`. Chosen off the status ramp, the
-        /// identity hues and the accent, which each already mean something.
-        static let segment1Light = (0.910, 0.482, 0.643)  // #E87BA4
+        /// the dataviz validator on 2026-10-01: every check passes in both modes on
+        /// the *adjacent* pairlist, which is the one a ring uses -- the segments are
+        /// laid end to end in a fixed order, so only neighbours ever touch. The
+        /// light halves were re-stepped the same day, from #E87BA4 and #1BAF7A,
+        /// which measured 2.62 and 2.74:1 on the white card: a mark owes 3:1, and
+        /// the detail under each ring had just moved into a hover popover, so a
+        /// printed key was no longer there to serve as the relief. They now measure
+        /// 4.95 and 4.59. Chosen off the status ramp, the identity hues and the
+        /// accent, which each already mean something.
+        static let segment1Light = (0.761, 0.094, 0.416)  // #C2186A
         static let segment1Dark = (0.835, 0.318, 0.506)   // #D55181
         static let segment2Light = (0.290, 0.227, 0.655)  // #4A3AA7
         static let segment2Dark = (0.565, 0.522, 0.914)   // #9085E9
-        static let segment3Light = (0.106, 0.686, 0.478)  // #1BAF7A
+        static let segment3Light = (0.059, 0.478, 0.322)  // #0F7A52
         static let segment3Dark = (0.098, 0.620, 0.439)   // #199E70
         static let groundLight = (1.0, 1.0, 1.0)
         static let groundDark = (0.118, 0.122, 0.125)
@@ -808,6 +812,18 @@ extension Color {
             ("usageAmber", usageAmberLight, usageAmberDark),
             ("usageYellow", usageYellowLight, usageYellowDark),
             ("usageGreen", usageGreenLight, usageGreenDark),
+        ]
+
+        /// The ring segments. Deliberately NOT in `marks`: those are status hues,
+        /// which no identity hue may sit near, and a segment is a categorical
+        /// series instead -- it says "this part of the ring", not "this state".
+        /// Asserting them as status marks failed on exactly that distinction
+        /// (jade identity vs segment3, indigo vs segment2, 2026-10-01). They carry
+        /// the same 3:1 floor through a test of their own.
+        static let segments: [(name: String, light: (Double, Double, Double), dark: (Double, Double, Double))] = [
+            ("segment1", segment1Light, segment1Dark),
+            ("segment2", segment2Light, segment2Dark),
+            ("segment3", segment3Light, segment3Dark),
         ]
 
         /// Every triple that identifies a model or a host. Drawn as text on a chip

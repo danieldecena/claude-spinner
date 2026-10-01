@@ -33,6 +33,8 @@ struct WindowContentView: View {
     /// Each project's TASKS.md, read here because both the sidebar and the Home
     /// dashboard list it.
     @State private var tasks: [String: (open: [String], done: Int, path: String)] = [:]
+    /// Which sessions are on a timed /goal run, for the rows that mark it.
+    @StateObject private var goals = GoalWatcher()
 
     private var suggestionInput: Suggestion.Input? {
         guard let session = selected else { return nil }
@@ -133,6 +135,9 @@ struct WindowContentView: View {
         // the toolbar inset, so the toolbar counts as part of the content.
         .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
+        .task(id: roots.map(\.id).joined(separator: "|")) {
+            await goals.track(roots.map { (id: $0.id, pid: $0.pid) })
+        }
         // Keyed on the folders, not the sections: a section's id is its project
         // name, and two sessions can swap folders under one.
         .task(id: tasksKey) {
@@ -194,7 +199,8 @@ struct WindowContentView: View {
                 Divider()
                 NewSessionBar()
                 SessionSidebar(sessions: roots, children: feed.sessions.filter { $0.parentSessionId != nil },
-                               asks: asks.pending, tasks: tasks, selection: $selection)
+                               asks: asks.pending, tasks: tasks, goals: goals.goals,
+                               selection: $selection)
             }
             .frame(width: 250)
             .background(Color.card)
@@ -217,7 +223,7 @@ struct WindowContentView: View {
     @ViewBuilder private var detail: some View {
             if HomeTab.isHomeTag(selection) {
                 HomeDashboard(sessions: roots, asks: asks.pending, usage: usageCard,
-                              tasks: tasks) { selection = $0 }
+                              tasks: tasks, goals: goals.goals) { selection = $0 }
             } else if let project = PinnedProject.project(forTag: selection) {
                 PinnedProjectDetail(project: project, sessions: roots) { selection = $0 }
                     .id(project.id)
@@ -249,6 +255,8 @@ private struct SessionSidebar: View {
     /// Each project section's TASKS.md, read by the window: the Home dashboard
     /// lists it too.
     let tasks: [String: (open: [String], done: Int, path: String)]
+    /// A checkered flag on the rows whose session is on a timed /goal run.
+    let goals: [String: GoalClock]
     @Binding var selection: String?
     /// Parent sessions whose finished subagents are opened out.
     @State private var showFinished: Set<String> = []
@@ -269,9 +277,8 @@ private struct SessionSidebar: View {
             byRecency: true)
     }
 
-    private var homeGroups: [ProjectSection] { groups.filter { $0.id == Self.homeSection } }
-    private var otherGroups: [ProjectSection] { groups.filter { $0.id != Self.homeSection } }
-    private static let homeSection = "project:home"
+    private var homeGroups: [ProjectSection] { groups.filter { HomeTab.isHomeSection($0.id) } }
+    private var otherGroups: [ProjectSection] { groups.filter { !HomeTab.isHomeSection($0.id) } }
 
     private func asksFor(_ session: SessionFeed) -> Bool {
         asks.contains { $0.sessionId == session.id }
@@ -335,8 +342,11 @@ private struct SessionSidebar: View {
                             .font(.claudeMono(11)).foregroundStyle(tint(session))
                     }
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(session.distinctName)
-                            .font(.claudeMono(11)).lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(session.distinctName)
+                                .font(.claudeMono(11)).lineLimit(1)
+                            GoalFlag(goal: goals[session.id])
+                        }
                         // Under a project heading the project name is already
                         // overhead; only the pinned section needs it spelled out.
                         if section.id == "needs-you" {

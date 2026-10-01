@@ -98,8 +98,13 @@ struct RingMetric: View {
             } else {
                 Ring(ratio: ratio, tint: tint, pace: pace, segments: segments, value: value)
             }
+            // One line, and wide enough for itself: the limit pair sits in its own
+            // nested HStack, which took a narrower share than the three machine
+            // rings and wrapped "5h window" onto two lines beside one-line
+            // captions, leaving the card's bottom edge ragged.
             Text(caption).font(.ui(9)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())

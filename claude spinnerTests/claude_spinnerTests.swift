@@ -1623,6 +1623,25 @@ final class claude_spinnerTests: XCTestCase {
                        "reported")
     }
 
+    /// The hoist is a string match on a section id, so it is tested against a
+    /// session that should hoist AND one that should not -- a constant that
+    /// matched nothing would look identical to one that matched correctly from
+    /// the "no home group on screen" side.
+    func testTheHomeGroupIsTheSectionForASessionAtTheHomeDirectory() {
+        var home = root("h", updated: Date())
+        home.cwd = NSHomeDirectory()
+        var other = root("o", updated: Date())
+        other.cwd = NSHomeDirectory() + "/developer/claude-spinner"
+        let sections = FeedWatcher.projectSections(
+            [home, other].map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) },
+            asked: [], byRecency: true)
+        let hoisted = sections.filter { HomeTab.isHomeSection($0.id) }
+        XCTAssertEqual(hoisted.count, 1)
+        XCTAssertEqual(hoisted.first?.items.first?.session.id, "h")
+        XCTAssertEqual(sections.filter { !HomeTab.isHomeSection($0.id) }.count, 1)
+        XCTAssertFalse(HomeTab.isHomeSection("project:claude-spinner"))
+    }
+
     func testWaitingBeatsRecency() {
         let picked = WindowContentView.defaultSelection(roots: [
             root("reported", model: "Opus 5", updated: Date()),
@@ -1797,6 +1816,25 @@ final class claude_spinnerTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(light, 3.0, "\(mark.name) light is \(light)")
             XCTAssertGreaterThanOrEqual(dark, 3.0, "\(mark.name) dark is \(dark)")
         }
+    }
+
+    /// A ring segment is a mark, so it owes 3:1 against the card it is drawn on.
+    /// Measured 2026-10-01: the first light magenta and aqua were at 2.62 and
+    /// 2.74, which only the printed key under each ring had been covering -- and
+    /// that key had just moved into a hover popover, where it is not visible
+    /// relief. The ground here is the card, not the pane: that is what a ring
+    /// sits on.
+    func testEveryRingSegmentClearsThreeToOneOnTheCard() {
+        for segment in Color.Ink.segments {
+            let light = contrastRatio(segment.light, Color.Ink.cardLight)
+            let dark = contrastRatio(segment.dark, Color.Ink.cardDark)
+            XCTAssertGreaterThanOrEqual(light, 3.0, "\(segment.name) light is \(light)")
+            XCTAssertGreaterThanOrEqual(dark, 3.0, "\(segment.name) dark is \(dark)")
+        }
+        // The known-bad pair the re-step replaced: the assertion above has to
+        // fail for these, or it is not measuring anything.
+        XCTAssertLessThan(contrastRatio((0.910, 0.482, 0.643), Color.Ink.cardLight), 3.0)
+        XCTAssertLessThan(contrastRatio((0.106, 0.686, 0.478), Color.Ink.cardLight), 3.0)
     }
 
     /// The label ink carries body text at 10-11px, so it owes 4.5:1, not 3:1.

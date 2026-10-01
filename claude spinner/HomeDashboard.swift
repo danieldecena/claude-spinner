@@ -12,6 +12,16 @@ import SwiftUI
 enum HomeTab {
     static let tag = "home:dashboard"
     static func isHomeTag(_ tag: String?) -> Bool { tag == Self.tag }
+
+    /// The sidebar section for sessions running at `~`, hoisted above Pinned.
+    /// Derived from the home directory rather than written as "home": the id is
+    /// `projectSections`' own "project:" + `projectName`, which is the last path
+    /// component, and a differently-named home folder would silently never match.
+    static var homeSectionID: String {
+        "project:" + (NSHomeDirectory() as NSString).lastPathComponent
+    }
+
+    static func isHomeSection(_ id: String) -> Bool { id == homeSectionID }
 }
 
 struct HomeDashboard: View {
@@ -22,6 +32,8 @@ struct HomeDashboard: View {
     let usage: OverviewStrip
     /// Open titles per project, as the sidebar already reads them.
     let tasks: [String: (open: [String], done: Int, path: String)]
+    /// Which sessions are on a timed /goal run.
+    let goals: [String: GoalClock]
     /// Clicking a session row opens its pane.
     let select: (String) -> Void
 
@@ -77,7 +89,10 @@ struct HomeDashboard: View {
                 .font(.claudeMono(11)).foregroundStyle(tint(session))
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 1) {
-                Text(session.distinctName).font(.claudeMono(11)).lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(session.distinctName).font(.claudeMono(11)).lineLimit(1)
+                    GoalFlag(goal: goals[session.id])
+                }
                 Text(session.projectName).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
             }
             Spacer(minLength: 8)

@@ -1,4 +1,5 @@
-import Foundation
+import Combine
+import SwiftUI
 
 /// The time left on a timed `/goal` run, read from the skill's deadline file.
 ///
@@ -76,5 +77,56 @@ actor GoalPaneResolver {
         guard let found = SessionReplier.paneID(forPID: pid) else { return nil }
         panes[key] = found
         return found
+    }
+}
+
+/// Which sessions are on a timed `/goal` run, for the sidebar and the Home
+/// dashboard. The detail pane reads one session's clock on its own cadence --
+/// this is the all-sessions view of the same files, at a coarser 20s, because a
+/// row only shows whether there is a run, not how long is left.
+@MainActor final class GoalWatcher: ObservableObject {
+    @Published private(set) var goals: [String: GoalClock] = [:]
+
+    static let interval: TimeInterval = 20
+
+    /// One pass. Sessions with no pid, no pane or no file are simply absent from
+    /// the result -- unknown, never an entry saying "no run".
+    static func read(_ sessions: [(id: String, pid: Int?)]) async -> [String: GoalClock] {
+        var out: [String: GoalClock] = [:]
+        for session in sessions {
+            guard let pid = session.pid,
+                  let pane = await GoalPaneResolver.shared.pane(sessionID: session.id, pid: pid)
+            else { continue }
+            let text = await Task.detached(priority: .utility) {
+                GoalDeadlineFile.read(pane: pane)
+            }.value
+            if let clock = GoalClock.parse(text, now: Date()) { out[session.id] = clock }
+        }
+        return out
+    }
+
+    func track(_ sessions: [(id: String, pid: Int?)]) async {
+        while !Task.isCancelled {
+            let found = await Self.read(sessions)
+            if found != goals { goals = found }
+            try? await Task.sleep(for: .seconds(Self.interval))
+        }
+    }
+}
+
+/// The mark a row carries while its session is on a timed `/goal` run. Nothing
+/// is drawn without a clock: a row with no sign means "no run or not known",
+/// which is why the sign never has an "off" state of its own.
+struct GoalFlag: View {
+    let goal: GoalClock?
+
+    var body: some View {
+        if let goal {
+            Image(systemName: "flag.checkered")
+                .font(.ui(10))
+                .foregroundStyle(goal.isLanding || goal.isOverrun ? Color.attention : Color.series1)
+                .help(goal.label)
+                .accessibilityLabel("on a goal run, \(goal.label)")
+        }
     }
 }
