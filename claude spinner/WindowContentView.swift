@@ -24,10 +24,10 @@ struct WindowContentView: View {
     /// The selected session's repo, read once here so the suggestion can be
     /// worked out once and handed to every card that might own its button.
     @State private var gitSnapshot: GitSnapshot?
-    /// The selected repo's TASKS.md, re-read with the snapshot, and the root it
-    /// was looked for in: a root with no text is a repo without the file.
-    @State private var tasksText: String?
-    private var projectOpenTasks: Int? { tasksText.flatMap(Suggestion.openTasks(inTasksFile:)) }
+    /// How many open items the selected repo's TASKS.md has, re-read with the
+    /// snapshot. Counted when the file is read, not when it is asked for: the
+    /// suggestion inputs are built several times per render and the file is 20KB.
+    @State private var projectOpenTasks: Int?
     @State private var wrappedUp = false
 
     private var suggestionInput: Suggestion.Input? {
@@ -116,12 +116,13 @@ struct WindowContentView: View {
         .onChange(of: selected?.id) { actionNotice = nil }
         .task(id: selected?.cwd) {
             gitSnapshot = nil
-            tasksText = nil
+            projectOpenTasks = nil
             guard let cwd = selected?.cwd else { return }
             while !Task.isCancelled {
                 gitSnapshot = await GitProbe.shared.snapshot(for: cwd)
                 let root = gitSnapshot?.toplevel ?? cwd
-                tasksText = try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8)
+                projectOpenTasks = (try? String(contentsOfFile: root + "/TASKS.md", encoding: .utf8))
+                    .flatMap(Suggestion.openTasks(inTasksFile:))
                 try? await Task.sleep(for: .seconds(5))
             }
         }

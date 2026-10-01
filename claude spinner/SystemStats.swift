@@ -27,6 +27,10 @@ final class SystemStats: ObservableObject {
     }
 
     private static let interval: TimeInterval = 2
+    /// The volume read costs ten times the Mach calls and a disk's share moves
+    /// over minutes, so it is not taken on every tick.
+    private static let volumeInterval: TimeInterval = 30
+    private var lastVolumeRead: Date?
     private var timer: Timer?
     private var lastTicks: CPUTicks?
 
@@ -61,9 +65,12 @@ final class SystemStats: ObservableObject {
         memoryWired = Self.share(used: parts?.wired, of: memoryTotalBytes)
         memoryCompressed = Self.share(used: parts?.compressed, of: memoryTotalBytes)
 
-        let volume = Self.readVolume()
-        diskFreeBytes = volume?.free
-        disk = Self.diskShare(total: volume?.total, available: volume?.free)
+        if lastVolumeRead.map({ Date().timeIntervalSince($0) >= Self.volumeInterval }) ?? true {
+            lastVolumeRead = Date()
+            let volume = Self.readVolume()
+            diskFreeBytes = volume?.free
+            disk = Self.diskShare(total: volume?.total, available: volume?.free)
+        }
     }
 
     // MARK: - Arithmetic (no Mach calls, so it can be tested)

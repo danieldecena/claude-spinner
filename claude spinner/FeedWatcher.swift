@@ -994,6 +994,11 @@ final class UsageTotalsPoller {
     }
 }
 
+/// Just the spinner's phase, observed by the menu-bar label alone.
+final class GlyphClock: ObservableObject {
+    @Published var phase = 0
+}
+
 final class FeedWatcher: ObservableObject {
     @Published private(set) var sessions: [SessionFeed] = [] {
         // Recompute the usage-bearing session once per publish, not on every footer
@@ -1017,7 +1022,11 @@ final class FeedWatcher: ObservableObject {
     /// Advances ~10x/sec to animate the menu-bar spinner glyph. Kept as plain
     /// observable state (not a TimelineView in the MenuBarExtra label, which can
     /// collapse the status item to zero size and render it invisible).
-    @Published private(set) var glyphPhase = 0
+    /// The menu-bar spinner's 10 Hz tick, held apart from the feed: the window's
+    /// views observe the feed, and a tick published from it re-evaluated the
+    /// whole window ten times a second while anything was working.
+    let glyphClock = GlyphClock()
+    private var glyphPhase: Int { glyphClock.phase }
 
     /// Advances once a minute purely to re-render the menu-bar reset countdown.
     /// The countdown is derived from `Date()` at read time, so without a periodic
@@ -1137,7 +1146,7 @@ final class FeedWatcher: ObservableObject {
                                          repeats: true) { [weak self] _ in
             guard let self = self else { return }
             if self.menuBarActive || self.usageAlarm {
-                self.glyphPhase &+= 1
+                self.glyphClock.phase &+= 1
             }
         }
         countdownTimer = Timer.scheduledTimer(withTimeInterval: Constants.countdownTickInterval,

@@ -606,6 +606,12 @@ struct MenuBarLabel: View {
     // @ObservedObject so the label redraws on every glyphPhase tick (spinner
     // animation) and whenever the session list changes.
     @ObservedObject var feed: FeedWatcher
+    @ObservedObject private var clock: GlyphClock
+
+    init(feed: FeedWatcher) {
+        self.feed = feed
+        clock = feed.glyphClock
+    }
 
     var body: some View {
         // Bright + pulsing while working/attention; quiet grey for the done-flash
