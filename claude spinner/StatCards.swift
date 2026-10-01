@@ -309,8 +309,13 @@ struct OverviewStrip: View {
     private func limit(_ name: String, pct: Int?, elapsed: Double?, reset: String?) -> some View {
         var detail = reset.map { "resets \($0)" } ?? ""
         if let pct, let elapsed {
-            detail += (detail.isEmpty ? "" : " · ")
-                + (StatFormat.aheadOfPace(pct: pct, elapsed: elapsed) ? "ahead of pace" : "within pace")
+            // Not "ahead of pace", which reads as good news on a meter where it
+            // is the warning: spending ahead of the clock is what fills the
+            // window early. Say the clock, then the verdict in those terms.
+            let gone = Int((elapsed * 100).rounded())
+            detail += (detail.isEmpty ? "" : "\n") + "\(gone)% of the window has passed · "
+                + (StatFormat.aheadOfPace(pct: pct, elapsed: elapsed)
+                    ? "spending faster than that" : "spending no faster than that")
         }
         return RingMetric(caption: name, value: pct.map { "\($0)%" } ?? "—",
                           ratio: pct.map { Double($0) / 100 },
