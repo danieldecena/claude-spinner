@@ -5,6 +5,7 @@
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
 - [ ] Watch the Graph card reload across a two-repo session switch
+- [ ] Watch the pinned pane's last card fill the leftover height
 
 ## Completed
 
