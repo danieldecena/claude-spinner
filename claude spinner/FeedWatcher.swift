@@ -1692,9 +1692,26 @@ final class FeedWatcher: ObservableObject {
     /// `staleCutoff`. `pidAlive` is injected so tests don't probe the
     /// process table. Pure; `performRescan` uses this before
     /// `excludingOrphanIdleChildren`.
-    static func excludingDeadPidIdle(_ sessions: [SessionFeed], pidAlive: (Int) -> Bool) -> [SessionFeed] {
+    /// A session whose last state said "running Bash" and whose process is gone
+    /// did not keep running: the terminal was closed or force-quit mid-tool, and
+    /// no SessionEnd fired. Restricting this to idle sessions left those rows
+    /// claiming to work for the whole 12-hour prune window (two of them, 1h and
+    /// 2h stale, both still "running Read", 2026-10-01).
+    ///
+    /// A working session writes state on every tool call, so one that has
+    /// written nothing for `deadGrace` and has no process is certainly dead. The
+    /// grace is what keeps a just-started session, whose captured pid may be a
+    /// hook's subshell rather than claude itself, from being dropped on a bad
+    /// pid read.
+    static let deadGrace: TimeInterval = 120
+
+    static func excludingDeadPidIdle(_ sessions: [SessionFeed], pidAlive: (Int) -> Bool,
+                                     now: Date = Date()) -> [SessionFeed] {
         sessions.filter { s in
-            guard !s.isChild, s.status == .idle, let pid = s.pid else { return true }
+            guard !s.isChild, let pid = s.pid else { return true }
+            if s.status != .idle {
+                guard let updated = s.updated, now.timeIntervalSince(updated) > deadGrace else { return true }
+            }
             return pidAlive(pid)
         }
     }

@@ -427,6 +427,30 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(items.last?.depth, 1)
     }
 
+    func testAWorkingSessionWhoseProcessIsGoneStopsBeingWorking() {
+        let now = Date()
+        var dead = mk("d", .tool, cwd: "/x", updated: now.addingTimeInterval(-600))
+        dead.pid = 4242
+        XCTAssertTrue(FeedWatcher.excludingDeadPidIdle([dead], pidAlive: { _ in false }, now: now).isEmpty,
+                      "a terminal closed mid-tool left the row claiming to run for 12 hours")
+    }
+
+    func testAWorkingSessionIsKeptWhileItsPidCouldStillBeMisread() {
+        let now = Date()
+        // Inside the grace: a session that started seconds ago may have captured
+        // a hook subshell's pid rather than claude's, and must not be dropped.
+        var fresh = mk("f", .tool, cwd: "/x", updated: now.addingTimeInterval(-10))
+        fresh.pid = 4242
+        XCTAssertEqual(FeedWatcher.excludingDeadPidIdle([fresh], pidAlive: { _ in false }, now: now).map(\.id),
+                       ["f"])
+        // And the known-good input: stale, but the process is there, so it is
+        // simply a long tool call.
+        var stale = mk("s", .tool, cwd: "/x", updated: now.addingTimeInterval(-600))
+        stale.pid = 4242
+        XCTAssertEqual(FeedWatcher.excludingDeadPidIdle([stale], pidAlive: { _ in true }, now: now).map(\.id),
+                       ["s"])
+    }
+
     func testMenuBarStaysWorkingWhenOnlyChildrenWork() {
         let now = Date()
         let parent = mk("p", .idle, updated: now, lastDuration: 10)
