@@ -50,6 +50,10 @@ struct PinnedProjectDetail: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .top], 20)
+            // The page takes the pane's height rather than stopping where the
+            // rail's last row ends: on a tall window that left a third of it
+            // blank under both columns.
+            GeometryReader { geometry in
             ScrollView {
                 // Desktop's project page: the work in a main column, and what the
                 // project is made of (instructions, context, folders, memory,
@@ -96,14 +100,16 @@ struct PinnedProjectDetail: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 rail.frame(width: 300)
                 }
                 .padding(20)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .topLeading)
             }
             // The strip above the header is the toolbar's; clip so nothing scrolls
             // up behind the title either.
             .clipped()
+            }
         }
         .task(id: project.id) {
             let path = project.path
@@ -239,9 +245,13 @@ struct PinnedProjectDetail: View {
                 Text("Reading the project…").font(.ui(10)).foregroundStyle(Color.label)
                     .padding(.vertical, 12)
             }
+            // The rows keep their heights and the card takes the rest, rather
+            // than the card ending mid-pane with blank window under it.
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16).padding(.vertical, 4)
         .detailCard()
+        .frame(maxHeight: .infinity)
     }
 
     private static func name(_ path: String) -> String { (path as NSString).lastPathComponent }
@@ -288,21 +298,52 @@ struct PinnedProjectDetail: View {
     private var liveCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             CardTitle("Running now")
+            // A name and a word was all this said, in a card as tall as the two
+            // beside it. The second line is what you would click through for:
+            // whether it is moving, how full its context is, how long it has run.
             ForEach(live) { session in
                 Button { select(session.id) } label: {
-                    HStack(spacing: 6) {
-                        Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
-                        Spacer(minLength: 4)
-                        Text(session.statusLabel).font(.ui(10)).lineLimit(1)
-                            .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 6) {
+                            Text(session.isWorking ? Spinner.frame(at: Date()) : Spinner.idle)
+                                .font(.claudeMono(11)).frame(width: 14)
+                                .foregroundStyle(session.isBlockedOnYou ? Color.attention
+                                                    : session.isWorking ? Color.claude : Color.secondary)
+                            Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
+                            Spacer(minLength: 4)
+                            Text(session.statusLabel).font(.ui(10)).lineLimit(1)
+                                .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
+                        }
+                        let detail = liveDetail(session)
+                        if !detail.isEmpty {
+                            Text(detail).font(.ui(10)).foregroundStyle(Color.label)
+                                .lineLimit(1).padding(.leading, 20)
+                        }
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Open this session")
             }
+            Spacer(minLength: 0)
         }
         .detailCard()
+        .frame(maxHeight: .infinity)
+    }
+
+    /// Context and elapsed time for a running session, each left out when the
+    /// statusLine has not reported it rather than printed as a dash.
+    private func liveDetail(_ session: SessionFeed) -> String {
+        var parts: [String] = []
+        if let tokens = session.contextTokens {
+            if let window = session.stats.contextWindowSize, window > 0 {
+                parts.append("\(Color.contextPercent(tokens: tokens, window: window))% context")
+            } else {
+                parts.append("\(StatFormat.compactCount(tokens)) context")
+            }
+        }
+        if let wall = session.stats.wallSeconds { parts.append(StatFormat.duration(wall)) }
+        return parts.joined(separator: " · ")
     }
 
     private var tasksCard: some View {

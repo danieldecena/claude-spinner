@@ -980,13 +980,21 @@ struct TileGrid: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let columnWidth = grid(width: bounds.width).columnWidth
         var y = bounds.minY
-        for row in rows(width: bounds.width, subviews: subviews) {
+        let packed = rows(width: bounds.width, subviews: subviews)
+        // Any height the grid was given beyond its content goes to the last row,
+        // so a short page ends in a tall card rather than in blank pane. Nothing
+        // to give when the grid is sized to its content, which is the usual case.
+        let content = packed.map(\.height).reduce(0, +)
+            + spacing * CGFloat(max(packed.count - 1, 0))
+        let slack = max(0, bounds.height - content)
+        for (index, row) in packed.enumerated() {
+            let height = index == packed.count - 1 ? row.height + slack : row.height
             for slot in row.slots {
                 subviews[slot.index].place(
                     at: CGPoint(x: bounds.minX + CGFloat(slot.column) * (columnWidth + spacing), y: y),
-                    proposal: ProposedViewSize(width: width(slot.span, columnWidth), height: row.height))
+                    proposal: ProposedViewSize(width: width(slot.span, columnWidth), height: height))
             }
-            y += row.height + spacing
+            y += height + spacing
         }
     }
 
