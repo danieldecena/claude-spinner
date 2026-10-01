@@ -2042,12 +2042,9 @@ final class FeedWatcher: ObservableObject {
         return Date().timeIntervalSince(t) > Constants.usageStaleAfter + UsageTotalsPoller.pollInterval
     }
     var usageTotalsTooltip: String {
-        var s = "ccusage totals, api-equivalent spend (not billed on Max)."
+        var s = "ccusage totals, in tokens."
         if let t = usageTotals?.fetchedAt {
             s += " As of \(Self.resetTimeFormatter.string(from: t)) (\(Self.compactAge(since: t)) ago)."
-        }
-        if usageTotals != nil && usageTotals?.weekCost == nil {
-            s += " $? = ccusage couldn't price every model on this run."
         }
         if let e = usageTotalsError { s += " Last refresh failed: \(e)." }
         return s

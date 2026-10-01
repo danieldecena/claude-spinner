@@ -140,8 +140,8 @@ struct RingMetric: View {
 
 // MARK: - This session
 
-/// Context, prompt cache and cost for one session: two rings for the shares and
-/// a figure for the spend. Unframed, for the Usage card's row.
+/// Context, prompt cache and wall time for one session: two rings for the shares
+/// and a figure for the time. Unframed, for the Usage card's row.
 struct SessionRings: View {
     let session: SessionFeed
 
@@ -191,12 +191,10 @@ struct SessionRings: View {
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
-    private var timeDetail: String {
-        let st = session.stats
-        var lines: [String] = []
-        if let wall = st.wallSeconds { lines.append("\(StatFormat.duration(wall)) wall") }
-        if let share = st.apiShare { lines.append("\(StatFormat.percent(share)) on the api") }
-        return lines.joined(separator: "\n")
+    /// What the figure beside it does not already say: the wall time is the ring's
+    /// own value, so repeating it here would be the whole tooltip.
+    private var timeDetail: String? {
+        session.stats.apiShare.map { "\(StatFormat.percent($0)) on the api" }
     }
 
     private var facts: String? {

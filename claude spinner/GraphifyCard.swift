@@ -50,12 +50,16 @@ struct GraphSummary: Equatable {
                             communities: Array(top))
     }
 
-    /// Where the graph lives for a session's working directory.
-    static func path(forCWD cwd: String) -> String { cwd + "/graphify-out/graph.json" }
+    /// Where the graph lives for a repo. `graphify` writes `graphify-out/` at the
+    /// root it was run from, so this wants the repo root, not a session's cwd: a
+    /// session started in a subfolder has no graph beside it and the card would
+    /// stay empty for a repo that has one.
+    static func path(forRepo root: String) -> String { root + "/graphify-out/graph.json" }
 }
 
 struct GraphifyCard: View {
-    let cwd: String
+    /// The repo root, falling back to the session's cwd before git has answered.
+    let root: String
     /// The repo's current HEAD, so the card can say the graph is behind it.
     /// Nil when it could not be read -- which prints nothing, never "current".
     let headSHA: String?
@@ -88,7 +92,7 @@ struct GraphifyCard: View {
                 .detailCard()
             }
         }
-        .task(id: cwd) { await load() }
+        .task(id: root) { await load() }
     }
 
     private func sizeLabel(_ summary: GraphSummary) -> String {
@@ -129,18 +133,24 @@ struct GraphifyCard: View {
         .accessibilityLabel("\(community.name), \(community.count) nodes")
     }
 
-    /// Read once per working directory. The file is a couple of megabytes, so it
-    /// is parsed off the main thread and not re-read on a timer: a graph changes
-    /// when `graphify update` runs, not while you watch it.
+    /// Read once per repo. The file is a couple of megabytes, so it is parsed off
+    /// the main thread and not re-read on a timer: a graph changes when
+    /// `graphify update` runs, not while you watch it.
     private func load() async {
-        // Cleared first: a new working directory must not show the last repo's
+        // Cleared first: a new repo must not show the last one's
         // graph while this one is being read, and a repo without a graph has to
         // clear the card rather than inherit one.
         summary = nil
-        let path = GraphSummary.path(forCWD: cwd)
-        summary = await Task.detached(priority: .utility) {
+        let path = GraphSummary.path(forRepo: root)
+        let read = await Task.detached(priority: .utility) { () -> GraphSummary? in
             guard let data = FileManager.default.contents(atPath: path) else { return nil }
             return GraphSummary.parse(data)
         }.value
+        // `.task(id:)` cancels this call when the directory changes, but the
+        // detached read it is waiting on is not cancelled and returns normally.
+        // Without the guard a slower read of the previous repo lands after the
+        // new one and leaves the wrong repo's graph on the card.
+        guard !Task.isCancelled else { return }
+        summary = read
     }
 }

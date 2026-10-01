@@ -235,6 +235,7 @@ struct WindowContentView: View {
                               skillPick: skillPick,
                               usage: usageCard,
                               headSHA: gitSnapshot?.headSHA,
+                              repoRoot: gitSnapshot?.toplevel,
                               notice: $actionNotice)
                 .id(session.id)
                 .onAppear { if selection == nil { selection = session.id } }
@@ -611,6 +612,9 @@ private struct SessionDetail: View {
     let usage: OverviewStrip
     /// The repo's HEAD, for the Graph card to say whether the graph is behind it.
     let headSHA: String?
+    /// The repo root, which is where graphify writes its output. Nil outside a
+    /// repo, and then the session's own directory is all there is to look in.
+    let repoRoot: String?
     @Binding var notice: NoticeMessage?
     /// The pane's height at the width it is laid out at, without the top row's
     /// share of leftover height, read back from the layout so the fit can be
@@ -701,7 +705,7 @@ private struct SessionDetail: View {
                     usage.including(session)
                         .tileSpan(.max)
                     // Only drawn for a repo that has a graphify-out/graph.json.
-                    GraphifyCard(cwd: session.cwd, headSHA: headSHA)
+                    GraphifyCard(root: repoRoot ?? session.cwd, headSHA: headSHA)
                         .tileSpan(.max)
                 }
 
@@ -1000,6 +1004,11 @@ struct TileGrid: Layout {
         var packed: [[Slot]] = []
         var used = columns
         for index in subviews.indices {
+            // A tile that drew nothing takes no row: the Graph card is absent for
+            // a repo with no graph, and packing its empty body left a bare
+            // spacing-height row under the grid.
+            if subviews[index].sizeThatFits(ProposedViewSize(width: columnWidth, height: nil))
+                .height == 0 { continue }
             let span = min(max(1, subviews[index][TileSpan.self]), columns)
             if used + span > columns {
                 packed.append([])

@@ -4507,8 +4507,8 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(empty.builtAtCommit)
     }
 
-    func testGraphPathIsInsideTheWorkingDirectory() {
-        XCTAssertEqual(GraphSummary.path(forCWD: "/x/y"), "/x/y/graphify-out/graph.json")
+    func testGraphPathIsInsideTheRepoRoot() {
+        XCTAssertEqual(GraphSummary.path(forRepo: "/x/y"), "/x/y/graphify-out/graph.json")
     }
 
     // MARK: - GoalClock
