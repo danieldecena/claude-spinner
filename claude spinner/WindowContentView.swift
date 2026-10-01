@@ -1350,10 +1350,18 @@ private struct TranscriptCard: View {
         // a hole under a short reply; the row is as tall as the Skills card
         // beside it either way, so a card that resizes moves nothing.
         VStack(alignment: .leading, spacing: 10) {
-            Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded,
-                     goal: goal)
-            Labelled("claude said", snapshot.lastAssistantText, limit: nil,
-                     fill: expanded ? nil : Self.replyIdeal + extra)
+            // Nothing read from the transcript at all: one line, not two reserved
+            // blocks. A session whose transcript is missing drew "not recorded"
+            // twice over two thirds of the pane, and the room belongs to the
+            // cards under it.
+            if nothingRecorded {
+                Labelled("conversation", nil, limit: 1, goal: goal)
+            } else {
+                Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded,
+                         goal: goal)
+                Labelled("claude said", snapshot.lastAssistantText, limit: nil,
+                         fill: expanded ? nil : Self.replyIdeal + extra)
+            }
             if !snapshot.recentTools.isEmpty {
                 Text("ran " + snapshot.recentTools.joined(separator: " · "))
                     .font(.claudeMono(10)).foregroundStyle(Color.label).lineLimit(1)
@@ -1362,7 +1370,7 @@ private struct TranscriptCard: View {
         // Opened out, the reply no longer takes `extra` through its fill, so the
         // card takes it here: the row must grow by exactly `extra` either way,
         // or the pane's measured ideal comes back short and it clips.
-        .padding(.bottom, expanded ? extra : 0)
+        .padding(.bottom, expanded && !nothingRecorded ? extra : 0)
         .task(id: sessionID) { await refresh() }
         .task(id: "\(sessionID)|\(pid.map(String.init) ?? "-")") { await trackGoal() }
         // Re-read on the same cadence the rows already tick at. The read is a
@@ -1370,6 +1378,12 @@ private struct TranscriptCard: View {
         .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
             Task { await refresh() }
         }
+    }
+
+    /// Neither side of the turn was read. Distinct from an empty reply, which is
+    /// a turn in progress and keeps its reserved height.
+    private var nothingRecorded: Bool {
+        snapshot.lastPrompt == nil && snapshot.lastAssistantText == nil
     }
 
     /// Re-reads the goal's deadline file each time its label can change, about
