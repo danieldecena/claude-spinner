@@ -61,33 +61,34 @@ struct GraphifyCard: View {
     let headSHA: String?
 
     @State private var summary: GraphSummary?
-    @State private var looked = false
 
     var body: some View {
+        // One structure, not an if/else of two: a card that swapped its whole
+        // body when the summary arrived changed view identity, which re-ran the
+        // task -- and the guard added to stop that re-read also stopped the read
+        // for the next session's repo.
+        //
         // Drawn only for a repo that has a graph: a card saying "no graph here"
         // on every other session is a permanent instruction nobody asked for.
-        if let summary {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    CardTitle("Graph")
-                    Spacer(minLength: 4)
-                    Text(sizeLabel(summary)).font(.ui(10)).foregroundStyle(Color.label)
+        Group {
+            if let summary {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        CardTitle("Graph")
+                        Spacer(minLength: 4)
+                        Text(sizeLabel(summary)).font(.ui(10)).foregroundStyle(Color.label)
+                    }
+                    if let staleness = staleness(summary) {
+                        Text(staleness).font(.ui(10)).foregroundStyle(Color.attention)
+                    }
+                    ForEach(summary.communities, id: \.name) { community in
+                        bar(community, of: summary.communities.first?.count ?? 1)
+                    }
                 }
-                if let staleness = staleness(summary) {
-                    Text(staleness).font(.ui(10)).foregroundStyle(Color.attention)
-                }
-                ForEach(summary.communities, id: \.name) { community in
-                    bar(community, of: summary.communities.first?.count ?? 1)
-                }
+                .detailCard()
             }
-            .detailCard()
-            .task(id: cwd) { await load() }
-        } else {
-            // Still a view, so the task runs and the card can appear once the
-            // file is read; it occupies nothing until then.
-            Color.clear.frame(width: 0, height: 0)
-                .task(id: cwd) { await load() }
         }
+        .task(id: cwd) { await load() }
     }
 
     private func sizeLabel(_ summary: GraphSummary) -> String {
@@ -132,8 +133,10 @@ struct GraphifyCard: View {
     /// is parsed off the main thread and not re-read on a timer: a graph changes
     /// when `graphify update` runs, not while you watch it.
     private func load() async {
-        guard !looked else { return }
-        looked = true
+        // Cleared first: a new working directory must not show the last repo's
+        // graph while this one is being read, and a repo without a graph has to
+        // clear the card rather than inherit one.
+        summary = nil
         let path = GraphSummary.path(forCWD: cwd)
         summary = await Task.detached(priority: .utility) {
             guard let data = FileManager.default.contents(atPath: path) else { return nil }

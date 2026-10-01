@@ -922,7 +922,7 @@ extension View {
     /// A sidebar row at its text's own height. The list style's default insets
     /// are sized for a Finder sidebar's 13pt rows; these are 10 and 11pt.
     func denseRow() -> some View {
-        listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+        listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
             // Plain draws a hairline under every row; the section headings are
             // what separate things here.
             .listRowSeparator(.hidden)

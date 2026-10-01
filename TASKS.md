@@ -4,10 +4,14 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
-- [ ] Watch home sit above Pinned once a home session is live
 
 ## Completed
 
+- [x] Watch home sit above Pinned once a home session is live -- seen 12:03, 76461ca
+- [x] Add a Graph card to the session pane -- 88c1cc5
+- [x] Drop the dollar figures (Max plan) -- 88c1cc5
+- [x] Condense the sidebar rows -- d6f0aa4
+- [x] Flag sessions on a timed /goal run -- 6cdffb1
 - [x] Add a Home tab that opens the window on a dashboard of everything -- f3b3a03
 - [x] Improve spinner speed and performance -- 113cf49
 - [x] See the new Usage card on screen and design-review it -- 78824e8

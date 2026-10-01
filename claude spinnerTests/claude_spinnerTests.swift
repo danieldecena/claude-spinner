@@ -1837,6 +1837,15 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertLessThan(contrastRatio((0.106, 0.686, 0.478), Color.Ink.cardLight), 3.0)
     }
 
+    /// `series1` is a mark too -- the cache ring's arc and every bar in the Graph
+    /// card -- so it owes the same 3:1 on the card it is drawn on.
+    func testTheSeriesHueClearsThreeToOneOnTheCard() {
+        XCTAssertGreaterThanOrEqual(
+            contrastRatio(Color.Ink.series1Light, Color.Ink.cardLight), 3.0)
+        XCTAssertGreaterThanOrEqual(
+            contrastRatio(Color.Ink.series1Dark, Color.Ink.cardDark), 3.0)
+    }
+
     /// The label ink carries body text at 10-11px, so it owes 4.5:1, not 3:1.
     /// The accent now clears it too (clay, about 5.2:1 on white), which retired
     /// the guard that asserted it did not; it is held to the same floor instead,

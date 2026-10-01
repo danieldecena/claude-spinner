@@ -38,14 +38,22 @@ struct HomeDashboard: View {
     let select: (String) -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                usage
-                sessionsCard
-                tasksCard
+        // The cards fill the pane rather than stacking at the top and leaving a
+        // third of the window empty: Usage keeps its own height, and the two
+        // lists share what is left, which is also what lets them show more rows
+        // on a tall window than on a short one.
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Its rings are a fixed height; without this the card takes a
+                    // third of the leftover space and holds it empty under them.
+                    usage.fixedSize(horizontal: false, vertical: true)
+                    sessionsCard
+                    tasksCard
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .topLeading)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -67,8 +75,10 @@ struct HomeDashboard: View {
                 Button { select(session.id) } label: { row(session) }
                     .buttonStyle(.plain)
             }
+            Spacer(minLength: 0)
         }
         .detailCard()
+        .frame(maxHeight: .infinity)
     }
 
     private var countLabel: String {
@@ -146,8 +156,10 @@ struct HomeDashboard: View {
             ForEach(tasks.keys.sorted(), id: \.self) { key in
                 if let file = tasks[key] { project(key, file) }
             }
+            Spacer(minLength: 0)
         }
         .detailCard()
+        .frame(maxHeight: .infinity)
     }
 
     private var totalOpen: Int { tasks.values.reduce(0) { $0 + $1.open.count } }
@@ -176,5 +188,5 @@ struct HomeDashboard: View {
         }
     }
 
-    private static let shownTasks = 3
+    private static let shownTasks = 5
 }
