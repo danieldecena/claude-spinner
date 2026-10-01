@@ -292,6 +292,7 @@ private struct SessionSidebar: View {
                 Image(systemName: "square.grid.2x2").font(.ui(10)).foregroundStyle(Color.label)
                 Text("Home").font(.claudeMono(11))
             }
+            .denseRow()
             .accessibilityLabel("Home, every session at once")
             .tag(HomeTab.tag)
             // Then the home project group: the session at ~ others start from.
@@ -307,6 +308,7 @@ private struct SessionSidebar: View {
                             Text("\(live) live").font(.ui(10)).foregroundStyle(Color.label)
                         }
                     }
+                    .denseRow()
                     .help(project.path)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(project.name), pinned project" + (live > 0 ? ", \(live) live" : ""))
@@ -317,7 +319,21 @@ private struct SessionSidebar: View {
             }
             ForEach(otherGroups) { section in sectionView(section) }
         }
-        .listStyle(.sidebar)
+        // Plain, not sidebar: the sidebar style's row metrics do not yield to
+        // `listRowInsets`, `defaultMinListRowHeight` or `controlSize` -- captures
+        // either side of all three put every row at the same y (2026-10-01). Plain
+        // rows are about a third shorter, which is what fits four projects and
+        // their tasks without scrolling.
+        .listStyle(.plain)
+        // Dense rows: the sidebar is a list of names, counts and one-line task
+        // titles, and the sidebar style's default row height left a third of each
+        // row empty -- four projects did not fit without scrolling.
+        .environment(\.defaultMinListRowHeight, 18)
+        // The lever that actually moves these rows. `listRowInsets` and the min
+        // row height alone changed nothing measurable (rows sat at the same y in
+        // captures either side of the edit, 2026-10-01); the sidebar style sizes
+        // its rows from the control size.
+        .controlSize(.small)
         // The card is the background; the list's own would sit on top of it.
         .scrollContentBackground(.hidden)
     }
@@ -361,6 +377,7 @@ private struct SessionSidebar: View {
                             .foregroundStyle(Color.attention)
                     }
                 }
+                .denseRow()
                 .help(session.statusLabel)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(rowLabel(session))
@@ -382,6 +399,7 @@ private struct SessionSidebar: View {
                     }
                     .buttonStyle(.borderless)
                     .padding(.leading, 16)
+                    .denseRow()
                     .selectionDisabled()
                     if open {
                         ForEach(split.finished) { child in childRow(child) }
@@ -404,9 +422,11 @@ private struct SessionSidebar: View {
             Text("\(file.open.count) open · \(file.done) done")
                 .font(.ui(10)).foregroundStyle(Color.label)
         }
+        .denseRow()
         .selectionDisabled()
         if file.open.isEmpty {
             Text("Nothing open in TASKS.md.").font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
+                .denseRow()
                 .selectionDisabled()
         }
         ForEach(Array(file.open.prefix(Self.shownTasks).enumerated()), id: \.offset) { _, title in
@@ -414,6 +434,7 @@ private struct SessionSidebar: View {
                 Circle().fill(Color.label).frame(width: 4, height: 4)
             }
                 .font(.ui(10)).lineLimit(1).truncationMode(.tail)
+                .denseRow()
                 .help(title)
                 .selectionDisabled()
         }
@@ -423,6 +444,7 @@ private struct SessionSidebar: View {
                 NSWorkspace.shared.open(URL(fileURLWithPath: file.path))
             }
             .buttonStyle(.link).font(.ui(10))
+            .denseRow()
             .help("Open \(file.path)")
             .selectionDisabled()
         }
@@ -439,6 +461,7 @@ private struct SessionSidebar: View {
                 .lineLimit(1)
         }
         .padding(.leading, 16)
+        .denseRow()
         .selectionDisabled()
         .accessibilityElement(children: .combine)
     }
@@ -888,6 +911,15 @@ extension View {
     /// the design system's radius-lg on a surface one step off the pane, with no
     /// border or shadow. Fills its grid column so neighbours line up at the edges.
     func detailCard() -> some View { modifier(DetailCard()) }
+
+    /// A sidebar row at its text's own height. The list style's default insets
+    /// are sized for a Finder sidebar's 13pt rows; these are 10 and 11pt.
+    func denseRow() -> some View {
+        listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+            // Plain draws a hairline under every row; the section headings are
+            // what separate things here.
+            .listRowSeparator(.hidden)
+    }
 
     /// How many `TileGrid` columns this card takes.
     func tileSpan(_ columns: Int) -> some View { layoutValue(key: TileSpan.self, value: columns) }
