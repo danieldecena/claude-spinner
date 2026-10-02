@@ -30,17 +30,65 @@ struct ArtifactWebView: NSViewRepresentable {
     /// Below 1 the page lays out wider than the view and shrinks to fit, which
     /// is what makes a small card read as a preview of the whole page.
     var zoom: CGFloat = 1
+    /// Given a picture of the page once it has drawn, for a caller that wants
+    /// the picture and not the page.
+    var onSnapshot: ((NSImage) -> Void)?
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> WKWebView {
         let view = ArtifactWeb.makeWebView()
         view.pageZoom = zoom
+        context.coordinator.onSnapshot = onSnapshot
+        view.navigationDelegate = context.coordinator
         view.load(URLRequest(url: url))
         return view
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
+        context.coordinator.onSnapshot = onSnapshot
         if view.pageZoom != zoom { view.pageZoom = zoom }
         if view.url == nil { view.load(URLRequest(url: url)) }
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var onSnapshot: ((NSImage) -> Void)?
+        /// The load finishing is not the page drawing: claude.ai fetches the
+        /// artifact and fills its frame afterwards.
+        static let settle: Duration = .seconds(5)
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard onSnapshot != nil else { return }
+            Task {
+                try? await Task.sleep(for: Self.settle)
+                // A sign-in redirect finishes more than once; the first picture
+                // takes the view off screen, and a second would be of nothing.
+                guard webView.window != nil,
+                      let image = try? await webView.takeSnapshot(configuration: nil) else { return }
+                onSnapshot?(image)
+            }
+        }
+    }
+}
+
+/// Pictures of artifact pages for the dashboard cards. A live page behind each
+/// card cost about 90 MB apiece (measured 2026-10-02), for a quarter-size
+/// picture nobody can click into.
+@MainActor
+final class ArtifactThumbnails: ObservableObject {
+    static let shared = ArtifactThumbnails()
+
+    /// Per appearance: the page draws itself light or dark, and a light picture
+    /// on a dark panel reads as a fault.
+    @Published private(set) var images: [String: [ColorScheme: NSImage]] = [:]
+
+    func keep(_ image: NSImage, of url: URL, in scheme: ColorScheme) {
+        images[url.absoluteString, default: [:]][scheme] = image
+    }
+
+    /// The page is about to be worked in, so the picture is about to be old.
+    func forget(_ url: URL) {
+        images[url.absoluteString] = nil
     }
 }
 
@@ -101,6 +149,8 @@ struct ArtifactCard: View {
     let artifact: ProjectArtifact
     let onExpand: () -> Void
     @ObservedObject private var popouts = ArtifactPopouts.shared
+    @ObservedObject private var thumbnails = ArtifactThumbnails.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     private var host: String { URL(string: artifact.url)?.host() ?? "artifact" }
     private static let thumbnailHeight: CGFloat = 72
@@ -129,9 +179,11 @@ struct ArtifactCard: View {
             // about 40pt for the name, which drew as "C".
             if let url = URL(string: artifact.url) {
                 HStack(spacing: 4) {
-                    ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand",
-                                       action: onExpand)
+                    ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand") {
+                        expand(url)
+                    }
                     ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
+                        thumbnails.forget(url)
                         popouts.show(title: artifact.title, url: url)
                     }
                     ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
@@ -150,12 +202,24 @@ struct ArtifactCard: View {
                     // do this: the artifact's own frame kept its type size, and
                     // the box held a toolbar, two scrollbars and one line of
                     // text. Clicks go to Expand so scrolling the dashboard never
-                    // lands inside it.
-                    GeometryReader { geo in
-                        ArtifactWebView(url: url)
-                            .frame(width: geo.size.width / Self.thumbnailScale,
-                                   height: Self.thumbnailHeight / Self.thumbnailScale)
-                            .scaleEffect(Self.thumbnailScale, anchor: .topLeading)
+                    // lands inside it. The page is only there until it has
+                    // drawn: its picture replaces it and the web view goes.
+                    Group {
+                        if let image = thumbnails.images[url.absoluteString]?[colorScheme] {
+                            Image(nsImage: image)
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity, maxHeight: Self.thumbnailHeight, alignment: .topLeading)
+                                .clipped()
+                        } else {
+                            GeometryReader { geo in
+                                ArtifactWebView(url: url) { thumbnails.keep($0, of: url, in: colorScheme) }
+                                    .frame(width: geo.size.width / Self.thumbnailScale,
+                                           height: Self.thumbnailHeight / Self.thumbnailScale)
+                                    .scaleEffect(Self.thumbnailScale, anchor: .topLeading)
+                            }
+                        }
                     }
                         .frame(height: Self.thumbnailHeight)
                         .allowsHitTesting(false)
@@ -173,7 +237,7 @@ struct ArtifactCard: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .strokeBorder(Color.label.opacity(0.15))
                                 .contentShape(Rectangle())
-                                .onTapGesture(perform: onExpand)
+                                .onTapGesture { expand(url) }
                                 .accessibilityHidden(true)
                         }
                         .help("Expand")
@@ -181,6 +245,11 @@ struct ArtifactCard: View {
             }
         }
         .detailCard()
+    }
+
+    private func expand(_ url: URL) {
+        thumbnails.forget(url)
+        onExpand()
     }
 }
 

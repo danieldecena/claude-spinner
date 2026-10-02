@@ -284,7 +284,8 @@ The rest is in `TASKS.md`.
   region grab at 11:43 took in another app's window that overlapped the pane;
   those files were deleted unread beyond the one look. The id comes from
   `CGWindowListCopyWindowInfo` filtered on the owner name.
-- Measured 12:35, the web views behind the artifact thumbnails: 291 MB outside
+- Measured about 12:23 (written here first as 12:35, a time nobody read off a
+  clock), the web views behind the artifact thumbnails: 291 MB outside
   the app's own 90 MB. `footprint` on the five WebKit processes whose
   responsible pid is the app (`responsibility_get_pid_responsible_for_pid`):
   three WebContent at 78, 78 and 105 MB, GPU 20 MB, Networking 10 MB. One
@@ -296,6 +297,25 @@ The rest is in `TASKS.md`.
 - Found: CI only runs on pushes touching the app, project or test directories
   (`paths:` in the workflow), so doc-only commits such as `62ba3a7` and
   `e105526` get no run and `gh run list --limit 1` shows an older commit.
+- Decided (Daniel said go): an artifact card draws a picture of its page, not
+  the page. The web view loads as before, and five seconds after the load
+  finishes its snapshot replaces it and the view is dropped. The picture is
+  kept per URL and per appearance for the life of the app, and thrown away
+  when the card is expanded or popped out, since the page is about to change.
+  Seen 12:33 on Job Search after a relaunch: three WebContent processes and
+  374 to 416 MB at 2 to 3 s, none and 16 to 19 MB (GPU and Networking only) by
+  15 s, with all three cards still showing their pages. 401 tests pass.
+- Found, not fixed: in 4 of the 8 loads that reached the page, one of the
+  three web views outlived its picture, holding about 115 MB. Left alone it
+  went at about 128 s; leaving the page and returning also cleared it. All
+  three pictures were already in place, so it is a removed view something
+  still holds, not a card that failed to snapshot. What holds it is not known.
+- Not observed: the picture being retaken after Expand or pop-out, or after
+  the appearance flips. Pressing the card's buttons through System Events
+  found no buttons this session.
+- Three relaunch trials read 0 web processes of any kind and were thrown out:
+  sidebar row 3 is Job Search only when no `home` session is listed, and the
+  trial script did not check which row it had selected.
 
 ### 2026-10-01
 
