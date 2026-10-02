@@ -136,6 +136,10 @@ struct PinnedProjectDetail: View {
                 rail.frame(width: 300)
                 }
                 .padding(20)
+                // At least the pane's height, inside the fixed size below: that
+                // is what proposes a height to the grid, which hands the slack
+                // to its last row. A page taller than the pane is unaffected.
+                .frame(minHeight: geo.size.height, alignment: .topLeading)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)
                 .fixedSize(horizontal: false, vertical: true)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
