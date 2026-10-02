@@ -54,7 +54,13 @@ struct HomeDashboard: View {
                     usage
                     sessionsCard
                     tasksCard
-                    MailCard()
+                    // Side by side while each can keep 330 pt, stacked below that.
+                    // TileGrid, not an HStack: it makes the two cards one height
+                    // and keeps both alive when the window crosses the threshold.
+                    TileGrid(minimum: 330, spacing: 12, maxColumns: 2) {
+                        MailCard()
+                        CalendarCard()
+                    }
                 }
                 .padding(20)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)
