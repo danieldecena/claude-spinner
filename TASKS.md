@@ -3,11 +3,11 @@
 ## Tasks
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
-- [ ] Run the design review skills on the pinned pane
 - [ ] Watch a no-graph repo leave no gap where the Graph card goes
 
 ## Completed
 
+- [x] Run the design review skills on the pinned pane -- 9347165
 - [x] Keep the pop-out's traffic lights off the page title -- seen 11:45, 67d1392
 - [x] Close the empty thirds in the Job Search grid -- seen 11:43, 62fb21e
 - [x] Remove the unused shift in the pinned pane -- 62fb21e

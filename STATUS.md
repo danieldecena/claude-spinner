@@ -197,9 +197,20 @@ The rest is in `TASKS.md`.
   (Recent Sessions and the rail reach the bottom edge). Job Search already
   filled and is unchanged. The title is not clipped at the top on either, which
   is the look `e0a9e34`'s `ignoresSafeArea` move had not had.
-- Not run: `design:design-critique` and `design:accessibility-review` on the
-  pinned pane. The change restores a recorded behaviour and adds no token or
-  component, but the look was mine alone.
+- Reviewed 11:47-11:52, Job Search pinned page, both skills run:
+  `design:accessibility-review` found the thumbnails exposing whole web pages
+  to assistive tech (6 web areas in the tree, several hundred elements, none
+  operable); fixed in `9347165`, tree now holds 0. It measured `label` #98989D
+  at 5.93:1 and `attention` #73B2FF at 7.73:1 on the card's #1C1C1E, both over
+  4.5. `design:design-critique` found Recent Sessions' Resume buttons a long
+  way from their titles at full width; putting Skills beside it in one column
+  was tried and reverted, because 17 chips stack one per line there and push
+  the page into scrolling. Left as is. It also noted the artifact row leaves
+  the right half of its row empty, which is the size that was asked for.
+- Found while debugging a "missing" window: it was never closed. A window on
+  another Space drops out of both `CGWindowList` on-screen and the AX windows
+  list, and comes back when the app is frontmost. `.optionAll` with
+  `kCGWindowIsOnscreen` tells the two apart. Not an app defect.
 - Decided (Daniel, mid-session): artifact cards are a quarter of their size and
   come first. `88b148b`: 170pt wide with a 72pt thumbnail, in one row at the top
   of a pinned page, summary on hover. Seen 11:35 on Job Search. This also
