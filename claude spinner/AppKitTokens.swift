@@ -165,6 +165,10 @@ public extension Color {
         public static let onMusicGlass = dyn((0.000, 0.000, 0.000, 1.00), (1.000, 1.000, 1.000, 1.00))
         /// Secondary text on music-hover or music-select-inactive. music-ink-soft reaches only 3.31:1 on the inactive sel
         public static let musicInkSoftOnFill = dyn((0.373, 0.373, 0.373, 1.00), (0.706, 0.706, 0.706, 1.00))
+        /// Unselected sidebar labels while the window is not key. Music steps every label down, not only the selected row
+        public static let musicSidebarInkInactive = dyn((0.431, 0.431, 0.435, 1.00), (0.573, 0.573, 0.576, 1.00))
+        /// Unselected sidebar symbols while the window is not key. MEASURED in both appearances: Music drops the accent f
+        public static let musicSidebarGlyphInactive = dyn((0.812, 0.812, 0.816, 1.00), (0.271, 0.271, 0.275, 1.00))
     }
 }
 
