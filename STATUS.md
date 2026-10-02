@@ -146,9 +146,9 @@
 
 ## Next Up
 
-1. [code] A project's sidebar TASKS rows show another project's titles: seen
-   2026-10-02 11:25, claude-spinner listing app-kit's three open titles and then
-   its own fourth. See the log entry of that date.
+1. [code] Watch the pinned pane's last card fill the leftover height. `TileGrid`
+   takes a proposed height since 2026-10-01 and `e0a9e34` rewrote the pane the
+   next day; neither has been looked at on screen.
 2. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
    buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
    unseen. Driving it by coordinates failed, see the 09:23 log entry.
@@ -186,7 +186,9 @@ The rest is in `TASKS.md`.
   row is found as the one under the section header whose text starts with the
   project name, so recency reordering does not matter. AppleScript's
   `entire contents` returns 0 for this window; walk `AXChildren` instead.
-- Found, open: the sidebar's TASKS rows are wrong across sections. With app-kit,
+- Found, fixed in `6853d0a`: the sidebar's TASKS rows were wrong across sections
+  (`ForEach(id: \.offset)`; the id now carries the file's path). Afterwards each
+  section's rows equalled the open items of its own TASKS.md. With app-kit,
   claude-spinner and home live, claude-spinner (4 open) listed app-kit's three
   titles then its own fourth, and home listed the same three, then
   claude-spinner's fourth, then its own fifth. Counts in each header were
