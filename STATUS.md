@@ -305,7 +305,7 @@ The rest is in `TASKS.md`.
   Seen 12:33 on Job Search after a relaunch: three WebContent processes and
   374 to 416 MB at 2 to 3 s, none and 16 to 19 MB (GPU and Networking only) by
   15 s, with all three cards still showing their pages. 401 tests pass.
-- Found, not fixed: in 4 of the 8 loads that reached the page, one of the
+- Found (fixed below): in 4 of the 8 loads that reached the page, one of the
   three web views outlived its picture, holding about 115 MB. Left alone it
   went at about 128 s; leaving the page and returning also cleared it. All
   three pictures were already in place, so it is a removed view something
@@ -316,6 +316,20 @@ The rest is in `TASKS.md`.
 - Three relaunch trials read 0 web processes of any kind and were thrown out:
   sidebar row 3 is Job Search only when no `home` session is listed, and the
   trial script did not check which row it had selected.
+- Fixed, 13:12: the page is closed (`_close`, private, as `drawsBackground`
+  already is) the moment its picture is taken. 10 of 10 loads ended with no
+  WebContent process at 17 s, each load first checked to have shown three;
+  cards still draw their pictures, no crash report, 401 tests pass. The
+  holder was never found, so the view itself may still outlive its picture;
+  it just has no page behind it. Three guesses were built, measured and
+  thrown away first, each on loads checked the same way:
+  - the view refusing first responder (`leaks --traceTree` showed AppKit's
+    `_NSAutomaticFocusRingState.previousActiveFirstResponder` pointing at
+    it): 7 of 10 still lingered, and the trace still showed that reference;
+  - loading an empty page after the snapshot: 6 of 6 lingered and the empty
+    page still held 49 to 103 MB; `stopLoading()` instead: 8 of 8;
+  - one debounced snapshot task in case a second finish left a snapshot
+    waiting on a removed view: 4 of 8, the same as doing nothing.
 
 ### 2026-10-01
 

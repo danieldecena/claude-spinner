@@ -3,10 +3,10 @@
 ## Tasks
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
-- [ ] Find what holds the last artifact web view for two minutes
 
 ## Completed
 
+- [x] Find what holds the last artifact web view for two minutes -- holder not found, page closed at snapshot
 - [x] Draw artifact thumbnails from a snapshot, not a live web view -- 291cab7
 - [x] Clear the Swift 6 isolation warnings per the plan -- b44955a
 - [x] Find what the open window redraws at the spinner rate -- measured 12:12, no change

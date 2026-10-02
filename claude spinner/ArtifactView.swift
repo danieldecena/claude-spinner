@@ -66,6 +66,14 @@ struct ArtifactWebView: NSViewRepresentable {
                 guard webView.window != nil,
                       let image = try? await webView.takeSnapshot(configuration: nil) else { return }
                 onSnapshot?(image)
+                // Dropping the view does not end the page: in half of loads one
+                // view outlived its picture by about two minutes, its page
+                // (about 115 MB) still loaded. What holds it was not found, so
+                // the page is closed here and a late view has nothing behind
+                // it. Private, like `drawsBackground` above; there is no public
+                // close.
+                let close = NSSelectorFromString("_close")
+                if webView.responds(to: close) { webView.perform(close) }
             }
         }
     }
