@@ -39,7 +39,11 @@ final class MailCardTests: XCTestCase {
         XCTAssertEqual(s.unread, 49)
         XCTAssertEqual(s.parseFailures, 4)
         XCTAssertEqual(s.noInboxFiles, ["gmail11"])
-        XCTAssertEqual(MailStatusFile.countsLine(s), "7 urgent · 2 this week · 1 CI · 19 finance")
+        XCTAssertEqual(s.threads, 104)
+        XCTAssertEqual(s.days, 3)
+        XCTAssertEqual(s.accounts, [MailAccountCount(name: "gmail10", count: 97),
+                                    MailAccountCount(name: "icloud", count: 14),
+                                    MailAccountCount(name: "gmail11", count: 0)])
         // 15:23:59 at -07:00 is 22:23:59 UTC; the microseconds are dropped.
         XCTAssertEqual(s.updated, ISO8601DateFormatter().date(from: "2026-10-02T22:23:59Z"))
     }
@@ -87,6 +91,96 @@ final class MailCardTests: XCTestCase {
         XCTAssertEqual(label(3 * 3600 + 5), "updated 3 h ago")
         XCTAssertEqual(label(2 * 86_400), "updated 2 d ago")
         XCTAssertEqual(label(-30), "updated just now", "a clock a little ahead must not print a negative age")
+    }
+
+    // MARK: - Staleness
+
+    func testStaleThresholdIsMoreThan24Hours() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func stale(_ ago: TimeInterval) -> Bool { MailStatusFile.isStale(now.addingTimeInterval(-ago), now: now) }
+        XCTAssertFalse(stale(0))
+        XCTAssertFalse(stale(23 * 3600 + 3599))
+        XCTAssertFalse(stale(86_400), "exactly 24 h is not yet stale")
+        XCTAssertTrue(stale(86_401))
+        XCTAssertTrue(stale(3 * 86_400))
+        XCTAssertFalse(stale(-3600), "a clock a little ahead is not stale")
+        XCTAssertFalse(MailStatusFile.isStale(nil, now: now), "no reading to date is 'never', not stale")
+    }
+
+    // MARK: - Stat columns
+
+    private func status(act: Int = 7, reply: Int = 2, ci: Int = 0, finance: Int = 19,
+                        unread: Int? = 49, threads: Int? = 104, days: Int? = 3,
+                        accounts: [MailAccountCount] = [], noInbox: [String] = []) -> MailStatus {
+        MailStatus(updated: nil, urgent: act, thisWeek: reply, ci: ci, finance: finance,
+                   unread: unread, parseFailures: 0, noInboxFiles: noInbox,
+                   threads: threads, days: days, accounts: accounts)
+    }
+
+    func testStatColumnsOrderLabelsAndZeroDimming() {
+        let cols = MailStatusFile.statColumns(status())
+        XCTAssertEqual(cols.map(\.label), ["Urgent", "This week", "CI", "Finance"])
+        XCTAssertEqual(cols.map(\.value), ["7", "2", "0", "19"])
+        XCTAssertEqual(cols.map(\.isZero), [false, false, true, false])
+        XCTAssertEqual(cols.map(\.isUrgent), [true, false, false, false])
+        XCTAssertFalse(MailStatusFile.statColumns(status(act: 0))[0].isUrgent, "zero urgent is not highlighted")
+    }
+
+    func testStatAccessibilityLabelsPluralise() {
+        let cols = MailStatusFile.statColumns(status(act: 7, reply: 1, ci: 0, finance: 19))
+        XCTAssertEqual(cols[0].accessibilityLabel, "7 urgent mail threads")
+        XCTAssertEqual(cols[1].accessibilityLabel, "1 mail thread this week")
+        XCTAssertEqual(cols[2].accessibilityLabel, "0 CI mail threads")
+        XCTAssertEqual(cols[3].accessibilityLabel, "19 finance mail threads")
+        XCTAssertEqual(MailStatusFile.statColumns(status(act: 1))[0].accessibilityLabel, "1 urgent mail thread")
+    }
+
+    // MARK: - Secondary lines
+
+    func testSummaryLine() {
+        XCTAssertEqual(MailStatusFile.summaryLine(status()), "104 threads · 49 unread · last 3 days")
+        XCTAssertEqual(MailStatusFile.summaryLine(status(threads: 1, days: 1)), "1 thread · 49 unread · last 1 day")
+    }
+
+    func testSummaryLineOmitsUnreadWhenNullButKeepsZero() {
+        XCTAssertEqual(MailStatusFile.summaryLine(status(unread: nil)), "104 threads · last 3 days")
+        XCTAssertEqual(MailStatusFile.summaryLine(status(unread: 0)), "104 threads · 0 unread · last 3 days",
+                       "a reported zero is a real zero; only null is unknown")
+    }
+
+    func testSummaryLineWithMissingPartsAndNothingAtAll() {
+        XCTAssertEqual(MailStatusFile.summaryLine(status(unread: nil, threads: nil, days: 3)), "last 3 days")
+        XCTAssertNil(MailStatusFile.summaryLine(status(unread: nil, threads: nil, days: nil)))
+    }
+
+    func testAccountsLineSkipsOtherAndZeroNoInboxAccounts() {
+        let accounts = [MailAccountCount(name: "icloud", count: 14), MailAccountCount(name: "gmail11", count: 0),
+                        MailAccountCount(name: "other", count: 0), MailAccountCount(name: "gmail10", count: 97)]
+        XCTAssertEqual(MailStatusFile.accountsLine(status(accounts: accounts, noInbox: ["gmail11", "other"])),
+                       "gmail10 97 · icloud 14", "largest first; other and the connector-only zero are gone")
+    }
+
+    func testAccountsLineKeepsAZeroAccountThatDoesHaveAnInbox() {
+        let accounts = [MailAccountCount(name: "gmail10", count: 97), MailAccountCount(name: "icloud", count: 0)]
+        XCTAssertEqual(MailStatusFile.accountsLine(status(accounts: accounts)), "gmail10 97 · icloud 0")
+        XCTAssertEqual(MailStatusFile.accountsLine(status(accounts: [MailAccountCount(name: "other", count: 3)])), nil,
+                       "other is never labelled, even with a count")
+        XCTAssertNil(MailStatusFile.accountsLine(status()))
+    }
+
+    func testByAccountParsesAndOrdersByCountThenName() {
+        let json = goodJSON.replacingOccurrences(of: "\"gmail11\": 0}", with: "\"gmail11\": 0, \"aaa\": 14, \"other\": 0}")
+        guard case .ok(let s) = MailStatusFile.parse(Data(json.utf8)) else { return XCTFail("expected .ok") }
+        XCTAssertEqual(s.accounts.map(\.name), ["gmail10", "aaa", "icloud", "gmail11", "other"])
+    }
+
+    func testMissingOptionalFieldsParseAsNil() {
+        let json = #"{"updated": "2026-10-02T15:00:00-07:00", "counts": {"act": 1}, "ok": true}"#
+        guard case .ok(let s) = MailStatusFile.parse(Data(json.utf8)) else { return XCTFail("expected .ok") }
+        XCTAssertNil(s.threads)
+        XCTAssertNil(s.days)
+        XCTAssertNil(s.unread)
+        XCTAssertEqual(s.accounts, [])
     }
 
     func testStatusFileIsNotASessionFeedFile() {

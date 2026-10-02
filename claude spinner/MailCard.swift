@@ -30,12 +30,38 @@ nonisolated struct MailStatus: Equatable {
     var unread: Int?
     var parseFailures: Int
     var noInboxFiles: [String]
+    /// `threads` and `days` are the scan's own totals; nil when not reported.
+    var threads: Int? = nil
+    var days: Int? = nil
+    /// `by_account`, largest first (ties by name). The file is a dictionary, so
+    /// this is the order the card needs rather than one the file carries.
+    var accounts: [MailAccountCount] = []
+}
+
+nonisolated struct MailAccountCount: Equatable {
+    var name: String
+    var count: Int
+}
+
+/// One of the card's four stat columns.
+nonisolated struct MailStat: Equatable {
+    var label: String
+    var value: String
+    var isZero: Bool
+    /// Only the urgent column, and only when it has something in it.
+    var isUrgent: Bool
+    var accessibilityLabel: String
 }
 
 nonisolated enum MailStatusFile {
     /// `~/.claude/spinnerfeed/mail.status.json`
+    /// `SPINNER_MAIL_STATUS_FILE` points the card at another file, for looking at
+    /// the stale and failed states without touching the real one.
     static func defaultURL() -> URL {
-        URL(fileURLWithPath: NSHomeDirectory())
+        if let override = ProcessInfo.processInfo.environment["SPINNER_MAIL_STATUS_FILE"], !override.isEmpty {
+            return URL(fileURLWithPath: override)
+        }
+        return URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent(".claude/spinnerfeed/mail.status.json")
     }
 
@@ -62,7 +88,12 @@ nonisolated enum MailStatusFile {
             finance: int(counts["finance"]) ?? 0,
             unread: int(obj["unread"]),
             parseFailures: int(obj["parse_failures"]) ?? 0,
-            noInboxFiles: (obj["no_inbox_files"] as? [String]) ?? []))
+            noInboxFiles: (obj["no_inbox_files"] as? [String]) ?? [],
+            threads: int(obj["threads"]),
+            days: int(obj["days"]),
+            accounts: ((obj["by_account"] as? [String: Any]) ?? [:])
+                .compactMap { key, value in int(value).map { MailAccountCount(name: key, count: $0) } }
+                .sorted { ($0.count, $1.name) > ($1.count, $0.name) }))
     }
 
     static func load(from url: URL) -> MailStatusLoad {
@@ -88,8 +119,46 @@ nonisolated enum MailStatusFile {
         return "updated \(Int(seconds / 86_400)) d ago"
     }
 
-    static func countsLine(_ s: MailStatus) -> String {
-        "\(s.urgent) urgent · \(s.thisWeek) this week · \(s.ci) CI · \(s.finance) finance"
+    /// More than a day old. Exactly 24 h is not yet stale; no reading is "never".
+    static let staleAfter: TimeInterval = 86_400
+
+    static func isStale(_ updated: Date?, now: Date) -> Bool {
+        guard let updated else { return false }
+        return now.timeIntervalSince(updated) > staleAfter
+    }
+
+    private static func noun(_ n: Int, _ singular: String) -> String { n == 1 ? singular : singular + "s" }
+
+    /// Urgent, This week, CI, Finance, in that order.
+    static func statColumns(_ s: MailStatus) -> [MailStat] {
+        func stat(_ label: String, _ n: Int, urgent: Bool = false, spoken: (Int) -> String) -> MailStat {
+            MailStat(label: label, value: String(n), isZero: n == 0, isUrgent: urgent && n > 0,
+                     accessibilityLabel: spoken(n))
+        }
+        return [
+            stat("Urgent", s.urgent, urgent: true) { "\($0) urgent mail \(noun($0, "thread"))" },
+            stat("This week", s.thisWeek) { "\($0) mail \(noun($0, "thread")) this week" },
+            stat("CI", s.ci) { "\($0) CI mail \(noun($0, "thread"))" },
+            stat("Finance", s.finance) { "\($0) finance mail \(noun($0, "thread"))" },
+        ]
+    }
+
+    /// "104 threads · 49 unread · last 3 days"; a part the file did not report
+    /// is left out, and a null unread is never shown as 0.
+    static func summaryLine(_ s: MailStatus) -> String? {
+        var parts: [String] = []
+        if let threads = s.threads { parts.append("\(threads) \(noun(threads, "thread"))") }
+        if let unread = s.unread { parts.append("\(unread) unread") }
+        if let days = s.days { parts.append("last \(days) \(noun(days, "day"))") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "gmail10 97 · icloud 14". `other` has no name worth printing, and a zero
+    /// for an account with no inbox files is "Gmail connector only", not a count.
+    static func accountsLine(_ s: MailStatus) -> String? {
+        let shown = s.accounts.filter { $0.name != "other" && !($0.count == 0 && s.noInboxFiles.contains($0.name)) }
+        let ordered = shown.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
+        return ordered.isEmpty ? nil : ordered.map { "\($0.name) \($0.count)" }.joined(separator: " · ")
     }
 
     /// Runs the scan once and waits. Stdout (the full scan JSON) is discarded;
@@ -192,12 +261,16 @@ struct MailCard: View {
     @StateObject private var model = MailStatusModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Read once per render: the card has no timer, so the age is as fresh as
+        // the last time something made it draw.
+        let now = Date()
+        let stale = MailStatusFile.isStale(updated, now: now)
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 CardTitle("Mail")
                 Spacer(minLength: 4)
-                Text(MailStatusFile.updatedLabel(updated, now: Date()))
-                    .font(.ui(10)).foregroundStyle(Color.label)
+                Text(MailStatusFile.updatedLabel(updated, now: now))
+                    .font(.ui(10)).foregroundStyle(stale ? Color.attention : Color.label)
                 refreshButton
             }
             switch model.load {
@@ -206,13 +279,23 @@ struct MailCard: View {
             case .failed(let error, _):
                 Text("Last scan failed: \(error)").font(.ui(11)).foregroundStyle(Color.attention)
             case .ok(let status):
-                Text(MailStatusFile.countsLine(status)).font(.figure(11))
-                if status.parseFailures > 0 {
-                    Text("\(status.parseFailures) messages could not be read")
-                        .font(.ui(10)).foregroundStyle(Color.attention)
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(MailStatusFile.statColumns(status), id: \.label) { StatColumn(stat: $0) }
                 }
-                if status.noInboxFiles.contains("gmail11") {
-                    Text("gmail11: Gmail connector only").font(.ui(10)).foregroundStyle(Color.label)
+                VStack(alignment: .leading, spacing: 3) {
+                    if let line = MailStatusFile.summaryLine(status) {
+                        Text(line).font(.ui(11)).foregroundStyle(Color.label)
+                    }
+                    if let line = MailStatusFile.accountsLine(status) {
+                        Text(line).font(.ui(10)).foregroundStyle(Color.label)
+                    }
+                    if status.noInboxFiles.contains("gmail11") {
+                        Text("gmail11: Gmail connector only").font(.ui(10)).foregroundStyle(Color.label)
+                    }
+                    if status.parseFailures > 0 {
+                        Text("\(status.parseFailures) messages could not be read")
+                            .font(.ui(10)).foregroundStyle(Color.attention)
+                    }
                 }
             }
             if let error = model.refreshError {
@@ -242,9 +325,31 @@ struct MailCard: View {
                 }
                 Text(model.running ? "Scanning" : "Refresh").font(.ui(10))
             }
+            .frame(minWidth: 64, minHeight: 20)
         }
-        .buttonStyle(.link)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .disabled(model.running)
         .help("Scan the last 3 days of Apple Mail now")
+        .accessibilityLabel(model.running ? "Scanning mail" : "Refresh mail scan")
+    }
+}
+
+/// A number over its small caps label. Zero is dimmed, not hidden; urgent is
+/// the one number allowed to turn the attention colour.
+private struct StatColumn: View {
+    let stat: MailStat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(stat.value).font(.figure(22)).fontWeight(.semibold)
+                .foregroundStyle(stat.isUrgent ? Color.attention : (stat.isZero ? Color.label : Color.primary))
+            Text(stat.label).font(.ui(9)).fontWeight(.semibold)
+                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(stat.accessibilityLabel)
     }
 }
