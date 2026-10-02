@@ -92,7 +92,8 @@ struct WindowContentView: View {
     /// through to the default here would put a session's toolbar, git probe and
     /// transcript loops behind the project's pane.
     static func resolveSelection(_ selection: String?, roots: [SessionFeed], asks: [AskRequest]) -> SessionFeed? {
-        if HomeTab.isHomeTag(selection) || PinnedProject.isPinnedTag(selection) { return nil }
+        if HomeTab.isHomeTag(selection) || AppKitTab.isTag(selection)
+            || PinnedProject.isPinnedTag(selection) { return nil }
         if let selection, let picked = roots.first(where: { $0.id == selection }) { return picked }
         return defaultSelection(roots: roots, asks: asks)
     }
@@ -225,6 +226,8 @@ struct WindowContentView: View {
             if HomeTab.isHomeTag(selection) {
                 HomeDashboard(sessions: roots, asks: asks.pending, usage: usageCard,
                               tasks: tasks, goals: goals.goals) { selection = $0 }
+            } else if AppKitTab.isTag(selection) {
+                AppKitShowcase()
             } else if let project = PinnedProject.project(forTag: selection) {
                 PinnedProjectDetail(project: project, sessions: roots,
                                     asks: asks.pending, feedDir: feed.feedDirectory,
@@ -302,6 +305,13 @@ private struct SessionSidebar: View {
             .denseRow()
             .accessibilityLabel("Home, every session at once")
             .tag(HomeTab.tag)
+            HStack(spacing: 6) {
+                Image(systemName: "paintpalette").font(.ui(10)).foregroundStyle(Color.label)
+                Text("App Kit").font(.claudeMono(11))
+            }
+            .denseRow()
+            .accessibilityLabel("App Kit, the design system's Music components")
+            .tag(AppKitTab.tag)
             // Then the home project group: the session at ~ others start from.
             ForEach(homeGroups) { section in sectionView(section, childrenByParent: childrenByParent) }
             Section {
