@@ -284,6 +284,18 @@ The rest is in `TASKS.md`.
   region grab at 11:43 took in another app's window that overlapped the pane;
   those files were deleted unread beyond the one look. The id comes from
   `CGWindowListCopyWindowInfo` filtered on the owner name.
+- Measured 12:35, the web views behind the artifact thumbnails: 291 MB outside
+  the app's own 90 MB. `footprint` on the five WebKit processes whose
+  responsible pid is the app (`responsibility_get_pid_responsible_for_pid`):
+  three WebContent at 78, 78 and 105 MB, GPU 20 MB, Networking 10 MB. One
+  sample, about four minutes after launch, of `/Applications/claude
+  spinner.app`; which page each process held and whether the pinned page was on
+  screen were not looked at, so this is the cost of three views existing, not
+  of a known state. `ps` RSS reads 5 MB for the same processes and is the wrong
+  number to quote.
+- Found: CI only runs on pushes touching the app, project or test directories
+  (`paths:` in the workflow), so doc-only commits such as `62ba3a7` and
+  `e105526` get no run and `gh run list --limit 1` shows an older commit.
 
 ### 2026-10-01
 
