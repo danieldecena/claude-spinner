@@ -52,6 +52,8 @@ struct SkillShortcut: Identifiable, Equatable {
               builtIn: false),
         .init(name: "recruiter-mail", symbol: "person.crop.circle.badge.questionmark",
               blurb: "Triage recruiter and interview messages", builtIn: false),
+        .init(name: "response-drafter", symbol: "square.and.pencil", blurb: "Draft a reply in my voice",
+              builtIn: false),
         // The superpowers workflow, one chip per stage. Each command hands off
         // to the plugin skill, and asks what it applies to when typed bare.
         .init(name: "superpower:brainstorm", symbol: "lightbulb", blurb: "Shape an idea before building",
@@ -66,17 +68,32 @@ struct SkillShortcut: Identifiable, Equatable {
               builtIn: false, group: .superpower),
     ]
 
-    /// The curated shortcuts that are installed. `exists` is injected so the
-    /// filter is testable without touching the real home directory.
-    static func available(claudeDir: URL,
-                          exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) })
-        -> [SkillShortcut] {
-        curated.filter { shortcut in
+    /// The curated shortcuts that are installed. `exists` and `listDir` are
+    /// injected so the filter is testable without touching the real home directory.
+    ///
+    /// A skill synced from the account has no `skills/<name>` of its own: it is
+    /// under `skills/synced/<id>/<name>`, and Claude Code lists it as
+    /// `anthropic-skills:<name>` (seen in a session's skill listing, and in
+    /// transcripts that ran `/anthropic-skills:apply-next-job`). That chip types
+    /// the namespaced command and keeps the bare name as its label.
+    static func available(
+        claudeDir: URL,
+        exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) },
+        listDir: (String) -> [String] = { (try? FileManager.default.contentsOfDirectory(atPath: $0)) ?? [] }
+    ) -> [SkillShortcut] {
+        curated.compactMap { shortcut in
             // "superpower:debug" is commands/superpower/debug.md.
             let path = shortcut.name.replacingOccurrences(of: ":", with: "/")
-            return shortcut.builtIn
+            if shortcut.builtIn
                 || exists(claudeDir.appendingPathComponent("skills/\(path)/SKILL.md").path)
-                || exists(claudeDir.appendingPathComponent("commands/\(path).md").path)
+                || exists(claudeDir.appendingPathComponent("commands/\(path).md").path) {
+                return shortcut
+            }
+            guard !shortcut.name.contains(":"),
+                  DraftReplies.syncedPath(named: shortcut.name, claudeDir: claudeDir,
+                                          exists: exists, listDir: listDir) != nil else { return nil }
+            return SkillShortcut(name: DraftReplies.syncedNamespace + shortcut.name, symbol: shortcut.symbol,
+                                 blurb: shortcut.blurb, builtIn: false, group: shortcut.group)
         }
     }
 
