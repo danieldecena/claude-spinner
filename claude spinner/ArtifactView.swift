@@ -63,7 +63,9 @@ final class ArtifactPopouts: NSObject, ObservableObject, NSWindowDelegate {
         let web = ArtifactWeb.makeWebView()
         web.load(URLRequest(url: url))
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 440, height: 680),
-                            styleMask: [.titled, .closable, .resizable, .utilityWindow, .fullSizeContentView],
+                            // No full-size content: the page has a title of its own in
+                            // its top-left corner, and the traffic lights sat on it.
+                            styleMask: [.titled, .closable, .resizable, .utilityWindow],
                             backing: .buffered, defer: false)
         panel.title = title
         panel.titlebarAppearsTransparent = true
