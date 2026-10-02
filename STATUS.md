@@ -166,6 +166,10 @@ The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Staged: the auto-merge probe. `main` got `test` as a required check and this
+  line rides a docs-only PR, which the path filter in `swift.yml` never runs
+  `test` for, so the check stays pending for as long as the PR is open.
+
 - Found: `main` was red on CI from `aa0f514` (run 37036052579, 1 of 398) while
   this file said nothing was broken. That commit and `e0a9e34` after it came
   from outside the Claude sessions here (no trailer, no log entry), so nothing
