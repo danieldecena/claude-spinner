@@ -207,6 +207,22 @@ The rest is in `TASKS.md`.
   was tried and reverted, because 17 chips stack one per line there and push
   the page into scrolling. Left as is. It also noted the artifact row leaves
   the right half of its row empty, which is the size that was asked for.
+- Found, fixed in `e6fca07`: the app used 34 to 40% of a core whenever a session
+  was working, whatever pane was showing and with the window off screen. A
+  `sample` put 56% of the main thread in `NSStatusItem _updateReplicants`: the
+  system keeps a bitmap of the status item per menu bar and redid measure,
+  layout and render of the hosted SwiftUI label for each, every spinner frame.
+  The label is now the button's attributed title (`MenuBarTitle`). Replicant
+  work is 20% of the main thread; the app reads 11 to 14% with no window.
+  Tried first and discarded: `sizingOptions = [.intrinsicContentSize]`, which
+  removed the min-size calls and changed nothing.
+- Measured, not fixed: with the window on a session pane the app still reads 26
+  to 31%. About a third of the main thread is then the window's own display
+  cycle at the spinner rate. The remaining menu-bar cost is the per-bar bitmap
+  capture, which only a lower frame rate would cut; the rate was left at 10.
+- Status items own no window on this macOS, so the label is captured by the
+  rectangle accessibility reports for `menu bar item 1 of menu bar 2`, which
+  holds only that item.
 - Found while debugging a "missing" window: it was never closed. A window on
   another Space drops out of both `CGWindowList` on-screen and the AX windows
   list, and comes back when the app is frontmost. `.optionAll` with
