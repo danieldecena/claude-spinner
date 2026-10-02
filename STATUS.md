@@ -146,13 +146,10 @@
 
 ## Next Up
 
-1. [code] Watch the pinned pane's last card fill the leftover height. `TileGrid`
-   takes a proposed height since 2026-10-01 and `e0a9e34` rewrote the pane the
-   next day; neither has been looked at on screen.
-2. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
+1. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
    buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
    unseen. Driving it by coordinates failed, see the 09:23 log entry.
-3. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
+2. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
    required check. Tried 2026-09-30: the switch only fires from the selected session's
    Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
    at once into a public main.
@@ -194,9 +191,23 @@ The rest is in `TASKS.md`.
   claude-spinner's fourth, then its own fifth. Counts in each header were
   right. Row N of every section shows whichever section drew row N first, which
   is what colliding row ids across sections look like.
-- Unobserved: `e0a9e34` rewrote `PinnedProjectDetail.swift` (+232) and moved
-  `ignoresSafeArea` in `WindowContentView`. Tests pass over it; nobody here has
-  looked at the result on screen.
+- Found, fixed in `ab31236`: a short pinned page stopped mid-window. `e0a9e34`
+  moved the pane to scale-to-fit and swapped the frame's `minHeight` for a
+  vertical `fixedSize`, so the grid was no longer proposed a height and the
+  2026-10-01 "last row takes the slack" rule had nothing to hand out. The page
+  is at least the pane's height again, inside the fixed size.
+- Observed 11:30 and 11:31: Plans before (blank from mid-window down) and after
+  (Recent Sessions and the rail reach the bottom edge). Job Search already
+  filled and is unchanged. The title is not clipped at the top on either, which
+  is the look `e0a9e34`'s `ignoresSafeArea` move had not had.
+- Not run: `design:design-critique` and `design:accessibility-review` on the
+  pinned pane. The change restores a recorded behaviour and adds no token or
+  component, but the look was mine alone.
+- Seen, not acted on: Job Search's grid leaves the right third empty beside
+  Recent Sessions and beside the two artifact tiles, and stretches Skills to
+  the height of the Apply Workflow tile next to it.
+- Seen, not acted on: `PinnedProjectDetail` computes a `shift` it never uses
+  (from `e0a9e34`).
 
 ### 2026-10-01
 

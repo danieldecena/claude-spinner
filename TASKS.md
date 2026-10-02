@@ -4,10 +4,10 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
-- [ ] Watch the pinned pane's last card fill the leftover height
 
 ## Completed
 
+- [x] Watch the pinned pane's last card fill the leftover height -- seen 11:31, ab31236
 - [x] Fix sidebar TASKS rows showing another project's titles -- 6853d0a
 - [x] Watch the Graph card reload across a two-repo session switch -- seen 11:25, 6d1019c
 - [x] Fix red CI: transcript cache ignored the tail length -- 1b85964
