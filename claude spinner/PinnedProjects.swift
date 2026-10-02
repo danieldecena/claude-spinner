@@ -61,6 +61,15 @@ struct PinnedProject: Identifiable, Equatable {
         func sessionName(in project: PinnedProject) -> String { project.name + ": " + label }
     }
 
+    /// The quick-start button's arguments. Named as the step that runs the same
+    /// command, so "Apply next job" lands under "Apply to the next one" rather
+    /// than in Running now.
+    var quickStartArgs: [String]? {
+        guard let quick = quickStart else { return nil }
+        guard let step = workflow.first(where: { $0.command == quick.prompt }) else { return [quick.prompt] }
+        return ["--name", step.sessionName(in: self), quick.prompt]
+    }
+
     /// Each step's own live runs, in step order, and the live ones no step
     /// started (New session, a typed prompt), which stay in Running now.
     func runs(among live: [SessionFeed]) -> (byStep: [String: [SessionFeed]], other: [SessionFeed]) {

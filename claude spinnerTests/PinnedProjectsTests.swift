@@ -336,6 +336,23 @@ final class PinnedProjectsTests: XCTestCase {
         XCTAssertEqual(screen.sessionName(in: project), "Job Search: Screen one posting")
     }
 
+    func testQuickStartIsNamedAsTheStepRunningTheSameCommand() throws {
+        let project = PinnedProject.jobSearch
+        let args = try XCTUnwrap(project.quickStartArgs)
+        let session: SessionFeed = {
+            var s = SessionFeed(id: "q")
+            s.cwd = project.path
+            s.sessionName = args.count == 3 ? args[1] : nil
+            return s
+        }()
+        let apply = try XCTUnwrap(project.workflow.first { $0.command == project.quickStart?.prompt })
+        XCTAssertEqual(project.runs(among: [session]).byStep[apply.id]?.map(\.id), ["q"])
+        XCTAssertNil(PinnedProject.plans.quickStartArgs)
+        var unmatched = project
+        unmatched.quickStart = PinnedProject.QuickStart(label: "x", systemImage: "x", prompt: "/other")
+        XCTAssertEqual(unmatched.quickStartArgs, ["/other"])
+    }
+
     func testAboutFindsInstructionsAndCountsMemories() {
         withTempDir { root in
             let project = "\(root)/my proj", projects = "\(root)/projects"

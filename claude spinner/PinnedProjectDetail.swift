@@ -258,7 +258,7 @@ struct PinnedProjectDetail: View {
         Button { start([]) } label: { Label("New session", systemImage: "plus").fixedSize() }
             .help("Start Claude Code in \(project.path)")
         if let quick = project.quickStart {
-            Button { start([quick.prompt]) } label: {
+            Button { start(project.quickStartArgs ?? [quick.prompt]) } label: {
                 Label(quick.label, systemImage: quick.systemImage).fixedSize()
             }
             .help("Start a session that runs \(quick.prompt)")
