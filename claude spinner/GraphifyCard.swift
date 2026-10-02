@@ -74,7 +74,12 @@ struct GraphifyCard: View {
         //
         // Drawn only for a repo that has a graph: a card saying "no graph here"
         // on every other session is a permanent instruction nobody asked for.
-        Group {
+        //
+        // A stack, not a Group: a Group holding nothing is no view at all, so
+        // the task below had nothing to hang on and never ran, and the card
+        // never appeared for any repo. An empty stack is still a view; it
+        // measures zero, which `TileGrid.pack` gives no row.
+        VStack(spacing: 0) {
             if let summary {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
