@@ -161,6 +161,17 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Decided: a Job Search run is drawn under the Workflow step that started it
+  (header, question boxes, reply field), and Running now keeps only runs no
+  step started. Each step's Start passes `claude --name "Job Search: <step>"`
+  and the step matches its runs on that name, because the newest prompt
+  changes with the first reply. Seen: a probe launched through the `claude`
+  function reached the feed as its `session_name` 2 s after starting. The card
+  goes full width while a step has a run. Not yet seen on screen. Start is
+  also held until a step's link is typed (`f7527c0`).
+
+### 2026-10-02 (earlier)
+
 - Decided: auto-merge switches itself on from the watcher, not the Git card,
   so it covers every live session and not only the selected pane (`6a85728`).
   The once-per-PR claim lives on the watcher and the card asks the same set,

@@ -38,6 +38,7 @@ struct PinnedProjectDetail: View {
     @State private var idealHeight: CGFloat = 0
 
     private var live: [SessionFeed] { PinnedProject.liveSessions(in: project.path, sessions: sessions) }
+    private var runs: (byStep: [String: [SessionFeed]], other: [SessionFeed]) { project.runs(among: live) }
 
     /// The questions this project's own sessions are waiting on, oldest first so
     /// the one that has been blocking longest is answered first.
@@ -103,7 +104,11 @@ struct PinnedProjectDetail: View {
                     launchCard.tileSpan(1)
                     // Beside Start, because it is the same question answered in
                     // order: what you run here, and in which order you run it.
-                    if !project.workflow.isEmpty { workflowCard.tileSpan(2) }
+                    // Full width while a step has a run under it: the run carries a
+                    // conversation and a reply field, cramped in two thirds.
+                    if !project.workflow.isEmpty {
+                        workflowCard.tileSpan(runs.byStep.isEmpty ? 2 : 3)
+                    }
                     
                     if project.name == "Job Search" {
                         jobPipelineCard.tileSpan(2)
@@ -112,8 +117,9 @@ struct PinnedProjectDetail: View {
                     }
                     
                     // Full width, directly under them: it carries a conversation
-                    // and a reply field now, not a name and a word.
-                    if !live.isEmpty { liveCard.tileSpan(3) }
+                    // and a reply field now, not a name and a word. Only the runs
+                    // no step started; the rest are drawn under their step.
+                    if !runs.other.isEmpty { liveCard.tileSpan(3) }
                     tasksCard.tileSpan(2)
                     recentCard.tileSpan(2)
                     if let extras {
@@ -364,8 +370,17 @@ struct PinnedProjectDetail: View {
     /// waiting on live in the Running now card, beside the run that asked them.
     private var workflowCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CardTitle("Workflow")
-            ForEach(project.workflow) { step in self.step(step) }
+            HStack {
+                CardTitle("Workflow")
+                Spacer(minLength: 4)
+                waiting(on: runs.byStep.values.flatMap { $0 })
+            }
+            ForEach(project.workflow) { step in
+                self.step(step)
+                // Under the step that started it, so a run parked on "fill or
+                // skip?" is answered beside what it is doing.
+                ForEach(runs.byStep[step.id] ?? []) { session in run(session).padding(.leading, 20) }
+            }
             Spacer(minLength: 0)
         }
         .detailCard()
@@ -404,7 +419,7 @@ struct PinnedProjectDetail: View {
     /// press opened a second session on the same link.
     private func start(_ step: PinnedProject.Step) {
         guard let prompt = step.prompt(with: arguments[step.id] ?? "") else { return }
-        start([prompt])
+        start(["--name", step.sessionName(in: project), prompt])
         arguments[step.id] = nil
     }
 
@@ -419,29 +434,37 @@ struct PinnedProjectDetail: View {
             HStack {
                 CardTitle("Running now")
                 Spacer(minLength: 4)
-                if !pending.isEmpty {
-                    Text(pending.count == 1 ? "1 waiting on you" : "\(pending.count) waiting on you")
-                        .font(.ui(10)).foregroundStyle(Color.attention)
-                }
+                waiting(on: runs.other)
             }
-            ForEach(live) { session in
-                VStack(alignment: .leading, spacing: 8) {
-                    Button { select(session.id) } label: { liveHeader(session) }
-                        .buttonStyle(.plain)
-                        .help("Open this session's own pane")
-                    // The question boxes, with their real options: a run parked
-                    // on "fill or skip?" is answered here rather than in
-                    // whichever terminal it happens to be in.
-                    ForEach(pending.filter { $0.sessionId == session.id }, id: \.req) { ask in
-                        AskCard(ask: ask)
-                    }
-                    ConversationCard(session: session, feedDir: feedDir, notice: $notice)
-                }
-            }
+            ForEach(runs.other) { session in run(session) }
             Spacer(minLength: 0)
         }
         .detailCard()
         .frame(maxHeight: .infinity)
+    }
+
+    @ViewBuilder private func waiting(on sessions: [SessionFeed]) -> some View {
+        let ids = Set(sessions.map(\.id))
+        let count = pending.filter { ids.contains($0.sessionId) }.count
+        if count > 0 {
+            Text(count == 1 ? "1 waiting on you" : "\(count) waiting on you")
+                .font(.ui(10)).foregroundStyle(Color.attention)
+        }
+    }
+
+    private func run(_ session: SessionFeed) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { select(session.id) } label: { liveHeader(session) }
+                .buttonStyle(.plain)
+                .help("Open this session's own pane")
+            // The question boxes, with their real options: a run parked
+            // on "fill or skip?" is answered here rather than in
+            // whichever terminal it happens to be in.
+            ForEach(pending.filter { $0.sessionId == session.id }, id: \.req) { ask in
+                AskCard(ask: ask)
+            }
+            ConversationCard(session: session, feedDir: feedDir, notice: $notice)
+        }
     }
 
     private func liveHeader(_ session: SessionFeed) -> some View {

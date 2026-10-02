@@ -2,10 +2,11 @@
 
 ## Tasks
 
-- [ ] Design the Job Search tab layout around running workflows
+- [ ] [you] See a step's run drawn under its Workflow step
 
 ## Completed
 
+- [x] Draw Job Search runs under the Workflow step that started them
 - [x] Add screen-a-posting and did-it-go-through steps to Job Search -- eac101f
 - [x] Enable auto-merge for every live session, not only the selected one -- 6a85728
 - [x] [you] Watch auto-merge switch itself on for a real open PR -- seen 13:31 on PR 5
