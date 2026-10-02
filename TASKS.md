@@ -6,6 +6,7 @@
 
 ## Completed
 
+- [x] Review the artifact card preview image -- seen 11:40, 0e2f87e
 - [x] Watch the Career Hub pop-out open after sign-in -- seen 11:38
 - [x] Shrink artifact cards to a quarter and place them above -- 88b148b
 - [x] Watch the pinned pane's last card fill the leftover height -- seen 11:31, ab31236

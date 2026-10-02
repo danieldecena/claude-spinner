@@ -206,6 +206,13 @@ The rest is in `TASKS.md`.
   removed the two half-empty artifact rows at the bottom of that grid. The
   Career Hub pop-out button in Next Up is now the middle of three small buttons
   in the second card of that top row.
+- Found, fixed in `0e2f87e` (Daniel asked for a review of the card preview): at
+  quarter size the preview was a crop, not a thumbnail. `pageZoom` shrinks the
+  outer claude.ai page but not the artifact's own frame, so 138x72 held a
+  toolbar, two scrollbars and one heading. Now the web view is laid out at 4x
+  the box and drawn with `scaleEffect(0.25)`; seen 11:40, each card shows its
+  page's heading, tabs and tiles. Three live web views at 552x288 each is the
+  cost; not measured.
 - Observed 11:38: the Career Hub pop-out opens and is signed in. Pressed the
   second card's "Pop out to a floating window" with `AXPress`; a floating
   window titled Career Hub appeared (982x846) showing the Application center
