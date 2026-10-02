@@ -379,7 +379,15 @@ struct PinnedProjectDetail: View {
                 self.step(step)
                 // Under the step that started it, so a run parked on "fill or
                 // skip?" is answered beside what it is doing.
-                ForEach(runs.byStep[step.id] ?? []) { session in run(session).padding(.leading, 20) }
+                ForEach(runs.byStep[step.id] ?? []) { session in
+                    // Tinted, as the fields are, so the next step reads as the next
+                    // step and not as more of this run's conversation.
+                    run(session, underStep: true)
+                        .padding(10)
+                        .background(Color.secondary.opacity(0.06),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .padding(.leading, 20)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -452,9 +460,9 @@ struct PinnedProjectDetail: View {
         }
     }
 
-    private func run(_ session: SessionFeed) -> some View {
+    private func run(_ session: SessionFeed, underStep: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button { select(session.id) } label: { liveHeader(session) }
+            Button { select(session.id) } label: { liveHeader(session, named: !underStep) }
                 .buttonStyle(.plain)
                 .help("Open this session's own pane")
             // The question boxes, with their real options: a run parked
@@ -467,13 +475,15 @@ struct PinnedProjectDetail: View {
         }
     }
 
-    private func liveHeader(_ session: SessionFeed) -> some View {
+    /// `named` false under a step: its name is "Job Search: <step>", said again
+    /// right under the step's own label.
+    private func liveHeader(_ session: SessionFeed, named: Bool = true) -> some View {
         HStack(spacing: 6) {
             Text(session.isWorking ? Spinner.frame(at: Date()) : Spinner.idle)
                 .font(.claudeMono(11)).frame(width: 14)
                 .foregroundStyle(session.isBlockedOnYou ? Color.attention
                                     : session.isWorking ? Color.claude : Color.secondary)
-            Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1)
+            if named { Text(session.distinctName).font(.claudeMono(11)).lineLimit(1).layoutPriority(1) }
             Text(session.statusLabel).font(.ui(10)).lineLimit(1)
                 .foregroundStyle(session.isBlockedOnYou ? Color.attention : Color.label)
             Spacer(minLength: 4)
