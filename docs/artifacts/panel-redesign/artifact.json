@@ -1,0 +1,8 @@
+{
+  "url": "https://claude.ai/artifact/4PtBHf2kkEuAFxF8ECv1Dj",
+  "title": "Spinner Panel Redesign",
+  "identified": "2026-10-02, by /pointer-audit: live and owned by this account, not mentioned by name in any local file",
+  "account": "danieldecena@icloud.com",
+  "what": "A Design-type canvas, two 480x560 artboards ('Panel, light', 'Panel, dark'), note heading 'claude spinner: panel redesign'. Its own stored data records a designSystems dependency on the Claude Spinner design system at https://claude.ai/artifact/QAxN4kEekj5rGAsoBCntYq (namespace claude-spinner, copied 2026-09-29), which is the evidence tying it to this repo despite no textual mention anywhere on disk.",
+  "note": "Refresh by PASSING THIS URL -- publishing without it mints a second artifact and leaves this link stale."
+}

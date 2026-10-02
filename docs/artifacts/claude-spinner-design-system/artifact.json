@@ -1,0 +1,8 @@
+{
+  "url": "https://claude.ai/artifact/QAxN4kEekj5rGAsoBCntYq",
+  "title": "Claude Spinner",
+  "identified": "2026-10-02, by /pointer-audit: live and owned by this account, mentioned only in _project-knowledge/plans/claude-spinner-ui-pass.md and knowledge/ARTIFACTS.json (both references, not bindings)",
+  "account": "danieldecena@icloud.com",
+  "what": "A published Design System type artifact (contract 0.2.45, namespace claude-spinner) holding this repo's tokens and components as consumable design-system data -- the published <title> reads 'Design System', the artifact's own name is 'Claude Spinner'. 18 project files, 6 runtime capabilities (artifact, assets, comments, db, downloads, user).",
+  "note": "Not the same system as ds-bundle/ (that is this repo's Claude-Design/DesignSync project, published under claude.ai/design/p/..., a separate pipeline -- see .design-sync/config.json). This url is the Artifact-type publish. Corroborating evidence this repo owns it: the 'Spinner Panel Redesign' artifact (4PtBHf2kkEuAFxF8ECv1Dj, see ../panel-redesign/artifact.json) records a designSystems dependency on this exact url with namespace 'claude-spinner', matching this repo's own naming ('claude spinner/', 'claude spinnerTests/'). Refresh by PASSING THIS URL."
+}
