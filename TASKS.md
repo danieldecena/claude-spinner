@@ -2,10 +2,12 @@
 
 ## Tasks
 
-- [ ] [you] See a step's run drawn under its Workflow step
 
 ## Completed
 
+- [x] See a step's run drawn under its Workflow step -- seen 16:18
+- [x] Name the Apply next job quick start as its step -- 4554be1
+- [x] Box a step's run, drop its repeated name (design-critique) -- 6c1f173
 - [x] Draw Job Search runs under the Workflow step that started them
 - [x] Add screen-a-posting and did-it-go-through steps to Job Search -- eac101f
 - [x] Enable auto-merge for every live session, not only the selected one -- 6a85728

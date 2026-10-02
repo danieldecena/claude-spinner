@@ -167,8 +167,17 @@ Nothing queued. The rest is in `TASKS.md`.
   and the step matches its runs on that name, because the newest prompt
   changes with the first reply. Seen: a probe launched through the `claude`
   function reached the feed as its `session_name` 2 s after starting. The card
-  goes full width while a step has a run. Not yet seen on screen. Start is
-  also held until a step's link is typed (`f7527c0`).
+  goes full width while a step has a run. Start is also held until a step's
+  link is typed (#7). Seen on screen 16:18: a named probe run drawn under
+  "Screen one posting". "Apply next job" now takes the apply step's name.
+- Decided, from design:design-critique on that capture: under a step the run
+  header drops the repeated "Job Search: <step>" name and the run sits in a
+  light tinted box, so the next step does not read as more of the run.
+  #7 squash-merged before these landed on its branch; they are PR #8.
+- Found: driving the window. `open -a "claude spinner"` reopens it (the
+  status item click opens nothing scriptable); the AX tree has 0 elements, so
+  select a sidebar row by activate + AXRaise + click in one osascript, or
+  Chrome/Ghostty above it take the click.
 
 ### 2026-10-02 (earlier)
 
