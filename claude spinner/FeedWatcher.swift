@@ -17,7 +17,7 @@ import CoreGraphics
 import Darwin
 
 /// Tunables gathered in one place so behavior isn't scattered across literals.
-enum Constants {
+nonisolated enum Constants {
     /// Sessions with no update in this long are pruned (in memory and on disk).
     static let staleCutoff: TimeInterval = 12 * 3600
     /// Safety re-scan cadence; backstops any vnode event the source misses.
@@ -186,7 +186,7 @@ enum UsageFailure: Equatable {
 
 /// What the menu-bar label is conveying right now, so the label can color and
 /// animate accordingly.
-enum MenuBarState {
+nonisolated enum MenuBarState {
     case working    // a session is thinking/using a tool — bright, animated
     case attention  // a session needs the user — bright
     case doneFlash  // a turn just finished — grey past-word flash
@@ -200,7 +200,7 @@ enum SessionStatus: String {
 /// Claude-flavored spinner words. The real per-turn word lives in the closed
 /// binary, so we pick our own — seeded by turn_start so it stays put during a
 /// turn and changes on the next one, the way the terminal spinner behaves.
-enum SpinnerWords {
+nonisolated enum SpinnerWords {
     /// (present gerund, past tense) so the done line reads naturally, e.g.
     /// "Sautéing" → "Sautéed for 5m 18s".
     static let all: [(ing: String, ed: String)] = [
@@ -237,7 +237,7 @@ enum SpinnerWords {
 
 /// "Needs you" words for the menu-bar attention title — the same seeded-so-stable
 /// idea as SpinnerWords: one word per pause, changing on the next one.
-enum AttentionWords {
+nonisolated enum AttentionWords {
     static let all = ["Waiting", "Awaiting", "Yielding", "Pausing", "Hovering",
                       "Poised", "Lingering", "Holding", "Wondering", "Expecting"]
 
@@ -252,7 +252,7 @@ enum AttentionWords {
 // MARK: - Feed file schemas
 
 /// `<id>.state.json`, written by emit.sh from lifecycle hooks.
-private struct StateFile: Decodable {
+nonisolated private struct StateFile: Decodable {
     var status: String?
     var tool: String?
     var message: String?
@@ -275,7 +275,7 @@ private struct StateFile: Decodable {
 /// renders are declared; unknown keys are ignored. `JSONDecoder` reads JSON
 /// integers and floats alike as `Double`, so `used_percentage` needs no special
 /// casing the way `JSONSerialization`'s `NSNumber` did.
-private struct StatusFile: Decodable {
+nonisolated private struct StatusFile: Decodable {
     struct Model: Decodable {
         var display_name: String?
         var id: String?
@@ -339,7 +339,7 @@ private struct StatusFile: Decodable {
 /// Grouped rather than flattened onto `SessionFeed`: these arrive together, are
 /// all optional for the same reason (no statusLine has run yet), and are read
 /// together by the one view that shows them.
-struct SessionDetailStats: Equatable {
+nonisolated struct SessionDetailStats: Equatable {
     var costUSD: Double?
     var wallSeconds: Double?
     var apiSeconds: Double?
@@ -373,7 +373,7 @@ struct SessionDetailStats: Equatable {
     }
 }
 
-struct SessionFeed: Identifiable {
+nonisolated struct SessionFeed: Identifiable {
     let id: String
     var status: SessionStatus = .idle
     var tool: String = ""
@@ -1396,7 +1396,7 @@ final class FeedWatcher: ObservableObject {
 
     /// True if a process with this pid currently exists, belongs to the current user,
     /// and is a Claude or Node process (guards against recycled PIDs).
-    private static func pidAlive(_ pid: Int) -> Bool {
+    private nonisolated static func pidAlive(_ pid: Int) -> Bool {
         // Lightweight existence probe
         if kill(pid_t(pid), 0) != 0 { return false }
         
@@ -1711,7 +1711,7 @@ final class FeedWatcher: ObservableObject {
         menuBarMode == .usage && (usageFiveHourPct ?? 0) >= Constants.usageAlarmPct
     }
 
-    static func formatDuration(_ seconds: Int) -> String {
+    nonisolated static func formatDuration(_ seconds: Int) -> String {
         let s = max(0, seconds)
         return s >= Constants.minuteRollover ? "\(s / 60)m \(s % 60)s" : "\(s)s"
     }
@@ -2034,7 +2034,7 @@ final class FeedWatcher: ObservableObject {
     var usageSevenDayPct: Int? { pollUsage?.sevenDayPct ?? usageSession?.sevenDayPct ?? cachedUsage?.sevenDayPct }
     /// A row's context token count, e.g. `212k`. Rounded to whole units so it never
     /// exceeds 4 characters — its column is 30pt and must not grow.
-    static func formatTokens(_ count: Int) -> String {
+    nonisolated static func formatTokens(_ count: Int) -> String {
         // Not 1_000_000: anything from 999_500 up rounds to "1000k", a 5th character.
         if count >= 999_500 {
             let m = Double(count) / 1_000_000.0
@@ -2253,7 +2253,7 @@ final class FeedWatcher: ObservableObject {
 
     /// Trims a raw model name like "Opus 4.8 (1M context)" down to just the
     /// family word "Opus", for compact per-row display.
-    static func modelFamily(_ raw: String) -> String {
+    nonisolated static func modelFamily(_ raw: String) -> String {
         let short = String(raw.prefix { $0 != "(" }).trimmingCharacters(in: .whitespaces)
         return short.split(separator: " ").first.map(String.init) ?? short
     }

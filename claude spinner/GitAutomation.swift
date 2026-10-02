@@ -12,7 +12,7 @@ import Combine
 ///   which is global -- every project, not this repo
 /// - auto-PR: the one with no existing mechanism, so the app does it
 ///   (`AutoPRWatcher`), opted into per repository
-enum GitAutomation {
+nonisolated enum GitAutomation {
     static let mainMarker = ".autocommit-main-ok"
     static let autoCommitCommand = "bash ~/bin/auto-commit.sh"
     static var settingsURL: URL {

@@ -7,7 +7,7 @@ import Foundation
 /// forwarding the environment tmux would otherwise drop. tmux is what lets this
 /// app type into the session afterwards, so a session started any other way
 /// could be watched but not answered. `zsh -i` is what loads the function.
-enum NewSession {
+nonisolated enum NewSession {
     struct Project: Equatable, Identifiable {
         let name: String
         let path: String

@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // add()'s error, which is nil either way.
             os_log("claude spinner: authorization granted=%{public}d error=%{public}@",
                    granted ? 1 : 0, error?.localizedDescription ?? "none")
-            asks.refreshAuthorization()
+            Task { @MainActor in asks.refreshAuthorization() }
         }
         registerCategories(for: asks.pending)
 
@@ -1227,7 +1227,7 @@ enum SessionLauncher {
 /// A compact, color-coded tag for where a session runs, shown just left of the
 /// row's time. Collapses the many possible host strings (macOS bundle IDs and
 /// `TERM_PROGRAM` values) into four buckets so the row reads at a glance.
-enum HostTag {
+nonisolated enum HostTag {
     case vsc, trm, web, app
 
     var label: String {
@@ -1242,7 +1242,8 @@ enum HostTag {
     /// Distinct hue per surface: editor indigo, terminal jade, web cyan, app purple.
     /// Each is the same value as the model it shares a row with, which is why the
     /// tag prints its three letters rather than relying on the colour alone.
-    var color: Color {
+    /// On the main actor, unlike the rest of the tag: it is only read to draw.
+    @MainActor var color: Color {
         switch self {
         case .vsc: return .hostVsc
         case .trm: return .hostTrm
@@ -1281,7 +1282,7 @@ enum HostTag {
 extension Font {
     /// The terminal font Claude Code is shown in (the user's Ghostty font-family).
     /// Always-installed Menlo; Font.custom falls back to the system font if absent.
-    static let claudeFontName = "Menlo"
+    nonisolated static let claudeFontName = "Menlo"
 
     static func claudeMono(_ size: CGFloat) -> Font {
         .custom(claudeFontName, size: size)

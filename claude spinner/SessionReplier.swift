@@ -14,7 +14,7 @@ import Foundation
 ///
 /// A session outside tmux is therefore unreachable, and says so rather than
 /// appearing to send.
-enum SessionReplier {
+nonisolated enum SessionReplier {
     enum Failure: LocalizedError, Equatable {
         case noPane
         case busy

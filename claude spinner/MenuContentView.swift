@@ -518,7 +518,7 @@ struct ContextSpark: View {
 /// gets the rest of line 1. Status moved to line 2 alongside the context meter and is
 /// budgeted separately, against what that line actually has available, rather
 /// than sharing line 1's space the way it used to — see `columns(...)` below.
-enum RowLayout {
+nonisolated enum RowLayout {
     /// Width of the animated working-dots slot, held even at rest so the column
     /// edge doesn't move as the dots grow (see the SessionRow comment). Lives on
     /// line 2, next to the status text.

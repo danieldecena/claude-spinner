@@ -74,7 +74,7 @@ enum GitAction: String, CaseIterable, Identifiable {
     }
 }
 
-enum GitActions {
+nonisolated enum GitActions {
     /// Not the probe's 8s. A push of large objects on a slow link, or a merge
     /// that also fetches, checks out and deletes a branch, routinely outlives
     /// it, and terminating a merge after GitHub has already merged leaves the

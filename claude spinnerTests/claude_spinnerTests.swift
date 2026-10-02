@@ -2208,7 +2208,7 @@ final class claude_spinnerTests: XCTestCase {
 
     /// A missing state file is "not observed", not a crash and not a pass.
     func testTurnStartedIsNotObservedWithNoStateFile() throws {
-        try withTempDir { dir in
+        withTempDir { dir in
             XCTAssertFalse(SessionReplier.observeTurnStarted(
                 sessionID: "absent", feedDir: dir, timeout: 0.2, poll: 0.05))
         }
@@ -2725,7 +2725,7 @@ final class claude_spinnerTests: XCTestCase {
     /// — reporting success here would claim an answer reached a session it never
     /// touched.
     func testWritingAnAnswerForAnExpiredRequestFails() throws {
-        try withTempDir { dir in
+        withTempDir { dir in
             let req = makeAsk()
             XCTAssertFalse(AskInbox.write(.option("Alpha"), for: req, in: dir))
             XCTAssertFalse(FileManager.default.fileExists(

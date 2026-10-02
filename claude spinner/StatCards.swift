@@ -319,7 +319,7 @@ struct OverviewStrip: View {
         }
         return RingMetric(caption: name, value: pct.map { "\($0)%" } ?? "—",
                           ratio: pct.map { Double($0) / 100 },
-                          tint: pct.map(Color.usageTint) ?? .label,
+                          tint: pct.map { Color.usageTint($0) } ?? .label,
                           pace: pct == nil ? nil : elapsed,
                           detail: pct == nil ? "no current reading" : detail)
     }

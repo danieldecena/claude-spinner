@@ -57,7 +57,7 @@ struct ToolInput: Decodable, Equatable {
 /// — any answer written after that lands nowhere, which is why every write
 /// checks first. A question does not wait (`waits` false): its box is already in
 /// the terminal, and the answer is the option's digit typed into that pane.
-struct AskRequest: Decodable, Identifiable, Equatable {
+nonisolated struct AskRequest: Decodable, Identifiable, Equatable {
     enum Kind: String, Decodable { case question, permission }
 
     let req: String
@@ -118,7 +118,7 @@ struct AskRequest: Decodable, Identifiable, Equatable {
 }
 
 /// What the user chose, written back as `<req>.answer.json` for `ask.sh` to read.
-enum AskAnswer: Equatable {
+nonisolated enum AskAnswer: Equatable {
     case option(String)   // a labelled choice for a question ask
     case allow
     case deny
@@ -172,7 +172,7 @@ final class AskInbox: ObservableObject {
         startWatching()
         refreshAuthorization()
         pruneTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.rescan() }
+            Task { @MainActor [weak self] in self?.rescan() }
         }
     }
 
@@ -183,7 +183,7 @@ final class AskInbox: ObservableObject {
     /// same denial are the same picture. The log line is the only thing that
     /// separates them.
     func refreshAuthorization() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             let allowed = settings.authorizationStatus == .authorized
                 || settings.authorizationStatus == .provisional
             os_log("claude spinner: authorization re-read status=%{public}d allowed=%{public}d",
@@ -205,7 +205,7 @@ final class AskInbox: ObservableObject {
             queue: ioQueue
         )
         src.setEventHandler { [weak self] in
-            Task { @MainActor in self?.rescan() }
+            Task { @MainActor [weak self] in self?.rescan() }
         }
         src.setCancelHandler { [dirFD] in if dirFD >= 0 { close(dirFD) } }
         src.resume()

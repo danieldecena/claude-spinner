@@ -1087,7 +1087,7 @@ struct TileGrid: Layout {
     }
 }
 
-struct TileSpan: LayoutValueKey {
+nonisolated struct TileSpan: LayoutValueKey {
     static let defaultValue = 1
 }
 
@@ -1161,7 +1161,7 @@ private struct StatSection: View {
 
 /// Pure formatting, kept out of the views so the awkward cases are testable:
 /// sub-dollar spend, a zero denominator, and a diff with only one side.
-enum StatFormat {
+nonisolated enum StatFormat {
     /// Always two decimals: a session starts in the cents, and a rounded "$0"
     /// would read as free.
     static func money(_ usd: Double) -> String { String(format: "$%.2f", usd) }
@@ -1818,7 +1818,7 @@ private struct SkillsCard: View {
             // Said even while the chips are greyed mid-turn: it is what to run
             // when the turn ends.
             if let pick, case .command(let command) = pick.action {
-                (Text(command).foregroundStyle(Color.claude) + Text("  \(pick.reason)"))
+                Text("\(Text(command).foregroundStyle(Color.claude))  \(pick.reason)")
                     .font(.ui(10)).foregroundStyle(Color.label)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -2215,7 +2215,7 @@ private struct GitGraphCard: View {
 
     /// Read this many, then show only their landmarks (`GitGraph.condense`),
     /// so the card fits its rows instead of scrolling.
-    private static let limit = 60
+    private nonisolated static let limit = 60
     private static let rowHeight: CGFloat = 17
     private static let laneWidth: CGFloat = 12
     /// Beyond this many lanes the drawing is clipped rather than letting a
@@ -2257,7 +2257,7 @@ private struct GitGraphCard: View {
 
     /// Text lines a row takes: one. Refs sit beside the SHA on its line, so a
     /// commit carrying three of them is no taller than one carrying none.
-    private static func span(_ line: GraphLine) -> Int {
+    private nonisolated static func span(_ line: GraphLine) -> Int {
         return 1
     }
 

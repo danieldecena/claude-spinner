@@ -319,7 +319,7 @@ struct PinnedProjectDetail: View {
         .frame(maxHeight: .infinity)
     }
 
-    private static func name(_ path: String) -> String { (path as NSString).lastPathComponent }
+    private nonisolated static func name(_ path: String) -> String { (path as NSString).lastPathComponent }
 
     /// A rail row: icon, title and a dim summary, an optional action at the
     /// right, and the items under it. Rows are ruled apart as Desktop's are.
@@ -568,7 +568,7 @@ struct PinnedProjectDetail: View {
         }
     }
 
-    struct JobStats: Codable, Equatable {
+    nonisolated struct JobStats: Codable, Equatable {
         var scouted: Int?
         var needs_manual: Int?
         var rejected: Int?

@@ -5,7 +5,7 @@ import Foundation
 /// The statusLine reports numbers; this reports content — the last thing Claude
 /// said, what it just ran, what you last asked, which branch it is on, and which
 /// permission mode it is in. None of it is in the feed files.
-struct TranscriptSnapshot: Equatable {
+nonisolated struct TranscriptSnapshot: Equatable {
     var title: String?
     var lastPrompt: String?
     var lastAssistantText: String?
@@ -31,7 +31,7 @@ struct TranscriptSnapshot: Equatable {
     }
 }
 
-enum TranscriptReader {
+nonisolated enum TranscriptReader {
     /// How much of the file's tail to read.
     ///
     /// These run to megabytes — 4.7 MB and 1299 lines for one live session here
@@ -262,7 +262,7 @@ enum TranscriptReader {
 
 /// Per transcript: the newest typed prompt and the byte offset read up to, which
 /// always sits just past a newline so a half-written record is read next time.
-private final class PromptTracker: @unchecked Sendable {
+nonisolated private final class PromptTracker: @unchecked Sendable {
     private let lock = NSLock()
     private var seen: [String: (end: Int, prompt: String?)] = [:]
 

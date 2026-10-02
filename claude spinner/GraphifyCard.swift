@@ -10,7 +10,7 @@ import SwiftUI
 /// What `graphify-out/graph.json` says about a repo. Parsed off the main thread;
 /// every field is what the file actually carried, and a file that does not parse
 /// produces nil rather than a summary of zeroes.
-struct GraphSummary: Equatable {
+nonisolated struct GraphSummary: Equatable {
     let nodes: Int
     let links: Int
     /// The commit the graph was built from, as recorded in the file.

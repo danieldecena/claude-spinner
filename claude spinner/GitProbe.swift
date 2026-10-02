@@ -207,7 +207,7 @@ actor GitProbe {
 
     /// Each field is written by exactly one block and read only after the
     /// group's wait, so the unchecked conformance holds.
-    private final class RemoteRead: @unchecked Sendable {
+    nonisolated private final class RemoteRead: @unchecked Sendable {
         var sync = SyncState.unknown
         var pr: (PRState, MergeReadiness, Bool?) = (.unknown, MergeReadiness(), nil)
         var ci = CIState.unknown
@@ -343,7 +343,7 @@ actor GitProbe {
 private extension Process {
     /// `waitUntilExit()` with a deadline. Returns false if the process was still
     /// running when the deadline passed, leaving termination to the caller.
-    func waitUntilExit(before deadline: Date) -> Bool {
+    nonisolated func waitUntilExit(before deadline: Date) -> Bool {
         while isRunning {
             if Date() >= deadline { return false }
             Thread.sleep(forTimeInterval: 0.05)

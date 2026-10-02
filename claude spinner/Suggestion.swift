@@ -5,7 +5,7 @@ import Foundation
 /// Rules, not a model: each reads facts the pane already shows, so every
 /// suggestion can be traced to a row on screen, costs nothing, and can't
 /// invent a reason. Checked in priority order; the first that holds wins.
-struct Suggestion: Equatable {
+nonisolated struct Suggestion: Equatable {
     enum Action: Equatable {
         case git(GitAction)
         /// A slash command typed into the session.

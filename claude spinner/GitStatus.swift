@@ -7,7 +7,7 @@ import Foundation
 /// reading wearing a precise face -- the failure `~/CLAUDE.md` calls out by
 /// name. Every case here is derived from a `ls-remote` SHA read just now, and
 /// `unknown` exists so a failed probe can say so instead of rendering as zero.
-enum SyncState: Equatable {
+nonisolated enum SyncState: Equatable {
     /// The remote was not reachable, or the probe hasn't run yet.
     case unknown
     /// No upstream is configured -- nothing to be ahead or behind of.
@@ -35,7 +35,7 @@ enum SyncState: Equatable {
 
 /// How a git fact should read at a glance: settled, waiting on you, worth a
 /// look, broken, or not known. The card tints each row's icon by it.
-enum GitTone: Equatable { case good, pending, warn, bad, neutral }
+nonisolated enum GitTone: Equatable { case good, pending, warn, bad, neutral }
 
 extension SyncState {
     var tone: GitTone {
@@ -96,7 +96,7 @@ extension GitSnapshot {
 /// PR, so a default branch -- where CI matters most -- never showed any.
 /// `unknown` (gh failed or isn't there) is kept apart from `none` (gh answered
 /// with no runs), the same not-found-is-not-unreachable split as `PRState`.
-enum CIState: Equatable {
+nonisolated enum CIState: Equatable {
     case unknown
     case none
     case running(workflow: String, url: String)
@@ -144,7 +144,7 @@ enum CIState: Equatable {
 /// and when it couldn't reach GitHub, and reading the second as the first would
 /// invent an absence -- the "not found is not the same as unreachable" rule.
 /// The two are told apart by what gh actually said on stderr.
-enum PRState: Equatable {
+nonisolated enum PRState: Equatable {
     case unknown
     case none
     case open(number: Int, url: String, draft: Bool)
@@ -185,7 +185,7 @@ enum PRState: Equatable {
 /// with red checks, clean with no approval, or approved but behind its base.
 /// Stored as gh's own strings rather than a digested bool -- the digest is what
 /// makes a Merge button that is enabled and then fails.
-struct MergeReadiness: Equatable {
+nonisolated struct MergeReadiness: Equatable {
     /// `MERGEABLE` / `CONFLICTING` / `UNKNOWN`. nil when gh wasn't read.
     var mergeable: String?
     /// `CLEAN` / `BLOCKED` / `BEHIND` / `DIRTY` / `DRAFT` / `UNSTABLE` /
@@ -227,7 +227,7 @@ struct MergeReadiness: Equatable {
 /// One directory's git state. `nil` for a cwd that isn't a repository at all,
 /// which is why the detail pane can drop the whole section rather than draw a
 /// column of dashes.
-struct GitSnapshot: Equatable {
+nonisolated struct GitSnapshot: Equatable {
     var branch: String?
     var detached: Bool = false
     /// Tracked modifications only. Untracked files are excluded on purpose:
@@ -298,7 +298,7 @@ struct GraphCommit: Equatable {
 
 /// A commit placed in the graph: its lane, and the line segments that leave
 /// its row for the next one, as (from lane, to lane) pairs.
-struct GraphRow: Equatable {
+nonisolated struct GraphRow: Equatable {
     var commit: GraphCommit
     var column: Int
     var edges: [GraphEdge]
@@ -306,14 +306,14 @@ struct GraphRow: Equatable {
     var width: Int
 }
 
-struct GraphEdge: Equatable, Hashable {
+nonisolated struct GraphEdge: Equatable, Hashable {
     var from: Int
     var to: Int
 }
 
 /// A row of the History card: a commit worth seeing, or a run of plain ones
 /// folded into a count. `edges` on a gap are the lanes passing through it.
-enum GraphLine: Equatable {
+nonisolated enum GraphLine: Equatable {
     case commit(GraphRow)
     case gap(count: Int, edges: [GraphEdge])
 
@@ -332,7 +332,7 @@ enum GraphLine: Equatable {
     }
 }
 
-enum GitGraph {
+nonisolated enum GitGraph {
     /// Refs worth a label. `origin/HEAD` only says which branch the remote calls
     /// default, which the Git card already says; it sat on nearly every HEAD row.
     static func shownRefs(_ refs: [String]) -> [String] {
@@ -473,7 +473,7 @@ enum GitGraph {
 
 /// Pure parsing, split out from the subprocess work so every branch below is
 /// reachable in a unit test without a repository on disk.
-enum GitParse {
+nonisolated enum GitParse {
     /// `gh api repos/{owner}/{repo} --jq '"\(.private) \(.allow_auto_merge)"'`
     /// output, e.g. "true false". Anything but a literal true/false is nil.
     static func repoSettings(_ out: String) -> (isPrivate: Bool?, autoMergeAllowed: Bool?) {

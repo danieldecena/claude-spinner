@@ -7,7 +7,7 @@ import SwiftUI
 /// `<deadline epoch seconds> <original minutes>`. Anything else parses to nil,
 /// and nil means *unknown*: a missing or garbled file must never render as
 /// "0 min left" or as expired, which would read as a verdict about the run.
-struct GoalClock: Equatable {
+nonisolated struct GoalClock: Equatable {
     /// Positive while time remains, negative once the deadline has passed.
     let remainingSeconds: Int
     let originalMinutes: Int
@@ -54,7 +54,7 @@ struct GoalClock: Equatable {
 
 /// The file and pane side of the goal clock, kept out of `GoalClock` so its
 /// tests never touch the real state directory.
-enum GoalDeadlineFile {
+nonisolated enum GoalDeadlineFile {
     static let stateDir = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".claude/state")
 
