@@ -118,12 +118,6 @@ struct WindowContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.pane)
-        // The window has no title bar (see showMainWindow), so the content owns
-        // the top edge instead of leaving the bar's height empty above it.
-        // This must come before safeAreaInset, so the content expands to the window
-        // edge, and THEN the toolbar insets it, rather than the content ignoring
-        // the toolbar's inset and sliding under it.
-        .ignoresSafeArea(.container, edges: .top)
         // Across both columns, not just the detail pane: the toolbar acts on the
         // selected session wherever you are. Its strip is opaque edge to edge; a
         // strip half blur and half pane put a seam through the reply field.
@@ -136,6 +130,11 @@ struct WindowContentView: View {
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
         }
+        // The window has no title bar (see showMainWindow), so the content owns
+        // the top edge instead of leaving the bar's height empty above it.
+        // This must come AFTER safeAreaInset, so the entire group (content + toolbar)
+        // ignores the native title bar safe area, placing the toolbar at the very top.
+        .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
         .task(id: roots.map(\.id).joined(separator: "|")) {
             await goals.track(roots.map { (id: $0.id, pid: $0.pid) })

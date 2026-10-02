@@ -26,6 +26,7 @@ struct PinnedProjectDetail: View {
     @State private var recent: Found<RecentSession>?
     @State private var extras: ProjectExtras?
     @State private var failure: String?
+    @State private var jobStats: JobStats?
     /// Desktop's "New session in <project>" box: a first prompt to start with.
     @State private var draft = ""
     /// What has been typed for each workflow step that takes an argument.
@@ -34,6 +35,7 @@ struct PinnedProjectDetail: View {
     @State private var focused: ProjectArtifact?
 
     private static let shownTasks = 5
+    @State private var idealHeight: CGFloat = 0
 
     private var live: [SessionFeed] { PinnedProject.liveSessions(in: project.path, sessions: sessions) }
 
@@ -68,18 +70,29 @@ struct PinnedProjectDetail: View {
             // The page takes the pane's height rather than stopping where the
             // rail's last row ends: on a tall window that left a third of it
             // blank under both columns.
-            GeometryReader { geometry in
-            ScrollView {
-                // Desktop's project page: the work in a main column, and what the
-                // project is made of (instructions, context, folders, memory,
-                // schedules) in a rail beside it. The main column keeps the tile
-                // grid of a session's pane, so the two read as one app.
-                HStack(alignment: .top, spacing: 16) {
+
+                GeometryReader { geo in
+                    let fit = PaneFit.fit(available: geo.size.height, ideal: idealHeight)
+                    let scale = fit.scale
+                    
+                    ScrollView(.vertical) {
+                        let scaledHeight = idealHeight * scale
+                        let frameHeight = max(geo.size.height, scaledHeight)
+                        let shift = idealHeight > frameHeight ? (idealHeight - frameHeight) / 2 : 0
+                        
+                        HStack(alignment: .top, spacing: 16) {
                 TileGrid(minimum: 220, spacing: 12) {
                     launchCard.tileSpan(1)
                     // Beside Start, because it is the same question answered in
                     // order: what you run here, and in which order you run it.
                     if !project.workflow.isEmpty { workflowCard.tileSpan(2) }
+                    
+                    if project.name == "Job Search" {
+                        jobPipelineCard.tileSpan(2)
+                        scoutStatusCard.tileSpan(1)
+                        recentApplicationsCard.tileSpan(1)
+                    }
+                    
                     // Full width, directly under them: it carries a conversation
                     // and a reply field now, not a name and a word.
                     if !live.isEmpty { liveCard.tileSpan(3) }
@@ -123,12 +136,17 @@ struct PinnedProjectDetail: View {
                 rail.frame(width: 300)
                 }
                 .padding(20)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .topLeading)
+                .frame(width: geo.size.width / scale, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if abs(height - idealHeight) > 2 { idealHeight = height }
+                }
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: geo.size.width, height: frameHeight, alignment: .topLeading)
             }
-            // The strip above the header is the toolbar's; clip so nothing scrolls
-            // up behind the title either.
-            .clipped()
-            }
+            .scrollDisabled(!fit.scrolls)
+            .scrollIndicators(fit.scrolls ? .automatic : .hidden)
+        }
         }
         .task(id: project.id) {
             let path = project.path
@@ -157,6 +175,17 @@ struct PinnedProjectDetail: View {
                     ProjectDiscovery.loadExtras(root: path, topic: topic, home: NSHomeDirectory())
                 }.value
                 try? await Task.sleep(for: .seconds(30))
+            }
+        }
+        .task(id: project.id) {
+            if project.name == "Job Search" {
+                let path = project.path
+                while !Task.isCancelled {
+                    jobStats = await Task.detached(priority: .utility) { Self.readJobStats(in: path) }.value
+                    recentApplications = await Task.detached(priority: .utility) { Self.readRecentApplications(in: path) }.value
+                    scoutStatus = await Task.detached(priority: .utility) { Self.readScoutStatus() }.value
+                    try? await Task.sleep(for: .seconds(30))
+                }
             }
         }
     }
@@ -519,6 +548,185 @@ struct PinnedProjectDetail: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6, alignment: .leading)],
                   alignment: .leading, spacing: 6) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in chip(item) }
+        }
+    }
+
+    struct JobStats: Codable, Equatable {
+        var scouted: Int?
+        var needs_manual: Int?
+        var rejected: Int?
+        var applied: Int?
+        var queued: Int?
+        var interview: Int?
+    }
+
+    private nonisolated static func readJobStats(in path: String) -> JobStats? {
+        let pythonScript = "import sys, json; sys.path.append('.'); import db; db.init('JobData'); import pg; c = db._conn(); cur = c.execute('SELECT status, count(*) FROM jobs GROUP BY status'); print(json.dumps(dict(cur.fetchall())))"
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path + "/.venv/bin/python3")
+        process.arguments = ["-c", pythonScript]
+        process.currentDirectoryURL = URL(fileURLWithPath: path)
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return try JSONDecoder().decode(JobStats.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+
+    private var jobPipelineCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                CardTitle("Job Pipeline")
+                Spacer()
+                Button {
+                    let task = Process()
+                    task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                    task.arguments = ["-a", "Ghostty", "--args", "-e", "bash", "-c", "cd '\(project.path)/apply-tui' && cargo run"]
+                    try? task.run()
+                } label: {
+                    Label("Apply TUI", systemImage: "terminal")
+                }
+                .buttonStyle(.bordered).controlSize(.small)
+            }
+            if let stats = jobStats {
+                HStack(spacing: 16) {
+                    pipelineMetric(label: "Scouted", value: stats.scouted ?? 0, color: .secondary)
+                    Spacer()
+                    pipelineMetric(label: "Triage", value: stats.needs_manual ?? 0, color: .attention)
+                    Spacer()
+                    pipelineMetric(label: "Queued", value: stats.queued ?? 0, color: .claude)
+                    Spacer()
+                    pipelineMetric(label: "Applied", value: stats.applied ?? 0, color: .green)
+                    Spacer()
+                    pipelineMetric(label: "Interview", value: stats.interview ?? 0, color: .purple)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                Text("Loading pipeline stats...").font(.ui(11)).foregroundStyle(Color.secondary)
+            }
+        }
+        .detailCard()
+    }
+
+    struct RecentApplication: Codable, Equatable, Identifiable {
+        var id: String { title + company }
+        let title: String
+        let company: String
+        let applied_at: String
+    }
+
+    @State private var recentApplications: [RecentApplication] = []
+    @State private var scoutStatus: Bool = false
+
+    private nonisolated static func readRecentApplications(in path: String) -> [RecentApplication] {
+        let pythonScript = "import sys, json; sys.path.append('.'); import db; db.init('JobData'); import pg; c = db._conn(); cur = c.execute(\"SELECT title, company, applied_at FROM jobs WHERE status = 'applied' ORDER BY applied_at DESC LIMIT 5\"); print(json.dumps([{'title': r[0], 'company': r[1], 'applied_at': r[2]} for r in cur.fetchall()]))"
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path + "/.venv/bin/python3")
+        process.arguments = ["-c", pythonScript]
+        process.currentDirectoryURL = URL(fileURLWithPath: path)
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return try JSONDecoder().decode([RecentApplication].self, from: data)
+        } catch {
+            return []
+        }
+    }
+
+    private nonisolated static func readScoutStatus() -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        process.arguments = ["-f", "python.*scout.py"]
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    private func toggleScout() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        if scoutStatus {
+            process.arguments = ["-a", "Ghostty", "--args", "-e", "bash", "-c", "pkill -f 'python.*scout.py'"]
+        } else {
+            process.arguments = ["-a", "Ghostty", "--args", "-e", "bash", "-c", "cd '\(project.path)' && source .venv/bin/activate && python scout.py"]
+        }
+        try? process.run()
+    }
+
+    private var scoutStatusCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CardTitle("Scout Daemon")
+            HStack {
+                Circle()
+                    .fill(scoutStatus ? Color.green : Color.secondary)
+                    .frame(width: 8, height: 8)
+                Text(scoutStatus ? "Running" : "Stopped")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(scoutStatus ? .primary : .secondary)
+                Spacer()
+                Button {
+                    toggleScout()
+                    // Optimistic update
+                    scoutStatus.toggle()
+                } label: {
+                    Text(scoutStatus ? "Stop" : "Start")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.bordered).controlSize(.mini)
+            }
+        }
+        .detailCard()
+    }
+
+    private var recentApplicationsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CardTitle("Recent Applications")
+            if recentApplications.isEmpty {
+                Text("No recent applications.").font(.ui(11)).foregroundStyle(Color.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(recentApplications) { app in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.green)
+                                .font(.system(size: 14))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(app.title)
+                                    .font(.ui(12))
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color.label)
+                                Text("\(app.company) • \(app.applied_at.prefix(10))")
+                                    .font(.ui(10))
+                                    .foregroundStyle(Color.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .detailCard()
+    }
+
+    private func pipelineMetric(label: String, value: Int, color: Color) -> some View {
+        VStack(alignment: .center, spacing: 2) {
+            Text("\(value)").font(.system(size: 24, weight: .bold, design: .rounded)).foregroundStyle(color)
+            Text(label).font(.ui(11)).foregroundStyle(Color.secondary).textCase(.uppercase)
         }
     }
 

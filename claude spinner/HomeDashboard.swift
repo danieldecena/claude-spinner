@@ -37,23 +37,35 @@ struct HomeDashboard: View {
     /// Clicking a session row opens its pane.
     let select: (String) -> Void
 
+    @State private var idealHeight: CGFloat = 0
+
     var body: some View {
-        // The cards fill the pane rather than stacking at the top and leaving a
-        // third of the window empty: Usage keeps its own height, and the two
-        // lists share what is left, which is also what lets them show more rows
-        // on a tall window than on a short one.
-        GeometryReader { geometry in
-            ScrollView {
+        GeometryReader { geo in
+            let fit = PaneFit.fit(available: geo.size.height, ideal: idealHeight)
+            let scale = fit.scale
+            
+            ScrollView(.vertical) {
+                let scaledHeight = idealHeight * scale
+                let frameHeight = max(geo.size.height, scaledHeight)
+                let shift = idealHeight > frameHeight ? (idealHeight - frameHeight) / 2 : 0
+                let _ = try? "ideal=\(idealHeight) scale=\(scale) shift=\(shift) geo=\(geo.size.height)".write(toFile: "/tmp/claude_debug.txt", atomically: true, encoding: .utf8)
+                
                 VStack(alignment: .leading, spacing: 12) {
-                    // Its rings are a fixed height; without this the card takes a
-                    // third of the leftover space and holds it empty under them.
-                    usage.fixedSize(horizontal: false, vertical: true)
+                    usage
                     sessionsCard
                     tasksCard
                 }
                 .padding(20)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .topLeading)
+                .frame(width: geo.size.width / scale, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if abs(height - idealHeight) > 2 { idealHeight = height }
+                }
+                .scaleEffect(scale, anchor: .topLeading)
+                                .frame(width: geo.size.width, height: frameHeight, alignment: .topLeading)
             }
+            .scrollDisabled(!fit.scrolls)
+            .scrollIndicators(fit.scrolls ? .automatic : .hidden)
         }
     }
 
@@ -75,10 +87,8 @@ struct HomeDashboard: View {
                 Button { select(session.id) } label: { row(session) }
                     .buttonStyle(.plain)
             }
-            Spacer(minLength: 0)
         }
         .detailCard()
-        .frame(maxHeight: .infinity)
     }
 
     private var countLabel: String {
@@ -156,10 +166,8 @@ struct HomeDashboard: View {
             ForEach(tasks.keys.sorted(), id: \.self) { key in
                 if let file = tasks[key] { project(key, file) }
             }
-            Spacer(minLength: 0)
         }
         .detailCard()
-        .frame(maxHeight: .infinity)
     }
 
     private var totalOpen: Int { tasks.values.reduce(0) { $0 + $1.open.count } }
