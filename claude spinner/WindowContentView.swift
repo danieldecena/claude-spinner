@@ -2044,15 +2044,11 @@ private struct AutomationToggles: View {
     /// PR, not whenever it reads off: turning it off by hand must stick.
     private func enableAutoMergeWhenAvailable() {
         guard let snap = snapshot, let top = snap.toplevel,
-              snap.autoMerge == false,
-              GitAutomation.autoMergeUnavailableReason(snap) == nil,
-              case .open(let number, _, _) = snap.pr, !busy else { return }
-        let key = "\(top)#\(number)"
-        guard Self.autoMergeTried.insert(key).inserted else { return }
+              GitAutomation.shouldEnableAutoMerge(snap),
+              case .open(let number, _, _) = snap.pr, !busy,
+              AutoPRWatcher.shared.claimAutoMerge(toplevel: top, number: number) else { return }
         setAutoMerge(true, snap)
     }
-
-    private static var autoMergeTried = Set<String>()
 
     private func setAutoMerge(_ on: Bool, _ snap: GitSnapshot) {
         guard let cmd = GitAutomation.autoMergeCommand(enable: on, snapshot: snap) else { return }

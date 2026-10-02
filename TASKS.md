@@ -2,6 +2,8 @@
 
 ## Tasks
 
+- [ ] Enable auto-merge for every live session, not only the selected one
+
 ## Completed
 
 - [x] [you] Watch auto-merge switch itself on for a real open PR -- seen 13:31 on PR 5

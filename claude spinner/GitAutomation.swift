@@ -167,6 +167,12 @@ nonisolated enum GitAutomation {
 
     // MARK: auto-merge
 
+    /// An open PR that can take auto-merge and reads off. `nil` (unread) is
+    /// never read as "off".
+    static func shouldEnableAutoMerge(_ snap: GitSnapshot) -> Bool {
+        snap.autoMerge == false && autoMergeUnavailableReason(snap) == nil
+    }
+
     static func autoMergeCommand(enable: Bool, snapshot: GitSnapshot) -> (tool: String, args: [String])? {
         guard case .open(let n, _, _) = snapshot.pr else { return nil }
         return (GitProbe.ghPath ?? "", enable
@@ -175,11 +181,13 @@ nonisolated enum GitAutomation {
     }
 }
 
-/// Opens PRs for repositories that opted in, on its own clock, for every live
-/// session's directory -- not only the one the window happens to show.
+/// Opens PRs for repositories that opted in, and switches auto-merge on for
+/// open PRs, on its own clock, for every live session's directory -- not only
+/// the one the window happens to show.
 ///
 /// Once per branch per launch: a failed create is reported and not retried in
 /// a loop, and a branch that got its PR stops matching `shouldCreatePR`.
+/// Auto-merge is once per PR per launch, so turning it off by hand sticks.
 @MainActor
 final class AutoPRWatcher: ObservableObject {
     static let shared = AutoPRWatcher()
@@ -187,7 +195,14 @@ final class AutoPRWatcher: ObservableObject {
     /// The last thing it did per repository, for the card to say.
     @Published private(set) var lastResult: [String: NoticeMessage] = [:]
     private var attempted: Set<String> = []
+    private var autoMergeTried: Set<String> = []
     private var timer: Timer?
+
+    /// Whether the caller is the first to try auto-merge on this PR. The card
+    /// asks too, so the two never both fire.
+    func claimAutoMerge(toplevel: String, number: Int) -> Bool {
+        autoMergeTried.insert("\(toplevel)#\(number)").inserted
+    }
 
     func start(cwds: @escaping @MainActor () -> [String]) {
         timer?.invalidate()
@@ -199,7 +214,23 @@ final class AutoPRWatcher: ObservableObject {
     func tick(_ cwds: [String]) async {
         for cwd in Set(cwds) where !cwd.isEmpty {
             guard let snap = await GitProbe.shared.snapshot(for: cwd),
-                  let top = snap.toplevel, let branch = snap.branch,
+                  let top = snap.toplevel else { continue }
+            if GitAutomation.shouldEnableAutoMerge(snap), case .open(let number, _, _) = snap.pr,
+               claimAutoMerge(toplevel: top, number: number),
+               let cmd = GitAutomation.autoMergeCommand(enable: true, snapshot: snap) {
+                let result = await Task.detached(priority: .utility) {
+                    GitProbe.run(cmd.tool, cmd.args, in: cwd, timeout: GitActions.actionTimeout)
+                }.value
+                if let result, result.status == 0 {
+                    lastResult[top] = .init(kind: .info, text: "Auto-merge is on for #\(number).")
+                } else {
+                    lastResult[top] = .init(kind: .error,
+                                            text: "Auto-merge for #\(number) failed: \(result.flatMap { GitActions.firstLine($0.err) } ?? "gh didn't report back")")
+                }
+                await GitProbe.shared.invalidate(cwd)
+                continue
+            }
+            guard let branch = snap.branch,
                   GitAutomation.autoPREnabled(toplevel: top),
                   GitAutomation.shouldCreatePR(snap),
                   let gh = GitProbe.ghPath else { continue }

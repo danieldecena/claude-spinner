@@ -4318,6 +4318,33 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertTrue(GitParse.repoSettings("") == (nil, nil))
     }
 
+    /// The self-enable fires only on a PR that reads off and can take it:
+    /// unread (nil) is not "off", and a dirty tree or a draft holds it back.
+    func testAutoMergeEnablesItselfOnlyWhenReadOffAndEligible() {
+        var snap = GitSnapshot()
+        snap.pr = .open(number: 7, url: "u", draft: false)
+        snap.autoMerge = false
+        XCTAssertTrue(GitAutomation.shouldEnableAutoMerge(snap))
+        snap.autoMerge = nil
+        XCTAssertFalse(GitAutomation.shouldEnableAutoMerge(snap), "unread is not off")
+        snap.autoMerge = true
+        XCTAssertFalse(GitAutomation.shouldEnableAutoMerge(snap))
+        snap.autoMerge = false
+        snap.pr = .open(number: 7, url: "u", draft: true)
+        XCTAssertFalse(GitAutomation.shouldEnableAutoMerge(snap))
+        snap.pr = .none
+        XCTAssertFalse(GitAutomation.shouldEnableAutoMerge(snap))
+    }
+
+    /// One claim per PR, shared by the card and the watcher, so the two never
+    /// both fire and a hand-off is not undone on the next tick.
+    @MainActor func testAutoMergeIsClaimedOncePerPR() {
+        let top = "/tmp/claim-\(UUID().uuidString)"
+        XCTAssertTrue(AutoPRWatcher.shared.claimAutoMerge(toplevel: top, number: 7))
+        XCTAssertFalse(AutoPRWatcher.shared.claimAutoMerge(toplevel: top, number: 7))
+        XCTAssertTrue(AutoPRWatcher.shared.claimAutoMerge(toplevel: top, number: 8))
+    }
+
     /// GitHub's own setting is the first blocker; unread (nil) is not "off", and
     /// an open PR on a repo that allows it can be switched on (known-good).
     func testAutoMergeSaysWhyItCantBeUsed() {
