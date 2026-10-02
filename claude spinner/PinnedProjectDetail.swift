@@ -46,6 +46,9 @@ struct PinnedProjectDetail: View {
         return asks.filter { ids.contains($0.sessionId) }
     }
 
+    /// Half of a grid column at the window's usual width.
+    private static let artifactCardWidth: CGFloat = 170
+
     var body: some View {
         if let focused {
             ArtifactFullView(artifact: focused, backTitle: project.name) {
@@ -82,6 +85,22 @@ struct PinnedProjectDetail: View {
                         
                         HStack(alignment: .top, spacing: 16) {
                 TileGrid(minimum: 220, spacing: 12) {
+                    // First, and small: what the project has published is a
+                    // glance and a way in, not the page's main business.
+                    if let extras, !extras.artifacts.items.isEmpty {
+                        ScrollView(.horizontal) {
+                            HStack(alignment: .top, spacing: 12) {
+                                ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
+                                    ArtifactCard(artifact: artifact) {
+                                        withAnimation(.snappy) { focused = artifact }
+                                    }
+                                    .frame(width: Self.artifactCardWidth)
+                                }
+                            }
+                        }
+                        .scrollIndicators(.hidden)
+                        .tileSpan(3)
+                    }
                     launchCard.tileSpan(1)
                     // Beside Start, because it is the same question answered in
                     // order: what you run here, and in which order you run it.
@@ -117,11 +136,6 @@ struct PinnedProjectDetail: View {
                                      help: "Start a session that runs this workflow") {
                                     start(["Run the workflow \(workflow.name) using the Workflow tool"])
                                 }
-                            }
-                        }
-                        ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
-                            ArtifactCard(artifact: artifact) {
-                                withAnimation(.snappy) { focused = artifact }
                             }
                         }
                         if !extras.artifacts.unreadable.isEmpty {

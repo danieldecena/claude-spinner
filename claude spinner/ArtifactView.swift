@@ -91,8 +91,10 @@ final class ArtifactPopouts: NSObject, ObservableObject, NSWindowDelegate {
     }
 }
 
-/// An artifact as a dashboard card: a small live preview, which expands to fill
-/// the whole detail pane (`onExpand`) or pops out to its own window.
+/// An artifact as a dashboard card: a thumbnail of the live page, which expands
+/// to fill the whole detail pane (`onExpand`) or pops out to its own window.
+/// Half the width and half the height of a grid tile, so a row of them sits
+/// above the dashboard without pushing it down the page.
 struct ArtifactCard: View {
     let artifact: ProjectArtifact
     let onExpand: () -> Void
@@ -101,21 +103,24 @@ struct ArtifactCard: View {
     private var host: String { URL(string: artifact.url)?.host() ?? "artifact" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
                 Image(systemName: "rectangle.stack.fill")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Color.attention)
-                    .frame(width: 30, height: 30)
-                    .background(Color.attention.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
-                VStack(alignment: .leading, spacing: 2) {
+                    .frame(width: 22, height: 22)
+                    .background(Color.attention.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
+                VStack(alignment: .leading, spacing: 1) {
                     Text(artifact.title)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                     Text(host).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
+            // The summary is on hover: two lines of it do not fit a card this
+            // narrow, and half a sentence said less than none.
+            .help(artifact.summary ?? artifact.title)
             // Own row: beside the title, three buttons left a one-column tile
             // about 40pt for the name, which drew as "C".
             if let url = URL(string: artifact.url) {
@@ -129,24 +134,18 @@ struct ArtifactCard: View {
                 }
             }
 
-            if let summary = artifact.summary {
-                Text(summary)
-                    .font(.ui(12)).foregroundStyle(Color.label)
-                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-            }
-
             if let url = URL(string: artifact.url) {
                 if popouts.open.contains(url.absoluteString) {
                     Label("Open in its own window", systemImage: "macwindow.on.rectangle")
                         .font(.ui(11)).foregroundStyle(Color.label)
-                        .frame(maxWidth: .infinity, minHeight: 80)
+                        .frame(maxWidth: .infinity, minHeight: 72)
                 } else {
-                    // A look, not a workspace: the page is scaled to where its
-                    // type still reads, faded at the bottom to say there is more,
-                    // and clicks go to Expand so scrolling the dashboard never
-                    // lands inside it.
-                    ArtifactWebView(url: url, zoom: 0.75)
-                        .frame(height: 220)
+                    // A thumbnail, not a workspace: the page is scaled to its
+                    // shape rather than its type, faded at the bottom to say
+                    // there is more, and clicks go to Expand so scrolling the
+                    // dashboard never lands inside it.
+                    ArtifactWebView(url: url, zoom: 0.375)
+                        .frame(height: 72)
                         .allowsHitTesting(false)
                         .mask {
                             LinearGradient(stops: [.init(color: .black, location: 0.7),
