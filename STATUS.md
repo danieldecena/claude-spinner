@@ -216,13 +216,20 @@ The rest is in `TASKS.md`.
   work is 20% of the main thread; the app reads 11 to 14% with no window.
   Tried first and discarded: `sizingOptions = [.intrinsicContentSize]`, which
   removed the min-size calls and changed nothing.
-- Measured, not fixed: with the window on a session pane the app still reads 26
-  to 31%. About a third of the main thread is then the window's own display
-  cycle at the spinner rate. The remaining menu-bar cost is the per-bar bitmap
+- Measured, no change made: with the window on a session pane the app read 26
+  to 31% in one run and 15 to 21% in the next (12:12). In that sample the app's
+  own functions are under 2% of the main thread; the rest is AppKit and Core
+  Animation committing the window at the spinner rate. There is no single view
+  to blame. The remaining menu-bar cost is the per-bar bitmap
   capture, which only a lower frame rate would cut; the rate was left at 10.
 - Status items own no window on this macOS, so the label is captured by the
   rectangle accessibility reports for `menu bar item 1 of menu bar 2`, which
   holds only that item.
+- Planned, not started: `docs/superpowers/plans/2026-10-02-swift6-isolation-warnings.md`.
+  The build prints 116 compile-time warnings, all the default main-actor
+  isolation being wrong about pure helpers, value types and the test target
+  (73 of them from the test target lacking the setting). Five tasks, each
+  leaving a green build. None of its edits has been compiled yet.
 - Found while debugging a "missing" window: it was never closed. A window on
   another Space drops out of both `CGWindowList` on-screen and the AX windows
   list, and comes back when the app is frontmost. `.optionAll` with
