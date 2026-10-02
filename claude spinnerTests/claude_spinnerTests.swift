@@ -1703,6 +1703,21 @@ final class claude_spinnerTests: XCTestCase {
                        "reported")
     }
 
+    /// The App Kit showcase is not a session either. Without its own nil case it
+    /// falls through to `defaultSelection`, and the detail pane still shows the
+    /// showcase -- so the bug would be invisible on screen while a session's
+    /// toolbar and probes ran behind it.
+    func testTheAppKitTagResolvesToNoSession() {
+        let roots = [root("reported", model: "Opus 5", updated: Date())]
+        XCTAssertNil(WindowContentView.resolveSelection(AppKitTab.tag, roots: roots, asks: []))
+        XCTAssertTrue(AppKitTab.isTag(AppKitTab.tag))
+        XCTAssertFalse(AppKitTab.isTag(HomeTab.tag))
+        XCTAssertFalse(HomeTab.isHomeTag(AppKitTab.tag))
+        XCTAssertFalse(AppKitTab.isTag("reported"))
+        XCTAssertEqual(WindowContentView.resolveSelection("reported", roots: roots, asks: [])?.id,
+                       "reported")
+    }
+
     /// The hoist is a string match on a section id, so it is tested against a
     /// session that should hoist AND one that should not -- a constant that
     /// matched nothing would look identical to one that matched correctly from
