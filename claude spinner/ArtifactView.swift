@@ -101,6 +101,8 @@ struct ArtifactCard: View {
     @ObservedObject private var popouts = ArtifactPopouts.shared
 
     private var host: String { URL(string: artifact.url)?.host() ?? "artifact" }
+    private static let thumbnailHeight: CGFloat = 72
+    private static let thumbnailScale: CGFloat = 0.25
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -138,17 +140,25 @@ struct ArtifactCard: View {
                 if popouts.open.contains(url.absoluteString) {
                     Label("Open in its own window", systemImage: "macwindow.on.rectangle")
                         .font(.ui(11)).foregroundStyle(Color.label)
-                        .frame(maxWidth: .infinity, minHeight: 72)
+                        .frame(maxWidth: .infinity, minHeight: Self.thumbnailHeight)
                 } else {
-                    // A thumbnail, not a workspace: the page is scaled to its
-                    // shape rather than its type, faded at the bottom to say
-                    // there is more, and clicks go to Expand so scrolling the
-                    // dashboard never lands inside it.
-                    ArtifactWebView(url: url, zoom: 0.375)
-                        .frame(height: 72)
+                    // A thumbnail, not a workspace: the page is laid out in a
+                    // window four times the box and the picture drawn at a
+                    // quarter, so it shows the page's shape. Page zoom did not
+                    // do this: the artifact's own frame kept its type size, and
+                    // the box held a toolbar, two scrollbars and one line of
+                    // text. Clicks go to Expand so scrolling the dashboard never
+                    // lands inside it.
+                    GeometryReader { geo in
+                        ArtifactWebView(url: url)
+                            .frame(width: geo.size.width / Self.thumbnailScale,
+                                   height: Self.thumbnailHeight / Self.thumbnailScale)
+                            .scaleEffect(Self.thumbnailScale, anchor: .topLeading)
+                    }
+                        .frame(height: Self.thumbnailHeight)
                         .allowsHitTesting(false)
                         .mask {
-                            LinearGradient(stops: [.init(color: .black, location: 0.7),
+                            LinearGradient(stops: [.init(color: .black, location: 0.85),
                                                    .init(color: .clear, location: 1)],
                                            startPoint: .top, endPoint: .bottom)
                         }
