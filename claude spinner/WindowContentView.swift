@@ -977,6 +977,10 @@ struct TileGrid: Layout {
     /// The rows are composed for three columns (wide cards alternating sides);
     /// a fourth let them wrap into a row with one card and a gap.
     var maxColumns = 3
+    /// The last card of a row takes the columns nothing else claimed. For a
+    /// page of mixed spans, where a two-column card alone in a row of three
+    /// left a third of the pane bare beside it.
+    var fillsRows = false
 
     struct Slot: Equatable {
         let index: Int
@@ -991,7 +995,7 @@ struct TileGrid: Layout {
     /// A card measuring zero drew nothing and takes no row: an absent Graph card
     /// otherwise packed an empty tile and left a bare spacing-height row under
     /// the grid.
-    static func pack(spans: [Int], heights: [CGFloat], columns: Int) -> [[Slot]] {
+    static func pack(spans: [Int], heights: [CGFloat], columns: Int, fillsRows: Bool = false) -> [[Slot]] {
         var packed: [[Slot]] = []
         var used = columns
         for index in spans.indices where heights[index] > 0 {
@@ -1003,7 +1007,11 @@ struct TileGrid: Layout {
             packed[packed.count - 1].append(Slot(index: index, column: used, span: span))
             used += span
         }
-        return packed
+        guard fillsRows else { return packed }
+        return packed.map { row in
+            guard let last = row.last else { return row }
+            return Array(row.dropLast()) + [Slot(index: last.index, column: last.column, span: columns - last.column)]
+        }
     }
 
     /// The height each row is placed at. Everything the grid was handed beyond
@@ -1068,7 +1076,7 @@ struct TileGrid: Layout {
             subviews[$0].sizeThatFits(ProposedViewSize(width: columnWidth, height: nil)).height
         }
         let packed = Self.pack(spans: subviews.indices.map { subviews[$0][TileSpan.self] },
-                               heights: measured, columns: columns)
+                               heights: measured, columns: columns, fillsRows: fillsRows)
         return packed.map { slots in
             (slots, slots.map {
                 subviews[$0.index]

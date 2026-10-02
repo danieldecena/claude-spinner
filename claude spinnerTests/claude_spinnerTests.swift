@@ -4611,6 +4611,21 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(packed[1].map(\.column), [0, 1])
     }
 
+    func testARowsLastCardTakesTheColumnsLeftOverWhenAsked() {
+        // The control: without the flag the two-wide card leaves column 2 bare.
+        let bare = TileGrid.pack(spans: [1, 2, 2, 1], heights: [10, 10, 10, 10], columns: 3)
+        XCTAssertEqual(bare.map { $0.map(\.span) }, [[1, 2], [2, 1]])
+        XCTAssertEqual(TileGrid.pack(spans: [2, 2], heights: [10, 10], columns: 3).map { $0.map(\.span) },
+                       [[2], [2]])
+
+        let filled = TileGrid.pack(spans: [2, 2, 1], heights: [10, 10, 10], columns: 3, fillsRows: true)
+        XCTAssertEqual(filled.map { $0.map(\.span) }, [[3], [2, 1]], "alone in its row, a card takes the row")
+        XCTAssertEqual(filled.map { $0.map(\.column) }, [[0], [0, 2]])
+        // A full row is left as it was packed.
+        XCTAssertEqual(TileGrid.pack(spans: [1, 2], heights: [10, 10], columns: 3, fillsRows: true)
+                        .map { $0.map(\.span) }, [[1, 2]])
+    }
+
     func testASpanWiderThanTheGridIsClampedToIt() {
         let packed = TileGrid.pack(spans: [9], heights: [10], columns: 3)
         XCTAssertEqual(packed.first?.first?.span, 3)

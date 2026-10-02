@@ -81,10 +81,9 @@ struct PinnedProjectDetail: View {
                     ScrollView(.vertical) {
                         let scaledHeight = idealHeight * scale
                         let frameHeight = max(geo.size.height, scaledHeight)
-                        let shift = idealHeight > frameHeight ? (idealHeight - frameHeight) / 2 : 0
                         
                         HStack(alignment: .top, spacing: 16) {
-                TileGrid(minimum: 220, spacing: 12) {
+                TileGrid(minimum: 220, spacing: 12, fillsRows: true) {
                     // First, and small: what the project has published is a
                     // glance and a way in, not the page's main business.
                     if let extras, !extras.artifacts.items.isEmpty {
