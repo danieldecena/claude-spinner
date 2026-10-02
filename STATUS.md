@@ -128,6 +128,15 @@
   `length+1`/no-lock pattern lost 15 of 20 writes; the locked version kept 20/20
   with unique ids. bug-200. (The 10 *historical* duplicate ids are left as-is —
   they're referenced in commits/STATUS/cerebrum, so renumbering would break refs.)
+- A clean build (`xcodebuild clean build-for-testing`) prints no warnings. Types
+  that are used off the main actor say `nonisolated`; the test target shares the
+  app's main-actor default.
+- The menu-bar label is the status button's attributed title (`MenuBarTitle`),
+  not a hosted SwiftUI view. With a session working and no window open the app
+  reads 11 to 14% of a core.
+- A pinned page opens with its artifacts as a row of small cards (170pt, with a
+  quarter-scale picture of the page), fills the pane's height, and leaves no
+  empty column beside a card.
 
 ## Known broken
 
