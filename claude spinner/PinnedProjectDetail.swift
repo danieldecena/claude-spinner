@@ -373,13 +373,16 @@ struct PinnedProjectDetail: View {
     }
 
     private func step(_ step: PinnedProject.Step) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let prompt = step.prompt(with: arguments[step.id] ?? "")
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Label(step.label, systemImage: step.systemImage).font(.ui(11)).fixedSize()
                 Spacer(minLength: 4)
-                Button("Start") { start([command(step)]) }
+                Button("Start") { start(step) }
                     .buttonStyle(.bordered).font(.ui(11))
-                    .help("Start a session in \(project.name) running \(command(step))")
+                    .disabled(prompt == nil)
+                    .help(prompt.map { "Start a session in \(project.name) running \($0)" }
+                          ?? "\(step.argument ?? "") first")
             }
             Text(step.detail).font(.ui(10)).foregroundStyle(Color.label)
                 .fixedSize(horizontal: false, vertical: true)
@@ -392,16 +395,17 @@ struct PinnedProjectDetail: View {
                     .padding(.horizontal, 8).padding(.vertical, 5)
                     .background(Color.secondary.opacity(0.12),
                                 in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .onSubmit { start([command(step)]) }
+                    .onSubmit { start(step) }
             }
         }
     }
 
-    /// The step's command with whatever was typed for it, which is how the skill
-    /// receives the link rather than having to ask for it.
-    private func command(_ step: PinnedProject.Step) -> String {
-        let argument = (arguments[step.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return argument.isEmpty ? step.command : step.command + " " + argument
+    /// Cleared once started, as the Start card's field is: left filled, a second
+    /// press opened a second session on the same link.
+    private func start(_ step: PinnedProject.Step) {
+        guard let prompt = step.prompt(with: arguments[step.id] ?? "") else { return }
+        start([prompt])
+        arguments[step.id] = nil
     }
 
     /// What the project's runs are actually doing, in full: the status line, the
