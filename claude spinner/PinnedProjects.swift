@@ -64,9 +64,20 @@ struct PinnedProject: Identifiable, Equatable {
                  command: "/anthropic-skills:linkedin-job-list",
                  detail: "Pages 1-3 of a LinkedIn search, deduped and grouped by role.",
                  argument: "Paste the LinkedIn search link"),
+            // Plain prompts, not skills: each names the one script that does the
+            // work, so the session runs it rather than loading the whole apply skill.
+            Step(label: "Screen one posting", systemImage: "checklist",
+                 command: "Run .venv/bin/python3 scripts/screen_posting.py on this posting and show me "
+                    + "only the screening card (pay, location, years, red flags):",
+                 detail: "Pay, location, years asked and red flags on one card, without starting a run.",
+                 argument: "Paste the LinkedIn job link"),
             Step(label: "Apply to the next one", systemImage: "paperplane",
                  command: "/anthropic-skills:apply-next-job",
                  detail: "Works the queue: fills the next job, hands off, logs it."),
+            Step(label: "Did it go through?", systemImage: "checkmark.seal",
+                 command: "/anthropic-skills:apply-next-job check whether my staged applications went "
+                    + "through, and log the ones that did",
+                 detail: "Checks staged forms and Mail for a confirmation, then logs it."),
         ])
 
     static let plans = PinnedProject(
