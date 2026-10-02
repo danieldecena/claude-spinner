@@ -159,6 +159,10 @@ struct ArtifactCard: View {
                     }
                         .frame(height: Self.thumbnailHeight)
                         .allowsHitTesting(false)
+                        // A picture: without this the whole page, every heading
+                        // and control in it, was read out from inside the card
+                        // with nothing in it that could be operated.
+                        .accessibilityHidden(true)
                         .mask {
                             LinearGradient(stops: [.init(color: .black, location: 0.85),
                                                    .init(color: .clear, location: 1)],
@@ -170,6 +174,7 @@ struct ArtifactCard: View {
                                 .strokeBorder(Color.label.opacity(0.15))
                                 .contentShape(Rectangle())
                                 .onTapGesture(perform: onExpand)
+                                .accessibilityHidden(true)
                         }
                         .help("Expand")
                 }
