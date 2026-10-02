@@ -48,6 +48,10 @@ struct SkillShortcut: Identifiable, Equatable {
         .init(name: "recall", symbol: "brain", blurb: "Search past decisions", builtIn: false),
         .init(name: "goal", symbol: "flag.checkered", blurb: "Work autonomously toward a goal", builtIn: false),
         .init(name: "checkup", symbol: "stethoscope", blurb: "Health-check the Claude config", builtIn: false),
+        .init(name: "email", symbol: "envelope", blurb: "Scan Gmail + Apple Mail for action items",
+              builtIn: false),
+        .init(name: "recruiter-mail", symbol: "person.crop.circle.badge.questionmark",
+              blurb: "Triage recruiter and interview messages", builtIn: false),
         // The superpowers workflow, one chip per stage. Each command hands off
         // to the plugin skill, and asks what it applies to when typed bare.
         .init(name: "superpower:brainstorm", symbol: "lightbulb", blurb: "Shape an idea before building",
