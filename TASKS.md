@@ -2,10 +2,9 @@
 
 ## Tasks
 
-- [ ] Enable auto-merge for every live session, not only the selected one
-
 ## Completed
 
+- [x] Enable auto-merge for every live session, not only the selected one -- 6a85728
 - [x] [you] Watch auto-merge switch itself on for a real open PR -- seen 13:31 on PR 5
 - [x] Find what holds the last artifact web view for two minutes -- holder not found, page closed at snapshot
 - [x] Draw artifact thumbnails from a snapshot, not a live web view -- 291cab7

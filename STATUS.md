@@ -161,6 +161,20 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Decided: auto-merge switches itself on from the watcher, not the Git card,
+  so it covers every live session and not only the selected pane (`6a85728`).
+  The once-per-PR claim lives on the watcher and the card asks the same set,
+  so the two cannot both fire. The watcher ticks every 60 s; the card, when
+  shown, still gets there within 5.
+- Seen: the watcher path, on docs-only PR #6 staged like #5. App relaunched
+  13:41:06, PR read null at 13:41:23, `auto_squash_enabled` at 13:42:10, one
+  tick after launch. Window captures at 13:41:36 and 13:42:11 both show Job
+  Search, so the card for this session was never on screen. Turned off by hand
+  at 13:42:23 and it read null 137 times through 13:44:38, past the 13:43:06
+  and 13:44:06 ticks: a hand-off sticks. This also settles the open question
+  on #5 only for the new path; whether #5 fired by itself stays unseen.
+- Removed afterwards: PR #6 closed unmerged, branch deleted, protection on
+  `main` deleted again (read back "Branch not protected").
 - Seen: auto-merge came on for a real open PR. Staged on this repo: `test`
   made a required check on `main`, and docs-only PR #5 opened from
   `probe/auto-merge`, which the path filter in `swift.yml` never runs `test`
@@ -173,7 +187,8 @@ Nothing queued. The rest is in `TASKS.md`.
   flipped by hand through the dialog. No hook or script here runs
   `gh pr merge --auto`; the app is the only caller.
 - Found: the card polls only while its session is the selected pane, so a PR
-  nobody is looking at never gets auto-merge. Same limit as 2026-09-30.
+  nobody is looking at never gets auto-merge. Same limit as 2026-09-30. Fixed
+  the same day, see the Decided entry above.
 - Removed afterwards: auto-merge off, PR #5 closed unmerged, branch deleted,
   protection on `main` deleted (read back 404 "Branch not protected"). Left on,
   the required check would have blocked every docs-only PR, since `test` never
