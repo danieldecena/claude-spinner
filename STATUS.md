@@ -225,11 +225,21 @@ The rest is in `TASKS.md`.
 - Status items own no window on this macOS, so the label is captured by the
   rectangle accessibility reports for `menu bar item 1 of menu bar 2`, which
   holds only that item.
-- Planned, not started: `docs/superpowers/plans/2026-10-02-swift6-isolation-warnings.md`.
-  The build prints 116 compile-time warnings, all the default main-actor
-  isolation being wrong about pure helpers, value types and the test target
-  (73 of them from the test target lacking the setting). Five tasks, each
-  leaving a green build. None of its edits has been compiled yet.
+- Decided, `d83d19a` and `b44955a`: the build carries no warnings. A clean
+  build printed 152, every one the default main-actor isolation being wrong
+  about something: the test target lacked the setting (73), and pure namespaces
+  and value types were used off the main actor (77). Each now says
+  `nonisolated` at the type. A new warning is therefore new, and worth reading.
+  The plan and what actually happened are in
+  `docs/superpowers/plans/2026-10-02-swift6-isolation-warnings.md`.
+- Found: CI's log under-reports warnings. The self-hosted runner builds
+  incrementally, so its log named 117 of the 152. Count from
+  `xcodebuild clean build-for-testing`.
+- Found: `nonisolated` on one function only moves the warning to whatever that
+  function calls. Mark the type.
+- Not seen on screen: the Skills card's pick line after its `Text +` became an
+  interpolation. No session was showing a pick. Rendered offline with
+  `ImageRenderer`, old and new are byte-identical and a changed string is not.
 - Found while debugging a "missing" window: it was never closed. A window on
   another Space drops out of both `CGWindowList` on-screen and the AX windows
   list, and comes back when the app is frontmost. `.optionAll` with

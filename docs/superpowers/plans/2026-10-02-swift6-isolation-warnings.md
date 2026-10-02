@@ -2,6 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Outcome, 2026-10-02: executed the same day, and not as written.** Read this
+> before the tasks below; they are kept as the record of what was planned.
+>
+> - The baseline was wrong. CI builds incrementally and its log listed 117
+>   warnings; a clean local build listed 152. The 36 it had missed were in
+>   `AskInbox.swift`, `GitProbe.swift`, `GitAutomation.swift` and `NewSession.swift`.
+>   Count warnings from a clean build, never from a CI log.
+> - Task 1 went as written: 152 to 79, the test file from 75 to 2 (`d83d19a`).
+> - Tasks 2 to 4 did not. Marking individual functions `nonisolated` moved each
+>   warning one call inward (79 became 81). The unit that is wrong about its
+>   isolation is the type, so whole namespaces and value types were marked
+>   instead, and the count fell to 23, then to 0 with the remaining members
+>   handled one by one (`b44955a`).
+> - Task 5's four one-offs went as written. The `Text` change was not seen in
+>   the app (no session was showing a pick); the old and new forms were rendered
+>   offline and are pixel-identical, with a control that differs.
+> - A clean build now prints 0 warnings. 401 tests pass.
+
 **Goal:** Take the build from 117 compiler warnings to 0 without changing what the app does.
 
 **Architecture:** The app target compiles with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so every declaration is main-actor-isolated unless it says otherwise. The warnings are the places that default is wrong: pure helpers and value types that are used off the main actor (in `Task.detached`, as function values, from the test target). The fix is to say so at the declaration with `nonisolated`, not to change any call site's behaviour. The test target is missing the same default, which alone accounts for 73 of the 117.

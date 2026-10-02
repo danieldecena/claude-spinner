@@ -3,10 +3,10 @@
 ## Tasks
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
-- [ ] Clear the Swift 6 isolation warnings per the plan
 
 ## Completed
 
+- [x] Clear the Swift 6 isolation warnings per the plan -- b44955a
 - [x] Find what the open window redraws at the spinner rate -- measured 12:12, no change
 - [x] Find why the app sits at 38 percent CPU -- e6fca07
 - [x] Watch a no-graph repo leave no gap where the Graph card goes -- seen 11:54
