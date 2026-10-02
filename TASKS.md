@@ -9,6 +9,7 @@
 
 ## Completed
 
+- [x] Fix red CI: transcript cache ignored the tail length -- 1b85964
 - [x] Fill the Home pane so it uses the window -- 867d5ca
 - [x] Watch home sit above Pinned once a home session is live -- seen 12:03, 76461ca
 - [x] Add a Graph card to the session pane -- 88c1cc5

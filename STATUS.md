@@ -163,6 +163,19 @@ The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-10-02
+
+- Found: `main` was red on CI from `aa0f514` (run 37036052579, 1 of 398) while
+  this file said nothing was broken. That commit and `e0a9e34` after it came
+  from outside the Claude sessions here (no trailer, no log entry), so nothing
+  recorded them. The failure was the transcript size cache: it matched on path
+  and size only, so reading one file twice with different tail lengths returned
+  the first answer. Fixed in `1b85964` by putting the tail length in the key.
+  Production callers all pass the default tail, so nothing on screen was wrong.
+- Unobserved: `e0a9e34` rewrote `PinnedProjectDetail.swift` (+232) and moved
+  `ignoresSafeArea` in `WindowContentView`. Tests pass over it; nobody here has
+  looked at the result on screen.
+
 ### 2026-10-01
 
 - Found: the dense sidebar rows stopped selecting anywhere but their text. The
