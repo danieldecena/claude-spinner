@@ -39,6 +39,9 @@ enum TranscriptReader {
     /// option. 256 KB reliably spans several turns of this transcript.
     static let tailBytes = 256 * 1024
 
+    private static var cache: [String: (size: Int, snapshot: TranscriptSnapshot)] = [:]
+    private static let cacheLock = NSLock()
+
     /// Read the tail of `path` and pull out what the detail pane shows.
     ///
     /// Returns an empty snapshot rather than nil for an unreadable file: a
@@ -48,6 +51,14 @@ enum TranscriptReader {
         guard let handle = FileHandle(forReadingAtPath: path) else { return TranscriptSnapshot() }
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()).map(Int.init) ?? 0
+        
+        cacheLock.lock()
+        if let cached = cache[path], cached.size == size {
+            cacheLock.unlock()
+            return cached.snapshot
+        }
+        cacheLock.unlock()
+        
         var out = tail(handle, size: size, bytes: tailBytes)
         // A tool-heavy turn fills the tail with command output and pushes Claude's
         // last sentence out of it, which read as "not recorded". Look further back
@@ -56,6 +67,11 @@ enum TranscriptReader {
             out.lastAssistantText = tail(handle, size: size, bytes: tailBytes * farTailMultiple).lastAssistantText
         }
         if let typed = prompts.newest(path: path, handle: handle, size: size) { out.lastPrompt = typed }
+        
+        cacheLock.lock()
+        cache[path] = (size: size, snapshot: out)
+        cacheLock.unlock()
+        
         return out
     }
 

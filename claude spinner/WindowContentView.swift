@@ -57,15 +57,15 @@ struct WindowContentView: View {
     private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
     private var skillPick: Suggestion? { suggestionInput.flatMap(Suggestion.skill) }
 
-    /// Where to look for each project's TASKS.md: the folder of its first session.
     private var tasksFolders: [String: String] {
-        let sections = FeedWatcher.projectSections(
-            roots.map { SessionRowItem(id: $0.id, session: $0, ids: [$0.id], depth: 0) },
-            asked: Set(asks.pending.map(\.sessionId)), byRecency: true)
-        return Dictionary(uniqueKeysWithValues: sections.compactMap { section in
-            section.id == "needs-you" ? nil
-                : section.items.first.map { (section.id, $0.session.cwd) }
-        })
+        var folders: [String: String] = [:]
+        for session in roots.sorted(by: { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }) {
+            let key = "project:" + session.projectName
+            if folders[key] == nil {
+                folders[key] = session.cwd
+            }
+        }
+        return folders
     }
 
     private var tasksKey: String {
@@ -118,6 +118,12 @@ struct WindowContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.pane)
+        // The window has no title bar (see showMainWindow), so the content owns
+        // the top edge instead of leaving the bar's height empty above it.
+        // This must come before safeAreaInset, so the content expands to the window
+        // edge, and THEN the toolbar insets it, rather than the content ignoring
+        // the toolbar's inset and sliding under it.
+        .ignoresSafeArea(.container, edges: .top)
         // Across both columns, not just the detail pane: the toolbar acts on the
         // selected session wherever you are. Its strip is opaque edge to edge; a
         // strip half blur and half pane put a seam through the reply field.
@@ -130,10 +136,6 @@ struct WindowContentView: View {
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
         }
-        // The window has no title bar (see showMainWindow), so the content owns
-        // the top edge instead of leaving the bar's height empty above it. After
-        // the toolbar inset, so the toolbar counts as part of the content.
-        .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
         .task(id: roots.map(\.id).joined(separator: "|")) {
             await goals.track(roots.map { (id: $0.id, pid: $0.pid) })
@@ -289,6 +291,8 @@ private struct SessionSidebar: View {
     }
 
     var body: some View {
+        let childrenByParent = Dictionary(grouping: children, by: { $0.parentSessionId ?? "" })
+        
         List(selection: $selection) {
             // The dashboard first, and the window opens on it: what every session
             // is doing is the question you have before you pick one.
@@ -300,7 +304,7 @@ private struct SessionSidebar: View {
             .accessibilityLabel("Home, every session at once")
             .tag(HomeTab.tag)
             // Then the home project group: the session at ~ others start from.
-            ForEach(homeGroups) { section in sectionView(section) }
+            ForEach(homeGroups) { section in sectionView(section, childrenByParent: childrenByParent) }
             Section {
                 ForEach(PinnedProject.all) { project in
                     let live = PinnedProject.liveSessions(in: project.path, sessions: sessions).count
@@ -321,7 +325,7 @@ private struct SessionSidebar: View {
             } header: {
                 Text("Pinned").font(.ui(10)).fontWeight(.semibold).foregroundStyle(Color.label)
             }
-            ForEach(otherGroups) { section in sectionView(section) }
+            ForEach(otherGroups) { section in sectionView(section, childrenByParent: childrenByParent) }
         }
         // Plain, not sidebar: the sidebar style's row metrics do not yield to
         // `listRowInsets`, `defaultMinListRowHeight` or `controlSize` -- captures
@@ -344,7 +348,7 @@ private struct SessionSidebar: View {
 
     /// One project's heading and rows. Shared by the home group above Pinned and
     /// the rest below it.
-    @ViewBuilder private func sectionView(_ section: ProjectSection) -> some View {
+    @ViewBuilder private func sectionView(_ section: ProjectSection, childrenByParent: [String: [SessionFeed]]) -> some View {
         Section {
             ForEach(section.items) { item in
                 let session = item.session
@@ -389,14 +393,16 @@ private struct SessionSidebar: View {
                 .tag(session.id)
                 // Not selectable: the detail pane shows root sessions, and a
                 // subagent has no pane of its own to show.
-                let split = SubagentSplit(children.filter { $0.parentSessionId == session.id })
+                let split = SubagentSplit(childrenByParent[session.id] ?? [])
                 ForEach(split.live) { child in childRow(child) }
                 // Finished ones as a count that opens out: six "done" rows
                 // outweighed the session they belonged to.
                 if !split.finished.isEmpty {
                     let open = showFinished.contains(session.id)
                     Button {
-                        if open { showFinished.remove(session.id) } else { showFinished.insert(session.id) }
+                        withAnimation(.snappy) {
+                            if open { showFinished.remove(session.id) } else { showFinished.insert(session.id) }
+                        }
                     } label: {
                         Label("\(split.finished.count) finished",
                               systemImage: open ? "chevron.down" : "chevron.right")
@@ -1377,6 +1383,7 @@ private struct TranscriptCard: View {
             // cards under it.
             if nothingRecorded {
                 Labelled("conversation", nil, limit: 1, goal: goal)
+                Spacer(minLength: 0)
             } else {
                 Labelled("you asked", snapshot.lastPrompt, limit: expanded ? nil : 2, expanded: $expanded,
                          goal: goal)
