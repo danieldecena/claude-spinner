@@ -155,17 +155,29 @@
 
 ## Next Up
 
-1. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
-   required check. Tried 2026-09-30: the switch only fires from the selected session's
-   Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
-   at once into a public main.
-
-The rest is in `TASKS.md`.
+Nothing queued. The rest is in `TASKS.md`.
 
 ## Decision log
 
 ### 2026-10-02
 
+- Seen: auto-merge came on for a real open PR. Staged on this repo: `test`
+  made a required check on `main`, and docs-only PR #5 opened from
+  `probe/auto-merge`, which the path filter in `swift.yml` never runs `test`
+  for, so the check stayed pending. `autoMergeRequest` read null from 13:22 to
+  13:30:43 while the window sat on Home and then Job Search, and the PR
+  timeline shows `auto_squash_enabled` at 13:31:17 (SQUASH, by danieldecena).
+  Not seen: the Git card itself. Window captures at 13:31:06 and 13:31:26 both
+  show Job Search, so the session row was selected and left inside those 20
+  seconds, and GitHub cannot say whether the switch fired by itself or was
+  flipped by hand through the dialog. No hook or script here runs
+  `gh pr merge --auto`; the app is the only caller.
+- Found: the card polls only while its session is the selected pane, so a PR
+  nobody is looking at never gets auto-merge. Same limit as 2026-09-30.
+- Removed afterwards: auto-merge off, PR #5 closed unmerged, branch deleted,
+  protection on `main` deleted (read back 404 "Branch not protected"). Left on,
+  the required check would have blocked every docs-only PR, since `test` never
+  runs for them.
 - Found: `main` was red on CI from `aa0f514` (run 37036052579, 1 of 398) while
   this file said nothing was broken. That commit and `e0a9e34` after it came
   from outside the Claude sessions here (no trailer, no log entry), so nothing
@@ -674,8 +686,8 @@ The rest is in `TASKS.md`.
   at 16% of a 1M window. Unit-tested; 313 pass.
 - Decided: Auto-merge PR switches itself on, without the dialog, the first time
   a PR is open and eligible, once per PR (a hand-off keeps it off after you turn it
-  off). The other three toggles stay manual; Daniel chose auto-merge only. Built,
-  not observed: no open PR with GitHub auto-merge allowed to test against.
+  off). The other three toggles stay manual; Daniel chose auto-merge only. Built;
+  observed 13:31, see the Seen entry at the top of this day.
 - Decided: Config is two rows (model and effort menus, then thinking, style and
   version on one line) with no title. Toolbar action notices (copy, reveal,
   interrupt, compact) now show in the conversation card under the reply field,
