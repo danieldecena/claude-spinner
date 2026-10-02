@@ -39,7 +39,9 @@ enum TranscriptReader {
     /// option. 256 KB reliably spans several turns of this transcript.
     static let tailBytes = 256 * 1024
 
-    private static var cache: [String: (size: Int, snapshot: TranscriptSnapshot)] = [:]
+    // The tail length is part of the key: the same file read with a shorter
+    // tail is a different answer, not a repeat of the longer one.
+    private static var cache: [String: (size: Int, tailBytes: Int, snapshot: TranscriptSnapshot)] = [:]
     private static let cacheLock = NSLock()
 
     /// Read the tail of `path` and pull out what the detail pane shows.
@@ -53,7 +55,7 @@ enum TranscriptReader {
         let size = (try? handle.seekToEnd()).map(Int.init) ?? 0
         
         cacheLock.lock()
-        if let cached = cache[path], cached.size == size {
+        if let cached = cache[path], cached.size == size, cached.tailBytes == tailBytes {
             cacheLock.unlock()
             return cached.snapshot
         }
@@ -69,7 +71,7 @@ enum TranscriptReader {
         if let typed = prompts.newest(path: path, handle: handle, size: size) { out.lastPrompt = typed }
         
         cacheLock.lock()
-        cache[path] = (size: size, snapshot: out)
+        cache[path] = (size: size, tailBytes: tailBytes, snapshot: out)
         cacheLock.unlock()
         
         return out
