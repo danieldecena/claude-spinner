@@ -54,6 +54,7 @@ struct HomeDashboard: View {
                     usage
                     sessionsCard
                     tasksCard
+                    MailCard()
                 }
                 .padding(20)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)

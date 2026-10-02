@@ -1301,6 +1301,9 @@ final class FeedWatcher: ObservableObject {
 
     /// Strip a known feed suffix to recover the session id.
     private func sessionId(from name: String) -> String? {
+        // `mail.status.json` is the Mail card's file, not a session's statusLine:
+        // read as one it would be pruned as an orphan once it aged past the cutoff.
+        if name == MailStatusFile.defaultURL().lastPathComponent { return nil }
         for suffix in [".state.json", ".status.json", ".status.txt"] {
             if name.hasSuffix(suffix) { return String(name.dropLast(suffix.count)) }
         }
@@ -1331,7 +1334,7 @@ final class FeedWatcher: ObservableObject {
                 var s = byId[id] ?? SessionFeed(id: id)
                 s.applyState(sf)
                 byId[id] = s
-            } else if name.hasSuffix(".status.json") {
+            } else if name.hasSuffix(".status.json"), sessionId(from: name) != nil {
                 guard let data = try? Data(contentsOf: url),
                       let sf = try? JSONDecoder().decode(StatusFile.self, from: data) else { continue }
                 let id = String(name.dropLast(".status.json".count))
