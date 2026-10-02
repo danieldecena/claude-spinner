@@ -172,9 +172,9 @@ The rest is in `TASKS.md`.
   for `TileGrid.pack` to skip.
 - Observed 11:25: the card reloads on a switch. claude-spinner 2,174 nodes /
   5,118 edges, app-kit 188 / 216, home 357 / 369 with its "Built at" line, each
-  equal to its `graph.json`, both directions, twice. Not observed: a session in
-  a repo with no graph, so the zero-height stack leaving no gap is untested on
-  screen (every live session's repo had one).
+  equal to its `graph.json`, both directions, twice. The no-graph case was seen at
+  11:54 on a session with no folder at all: no Graph card, and Usage ends the
+  pane at the normal margin with no bare row under it.
 - Decided: drive the sidebar through the accessibility tree, not coordinates.
   `AXUIElementSetAttributeValue(row, kAXSelected, true)` selects a row, and the
   row is found as the one under the section header whose text starts with the
