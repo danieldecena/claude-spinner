@@ -161,6 +161,8 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Staged: the second auto-merge probe, for the watcher path. Same shape as PR #5:
+  docs-only, so the required `test` check never runs and stays pending.
 - Seen: auto-merge came on for a real open PR. Staged on this repo: `test`
   made a required check on `main`, and docs-only PR #5 opened from
   `probe/auto-merge`, which the path filter in `swift.yml` never runs `test`
