@@ -219,13 +219,18 @@ The rest is in `TASKS.md`.
   with the account avatar and "Artifact by you", and the card switched to its
   "Open in its own window" placeholder. Closed again afterwards. So this was
   never blocked on a person, only on clicking by coordinate.
-- Seen, not acted on: in the pop-out, the window's traffic lights sit on top of
-  the page's own top-left corner and cover the first letter of its title.
-- Seen, not acted on: Job Search's grid leaves the right third empty beside
-  Recent Sessions and beside the two artifact tiles, and stretches Skills to
-  the height of the Apply Workflow tile next to it.
-- Seen, not acted on: `PinnedProjectDetail` computes a `shift` it never uses
-  (from `e0a9e34`).
+- Fixed in `67d1392`: in the pop-out, the window's traffic lights sat on the
+  page's own top-left corner. The panel no longer uses a full-size content
+  view; seen 11:45, the bar holds the window title and the page starts under it.
+- Decided, `62fb21e`: `TileGrid(fillsRows:)`. The last card of a row takes the
+  columns nothing else claimed; off by default so the session and Home panes
+  pack as before, on for the pinned page. Seen 11:43 on Job Search (Recent
+  Sessions and Skills full width) and 11:45 on Plans (Start full width). The
+  unused `shift` went in the same commit.
+- Rule for captures from here: `screencapture -l <window id>`, never `-R`. A
+  region grab at 11:43 took in another app's window that overlapped the pane;
+  those files were deleted unread beyond the one look. The id comes from
+  `CGWindowListCopyWindowInfo` filtered on the owner name.
 
 ### 2026-10-01
 
