@@ -4,11 +4,12 @@
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
 - [ ] [you] Watch the Career Hub pop-out open after sign-in
-- [ ] Watch the Graph card reload across a two-repo session switch
+- [ ] Fix sidebar TASKS rows showing another project's titles
 - [ ] Watch the pinned pane's last card fill the leftover height
 
 ## Completed
 
+- [x] Watch the Graph card reload across a two-repo session switch -- seen 11:25, 6d1019c
 - [x] Fix red CI: transcript cache ignored the tail length -- 1b85964
 - [x] Fill the Home pane so it uses the window -- 867d5ca
 - [x] Watch home sit above Pinned once a home session is live -- seen 12:03, 76461ca

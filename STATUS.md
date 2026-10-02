@@ -146,11 +146,9 @@
 
 ## Next Up
 
-1. [code] Watch the Graph card reload when the selection moves between two repos
-   that both have a graph. The `looked` guard that blocked it is gone and the
-   parser is tested, but the switch itself is unobserved: the sidebar reorders by
-   recency, so scripted clicks by coordinate kept landing on Home. Select by
-   keyboard, or key the capture off the row's text rather than its position.
+1. [code] A project's sidebar TASKS rows show another project's titles: seen
+   2026-10-02 11:25, claude-spinner listing app-kit's three open titles and then
+   its own fourth. See the log entry of that date.
 2. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
    buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
    unseen. Driving it by coordinates failed, see the 09:23 log entry.
@@ -172,6 +170,28 @@ The rest is in `TASKS.md`.
   and size only, so reading one file twice with different tail lengths returned
   the first answer. Fixed in `1b85964` by putting the tail length in the key.
   Production callers all pass the default tail, so nothing on screen was wrong.
+- Found: the Graph card had not drawn for any repo since `867d5ca`. That commit
+  turned the card's if/else into a `Group` holding only the `if`; an empty
+  Group is no view, so the `.task` that reads the file had nothing to attach to.
+  The reload it was fixing stayed "unobserved" because there was nothing to see.
+  Now an empty `VStack`, which is a view, keeps its identity, and measures zero
+  for `TileGrid.pack` to skip.
+- Observed 11:25: the card reloads on a switch. claude-spinner 2,174 nodes /
+  5,118 edges, app-kit 188 / 216, home 357 / 369 with its "Built at" line, each
+  equal to its `graph.json`, both directions, twice. Not observed: a session in
+  a repo with no graph, so the zero-height stack leaving no gap is untested on
+  screen (every live session's repo had one).
+- Decided: drive the sidebar through the accessibility tree, not coordinates.
+  `AXUIElementSetAttributeValue(row, kAXSelected, true)` selects a row, and the
+  row is found as the one under the section header whose text starts with the
+  project name, so recency reordering does not matter. AppleScript's
+  `entire contents` returns 0 for this window; walk `AXChildren` instead.
+- Found, open: the sidebar's TASKS rows are wrong across sections. With app-kit,
+  claude-spinner and home live, claude-spinner (4 open) listed app-kit's three
+  titles then its own fourth, and home listed the same three, then
+  claude-spinner's fourth, then its own fifth. Counts in each header were
+  right. Row N of every section shows whichever section drew row N first, which
+  is what colliding row ids across sections look like.
 - Unobserved: `e0a9e34` rewrote `PinnedProjectDetail.swift` (+232) and moved
   `ignoresSafeArea` in `WindowContentView`. Tests pass over it; nobody here has
   looked at the result on screen.
