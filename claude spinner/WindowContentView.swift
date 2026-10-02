@@ -439,7 +439,13 @@ private struct SessionSidebar: View {
                 .denseRow()
                 .selectionDisabled()
         }
-        ForEach(Array(file.open.prefix(Self.shownTasks).enumerated()), id: \.offset) { _, title in
+        // The id carries the file: a List wants ids unique across every section,
+        // and a bare offset made row N of each project the same row, so each
+        // drew the titles of whichever project had drawn row N first.
+        let shown = file.open.prefix(Self.shownTasks).enumerated()
+            .map { (id: "\(file.path)#\($0.offset)", title: $0.element) }
+        ForEach(shown, id: \.id) { row in
+            let title = row.title
             Label { Text(title) } icon: {
                 Circle().fill(Color.label).frame(width: 4, height: 4)
             }
