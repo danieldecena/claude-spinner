@@ -2,8 +2,11 @@
 
 ## Tasks
 
+- [ ] Design the Job Search tab layout around running workflows
+
 ## Completed
 
+- [x] Add screen-a-posting and did-it-go-through steps to Job Search -- eac101f
 - [x] Enable auto-merge for every live session, not only the selected one -- 6a85728
 - [x] [you] Watch auto-merge switch itself on for a real open PR -- seen 13:31 on PR 5
 - [x] Find what holds the last artifact web view for two minutes -- holder not found, page closed at snapshot
