@@ -48,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// answers it reads back.
     private let asks = AskInbox.shared
     private var askObserver: AnyCancellable?
+    private var statusLabelObserver: AnyCancellable?
+    /// What the status item last drew, so a publish that changes nothing the
+    /// label shows does not redraw it.
+    private var statusLabel: MenuBarTitle.Content?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Single instance: a second copy exits immediately. Except the test host,
@@ -106,15 +110,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
-            let host = NSHostingView(rootView: MenuBarLabel(feed: feed))
-            host.translatesAutoresizingMaskIntoConstraints = false
-            button.addSubview(host)
-            NSLayoutConstraint.activate([
-                host.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-                host.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-                host.topAnchor.constraint(equalTo: button.topAnchor),
-                host.bottomAnchor.constraint(equalTo: button.bottomAnchor),
-            ])
+            // A plain attributed title, not a SwiftUI view in a hosting view. The
+            // system keeps a bitmap copy of the item for every menu bar, and for
+            // each spinner frame it re-measured, re-laid out and re-rendered the
+            // hosted view once per copy: 56% of the main thread, 34 to 40% of a
+            // core whenever a session was working (sampled 2026-10-02). The same
+            // frames as a title cost under half that.
+            // `objectWillChange` fires before the change, hence the hop to the
+            // next runloop pass.
+            statusLabelObserver = feed.objectWillChange
+                .merge(with: feed.glyphClock.objectWillChange)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] in self?.updateStatusLabel() }
+            updateStatusLabel()
             button.action = #selector(handleClick)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -300,8 +308,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         NSApp.setActivationPolicy(.accessory)
     }
 
+    private func updateStatusLabel() {
+        guard let button = statusItem?.button else { return }
+        // Under the button's appearance, not the app's: the menu bar is light or
+        // dark by the wallpaper, and the usage tints resolve per appearance.
+        var content: MenuBarTitle.Content?
+        button.effectiveAppearance.performAsCurrentDrawingAppearance {
+            content = MenuBarTitle.content(for: feed)
+        }
+        guard let content, content != statusLabel else { return }
+        statusLabel = content
+        let title = MenuBarTitle.attributed(content)
+        button.attributedTitle = title
+        // The button pads a title by about 10pt a side; the bar has been full
+        // enough to drop this item, so it keeps the 4pt it had. Only assigned
+        // when the text changes the width: the glyph's slot is fixed.
+        let length = ceil(title.size().width) + 2 * MenuBarTitle.inset
+        if statusItem?.length != length { statusItem?.length = length }
+        button.setAccessibilityLabel(content.spoken)
+    }
+
     /// Mirror the menu-bar readout into the window title. When the status item is
-    /// unplaced, `MenuBarLabel` renders into a button nobody can see, so the title
+    /// unplaced, its label is drawn into a button nobody can see, so the title
     /// is the only place the spinner word or the usage figure appears at all.
     private func startWindowTitleUpdates() {
         updateWindowTitle()
@@ -601,23 +629,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 }
 
 /// The status-bar label: the animated spinner glyph plus the compact status
-/// text, rendered via an NSHostingView inside the status item's button.
-struct MenuBarLabel: View {
-    // @ObservedObject so the label redraws on every glyphPhase tick (spinner
-    // animation) and whenever the session list changes.
-    @ObservedObject var feed: FeedWatcher
-    @ObservedObject private var clock: GlyphClock
+/// text, as the status item button's attributed title.
+enum MenuBarTitle {
+    /// The spinner frames have different advance widths in the fallback font, so
+    /// cycling them would shift everything after and make the item shimmy. The
+    /// glyph is centred in a slot this wide and the text starts at a fixed stop
+    /// after it; width then only changes when the text does.
+    static let glyphSlot: CGFloat = 16
+    static let gap: CGFloat = 3
+    /// Clear space either side of the label inside the item.
+    static let inset: CGFloat = 4
 
-    init(feed: FeedWatcher) {
-        self.feed = feed
-        clock = feed.glyphClock
+    struct Content: Equatable {
+        var glyph: String
+        var glyphColor: NSColor
+        var text: String?
+        var textColor: NSColor
+        /// What VoiceOver reads for the item.
+        var spoken: String
     }
 
-    var body: some View {
-        // Bright + pulsing while working/attention; quiet grey for the done-flash
-        // and idle states so a finished session recedes into the menu bar.
-        // Blue while a session needs you, the Claude orange while working, grey at
-        // rest. Both active states pulse the animated spinner, like the terminal.
+    /// Bright and pulsing while working or needing you; quiet grey for the
+    /// done-flash and idle states so a finished session recedes into the bar.
+    /// Blue while a session needs you, the Claude orange while working.
+    static func content(for feed: FeedWatcher) -> Content {
         let color: Color = {
             switch feed.menuBarState {
             case .attention:        return .attentionBright
@@ -627,51 +662,58 @@ struct MenuBarLabel: View {
         }()
         let glyphColor = feed.menuBarActive ? color.opacity(feed.glyphPulse) : color
 
-        // The spinner frames (✶✸✹✺✻✽…) have different advance widths in the
-        // fallback font, so cycling them shifts everything after and makes the
-        // status item shimmy. Pin the glyph to a fixed-width slot so it animates
-        // in place, and use monospaced digits so the timer never jitters either —
-        // width then only changes on rare digit-count/word rollovers.
-        HStack(spacing: 3) {
-            Text(feed.menuBarGlyph)
-                .font(.claudeMono(15))
-                .foregroundColor(glyphColor)
-                .frame(width: 16)
-            switch feed.menuBarMode {
-            case .usage:
-                // Usage mode always shows the 5h % (that's what the toggle promises);
-                // attention is still carried by the blue glyph, not the title text.
-                // Fall back to the activity word only when there's no usage data yet.
-                if let h5 = feed.usageFiveHourPct, let title = feed.usageMenuBarTitle {
-                    // Pulse the % when it crosses the red threshold so an imminent
-                    // rate limit catches the eye even with nothing running.
-                    Text(title)
-                        .font(.claudeMono(13))
-                        .monospacedDigit()
-                        .foregroundColor(Color.usageTint(h5).opacity(feed.usageAlarm ? feed.glyphPulse : 1))
-                } else if !feed.menuBarBody.isEmpty {
-                    Text(feed.menuBarBody)
-                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
-                }
-            case .activity:
-                if !feed.menuBarBody.isEmpty {
-                    Text(feed.menuBarBody)
-                        .font(.claudeMono(13)).monospacedDigit().foregroundColor(color)
-                }
-            }
+        var text: String?
+        var textColor = color
+        // Usage mode always shows the 5h % (that's what the toggle promises);
+        // attention is still carried by the blue glyph, not the title text.
+        // Fall back to the activity word only when there's no usage data yet.
+        if feed.menuBarMode == .usage, let h5 = feed.usageFiveHourPct, let title = feed.usageMenuBarTitle {
+            text = title
+            // Pulse the % when it crosses the red threshold so an imminent
+            // rate limit catches the eye even with nothing running.
+            textColor = Color.usageTint(h5).opacity(feed.usageAlarm ? feed.glyphPulse : 1)
+        } else if !feed.menuBarBody.isEmpty {
+            text = feed.menuBarBody
         }
-        .fixedSize()
-        .padding(.horizontal, 4)
-        .accessibilityLabel({
-            // In usage mode the visible title is the usage readout, not the
-            // activity word — VoiceOver should read what's on screen.
-            if feed.menuBarMode == .usage, let pct = feed.usageFiveHourPct {
-                let left = feed.usageFiveHourResetRelative.map { ", resets in \($0)" } ?? ""
-                return "Claude spinner, 5 hour limit \(pct) percent\(left)"
-            }
-            return feed.menuBarBody.isEmpty ? "Claude spinner, idle"
-                                            : "Claude spinner, \(feed.menuBarBody)"
-        }())
+
+        // In usage mode the visible title is the usage readout, not the
+        // activity word: VoiceOver should read what's on screen.
+        let spoken: String
+        if feed.menuBarMode == .usage, let pct = feed.usageFiveHourPct {
+            let left = feed.usageFiveHourResetRelative.map { ", resets in \($0)" } ?? ""
+            spoken = "Claude spinner, 5 hour limit \(pct) percent\(left)"
+        } else {
+            spoken = feed.menuBarBody.isEmpty ? "Claude spinner, idle" : "Claude spinner, \(feed.menuBarBody)"
+        }
+        return Content(glyph: feed.menuBarGlyph, glyphColor: resolved(glyphColor),
+                       text: text, textColor: resolved(textColor), spoken: spoken)
+    }
+
+    /// Fixed components under the current drawing appearance, so two contents
+    /// compare equal exactly when they draw the same.
+    private static func resolved(_ color: Color) -> NSColor {
+        let ns = NSColor(color)
+        return ns.usingColorSpace(.sRGB) ?? ns
+    }
+
+    static func attributed(_ content: Content) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.tabStops = [NSTextTab(textAlignment: .center, location: glyphSlot / 2),
+                              NSTextTab(textAlignment: .left, location: glyphSlot + gap)]
+        let out = NSMutableAttributedString(
+            string: "\t" + content.glyph,
+            attributes: [.font: font(15), .foregroundColor: content.glyphColor])
+        if let text = content.text {
+            out.append(NSAttributedString(
+                string: "\t" + text,
+                attributes: [.font: font(13), .foregroundColor: content.textColor]))
+        }
+        out.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: out.length))
+        return out
+    }
+
+    private static func font(_ size: CGFloat) -> NSFont {
+        NSFont(name: Font.claudeFontName, size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 }
 

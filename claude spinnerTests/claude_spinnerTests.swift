@@ -4591,6 +4591,34 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(GraphSummary.path(forRepo: "/x/y"), "/x/y/graphify-out/graph.json")
     }
 
+    // MARK: - Menu bar title
+
+    func testMenuBarTitleKeepsTheGlyphInAFixedSlot() {
+        func content(_ glyph: String, _ text: String?) -> MenuBarTitle.Content {
+            MenuBarTitle.Content(glyph: glyph, glyphColor: .white, text: text, textColor: .white, spoken: "")
+        }
+        let narrow = MenuBarTitle.attributed(content("✶", "Working… 12s"))
+        let wide = MenuBarTitle.attributed(content("✶✶", "Working… 12s"))
+        XCTAssertEqual(narrow.string, "\t✶\tWorking… 12s")
+        // The whole point of the tab stops: a wider glyph, the same width.
+        XCTAssertEqual(narrow.size().width, wide.size().width, accuracy: 0.01)
+        // The control: the same two glyphs without the stops do differ, or the
+        // assertion above could not fail.
+        let font = NSFont(name: "Menlo", size: 15)!
+        XCTAssertNotEqual(NSAttributedString(string: "✶", attributes: [.font: font]).size().width,
+                          NSAttributedString(string: "✶✶", attributes: [.font: font]).size().width)
+        // No text, no second tab.
+        XCTAssertEqual(MenuBarTitle.attributed(content("✻", nil)).string, "\t✻")
+    }
+
+    func testMenuBarContentComparesEqualOnlyWhenItDrawsTheSame() {
+        let a = MenuBarTitle.Content(glyph: "✻", glyphColor: .white, text: "38%", textColor: .white, spoken: "x")
+        var b = a
+        XCTAssertEqual(a, b)
+        b.glyph = "✺"
+        XCTAssertNotEqual(a, b)
+    }
+
     // MARK: - TileGrid packing
 
     func testACardThatDrewNothingTakesNoRow() {
