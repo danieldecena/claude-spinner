@@ -294,6 +294,29 @@ final class PinnedProjectsTests: XCTestCase {
                                                         topic: PinnedProject.plans.topic))
     }
 
+    func testWorkflowStepsHaveDistinctIdsAndTheirArgumentPromptsAreLinks() {
+        let steps = PinnedProject.jobSearch.workflow
+        XCTAssertEqual(Set(steps.map(\.id)).count, steps.count, "ForEach keys on id; a repeat drops a step")
+        let link = "https://www.linkedin.com/jobs/view/123"
+        for step in steps {
+            if step.argument == nil {
+                XCTAssertEqual(step.prompt(with: ""), step.command, step.label)
+                XCTAssertEqual(step.prompt(with: link), step.command, "\(step.label) takes no argument")
+            } else {
+                XCTAssertNil(step.prompt(with: ""), "\(step.label) started bare")
+                XCTAssertNil(step.prompt(with: " \n\t"), "\(step.label) started on whitespace")
+                XCTAssertEqual(step.prompt(with: "  \(link)\n"), step.command + " " + link, step.label)
+            }
+        }
+        XCTAssertTrue(steps.contains { $0.argument != nil } && steps.contains { $0.argument == nil },
+                      "both branches above ran")
+    }
+
+    func testWorkflowStepFoldsAMultiLinePasteOntoOneLine() {
+        let step = PinnedProject.Step(label: "s", systemImage: "x", command: "/go", detail: "", argument: "link")
+        XCTAssertEqual(step.prompt(with: "https://a/1\r\n  https://a/2\n"), "/go https://a/1 https://a/2")
+    }
+
     func testAboutFindsInstructionsAndCountsMemories() {
         withTempDir { root in
             let project = "\(root)/my proj", projects = "\(root)/projects"

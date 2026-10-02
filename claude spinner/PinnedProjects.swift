@@ -43,6 +43,17 @@ struct PinnedProject: Identifiable, Equatable {
         var argument: String? = nil
 
         var id: String { command }
+
+        /// The command with what was typed for it, which is how the skill gets
+        /// the link rather than asking in the terminal. nil while a step that
+        /// needs an argument has none: "Screen one posting" ends "on this
+        /// posting...:", so started bare it is a prompt about nothing. A paste
+        /// that brought line breaks along is folded onto the one line.
+        func prompt(with typed: String) -> String? {
+            let argument = typed.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            guard self.argument != nil else { return command }
+            return argument.isEmpty ? nil : command + " " + argument
+        }
     }
 
     /// The selection value for its sidebar row. The selection is a session id
