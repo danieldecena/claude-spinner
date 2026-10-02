@@ -203,6 +203,12 @@ The rest is in `TASKS.md`.
 - Not run: `design:design-critique` and `design:accessibility-review` on the
   pinned pane. The change restores a recorded behaviour and adds no token or
   component, but the look was mine alone.
+- Decided (Daniel, mid-session): artifact cards are a quarter of their size and
+  come first. `88b148b`: 170pt wide with a 72pt thumbnail, in one row at the top
+  of a pinned page, summary on hover. Seen 11:35 on Job Search. This also
+  removed the two half-empty artifact rows at the bottom of that grid. The
+  Career Hub pop-out button in Next Up is now the middle of three small buttons
+  in the second card of that top row.
 - Seen, not acted on: Job Search's grid leaves the right third empty beside
   Recent Sessions and beside the two artifact tiles, and stretches Skills to
   the height of the Apply Workflow tile next to it.
