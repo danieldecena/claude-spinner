@@ -317,6 +317,42 @@ final class PinnedProjectsTests: XCTestCase {
         XCTAssertEqual(step.prompt(with: "https://a/1\r\n  https://a/2\n"), "/go https://a/1 https://a/2")
     }
 
+    func testRunsSitUnderTheStepThatNamedThemAndTheRestStayInRunningNow() {
+        let project = PinnedProject.jobSearch
+        let screen = project.workflow[1], apply = project.workflow[2]
+        func named(_ id: String, _ name: String?) -> SessionFeed {
+            var s = session(id, cwd: project.path)
+            s.sessionName = name
+            return s
+        }
+        let live = [named("a", screen.sessionName(in: project)), named("b", nil),
+                    named("c", screen.sessionName(in: project)), named("d", apply.sessionName(in: project)),
+                    named("e", "renamed"), named("f", "Plans: " + screen.label)]
+        let runs = project.runs(among: live)
+        XCTAssertEqual(runs.byStep[screen.id]?.map(\.id), ["a", "c"])
+        XCTAssertEqual(runs.byStep[apply.id]?.map(\.id), ["d"])
+        XCTAssertEqual(runs.byStep.count, 2)
+        XCTAssertEqual(runs.other.map(\.id), ["b", "e", "f"], "unnamed, renamed and another project's stay put")
+        XCTAssertEqual(screen.sessionName(in: project), "Job Search: Screen one posting")
+    }
+
+    func testQuickStartIsNamedAsTheStepRunningTheSameCommand() throws {
+        let project = PinnedProject.jobSearch
+        let args = try XCTUnwrap(project.quickStartArgs)
+        let session: SessionFeed = {
+            var s = SessionFeed(id: "q")
+            s.cwd = project.path
+            s.sessionName = args.count == 3 ? args[1] : nil
+            return s
+        }()
+        let apply = try XCTUnwrap(project.workflow.first { $0.command == project.quickStart?.prompt })
+        XCTAssertEqual(project.runs(among: [session]).byStep[apply.id]?.map(\.id), ["q"])
+        XCTAssertNil(PinnedProject.plans.quickStartArgs)
+        var unmatched = project
+        unmatched.quickStart = PinnedProject.QuickStart(label: "x", systemImage: "x", prompt: "/other")
+        XCTAssertEqual(unmatched.quickStartArgs, ["/other"])
+    }
+
     func testAboutFindsInstructionsAndCountsMemories() {
         withTempDir { root in
             let project = "\(root)/my proj", projects = "\(root)/projects"

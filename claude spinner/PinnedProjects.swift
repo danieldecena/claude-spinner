@@ -54,6 +54,35 @@ struct PinnedProject: Identifiable, Equatable {
             guard self.argument != nil else { return command }
             return argument.isEmpty ? nil : command + " " + argument
         }
+
+        /// Given at launch with `claude --name`, and how the step finds its runs
+        /// again: the prompt cannot, since the newest one changes with the first
+        /// reply. A run renamed with /rename leaves its step for Running now.
+        func sessionName(in project: PinnedProject) -> String { project.name + ": " + label }
+    }
+
+    /// The quick-start button's arguments. Named as the step that runs the same
+    /// command, so "Apply next job" lands under "Apply to the next one" rather
+    /// than in Running now.
+    var quickStartArgs: [String]? {
+        guard let quick = quickStart else { return nil }
+        guard let step = workflow.first(where: { $0.command == quick.prompt }) else { return [quick.prompt] }
+        return ["--name", step.sessionName(in: self), quick.prompt]
+    }
+
+    /// Each step's own live runs, in step order, and the live ones no step
+    /// started (New session, a typed prompt), which stay in Running now.
+    func runs(among live: [SessionFeed]) -> (byStep: [String: [SessionFeed]], other: [SessionFeed]) {
+        var byStep: [String: [SessionFeed]] = [:]
+        var other: [SessionFeed] = []
+        for session in live {
+            if let step = workflow.first(where: { $0.sessionName(in: self) == session.sessionName }) {
+                byStep[step.id, default: []].append(session)
+            } else {
+                other.append(session)
+            }
+        }
+        return (byStep, other)
     }
 
     /// The selection value for its sidebar row. The selection is a session id
