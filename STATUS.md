@@ -146,10 +146,7 @@
 
 ## Next Up
 
-1. [you] Click the Career Hub pop-out button (middle of the tile's three top-right
-   buttons): the embed is signed in (seen 09:23 2026-09-30); the pop-out window is
-   unseen. Driving it by coordinates failed, see the 09:23 log entry.
-2. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
+1. [you] Auto-merge probe: select a session on a PR branch whose repo has a pending
    required check. Tried 2026-09-30: the switch only fires from the selected session's
    Git card (UI), and claude-spinner `main` has no protection, so `--auto` would merge
    at once into a public main.
@@ -209,6 +206,14 @@ The rest is in `TASKS.md`.
   removed the two half-empty artifact rows at the bottom of that grid. The
   Career Hub pop-out button in Next Up is now the middle of three small buttons
   in the second card of that top row.
+- Observed 11:38: the Career Hub pop-out opens and is signed in. Pressed the
+  second card's "Pop out to a floating window" with `AXPress`; a floating
+  window titled Career Hub appeared (982x846) showing the Application center
+  with the account avatar and "Artifact by you", and the card switched to its
+  "Open in its own window" placeholder. Closed again afterwards. So this was
+  never blocked on a person, only on clicking by coordinate.
+- Seen, not acted on: in the pop-out, the window's traffic lights sit on top of
+  the page's own top-left corner and cover the first letter of its title.
 - Seen, not acted on: Job Search's grid leaves the right third empty beside
   Recent Sessions and beside the two artifact tiles, and stretches Skills to
   the height of the Apply Workflow tile next to it.

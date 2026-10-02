@@ -3,10 +3,10 @@
 ## Tasks
 
 - [ ] [you] Watch auto-merge switch itself on for a real open PR
-- [ ] [you] Watch the Career Hub pop-out open after sign-in
 
 ## Completed
 
+- [x] Watch the Career Hub pop-out open after sign-in -- seen 11:38
 - [x] Shrink artifact cards to a quarter and place them above -- 88b148b
 - [x] Watch the pinned pane's last card fill the leftover height -- seen 11:31, ab31236
 - [x] Fix sidebar TASKS rows showing another project's titles -- 6853d0a
