@@ -2,6 +2,7 @@
 
 ## Tasks
 
+- [x] Music slice 5: floating reply bar with per-session drafts
 - [x] Music slice 7: sections on the ground, retire the tile grid
 - [x] Music slice 6: Top picks hero cards
 - [x] Music slice 4: recent sessions shelf (click-to-resume unchecked)

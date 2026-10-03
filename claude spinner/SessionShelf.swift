@@ -59,10 +59,12 @@ struct SessionTile: View {
         Button(action: action) { Face(session: session, symbol: symbol, age: age, hovering: hovering) }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
-            .accessibilityElement(children: .ignore)
+            // Label and hint on the Button itself. An .accessibilityElement(
+            // children: .ignore) around it replaced the element and dropped the
+            // press action: the accessibility API pressed the tile and nothing
+            // resumed, which is what VoiceOver would have met too.
             .accessibilityLabel(Self.spoken(headline: session.headline, age: age))
             .accessibilityHint("Resume")
-            .accessibilityAddTraits(.isButton)
             .help(session.lastPrompt ?? session.headline)
     }
 

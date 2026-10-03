@@ -35,6 +35,10 @@ struct WindowContentView: View {
     @State private var tasks: [String: (open: [String], done: Int, path: String)] = [:]
     /// Which sessions are on a timed /goal run, for the rows that mark it.
     @StateObject private var goals = GoalWatcher()
+    /// The session the floating bar speaks to, as last chosen: kept so a draft in
+    /// its field is not switched out from under it (`BarTarget.choose`).
+    @State private var barTargetID: String?
+    @ObservedObject private var drafts = ReplyDrafts.shared
 
     private var suggestionInput: Suggestion.Input? {
         guard let session = selected else { return nil }
@@ -52,6 +56,22 @@ struct WindowContentView: View {
             todoDone: session.todoDone,
             projectOpenTasks: projectOpenTasks,
             wrappedUp: wrappedUp)
+    }
+
+    /// Sessions that need the user, most recently active first.
+    private var attentionIDs: [String] {
+        let asked = Set(asks.pending.map(\.sessionId))
+        return roots.filter { asked.contains($0.id) || $0.isBlockedOnYou }
+            .sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }.map(\.id)
+    }
+
+    private var barChoice: String? {
+        let working = roots.filter(\.isWorking)
+            .max { ($0.updated ?? .distantPast) < ($1.updated ?? .distantPast) }?.id
+        return BarTarget.choose(current: barTargetID, openSession: selected?.id,
+                                attention: attentionIDs.first, recentlyWorking: working,
+                                currentHasDraft: drafts.hasDraft(barTargetID),
+                                exists: { id in roots.contains { $0.id == id } })
     }
 
     private var suggestion: Suggestion? { suggestionInput.flatMap(Suggestion.next) }
@@ -119,6 +139,22 @@ struct WindowContentView: View {
             // paint over the window's material.
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    // Content clears it rather than hiding under it: the inset
+                    // shrinks the pane the page is fitted to.
+                    // Not on the App Kit tab: that page is a showcase with a mini
+                    // player of its own, and two capsules would stack.
+                    if !AppKitTab.isTag(selection), let id = barChoice,
+                       let session = roots.first(where: { $0.id == id }) {
+                        FloatingBar(session: session, feedDir: feed.feedDirectory,
+                                    waiting: BarTarget.waiting(attention: attentionIDs, target: id),
+                                    showsNotice: selected == nil,
+                                    notice: $actionNotice)
+                            .id(session.id)
+                            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 16)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
                 .background(Color.pane)
         }
         // Across both columns, not just the detail pane: the toolbar acts on the
@@ -146,6 +182,7 @@ struct WindowContentView: View {
         // ignores the native title bar safe area, placing the toolbar at the very top.
         .ignoresSafeArea(.container, edges: .top)
         .onChange(of: selected?.id) { actionNotice = nil }
+        .task(id: barChoice) { barTargetID = barChoice }
         .task(id: roots.map(\.id).joined(separator: "|")) {
             await goals.track(roots.map { (id: $0.id, pid: $0.pid) })
         }
@@ -730,7 +767,8 @@ private struct SessionDetail: View {
                     // it, in one row: the prose and the task titles split the
                     // width, the skill chips keep a fixed column.
                     HStack(alignment: .top, spacing: 12) {
-                        ConversationCard(session: session, feedDir: feedDir, notice: $notice, extra: extra)
+                        ConversationCard(session: session, feedDir: feedDir, notice: $notice, extra: extra,
+                                         replyInBar: true)
                         SkillsCard(session: session, feedDir: feedDir, suggestion: suggestion, pick: skillPick,
                                    extra: extra)
                             .frame(width: 380)
@@ -1033,12 +1071,16 @@ private struct ReplyBox: View {
     let session: SessionFeed
     let feedDir: URL
     @Binding var notice: NoticeMessage?
-    @State private var text = ""
+    /// The draft lives in the shared store, keyed by session, so the same text is
+    /// in the floating bar's field and switching sessions never drops it.
+    @ObservedObject private var drafts = ReplyDrafts.shared
     @State private var sending = false
+
+    private var text: Binding<String> { drafts.binding(for: session.id) }
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField("Reply to this session…", text: $text)
+            TextField("Reply to this session…", text: text)
                 .textFieldStyle(.plain)
                 .font(.claudeMono(11))
                 .onSubmit(send)
@@ -1046,33 +1088,23 @@ private struct ReplyBox: View {
                 .font(.ui(11))
                 .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(.accentColor)
                 .controlSize(.small)
-                .disabled(sending || text.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(sending || text.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.leading, 12).padding(.trailing, 10).padding(.vertical, 7)
         .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func send() {
-        let message = text.trimmingCharacters(in: .whitespaces)
+        let message = text.wrappedValue.trimmingCharacters(in: .whitespaces)
         guard !message.isEmpty, !sending else { return }
-        // A session holding a question reads as working in the feed, so the
-        // replier's refusal said "mid-turn" about a session waiting on you.
-        if AskInbox.shared.pending.contains(where: { $0.sessionId == session.id }) {
-            notice = .init(kind: .error, text: "That session is waiting on the question above. Answer it first.")
-            return
-        }
-        sending = true
-        notice = nil
-        SessionReplier.reply(to: session, text: message, feedDir: feedDir) { result in
-            sending = false
-            switch result {
-            case .success:
-                text = ""
-                notice = .init(kind: .info, text: "Sent — the session picked it up.")
-            case .failure(let error):
-                notice = error.errorDescription.map { .init(kind: .error, text: $0) }
-            }
-        }
+        let id = session.id
+        ReplySend.send(message, to: session, feedDir: feedDir,
+                       notice: { notice = $0 },
+                       started: { sending = true },
+                       done: { delivered in
+                           sending = false
+                           if delivered { ReplyDrafts.shared.set("", for: id) }
+                       })
     }
 }
 
@@ -1141,6 +1173,9 @@ private struct SidebarRowChrome: ViewModifier {
             // A tap gesture is not a button to VoiceOver; the list gave rows that
             // role until it lost its selection binding.
             .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+            // Activation by VoiceOver and the accessibility API, which do not go
+            // through the tap gesture above.
+            .accessibilityAction(.default) { selection = id }
     }
 }
 
@@ -1566,6 +1601,9 @@ struct ConversationCard: View {
     @Binding var notice: NoticeMessage?
     /// Leftover window height; Claude's reply takes it.
     var extra: CGFloat = 0
+    /// The floating bar carries this session's reply field, so the card does not
+    /// draw a second one beside it.
+    var replyInBar = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1575,7 +1613,7 @@ struct ConversationCard: View {
                            extra: extra)
             // The answer and what runs it, on one line.
             HStack(spacing: 8) {
-                ReplyBox(session: session, feedDir: feedDir, notice: $notice)
+                if !replyInBar { ReplyBox(session: session, feedDir: feedDir, notice: $notice) }
                 ConfigCard(session: session, feedDir: feedDir, notice: $notice)
             }
             if let notice { Notice(notice) }

@@ -47,6 +47,18 @@ with a hidden titlebar, an `NSVisualEffectView` (`.sidebar`), and
 +------------------+----------------------------------------------------------+
 ```
 
+- **Floating reply bar** (`FloatingBar.swift`): a glass rounded capsule (r22, max
+  width 760) in a bottom `safeAreaInset` of the detail column, so pages are fitted to
+  the room above it. Left to right: `ContextDot` (22pt ring) + session name and
+  status + an "N waiting" pill; the reply field (opaque `Color.card`, 1 to 4 lines,
+  then it scrolls; 2pt focus ring); Send; Interrupt and Focus (glass, with the same
+  enable-and-reason rules as `ActionBar`). The target (`BarTarget.choose`): the open
+  session pane's session, else the session that needs you, else the most recently
+  working; it never changes while its field holds an unsent draft. Drafts live in
+  `ReplyDrafts` keyed by session id, shared with `ReplyBox`, so a draft follows its
+  session and switching never drops it. Not shown on the App Kit tab (it has a mini
+  player of its own). On a session pane the conversation card drops its own reply
+  field (`replyInBar`); the toolbar keeps every action.
 - Window: default 900 x 560, minimum 620 x 360, autosave `SpinnerWindow`
   (`Constants`, `FeedWatcher.swift`). Opens on Home.
 - Sidebar (Music look, 2026-10-03). Selectable rows (Home, App Kit, pinned

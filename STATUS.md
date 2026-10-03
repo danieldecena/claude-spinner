@@ -160,6 +160,38 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Decided: the floating reply bar (music plan slice 5, `FloatingBar.swift`). A glass
+  capsule in a bottom `safeAreaInset` of the detail column. Its target is the open
+  session pane's session, else the one that needs you, else the most recently
+  working, and it never changes while its field holds an unsent draft
+  (`BarTarget.choose`, with an "N waiting" pill for what was held back). Drafts live
+  in `ReplyDrafts`, keyed by session id and shared with the conversation card's own
+  `ReplyBox`, so a draft follows its session. Deviations from the plan, on purpose:
+  the toolbar keeps every action (the bar mirrors only Interrupt and Focus, not
+  "replace"); on a session pane the card's reply field is dropped (`replyInBar`) so
+  there is not a second one; the bar is hidden on the App Kit tab, whose showcase has
+  its own mini player.
+- Observed live (dark): the plan's hand test through the real UI. Typed "draft A" in
+  the Home bar (target claude-spinner), opened cue-deck (empty field, A did not
+  carry), typed "draft B", went Home (the bar held cue-deck and B instead of
+  switching), cleared B (it switched to claude-spinner and "draft A" was intact).
+  The field grows to four lines, then scrolls inside the capsule without growing it;
+  the 2pt focus ring is clear; at the end of the scroll the page clears the bar.
+  The field sits on an opaque `Color.card`, so reply text contrast does not depend on
+  what is behind the capsule (by construction, not measured). Not done: a pending form
+  answered while a draft is in the bar, Interrupt and Focus pressed (Interrupt would
+  interrupt a real session), and a light-mode capture.
+- Found: giving the session-shelf tile `.accessibilityElement(children: .ignore)`
+  dropped its press action. The accessibility API pressed the tile and nothing
+  resumed, which is what VoiceOver would have met too. Label and hint now sit on the
+  Button itself. Re-tested the same way: the press launched `claude --resume
+  76cc4388-...`, the "wrap up" tile's own session (its transcript's last prompt is
+  "wrap up"). Likewise the sidebar rows select through `onTapGesture`, which an
+  accessibility press does not trigger; they now carry an explicit default action.
+  This closes music slice 4's owed click check.
+- Reviewed: `design:design-critique` on the bar (the glass was barely lighter than a
+  dark page, so a hairline and a shadow were added; an unknown context reading drew
+  an empty ring, now dashed). `design:accessibility-review` was not run.
 - Decided: the pinned page (Job Search, Plans) no longer uses `TileGrid` (music plan
   slices 6 and 7). It is a VStack of sections: a "Top picks" row of `HeroMetrics`
   170 x 227 hero cards (`LaunchHeroCard` New session and quick start on a fixed
