@@ -165,6 +165,13 @@
 ## Decision log
 
 ### 2026-10-03
+- Shipped: `631ffa9`, which carries the Music unreadable state, the bar's needs-you
+  emphasis and the tidied form card. CI was green on that sha before the build;
+  `./notarize.sh` returned `status: Accepted`, stapled, Gatekeeper `accepted, source=
+  Notarized Developer ID`, origin Developer ID Application: Daniel Decena (877MLS29T9);
+  installed over `/Applications/claude spinner.app` (binary `cmp` identical, running
+  process is that path; the previous copy is in `build/previous/`). The app was not
+  running during the swap. Installed build is now the same as `main` for app code.
 - Reviewed: a fresh-context `plan-reviewer` pass over `398705c..HEAD` against the roadmap,
   Music, playback and form plans returned six gaps; checked against the source, each was
   real. Closed here: (1) the bar took no emphasis for a session that needs you, which
