@@ -49,6 +49,10 @@ struct PinnedProjectDetail: View {
 
     /// Half of a grid column at the window's usual width.
     private static let artifactCardWidth: CGFloat = 170
+    /// Narrowest page that keeps the rail beside a two-column grid: padding,
+    /// two 220 columns and their gap, the rail's gap, the rail. Below it the
+    /// rail drops under the grid; beside it, the 900 default left one column.
+    private static let railBesideMinWidth: CGFloat = 40 + (2 * 220 + 12) + 16 + 300
 
     var body: some View {
         if let focused {
@@ -82,8 +86,17 @@ struct PinnedProjectDetail: View {
                     ScrollView(.vertical) {
                         let scaledHeight = idealHeight * scale
                         let frameHeight = max(geo.size.height, scaledHeight)
-                        
-                        HStack(alignment: .top, spacing: 16) {
+                        // The pane's own width, not width / scale: stacking makes the
+                        // page taller, which shrinks the scale, which widens the layout
+                        // past the threshold, which unstacks it -- a loop at the edge.
+                        let railBeside = geo.size.width >= Self.railBesideMinWidth
+                        // AnyLayout, not an if/else of stacks: the cards keep their
+                        // state (typed links, open runs) when the window crosses over.
+                        let columns = railBeside
+                            ? AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+                            : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+
+                        columns {
                 TileGrid(minimum: 220, spacing: 12, fillsRows: true) {
                     // First, and small: what the project has published is a
                     // glance and a way in, not the page's main business.
@@ -152,7 +165,10 @@ struct PinnedProjectDetail: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                rail.frame(width: 300)
+                // Under the grid it takes its own height, so the slack still goes
+                // to the grid's last row.
+                rail.frame(width: railBeside ? 300 : nil)
+                    .fixedSize(horizontal: false, vertical: !railBeside)
                 }
                 .padding(20)
                 // At least the pane's height, inside the fixed size below: that

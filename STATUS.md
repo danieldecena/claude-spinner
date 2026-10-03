@@ -161,6 +161,11 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Decided: the pinned page's rail drops under the grid when the pane is under
+  808pt (two 220 columns beside the 300 rail), switched with AnyLayout so cards
+  keep their state. Keyed on the visible width, not width / scale, to avoid a
+  stack/unstack loop through PaneFit. Seen on screen: 900 window stacks it (grid
+  draws 3 scaled columns), 1528 keeps it beside.
 - Decided: layout changes start from `docs/WIREFRAMES.md`, a text wireframe of
   every surface labelled by struct and file (not line), with the inline spacing
   values and TileGrid / PaneFit rules. 12 of 12 sampled labels matched grep.

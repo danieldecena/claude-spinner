@@ -151,7 +151,8 @@ summary line                                (.ui(12))
 |   liveCard "RUNNING NOW" (3) appears when a run  | | items indent 24  |
 |   no workflow step started is live              | |                  |
 +--------------------------------------------------+ +------------------+
-   HStack(top, spacing 16), padding 20
+   AnyLayout: HStack(top, 16) when the pane is >= 808 wide, else VStack(16)
+   with the rail full width under the grid. padding 20
 ```
 
 | Card | Span | Shown when |
@@ -169,10 +170,12 @@ summary line                                (.ui(12))
 | `discoveryCard("Workflows")` | 1 | always |
 | `discoveryCard("Artifacts")` error line | 3 | an artifact is unreadable |
 
-Column math (*derived*): at the default 900 window the detail pane is 630; minus
-padding 40, spacing 16 and the 300 rail leaves about 274 for the grid, which is
-**1 column**. Three columns need a grid at least 684 wide (3 x 220 + 2 x 12).
-The 3-column picture above is the wide-window case.
+Rail switch: `railBesideMinWidth` = 40 + (2 x 220 + 12) + 16 + 300 = 808, the
+narrowest pane that keeps the rail beside a two-column grid. It is tested on the
+pane's visible width, not `width / scale`, because stacking makes the page taller,
+which shrinks the scale and would flip it back. Seen 2026-10-02: at the 900 default
+(pane 630) the rail sits under the grid and the scaled grid draws 3 columns; at
+1528 the rail is beside it.
 
 ## App Kit — `AppKitShowcase` (`AppKitShowcase.swift`)
 
