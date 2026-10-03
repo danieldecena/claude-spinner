@@ -2584,6 +2584,62 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    /// The Allow/Deny card for a question, removed. Run both ways with the
+    /// terminal behind: AskUserQuestion must exit at once with no ask file, and
+    /// Bash must still reach the wait, or this is a guard that always exits.
+    func testAskScriptLeavesAQuestionsPermissionToTheQuestionHook() throws {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        for (tool, expectAsk) in [("AskUserQuestion", false), ("Bash", true)] {
+            try withTempDir { home in
+                let asks = home.appendingPathComponent(".claude/spinnerfeed/asks")
+                let bin = home.appendingPathComponent("bin")
+                try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+                let stubs = ["pgrep": "#!/bin/sh\nexit 0\n",
+                             "lsappinfo": "#!/bin/sh\n[ \"$1\" = front ] && echo ASN:0x0-0x1 && exit 0\n"
+                                 + "echo '    bundleID=\"com.example.other\"'\n"]
+                for (name, body) in stubs {
+                    let url = bin.appendingPathComponent(name)
+                    try Data(body.utf8).write(to: url)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+                }
+                let hook = Process()
+                hook.executableURL = URL(fileURLWithPath: "/bin/sh")
+                hook.arguments = [script.path, "permission"]
+                hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
+                                    "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": "com.example.term"]
+                let stdin = Pipe()
+                let out = Pipe()
+                hook.standardInput = stdin
+                hook.standardOutput = out
+                try hook.run()
+                stdin.fileHandleForWriting.write(Data(
+                    #"{"session_id":"sid","tool_name":"\#(tool)","tool_input":{"questions":[{"question":"q","options":[{"label":"a"}]}]}}"#.utf8))
+                try stdin.fileHandleForWriting.close()
+
+                func askFiles() -> [String] {
+                    ((try? FileManager.default.contentsOfDirectory(atPath: asks.path)) ?? [])
+                        .filter { $0.hasSuffix(".ask.json") }
+                }
+                let deadline = Date().addingTimeInterval(5)
+                if expectAsk {
+                    while askFiles().isEmpty && Date() < deadline { usleep(50_000) }
+                    XCTAssertEqual(askFiles().count, 1, "any other tool must still be handed to the app")
+                    hook.terminate()
+                } else {
+                    while hook.isRunning && Date() < deadline { usleep(50_000) }
+                    XCTAssertFalse(hook.isRunning, "a question's permission must not wait for the app")
+                    XCTAssertEqual(askFiles(), [])
+                    if hook.isRunning { hook.terminate() }
+                    XCTAssertEqual(out.fileHandleForReading.readDataToEndOfFile(), Data(),
+                                   "printing a decision here would answer the permission")
+                }
+                hook.waitUntilExit()
+            }
+        }
+    }
+
     /// A question never blocks: whatever is in front, the hook returns at once
     /// so the terminal draws its box, and leaves a non-waiting ask behind for the
     /// card. The frontmost stub says the terminal is NOT in front, the case where

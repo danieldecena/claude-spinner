@@ -42,6 +42,12 @@ if [ "$mode" = "question" ]; then
         else "single" end' 2>/dev/null)
     [ "$shape" = "single" ] || exit 0
 else
+    # A question raises a permission request of its own. Answering that one with
+    # Allow/Deny is a card that asks nothing, and while it waits the real box is
+    # never drawn. The question path owns AskUserQuestion; this one steps aside.
+    tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
+    [ "$tool" = "AskUserQuestion" ] && exit 0
+
     # A PermissionRequest hook holds the terminal prompt until it returns, so
     # waiting here while you are looking at the terminal means the prompt never
     # appears there. Only route to the app when the session's own terminal is
