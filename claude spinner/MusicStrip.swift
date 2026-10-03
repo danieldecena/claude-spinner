@@ -26,6 +26,8 @@ struct MusicStrip: View {
                     }
                 }
             }
+        case .unreadable:
+            Notice(kind: .warning, text: "Music isn\u{2019}t answering, so what it is playing is not shown.", size: 10)
         case .track(let track):
             row(track)
         }

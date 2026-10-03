@@ -64,7 +64,9 @@ with a hidden titlebar, an `NSVisualEffectView` (`.sidebar`), and
   comes from `NowPlaying` (`NowPlaying.swift`): Apple Events to Music, never sent
   unless Music is already running (checked in Swift and again in each script with
   `is running`), refreshed on Music's `com.apple.Music.playerInfo` broadcast and once
-  a second while a track plays. A refused Automation prompt shows a notice. On a
+  a second while a track plays. A refused Automation prompt shows a notice, and so
+  does Music not answering (three failed reads in a row; one miss keeps the last
+  track, so it does not flicker, and it recovers on the next good read). On a
   session pane the conversation card drops its own reply
   field (`replyInBar`); the toolbar keeps every action.
 - Window: default 900 x 560, minimum 620 x 360, autosave `SpinnerWindow`

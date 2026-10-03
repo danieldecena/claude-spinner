@@ -132,4 +132,62 @@ final class NowPlayingTests: XCTestCase {
         waitUntil { log.scripts.contains(NowPlayingScript.command(.next)) }
         XCTAssertTrue(log.scripts.dropFirst(before).contains(NowPlayingScript.command(.next)))
     }
+
+    // MARK: Music that stops answering
+
+    /// A reply from a script that changes as the test asks: first a track, then
+    /// failures, then a track again.
+    private final class Scripted: @unchecked Sendable {
+        private let lock = NSLock()
+        private var outcomes: [ScriptOutcome] = []
+        private(set) var calls = 0
+        func push(_ o: ScriptOutcome) { lock.lock(); outcomes.append(o); lock.unlock() }
+        func next(_ source: String) -> ScriptOutcome {
+            lock.lock(); defer { lock.unlock() }
+            calls += 1
+            return outcomes.isEmpty ? .failed : outcomes.removeFirst()
+        }
+    }
+
+    private var track: String { "Song\(sep)A\(sep)B\(sep)playing\(sep)1\(sep)100" }
+
+    /// One miss is a hiccup: the last track stays, so the strip does not flicker.
+    func testASingleFailedReadKeepsTheLastTrack() {
+        let script = Scripted()
+        script.push(.ok(track)); script.push(.failed)
+        let model = NowPlaying(isRunning: { true }, run: script.next)
+        model.refresh()
+        waitUntil { if case .track = model.status { return true } else { return false } }
+        model.refresh()
+        waitUntil { script.calls >= 3 }   // the read, its artwork fetch, the failing read
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        guard case .track = model.status else { return XCTFail("one miss dropped the track: \(model.status)") }
+    }
+
+    /// Several in a row mean Music is not answering, which is not the same as the
+    /// last thing it said: the status says so instead of showing a stale track.
+    func testSeveralFailedReadsInARowAreUnreadableNotAStaleTrack() {
+        let script = Scripted()
+        script.push(.ok(track))
+        let model = NowPlaying(isRunning: { true }, run: script.next)
+        model.refresh()
+        waitUntil { if case .track = model.status { return true } else { return false } }
+        for _ in 0..<NowPlaying.failuresBeforeUnreadable { model.refresh(); RunLoop.current.run(until: Date().addingTimeInterval(0.15)) }
+        waitUntil { model.status == .unreadable }
+        XCTAssertEqual(model.status, .unreadable)
+        XCTAssertEqual(model.unavailableReason(.next), "Music isn\u{2019}t answering.")
+    }
+
+    /// And it comes back by itself: the next good read replaces the warning.
+    func testAnUnreadableMusicRecoversOnTheNextGoodRead() {
+        let script = Scripted()
+        let model = NowPlaying(isRunning: { true }, run: script.next)   // every read fails
+        for _ in 0..<NowPlaying.failuresBeforeUnreadable { model.refresh(); RunLoop.current.run(until: Date().addingTimeInterval(0.15)) }
+        waitUntil { model.status == .unreadable }
+        XCTAssertEqual(model.status, .unreadable)
+        script.push(.ok(track))
+        model.refresh()
+        waitUntil { if case .track = model.status { return true } else { return false } }
+        guard case .track = model.status else { return XCTFail("did not recover: \(model.status)") }
+    }
 }

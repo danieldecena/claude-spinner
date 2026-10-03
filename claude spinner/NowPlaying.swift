@@ -40,6 +40,9 @@ nonisolated enum NowPlayingStatus: Equatable {
     case denied
     /// Music is open with nothing loaded.
     case idle
+    /// Music is open but has stopped answering: several reads in a row failed. Not
+    /// the last track it reported, which would be a stale observation drawn as a fact.
+    case unreadable
     case track(NowPlayingTrack)
 }
 
@@ -163,6 +166,10 @@ final class NowPlaying: ObservableObject {
     private let isRunning: () -> Bool
     private let run: (String) -> ScriptOutcome
     private var artworkKey = ""
+    /// Reads that failed in a row. One failure is a hiccup and keeps what was last
+    /// known; `failuresBeforeUnreadable` in a row is Music not answering.
+    private var failures = 0
+    static let failuresBeforeUnreadable = 3
     private var observers: [NSObjectProtocol] = []
     private var timer: Timer?
 
@@ -211,6 +218,9 @@ final class NowPlaying: ObservableObject {
             return
         }
         if case .track(let t) = status, t.isPlaying { refresh() }
+        // An unreadable Music is asked again every second: nothing else would ever
+        // notice it came back.
+        else if status == .unreadable { refresh() }
     }
 
     // MARK: Reading
@@ -231,9 +241,16 @@ final class NowPlaying: ObservableObject {
 
     private func apply(_ outcome: ScriptOutcome) {
         switch outcome {
-        case .denied: status = .denied
-        case .failed: break   // keep what was last known rather than flicker
+        case .denied:
+            failures = 0
+            status = .denied
+        case .failed:
+            // One miss keeps what was last known rather than flicker; several in a
+            // row say so instead of showing a track that stopped being true.
+            failures += 1
+            if failures >= Self.failuresBeforeUnreadable { status = .unreadable; artwork = nil; artworkAverage = nil }
         case .ok(let text):
+            failures = 0
             let next = NowPlayingScript.parse(text)
             if next != status { status = next }
             if case .track(let t) = next { loadArtworkIfNeeded(for: t) } else { artwork = nil; artworkAverage = nil; artworkKey = "" }
@@ -268,6 +285,7 @@ final class NowPlaying: ObservableObject {
         case .notRunning: return "Music isn\u{2019}t open."
         case .denied: return "Allow Spinner to control Music in System Settings."
         case .idle: return control == .playPause ? nil : "Nothing is playing."
+        case .unreadable: return "Music isn\u{2019}t answering."
         case .track: return nil
         }
     }

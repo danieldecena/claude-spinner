@@ -165,6 +165,22 @@
 ## Decision log
 
 ### 2026-10-03
+- Explained: the main window's frame changing between captures (roadmap open question,
+  2026-10-02) is the display configuration, not the app. This Mac's built-in display is
+  mirrored to a Sidecar iPad and there is also a BetterDisplay "Virtual 16:9" screen; the
+  main screen's visible area is 1572 x 932, exactly the saved frame
+  (`NSWindow Frame SpinnerWindow = "0 55 1572 928 ... 1572 987"`, which records the
+  screen it was saved on). The defaults hold five different recorded screen geometries
+  (1572x987, 1603x1006, 1875x1178, 1935x1215, 2238x1405), and macOS rescales a window's
+  frame as the display setup changes. Not proven for the specific 2026-10-02 captures, but
+  every part that can be checked agrees. The app restores the saved frame and clamps it;
+  nothing to fix.
+- Fixed: `NowPlaying` kept the last track forever when every Apple Event started failing,
+  a stale observation drawn as a fact. One failed read still keeps the track (no
+  flicker); `failuresBeforeUnreadable` (3) in a row make the status `.unreadable`, the
+  strip says "Music isn't answering", controls are off with that reason, and it is asked
+  again every second so it recovers by itself. Three tests, one shown to fail when the
+  threshold is made unreachable.
 - Shipped: `fcfc52d`, the build with the shelf-tile hairline, the empty-divider fix and
   the accessibility fixes. CI was green on that sha before the build; `./notarize.sh`
   returned `status: Accepted`, stapled, Gatekeeper `accepted, source=Notarized Developer
