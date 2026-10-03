@@ -7,6 +7,11 @@
 - [x] Remove the /tmp debug write from HomeDashboard -- 30ba403
 - [x] Merge PR #10 and update the Home wireframe
 - [x] Give the pinned page 2 columns at default width -- 89a51d9
+- [ ] Probe multi-question, multi-select hook answer format
+- [ ] Stop ask.sh permission handling AskUserQuestion
+- [ ] Hold a form ask in ask.sh for the app
+- [ ] Model form asks and answers in AskInbox
+- [ ] Draw the form card, install the hook, run it live
 
 
 ## Completed
