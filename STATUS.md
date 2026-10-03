@@ -165,6 +165,15 @@
 ## Decision log
 
 ### 2026-10-03
+- Shipped: `fcfc52d`, the build with the shelf-tile hairline, the empty-divider fix and
+  the accessibility fixes. CI was green on that sha before the build; `./notarize.sh`
+  returned `status: Accepted`, stapled, Gatekeeper `accepted, source=Notarized Developer
+  ID`, origin Developer ID Application: Daniel Decena (877MLS29T9); installed over
+  `/Applications/claude spinner.app` (binary `cmp` identical, running process is that
+  path; the previous copy is in `build/previous/`). The app was not running when it was
+  swapped, so no draft was at risk. Found on the way: the custom link style reported the
+  "+N more" links as buttons (AXButton, not AXLink); fixed with the link trait and
+  checked in the accessibility tree of the installed build.
 - Reviewed: `design:accessibility-review` on the bar, the pinned page and the sidebar
   (it had been skipped for these). Fixed: placeholders (reply, prompt, workflow
   argument) were the system grey at 3.1:1 on the white card, now drawn in the label ink
