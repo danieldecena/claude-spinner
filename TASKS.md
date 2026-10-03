@@ -2,6 +2,9 @@
 
 ## Tasks
 
+- [x] Music slice 3: see-through sidebar, neutral selection
+- [x] Music slice 2: SF bold title, sentence-case headers
+- [x] Music slice 1: prove the red accent from pixels
 - [x] Write code-annotated wireframes of every tab -- 93d1540
 - [x] Add wireframe section to the design runbook -- app-kit 479c0ac
 - [x] Remove the /tmp debug write from HomeDashboard -- 30ba403

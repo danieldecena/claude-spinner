@@ -115,10 +115,12 @@ struct WindowContentView: View {
                 sidebar
                     .transition(.move(edge: .leading).combined(with: .opacity))
             }
+            // The pane's ground is the detail's alone: behind the sidebar it would
+            // paint over the window's material.
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.pane)
         }
-        .background(Color.pane)
         // Across both columns, not just the detail pane: the toolbar acts on the
         // selected session wherever you are. Its strip is opaque edge to edge; a
         // strip half blur and half pane put a seam through the reply field.
@@ -126,7 +128,14 @@ struct WindowContentView: View {
             WindowToolbar(session: selected, feedDir: feed.feedDirectory,
                           sidebarVisible: $sidebarVisible, suggestion: suggestion,
                           notice: $actionNotice)
-                .background(Color.pane)
+                // Opaque over the detail only: over the sidebar it would be a pane-
+                // coloured bar across the see-through column's top.
+                .background {
+                    HStack(spacing: 0) {
+                        Color.clear.frame(width: sidebarVisible ? 250 : 0)
+                        Color.pane
+                    }
+                }
                 // Rebuilt per session so a half-typed reply or a notice about one
                 // session can never be sent to, or read as about, the next.
                 .id(selected?.id)
@@ -184,10 +193,11 @@ struct WindowContentView: View {
         }
     }
 
-    /// A card inset from the window edges, the same surface and radius as the
-    /// detail pane's, rather than a split-view column. A clear glass panel here
-    /// read as a second design beside the cards: the desktop tinted it, and its
-    /// radius and top edge matched nothing next to it.
+    /// A full-height source list over the window's own sidebar material, like
+    /// Music's: the desktop shows through it. An earlier version was an opaque
+    /// card inset like the detail pane's, because a clear panel read as a second
+    /// design beside the cards; the Music look (2026-09-30) reverses that on
+    /// purpose, and the selected row's fill carries the structure instead.
     private var sidebar: some View {
             VStack(spacing: 0) {
                 // Same reason the panel carries it: without this the window
@@ -205,10 +215,14 @@ struct WindowContentView: View {
                                selection: $selection)
             }
             .frame(width: 250)
-            .background(Color.card)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            // The detail pane's own padding, so the top edges line up.
-            .padding([.leading, .top, .bottom], 20)
+            // Clear of the toggle that sits in the toolbar strip above it.
+            .padding(.top, 40)
+            .background { SidebarScrim().ignoresSafeArea() }
+            // The light sidebar and the pane are nearly one tone, so the seam needs
+            // an edge of its own.
+            .overlay(alignment: .trailing) {
+                Rectangle().fill(Color.primary.opacity(0.10)).frame(width: 0.5).ignoresSafeArea()
+            }
     }
 
     private var usageCard: OverviewStrip {
@@ -295,41 +309,38 @@ private struct SessionSidebar: View {
     var body: some View {
         let childrenByParent = Dictionary(grouping: children, by: { $0.parentSessionId ?? "" })
         
-        List(selection: $selection) {
+        List {
             // The dashboard first, and the window opens on it: what every session
             // is doing is the question you have before you pick one.
             HStack(spacing: 6) {
-                Image(systemName: "square.grid.2x2").font(.ui(10)).foregroundStyle(Color.label)
-                Text("Home").font(.claudeMono(11))
+                SidebarGlyph(symbol: "square.grid.2x2")
+                Text("Home").font(.ui(11))
             }
-            .denseRow()
+            .sidebarRow(HomeTab.tag, selection: $selection)
             .accessibilityLabel("Home, every session at once")
-            .tag(HomeTab.tag)
             HStack(spacing: 6) {
-                Image(systemName: "paintpalette").font(.ui(10)).foregroundStyle(Color.label)
-                Text("App Kit").font(.claudeMono(11))
+                SidebarGlyph(symbol: "paintpalette")
+                Text("App Kit").font(.ui(11))
             }
-            .denseRow()
+            .sidebarRow(AppKitTab.tag, selection: $selection)
             .accessibilityLabel("App Kit, the design system's Music components")
-            .tag(AppKitTab.tag)
             // Then the home project group: the session at ~ others start from.
             ForEach(homeGroups) { section in sectionView(section, childrenByParent: childrenByParent) }
             Section {
                 ForEach(PinnedProject.all) { project in
                     let live = PinnedProject.liveSessions(in: project.path, sessions: sessions).count
                     HStack(spacing: 6) {
-                        Image(systemName: "pin.fill").font(.ui(10)).foregroundStyle(Color.label)
-                        Text(project.name).font(.claudeMono(11)).lineLimit(1)
+                        SidebarGlyph(symbol: "pin.fill")
+                        Text(project.name).font(.ui(11)).lineLimit(1)
                         Spacer(minLength: 0)
                         if live > 0 {
                             Text("\(live) live").font(.ui(10)).foregroundStyle(Color.label)
                         }
                     }
-                    .denseRow()
+                    .sidebarRow(project.tag, selection: $selection)
                     .help(project.path)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(project.name), pinned project" + (live > 0 ? ", \(live) live" : ""))
-                    .tag(project.tag)
                 }
             } header: {
                 Text("Pinned").font(.ui(10)).fontWeight(.semibold).foregroundStyle(Color.label)
@@ -351,8 +362,36 @@ private struct SessionSidebar: View {
         // captures either side of the edit, 2026-10-01); the sidebar style sizes
         // its rows from the control size.
         .controlSize(.small)
-        // The card is the background; the list's own would sit on top of it.
+        // The window's own sidebar material is the background; the list's would
+        // sit on top of it.
         .scrollContentBackground(.hidden)
+        // No `selection:` binding above: the list's native highlight is the system
+        // accent blue and `.tint` does not override it, so rows draw their own
+        // neutral fill (App Kit's `SidebarList`, measured against Music). That
+        // costs the list its arrow keys, which are put back here.
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.downArrow) { step(1) }
+        .onKeyPress(.upArrow) { step(-1) }
+    }
+
+    /// Moves the selection one selectable row, or reports the key unhandled when
+    /// there is nowhere to go.
+    private func step(_ delta: Int) -> KeyPress.Result {
+        let ids = selectableIDs
+        guard !ids.isEmpty else { return .ignored }
+        let at = selection.flatMap { ids.firstIndex(of: $0) } ?? (delta > 0 ? -1 : ids.count)
+        let next = min(max(at + delta, 0), ids.count - 1)
+        selection = ids[next]
+        return .handled
+    }
+
+    /// Every selectable row, top to bottom: the order the arrow keys walk.
+    private var selectableIDs: [String] {
+        [HomeTab.tag, AppKitTab.tag]
+            + homeGroups.flatMap { $0.items.map(\.id) }
+            + PinnedProject.all.map(\.tag)
+            + otherGroups.flatMap { $0.items.map(\.id) }
     }
 
     /// One project's heading and rows. Shared by the home group above Pinned and
@@ -376,12 +415,12 @@ private struct SessionSidebar: View {
                     }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(session.distinctName)
-                            .font(.claudeMono(11)).lineLimit(1)
+                            .font(.ui(11)).lineLimit(1)
                         // Under a project heading the project name is already
                         // overhead; only the pinned section needs it spelled out.
                         if section.id == "needs-you" {
                             Text(session.projectName)
-                                .font(.claudeMono(10)).foregroundStyle(Color.label)
+                                .font(.ui(10)).foregroundStyle(Color.label)
                                 .lineLimit(1)
                         }
                     }
@@ -395,11 +434,10 @@ private struct SessionSidebar: View {
                             .foregroundStyle(Color.attention)
                     }
                 }
-                .denseRow()
+                .sidebarRow(session.id, selection: $selection)
                 .help(session.statusLabel)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(rowLabel(session))
-                .tag(session.id)
                 // Not selectable: the detail pane shows root sessions, and a
                 // subagent has no pane of its own to show.
                 let split = SubagentSplit(childrenByParent[session.id] ?? [])
@@ -420,7 +458,6 @@ private struct SessionSidebar: View {
                     .buttonStyle(.borderless)
                     .padding(.leading, 16)
                     .denseRow()
-                    .selectionDisabled()
                     if open {
                         ForEach(split.finished) { child in childRow(child) }
                     }
@@ -435,19 +472,17 @@ private struct SessionSidebar: View {
     /// The project's open tasks under its sessions. Not selectable: they are a
     /// read-out, and /todo (in the Skills card) is what writes the file.
     @ViewBuilder private func tasksRows(_ file: (open: [String], done: Int, path: String)) -> some View {
-        HStack {
-            Text("Tasks").font(.ui(10)).fontWeight(.semibold)
-                .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
+        HStack(spacing: 6) {
+            SidebarGlyph(symbol: "checklist", accent: false)
+            Text("Tasks").font(.ui(11)).fontWeight(.semibold)
             Spacer(minLength: 4)
             Text("\(file.open.count) open · \(file.done) done")
                 .font(.ui(10)).foregroundStyle(Color.label)
         }
         .denseRow()
-        .selectionDisabled()
         if file.open.isEmpty {
             Text("Nothing open in TASKS.md.").font(.ui(10)).foregroundStyle(Color.label.opacity(0.6))
                 .denseRow()
-                .selectionDisabled()
         }
         // The id carries the file: a List wants ids unique across every section,
         // and a bare offset made row N of each project the same row, so each
@@ -457,12 +492,11 @@ private struct SessionSidebar: View {
         ForEach(shown, id: \.id) { row in
             let title = row.title
             Label { Text(title) } icon: {
-                Circle().fill(Color.label).frame(width: 4, height: 4)
+                Image(systemName: "circle").font(.system(size: 6)).foregroundStyle(Color.label)
             }
                 .font(.ui(10)).lineLimit(1).truncationMode(.tail)
                 .denseRow()
                 .help(title)
-                .selectionDisabled()
         }
         if file.open.count > Self.shownTasks {
             // The rest are one click away in the file itself, not a longer list.
@@ -472,7 +506,6 @@ private struct SessionSidebar: View {
             .buttonStyle(.link).font(.ui(10))
             .denseRow()
             .help("Open \(file.path)")
-            .selectionDisabled()
         }
     }
 
@@ -488,7 +521,6 @@ private struct SessionSidebar: View {
         }
         .padding(.leading, 16)
         .denseRow()
-        .selectionDisabled()
         .accessibilityElement(children: .combine)
     }
 
@@ -534,7 +566,7 @@ private struct NewSessionBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                CardTitle("Sessions")
+                Text("Sessions").font(.ui(11)).fontWeight(.semibold).foregroundStyle(Color.label)
                 Spacer()
                 Menu {
                     if let projects {
@@ -1047,7 +1079,76 @@ private struct ReplyBox: View {
 
 // MARK: - Stat rendering
 
+/// The pane's colour as a veil over the window's sidebar material. The desktop
+/// still shows through, but the ground behind the text is bounded: every status
+/// colour in the app was tuned for a near-black or near-white ground, and the
+/// bare material measured #575757 in dark over this desktop, which put secondary
+/// labels at 3.1:1 and the red symbols near 2:1.
+struct SidebarScrim: View {
+    static let darkAlpha = 0.62
+    static let lightAlpha = 0.94
+
+    var body: some View {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let c = dark ? Color.Ink.paneDark : Color.Ink.paneLight
+            return NSColor(srgbRed: c.0, green: c.1, blue: c.2, alpha: dark ? Self.darkAlpha : Self.lightAlpha)
+        })
+    }
+}
+
+/// A sidebar symbol: Music tints the symbol and leaves the label in normal ink,
+/// and every symbol loses the accent in an inactive window. Red is a mark colour
+/// only (claude-spinner-music slice 1), which a 14pt glyph is.
+private struct SidebarGlyph: View {
+    let symbol: String
+    /// Red marks a place you can go (Home, App Kit, a pinned project). A read-out
+    /// such as a Tasks header is neutral, or red stops meaning anything and
+    /// out-shouts the status colours.
+    var accent = true
+    @Environment(\.appearsActive) private var appearsActive
+
+    var body: some View {
+        Image(systemName: symbol).font(.ui(10))
+            .foregroundStyle(!accent ? Color.label
+                : appearsActive ? Color.Kit.musicAccent : Color.Kit.musicSidebarGlyphInactive)
+            .frame(width: 14)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A selectable sidebar row. The row draws its own neutral rounded fill and the
+/// label goes semibold, so selection is fill plus weight, never colour alone.
+private struct SidebarRowChrome: ViewModifier {
+    let id: String
+    @Binding var selection: String?
+    @Environment(\.appearsActive) private var appearsActive
+
+    func body(content: Content) -> some View {
+        let on = id == selection
+        content
+            .fontWeight(on ? .semibold : .regular)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(on ? (appearsActive ? Color.Kit.musicSidebarSelect
+                                              : Color.Kit.musicSidebarSelectInactive) : .clear))
+            .listRowInsets(EdgeInsets(top: 1, leading: 6, bottom: 1, trailing: 6))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture { selection = id }
+            // A tap gesture is not a button to VoiceOver; the list gave rows that
+            // role until it lost its selection binding.
+            .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 extension View {
+    fileprivate func sidebarRow(_ id: String, selection: Binding<String?>) -> some View {
+        modifier(SidebarRowChrome(id: id, selection: selection))
+    }
+
     /// One section of the detail pane as a card, after the footage library's:
     /// the design system's radius-lg on a surface one step off the pane, with no
     /// border or shadow. Fills its grid column so neighbours line up at the edges.

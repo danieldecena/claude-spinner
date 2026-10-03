@@ -159,6 +159,44 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ## Decision log
 
+### 2026-10-03
+- Decided: Music red (`Color.Kit.musicAccent`) is a MARK colour only in Spinner
+  (music plan slice 1, `MusicAccentProofTests`, renders in `docs/reference/
+  2026-10-02-accent-proof-*.png`). Option B, limited. Measured: far from clay and
+  blue (distance 42-46 and 110+ against clay-blue 87-94), so the status pair is not
+  blurred; but accent text is 4.13:1 on the light pane (4.61 on a card), a white
+  label on the red fill is 3.9:1 (large text only), and the nearest colour is the
+  `usageRed` alarm at distance 27-29. So: sidebar symbols and chevrons yes; red
+  text on the pane, red button fills, and red inside the Usage card no.
+- Decided: the sidebar is a full-height see-through column over the window's own
+  `.sidebar` material (slice 3), reversing the 2026-09 "opaque card" decision on
+  purpose. Rows draw their own neutral rounded fill plus semibold; the List has no
+  `selection:` binding (its native highlight is the system accent and `.tint` does
+  not override it), and the arrow keys are `.onKeyPress` on a focusable List,
+  observed working live after a click. Names are SF, not Menlo (the status glyph
+  stays mono).
+- Found: slice 1 measured red against the pane, but a see-through sidebar sits on
+  the material. Measured live, the bare dark ground was #575757, which put secondary
+  labels at 3.1:1 and red symbols near 2:1. `SidebarScrim` (pane colour at 0.62
+  dark, 0.94 light) bounds it: dark ground 0.14, labels 6.7:1. Light was captured
+  at 0.90 and the value raised to 0.94 afterwards (not recaptured) so clay status
+  text keeps 4.5:1 down to a 0.85 backdrop. Light was forced through the app's own
+  `NSRequiresAquaSystemAppearance` default, removed after each capture. The needs-you
+  section was empty in every capture, so blue-over-clay in the new sidebar was not
+  seen live.
+- Decided: pinned-page headers are `SectionTitle` (bold, sentence case, `.ui(15)`),
+  scoped to `PinnedProjectDetail`; `CardTitle` stays uppercase for the session pane.
+  A "›" appears only where the header opens something: Tasks, when more than 5 are
+  open. Recent sessions has none (it opens nothing), which departs from the plan's
+  "Recent sessions ›". The Tasks symbol in the sidebar is neutral; red marks places
+  you can go, not read-outs.
+- Reviewed: `design:design-critique` (red on every section out-shouted status,
+  light seam nearly invisible: both fixed; empty notice band and divider, and
+  sidebar type larger than card text: not fixed) and `design:accessibility-review`
+  (tappable rows lacked a button role: fixed; selected state is a ~1.3:1 fill plus
+  weight, and rows are ~22pt tall, under 24pt: both left, density was a deliberate
+  need; the list's focus ring is suppressed, the selected row is the focus mark).
+
 ### 2026-10-02
 - Decided: `claude-spinner-ui-pass.md` is closed by looking (roadmap slice 3),
   on a build of `27c94fb` at 1751x928pt, session pane, light and dark, with

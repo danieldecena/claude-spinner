@@ -21,35 +21,49 @@ with a hidden titlebar, an `NSVisualEffectView` (`.sidebar`), and
 
 ```
 +-----------------------------------------------------------------------------+
-| WindowToolbar  (glass, padding 10)                                          |
-| [sidebar.left]                    ActionBar (only when a session is picked) |
-|                                   [focus] [interrupt compact clear] [5 icons]|
+| [sidebar.left]  WindowToolbar (glass, padding 10)  ActionBar (session picked)|
+| clear over sidebar | opaque Color.pane over detail only                     |
 +------------------+----------------------------------------------------------+
 | sidebar  w250    | detail  (maxWidth/maxHeight .infinity, Color.pane)       |
-| Color.card r14   |                                                          |
-| pad 20 L/T/B     |   routed by selection:                                   |
-|                  |     "home:dashboard"   -> HomeDashboard                  |
-| NotificationsNotice    "appkit:showcase"  -> AppKitShowcase                  |
-| SetupBanner (no hooks) pinned tag         -> PinnedProjectDetail             |
-| NewSessionBar  SESSIONS [+]   session id  -> SessionDetail                   |
-| SessionSidebar (List, .plain, small)  nothing -> ContentUnavailableView      |
-|   Home                 |                                                    |
-|   App Kit              |                                                    |
-|   <~ sessions>         |                                                    |
-|   PINNED               |                                                    |
-|     Job Search  N live |                                                    |
-|     Plans       N live |                                                    |
-|   <project sections>   |                                                    |
+| FULL HEIGHT, no  |                                                          |
+| card: the window |   routed by selection:                                   |
+| material shows   |     "home:dashboard"   -> HomeDashboard                  |
+| through, under a |     "appkit:showcase"  -> AppKitShowcase                 |
+| pane-coloured    |     pinned tag         -> PinnedProjectDetail            |
+| veil             |     session id         -> SessionDetail                  |
+| (SidebarScrim)   |     nothing -> ContentUnavailableView                    |
+| top pad 40       |                                                          |
+| NotificationsNotice                                                         |
+| SetupBanner (no hooks)                                                      |
+| NewSessionBar  Sessions [+]                                                 |
+| SessionSidebar (List, .plain, small, no selection binding)                  |
+|   [grid] Home                                                               |
+|   [palette] App Kit                                                         |
+|   <~ sessions>                                                              |
+|   Pinned                                                                    |
+|     [pin] Job Search  N live                                                |
+|     [pin] Plans       N live                                                |
+|   <project sections>                                                        |
 +------------------+----------------------------------------------------------+
 ```
 
 - Window: default 900 x 560, minimum 620 x 360, autosave `SpinnerWindow`
   (`Constants`, `FeedWatcher.swift`). Opens on Home.
-- Sidebar rows all use `.denseRow()`. A project section is `SectionHeader`
-  (title, "N sessions · tokens"), then session rows (glyph, name, `GoalFlag`,
-  "?" when a question waits), then subagent `childRow`s, then a
-  "N finished" toggle, then `tasksRows` (up to 5 TASKS.md titles). Only
-  session rows are selectable.
+- Sidebar (Music look, 2026-10-03). Selectable rows (Home, App Kit, pinned
+  projects, sessions) use `.sidebarRow(_:selection:)` (`SidebarRowChrome`): a
+  neutral rounded fill (`Color.Kit.musicSidebarSelect`, `...Inactive` when the
+  window is not key) plus semibold, drawn by the row itself. The List has **no
+  `selection:` binding** because its native highlight is the system accent and
+  `.tint` does not override it; the arrow keys are `.onKeyPress` on the focusable
+  List (`selectableIDs`). Row symbols are `SidebarGlyph` in `Color.Kit.musicAccent`
+  (a mark colour only, dimmed when inactive); names and counts are SF `.ui`, not
+  Menlo (the status glyph itself stays mono). Other rows use `.denseRow()`.
+  A project section is `SectionHeader` (title, "N sessions · tokens"), then
+  session rows, then subagent `childRow`s, a "N finished" toggle, then
+  `tasksRows` (a `checklist` header, up to 5 TASKS.md titles with a `circle`
+  symbol). `SidebarScrim` is the pane colour at 0.62 (dark) / 0.94 (light) over
+  the window's `.sidebar` material: bare, the dark ground measured #575757 and
+  secondary labels 3.1:1; veiled, 0.14 and 6.7:1.
 - **`PaneFit`** (`WindowContentView.swift`) wraps Home, Session and Pinned: the
   pane lays out at its natural height and, when that is taller than the window,
   is drawn smaller with `scaleEffect`, down to 0.55, then scrolls. While scaled

@@ -227,4 +227,32 @@ final class MusicAccentProofTests: XCTestCase {
             XCTAssertFalse(source.contains("design: .serif"), "\(name) still sets a serif face")
         }
     }
+
+    /// The sidebar is see-through, so its ground is the pane's veil over whatever
+    /// the material shows. Text colours were tuned for the pane, so they must keep
+    /// 4.5:1 across the backdrops the material can plausibly be: measured dark
+    /// #575757 (0.34) over this desktop, so up to 0.45 is allowed for; light
+    /// material lifts the backdrop, so 0.85 and up. Each pairing is run at both
+    /// ends of the range, and a bare material (no veil) is asserted to FAIL, so
+    /// the check is known to be able to fail.
+    func testSidebarVeilKeepsTextReadableAcrossTheBackdrop() {
+        func ground(pane: RGB, alpha: Double, backdrop: Double) -> RGB {
+            (pane.r * alpha + backdrop * (1 - alpha), pane.g * alpha + backdrop * (1 - alpha),
+             pane.b * alpha + backdrop * (1 - alpha))
+        }
+        for (dark, backdrops, alpha) in [(false, [0.85, 1.0], SidebarScrim.lightAlpha),
+                                         (true, [0.0, 0.45], SidebarScrim.darkAlpha)] {
+            let pane = resolve(.pane, dark: dark)
+            for backdrop in backdrops {
+                let veiled = ground(pane: pane, alpha: alpha, backdrop: backdrop)
+                for (name, ink) in [("label", Color.label), ("clay", Color.claude), ("blue", Color.attention)] {
+                    let c = contrast(resolve(ink, dark: dark), veiled)
+                    XCTAssertGreaterThanOrEqual(c, 4.5, "\(name) on the veiled sidebar, \(dark ? "dark" : "light") backdrop \(backdrop): \(f(c))")
+                }
+            }
+        }
+        // Known-bad: the same label on the bare dark material at the measured 0.34.
+        let bare = contrast(resolve(.label, dark: true), (0.34, 0.34, 0.34))
+        XCTAssertLessThan(bare, 4.5, "the bare material is what the veil exists to fix: \(f(bare))")
+    }
 }
