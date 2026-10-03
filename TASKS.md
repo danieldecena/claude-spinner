@@ -11,7 +11,7 @@
 - [x] Stop ask.sh permission handling AskUserQuestion -- c6cadd7
 - [x] Hold a form ask in ask.sh for the app -- 6f4c376
 - [x] Model form asks and answers in AskInbox -- 6f0f34e
-- [ ] Draw the form card, install the hook, run it live
+- [x] Draw the form card, install the hook, run it live -- 27c94fb, f1c8e1c
 - [x] Add sync-appkit.sh to copy and check the App Kit files -- 7fa79af
 - [x] Add invariants check 41 for App Kit copy drift -- bin a15c0df
 - [x] Give the App Kit tab a real split-view sidebar -- pop-out, 39a100f

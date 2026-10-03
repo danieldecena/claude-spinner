@@ -251,6 +251,27 @@ Nothing queued. The rest is in `TASKS.md`.
   were also driving the window with AX and CGEvent clicks, so test tooling
   is the leading suspect, but that is not shown. Neither list takes arrow
   keys unfocused. Re-add the logging if it recurs during normal use.
+- Decided: a form ask (several questions, or a multiSelect) waits in the PreToolUse hook
+  when the terminal is behind, and the app returns every answer as `updatedInput.answers`.
+  Single-select stays non-waiting with the digit. Observed live (scratch tmux session,
+  installed `ask.sh`, app from `./run.sh`): a "2 questions" card with no Allow/Deny card
+  and Send answers disabled until both had a pick; Green + Ham + Corn sent; the session
+  received `"Pick a color?"="Green", "Pick toppings?"="Ham, Corn"` with no terminal box;
+  no ask or answer file left. "Answer in terminal" drew the terminal box and removed the
+  file. A single-select control kept the old card, a non-waiting ask file and the digit
+  click. With the real `lsappinfo`, a form returned at once when the host was frontmost
+  and waited (then cleaned up on timeout) when it was not.
+- Decided: `ask.sh permission` exits for AskUserQuestion. The Allow/Deny card for a question
+  asked nothing and held the real box back.
+- Decided: an unknown frontmost app counts as "terminal front" in `ask.sh`, so a form
+  falls through to the terminal box instead of holding it for 300s. Only
+  `__CFBundleIdentifier` is compared (`TERM_PROGRAM` is "tmux" under tmux, not a bundle
+  id). A form reply must answer every question, with strings, or it prints nothing.
+  Found by `shell-reviewer`; each has a test that fails on the previous script.
+- Known limits: a multi-select answered with nothing ticked, and "Other" free text, are
+  terminal-only ("Answer in terminal"). The card's "Answered: ..." line was not caught
+  on screen (it cleared inside the wait), and `design:design-critique` /
+  `design:accessibility-review` were not run on the form card.
 
 ### 2026-10-02 (earlier)
 
