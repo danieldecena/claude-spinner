@@ -2,6 +2,7 @@
 
 ## Tasks
 
+- [x] Playback slices 1-3: now playing, controls, music in the bar
 - [x] Music slice 5: floating reply bar with per-session drafts
 - [x] Music slice 7: sections on the ground, retire the tile grid
 - [x] Music slice 6: Top picks hero cards

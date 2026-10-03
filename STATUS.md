@@ -160,6 +160,30 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Decided: Music in the floating bar is a remote over Apple Events, not a second player
+  (playback plan slices 1 to 3; `NowPlaying.swift`, `MusicStrip.swift`). Nothing is sent
+  unless Music is already running, checked in Swift and again inside every script with
+  `application id "com.apple.Music" is running`, which asks without launching. State is
+  refreshed on Music's `com.apple.Music.playerInfo` broadcast and by a once-a-second tick
+  that only asks while a track is playing; polling is the fallback, the broadcast was
+  not separately observed. The strip is its own row under the reply row, so the session
+  keeps the main line and neither name loses width, and it draws nothing while Music is
+  closed. Entitlement `com.apple.security.automation.apple-events` and
+  `NSAppleEventsUsageDescription` added (both build configs).
+- Observed live, on the real Music app (paused on "Jump (feat. Gizzle)"): the strip shows
+  the track, "Lupe Fiasco - DROGAS Light", the real cover and a progress line; the
+  Automation grant was already in place, so no prompt was seen. Seek: clicking 20% along
+  the line moved Music's own `player position` from 163.9 s to 55.2 s of 274.9 s, read
+  back from Music itself; I restored your position (163.9 s, still paused). Not done
+  live, on purpose: play/pause, previous and next (they would start your audio or change
+  your queue), and quitting Music (the quit case is a unit test with a fake that records
+  every script, with an open-Music twin). A skip updating the strip within a second was
+  not observed, since nothing was playing.
+- Found: the cover is `raw data of artwork 1`, not `data of artwork 1`; the latter is a
+  picture object with no bytes (count 0). Music returns it as descriptor type 'tdta'.
+- Reviewed: the strip's contrast was not measured with `design:accessibility-review`;
+  it sits on the same opaque `Color.card` as the reply field, so its text does not
+  depend on what is behind the capsule.
 - Decided: the floating reply bar (music plan slice 5, `FloatingBar.swift`). A glass
   capsule in a bottom `safeAreaInset` of the detail column. Its target is the open
   session pane's session, else the one that needs you, else the most recently

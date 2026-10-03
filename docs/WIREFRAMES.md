@@ -57,7 +57,15 @@ with a hidden titlebar, an `NSVisualEffectView` (`.sidebar`), and
   working; it never changes while its field holds an unsent draft. Drafts live in
   `ReplyDrafts` keyed by session id, shared with `ReplyBox`, so a draft follows its
   session and switching never drops it. Not shown on the App Kit tab (it has a mini
-  player of its own). On a session pane the conversation card drops its own reply
+  player of its own). Under the reply row, only while the Music app is open,
+  `MusicStrip` (`MusicStrip.swift`): 28pt cover, title, "artist - album", previous /
+  play-pause / next, and a 4pt progress line that is also the seek control (drag or
+  click; VoiceOver adjusts it in 10s steps), on an opaque `Color.card` fill. State
+  comes from `NowPlaying` (`NowPlaying.swift`): Apple Events to Music, never sent
+  unless Music is already running (checked in Swift and again in each script with
+  `is running`), refreshed on Music's `com.apple.Music.playerInfo` broadcast and once
+  a second while a track plays. A refused Automation prompt shows a notice. On a
+  session pane the conversation card drops its own reply
   field (`replyInBar`); the toolbar keeps every action.
 - Window: default 900 x 560, minimum 620 x 360, autosave `SpinnerWindow`
   (`Constants`, `FeedWatcher.swift`). Opens on Home.

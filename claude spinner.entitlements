@@ -6,5 +6,9 @@
 	     hardened runtime still needs this for the Calendars privacy prompt. -->
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
+	<!-- The floating bar's music part asks the Music app what is playing and
+	     controls it over Apple Events. Hardened runtime needs this to send them. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 </dict>
 </plist>

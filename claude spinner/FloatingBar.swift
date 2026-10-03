@@ -119,10 +119,14 @@ struct FloatingBar: View {
         VStack(alignment: .leading, spacing: 6) {
             if showsNotice, let notice { Notice(notice) }
             GlassEffectContainer(spacing: 10) {
-                HStack(alignment: .center, spacing: 10) {
-                    identity
-                    field
-                    controls
+                VStack(spacing: 8) {
+                    HStack(alignment: .center, spacing: 10) {
+                        identity
+                        field
+                        controls
+                    }
+                    // Draws nothing while Music is not open.
+                    MusicStrip()
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -136,6 +140,7 @@ struct FloatingBar: View {
             }
         }
         .frame(maxWidth: 760)
+        .onAppear { NowPlaying.shared.start() }
         .task(id: session.id) {
             let pid = session.pid
             hasPane = await Task.detached(priority: .utility) {

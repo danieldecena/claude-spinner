@@ -379,6 +379,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Claude Spinner shows what the Music app is playing in its floating bar and lets you play, pause and skip. It only asks while Music is already open, and never starts it.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Claude Spinner shows today's events on its Home tab. It reads them on this Mac and does not send them anywhere.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -414,6 +415,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Claude Spinner shows what the Music app is playing in its floating bar and lets you play, pause and skip. It only asks while Music is already open, and never starts it.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Claude Spinner shows today's events on its Home tab. It reads them on this Mac and does not send them anywhere.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
