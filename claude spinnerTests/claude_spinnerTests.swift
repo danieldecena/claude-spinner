@@ -2696,6 +2696,112 @@ final class claude_spinnerTests: XCTestCase {
         }
     }
 
+    private static let formPayload =
+        #"{"session_id":"sid","tool_input":{"questions":[{"question":"Pick a color?","options":[{"label":"Red"},{"label":"Green"}]},{"question":"Pick toppings?","multiSelect":true,"options":[{"label":"Ham"},{"label":"Olives"}]}]}}"#
+
+    /// Runs ask.sh in question mode on the two-question form with `front` as the
+    /// frontmost app, feeds it `answer` once its ask file appears, and returns
+    /// what it printed. `ask` is the decoded ask file, nil if none was written.
+    private func runFormHook(front: String, answer: String?) throws
+        -> (stdout: String, status: Int32, ask: AskRequest?, waited: Bool) {
+        let script = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("claude spinner/Scripts/ask.sh")
+        var result: (String, Int32, AskRequest?, Bool) = ("", -1, nil, false)
+        try withTempDir { home in
+            let asks = home.appendingPathComponent(".claude/spinnerfeed/asks")
+            let bin = home.appendingPathComponent("bin")
+            try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+            let stubs = ["pgrep": "#!/bin/sh\nexit 0\n",
+                         "lsappinfo": "#!/bin/sh\n[ \"$1\" = front ] && echo ASN:0x0-0x1 && exit 0\n"
+                             + "echo '    bundleID=\"\(front)\"'\n"]
+            for (name, body) in stubs {
+                let url = bin.appendingPathComponent(name)
+                try Data(body.utf8).write(to: url)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            }
+            let hook = Process()
+            hook.executableURL = URL(fileURLWithPath: "/bin/sh")
+            hook.arguments = [script.path, "question"]
+            hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
+                                "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": "com.example.term"]
+            let stdin = Pipe()
+            let out = Pipe()
+            hook.standardInput = stdin
+            hook.standardOutput = out
+            try hook.run()
+            stdin.fileHandleForWriting.write(Data(Self.formPayload.utf8))
+            try stdin.fileHandleForWriting.close()
+
+            func askNames() -> [String] {
+                ((try? FileManager.default.contentsOfDirectory(atPath: asks.path)) ?? [])
+                    .filter { $0.hasSuffix(".ask.json") }
+            }
+            var deadline = Date().addingTimeInterval(5)
+            while askNames().isEmpty && hook.isRunning && Date() < deadline { usleep(50_000) }
+            var ask: AskRequest?
+            var waited = false
+            if let name = askNames().first {
+                ask = try JSONDecoder().decode(AskRequest.self,
+                                               from: Data(contentsOf: asks.appendingPathComponent(name)))
+                waited = hook.isRunning
+                if let answer, let req = ask?.req {
+                    try Data(answer.utf8).write(to: asks.appendingPathComponent("\(req).answer.json"))
+                }
+            }
+            deadline = Date().addingTimeInterval(5)
+            while hook.isRunning && Date() < deadline { usleep(50_000) }
+            if hook.isRunning { hook.terminate() }
+            hook.waitUntilExit()
+            result = (String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+                      hook.terminationStatus, ask, waited)
+        }
+        return result
+    }
+
+    /// At the terminal, a form is the terminal's: no ask file, nothing printed.
+    func testAskScriptLeavesAFormToAFrontmostTerminal() throws {
+        let run = try runFormHook(front: "com.example.term", answer: nil)
+        XCTAssertNil(run.ask)
+        XCTAssertEqual(run.stdout, "")
+        XCTAssertEqual(run.status, 0)
+    }
+
+    /// With the terminal behind, the hook waits on the app and turns a complete
+    /// answer into the PreToolUse decision that answers the call.
+    func testAskScriptReturnsTheAppsAnswersForAForm() throws {
+        let run = try runFormHook(
+            front: "com.example.other",
+            answer: #"{"behavior":"allow","answers":{"Pick a color?":"Green","Pick toppings?":"Ham, Olives"}}"#)
+        XCTAssertTrue(run.waited, "precondition: the hook was still waiting when its ask file appeared")
+        XCTAssertEqual(run.ask?.kind, .question)
+        XCTAssertEqual(run.ask?.blocking, true)
+        XCTAssertEqual(run.ask?.questions?.count, 2)
+        XCTAssertEqual(run.status, 0)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(run.stdout.utf8)) as? [String: Any])
+        let specific = try XCTUnwrap(object["hookSpecificOutput"] as? [String: Any])
+        XCTAssertEqual(specific["hookEventName"] as? String, "PreToolUse")
+        XCTAssertEqual(specific["permissionDecision"] as? String, "allow")
+        let updated = try XCTUnwrap(specific["updatedInput"] as? [String: Any])
+        XCTAssertEqual((updated["questions"] as? [Any])?.count, 2)
+        XCTAssertEqual(updated["answers"] as? [String: String],
+                       ["Pick a color?": "Green", "Pick toppings?": "Ham, Olives"])
+    }
+
+    /// Anything short of one answer per question must not decide the call: the
+    /// terminal box is the fallback, and a half-answered form would skip it.
+    func testAskScriptPrintsNothingForAnIncompleteOrDeclinedForm() throws {
+        for answer in [#"{"behavior":"allow","answers":{"Pick a color?":"Green"}}"#,
+                       #"{"behavior":"allow"}"#,
+                       #"{"behavior":"passthrough"}"#,
+                       #"{"behavior":"deny"}"#] {
+            let run = try runFormHook(front: "com.example.other", answer: answer)
+            XCTAssertTrue(run.waited, "precondition: the hook reached its wait for \(answer)")
+            XCTAssertEqual(run.stdout, "", "printed a decision for \(answer)")
+            XCTAssertEqual(run.status, 0)
+        }
+    }
+
     // MARK: - What the permission is actually for
     //
     // The card used to render `Run Bash?` and nothing else, because `ask.sh`

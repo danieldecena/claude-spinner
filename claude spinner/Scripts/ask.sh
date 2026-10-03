@@ -5,8 +5,10 @@
 #
 # Writes ~/.claude/spinnerfeed/asks/<req>.ask.json. A permission then waits for
 # the app to write <req>.answer.json and turns that into the hook's decision
-# JSON. A question does not wait: it returns at once so the terminal draws its
-# own box, and the app answers by typing the option's digit into that box.
+# JSON. A single question does not wait: it returns at once so the terminal draws
+# its own box, and the app answers by typing the option's digit into that box.
+# A form (several questions, or one that takes several answers) waits like a
+# permission when the terminal is behind, and returns the app's answers.
 #
 # The fallback is the point: on no answer this prints nothing and exits 0, so
 # Claude Code shows the ordinary terminal prompt. It must never exit 2 — that
@@ -33,14 +35,33 @@ pgrep -x "${2:-claude spinner}" >/dev/null 2>&1 || exit 0
 
 host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"
 
+# Whether the session's own terminal is the frontmost app. A hook that waits
+# holds the terminal's prompt back until it returns, so waiting while you are
+# looking at the terminal means the prompt never appears there.
+terminal_is_front() {
+    [ -n "$host" ] || return 1
+    front=$(lsappinfo info -only bundleid "$(lsappinfo front 2>/dev/null)" 2>/dev/null \
+        | sed -n 's/.*bundleID="\([^"]*\)".*/\1/p')
+    [ "$front" = "$host" ]
+}
+
+form=false
 if [ "$mode" = "question" ]; then
-    # One digit picks one option. Several questions at once, or a question that
-    # takes several answers, stay terminal-only.
+    # One digit picks one option, so a single question never waits: the terminal
+    # draws its box and the card types the digit. Several questions at once, or a
+    # question that takes several answers, cannot be typed that way. Those wait
+    # for the app to send every answer back, but only with the terminal behind.
     shape=$(printf '%s' "$input" | jq -r '
-        if (.tool_input.questions | length) != 1 then "multi"
-        elif (.tool_input.questions[0].multiSelect // false) then "multi"
+        if (.tool_input.questions | length) < 1 then "none"
+        elif (.tool_input.questions | length) > 1 then "form"
+        elif (.tool_input.questions[0].multiSelect // false) then "form"
         else "single" end' 2>/dev/null)
-    [ "$shape" = "single" ] || exit 0
+    case "$shape" in
+        single) ;;
+        form) terminal_is_front && exit 0
+              form=true ;;
+        *) exit 0 ;;
+    esac
 else
     # A question raises a permission request of its own. Answering that one with
     # Allow/Deny is a card that asks nothing, and while it waits the real box is
@@ -48,15 +69,7 @@ else
     tool=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
     [ "$tool" = "AskUserQuestion" ] && exit 0
 
-    # A PermissionRequest hook holds the terminal prompt until it returns, so
-    # waiting here while you are looking at the terminal means the prompt never
-    # appears there. Only route to the app when the session's own terminal is
-    # not the frontmost app.
-    if [ -n "$host" ]; then
-        front=$(lsappinfo info -only bundleid "$(lsappinfo front 2>/dev/null)" 2>/dev/null \
-            | sed -n 's/.*bundleID="\([^"]*\)".*/\1/p')
-        [ "$front" = "$host" ] && exit 0
-    fi
+    terminal_is_front && exit 0
 fi
 
 mkdir -p "$dir"
@@ -68,7 +81,7 @@ answer="$dir/$req.answer.json"
 tmp="$f.tmp.$$"
 waits=true
 spid=""
-if [ "$mode" = "question" ]; then
+if [ "$mode" = "question" ] && [ "$form" = false ]; then
     # Nothing waits on a question, so its file outlives this hook on purpose; the
     # app drops it once the session's state moves off AskUserQuestion. The pid is
     # the owning `claude` process (same walk as emit.sh), whose pane gets the digit.
@@ -138,6 +151,21 @@ case "$behavior" in
     allow|deny) ;;
     *) exit 0 ;;
 esac
+
+if [ "$mode" = "question" ]; then
+    # Only one answer per question decides the call. Anything less prints
+    # nothing, so the terminal box opens instead of a half-answered form
+    # skipping it.
+    [ "$behavior" = "allow" ] || exit 0
+    printf '%s' "$input" | jq -c --argjson reply "$reply" '
+        ($reply.answers // {}) as $a
+        | select(($a | type) == "object" and ($a | length) == (.tool_input.questions | length))
+        | {hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "allow",
+            updatedInput: {questions: .tool_input.questions, answers: $a}}}' 2>/dev/null
+    exit 0
+fi
 
 jq -n --arg b "$behavior" \
     '{hookSpecificOutput: {hookEventName: "PermissionRequest",
