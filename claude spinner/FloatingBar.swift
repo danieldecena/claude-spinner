@@ -62,6 +62,11 @@ enum BarTarget {
     static func waiting(attention: [String], target: String?) -> Int {
         attention.filter { $0 != target }.count
     }
+
+    /// Whether the session the bar speaks to needs the user: blocked on a prompt, or
+    /// holding a question or form. The bar takes the attention colour then, so a
+    /// session that needs you is never drawn like one that is merely open.
+    static func needsYou(blocked: Bool, hasAsk: Bool) -> Bool { blocked || hasAsk }
 }
 
 /// How a reply is sent, shared by the bar and the conversation card's field.
@@ -103,6 +108,7 @@ struct FloatingBar: View {
 
     @ObservedObject private var drafts = ReplyDrafts.shared
     @ObservedObject private var music = NowPlaying.shared
+    @ObservedObject private var asks = AskInbox.shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sending = false
@@ -132,6 +138,18 @@ struct FloatingBar: View {
         return String(format: "%.2f,%.2f,%.2f", a.r, a.g, a.b)
     }
 
+    /// A session holding a question cannot be sent a reply (`ReplySend` refuses), so
+    /// the field says so before the first keystroke instead of after Return.
+    private var placeholder: String {
+        asks.pending.contains { $0.sessionId == session.id }
+            ? "Answer the question first\u{2026}" : "Reply to \(session.distinctName)\u{2026}"
+    }
+
+    private var needsYou: Bool {
+        BarTarget.needsYou(blocked: session.isBlockedOnYou,
+                           hasAsk: asks.pending.contains { $0.sessionId == session.id })
+    }
+
     private var text: Binding<String> { drafts.binding(for: session.id) }
     private var canSend: Bool {
         !sending && !text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -157,7 +175,8 @@ struct FloatingBar: View {
                 // shadow are what make it float instead of reading as a strip.
                 .overlay {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5)
+                        .strokeBorder(needsYou ? Color.attention.opacity(0.85) : Color.primary.opacity(0.14),
+                                      lineWidth: needsYou ? 1.5 : 0.5)
                 }
                 .shadow(color: .black.opacity(0.28), radius: 14, y: 4)
             }
@@ -177,11 +196,27 @@ struct FloatingBar: View {
     private var identity: some View {
         HStack(spacing: 8) {
             ContextDot(percent: session.stats.contextUsedPercent)
+                .overlay(alignment: .topTrailing) {
+                    // The mark that says this session needs you, beside the colour of
+                    // its status line and the edge of the capsule: three cues, so it
+                    // is not carried by hue alone.
+                    if needsYou {
+                        Circle().fill(Color.attention).frame(width: 9, height: 9)
+                            .overlay(Circle().strokeBorder(Color.card, lineWidth: 1.5))
+                            .offset(x: 3, y: -3)
+                    }
+                }
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.distinctName).font(.ui(11)).fontWeight(.semibold).lineLimit(1)
-                Text(session.statusLabel).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
+                    .help(session.distinctName)
+                Text(session.statusLabel).font(.ui(10)).lineLimit(1)
+                    .fontWeight(needsYou ? .semibold : .regular)
+                    .foregroundStyle(needsYou ? Color.attention : Color.label)
             }
             .frame(maxWidth: 150, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(needsYou ? "\(session.distinctName), needs you, \(session.statusLabel)"
+                                         : "\(session.distinctName), \(session.statusLabel)")
             if waiting > 0 {
                 // Standing in for a switch that was held back while you type.
                 Text("\(waiting) waiting").font(.ui(10)).fontWeight(.semibold)
@@ -201,7 +236,7 @@ struct FloatingBar: View {
     private var field: some View {
         // The placeholder is drawn in the label ink: the system's own grey measured
         // 3.1:1 on the white card, under the 4.5:1 a placeholder owes.
-        TextField(text: text, prompt: Text("Reply to \(session.distinctName)\u{2026}").foregroundStyle(Color.label),
+        TextField(text: text, prompt: Text(placeholder).foregroundStyle(Color.label),
                   axis: .vertical) { Text("Reply to \(session.distinctName)") }
             .textFieldStyle(.plain)
             .font(.claudeMono(11))

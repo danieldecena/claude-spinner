@@ -961,6 +961,7 @@ struct AskFormCard: View {
                     Button("Send answers") { send() }
                         .buttonStyle(.borderedProminent)
                         .disabled(!armed || answers == nil)
+                        .help(answers == nil ? "Pick an answer for every question first." : "Send every answer together")
                     Button("Answer in terminal") { handBack() }
                         .buttonStyle(.bordered)
                         .disabled(!armed)
@@ -973,11 +974,16 @@ struct AskFormCard: View {
             armed = true
         }
         .padding(12)
+        // The content is capped (see `question`), the card is not: it spans the pane
+        // like the cards beside it.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.attention.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func question(_ question: AskQuestion, at index: Int) -> some View {
         let multi = question.multiSelect == true
+        // Capped: across a wide pane the options were stripes 1,600px long and the
+        // eye had to travel that far from the radio to anything.
         return VStack(alignment: .leading, spacing: 6) {
             Text(question.question).font(.ui(13)).fontWeight(.semibold)
                 .fixedSize(horizontal: false, vertical: true)
@@ -994,7 +1000,8 @@ struct AskFormCard: View {
                                                 : (on ? "largecircle.fill.circle" : "circle"))
                         VStack(alignment: .leading, spacing: 1) {
                             Text(option.label).font(.ui(11))
-                            if let detail = option.description {
+                            // Not when it only repeats the label.
+                            if let detail = option.description, detail != option.label {
                                 Text(detail).font(.ui(10))
                                     .foregroundStyle(Color.label)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -1009,6 +1016,7 @@ struct AskFormCard: View {
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+        .frame(maxWidth: 720, alignment: .leading)
     }
 
     private func send() {

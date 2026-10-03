@@ -165,6 +165,25 @@
 ## Decision log
 
 ### 2026-10-03
+- Reviewed: a fresh-context `plan-reviewer` pass over `398705c..HEAD` against the roadmap,
+  Music, playback and form plans returned six gaps; checked against the source, each was
+  real. Closed here: (1) the bar took no emphasis for a session that needs you, which
+  playback slice 3 requires: it now draws a blue badge on the ring, a semibold
+  attention-blue status line and an attention edge, and is announced "needs you"
+  (`BarTarget.needsYou`, tested), and the session name has a tooltip for when it
+  truncates; (4) the form card had never been reviewed: `design:design-critique`
+  found the options 1,600px wide (content now capped at 720pt, the card still fills the
+  pane), a duplicate "Red / Red" when a description repeats its label (hidden), no hint
+  why Send answers is dim (tooltip), and the bar still inviting a reply while a form
+  waits (placeholder "Answer the question first..."); capture in
+  `docs/reference/2026-10-03-form-card-and-bar.png`; the form plan's steps are now
+  ticked. Gap 5, New session: the hero was pressed live on 2026-10-03 and launched a
+  Claude session in Ghostty (windows 2 to 3, then closed); Apply next job (it starts a
+  job application) and the Skills chips were not pressed. Still open, not fixed: no
+  measured claim for "no truncation of either name" or the touch-target size on the bar
+  and strip (the name truncates at 150pt, the strip buttons are 28x24), skip-within-a-
+  second and the Automation-prompt-once were never seen (nothing was playing, the grant
+  already existed), and "none under Reduce Motion" is view-side with no test.
 - Explained: the main window's frame changing between captures (roadmap open question,
   2026-10-02) is the display configuration, not the app. This Mac's built-in display is
   mirrored to a Sidecar iPad and there is also a BetterDisplay "Virtual 16:9" screen; the

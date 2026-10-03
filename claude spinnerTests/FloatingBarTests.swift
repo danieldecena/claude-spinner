@@ -79,4 +79,12 @@ final class FloatingBarTests: XCTestCase {
         XCTAssertEqual(BarTarget.waiting(attention: ["B", "C"], target: "A"), 2)
         XCTAssertEqual(BarTarget.waiting(attention: [], target: nil), 0)
     }
+
+    /// A session that is blocked, or holds a question, takes the bar's emphasis; an
+    /// idle or working one does not. Each cause alone, and neither.
+    func testTheBarTakesEmphasisOnlyForASessionThatNeedsYou() {
+        XCTAssertTrue(BarTarget.needsYou(blocked: true, hasAsk: false))
+        XCTAssertTrue(BarTarget.needsYou(blocked: false, hasAsk: true))
+        XCTAssertFalse(BarTarget.needsYou(blocked: false, hasAsk: false))
+    }
 }

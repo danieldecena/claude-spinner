@@ -75,7 +75,7 @@ Out of scope (each is its own plan if wanted):
 - Consumes: nothing.
 - Produces: the fact Tasks 3-5 rest on. `AskForm.separator` in Task 4 is `", "` only if this task passes.
 
-- [ ] **Step 1: Build the scratch project**
+- [x] **Step 1: Build the scratch project**
 
 ```bash
 P="$TMPDIR/askprobe"; rm -rf "$P"; mkdir -p "$P/.claude"
@@ -94,7 +94,7 @@ cat > "$P/.claude/settings.json" <<EOF
 EOF
 ```
 
-- [ ] **Step 2: Check the scratch hook on its own (known-good and known-bad input)**
+- [x] **Step 2: Check the scratch hook on its own (known-good and known-bad input)**
 
 ```bash
 echo '{"tool_input":{"questions":[{"question":"Pick a color?","options":[{"label":"Red"},{"label":"Green"}]},{"question":"Pick toppings?","multiSelect":true,"options":[{"label":"Ham"},{"label":"Olives"},{"label":"Corn"}]}]}}' | "$TMPDIR/askprobe/answer.sh" | jq -c '.hookSpecificOutput.updatedInput.answers'
@@ -103,7 +103,7 @@ echo 'not json' | "$TMPDIR/askprobe/answer.sh"; echo "exit=$?"
 
 Expected: first command prints `{"Pick a color?":"Red","Pick toppings?":"Ham, Olives"}`. Second prints a `jq: error` line and a non-zero `exit=`.
 
-- [ ] **Step 3: Run a real session against it**
+- [x] **Step 3: Run a real session against it**
 
 Keep the terminal you run this from frontmost, so the installed `ask.sh permission` stays out of the way.
 
@@ -116,7 +116,7 @@ sleep 25; tmux capture-pane -p -t "$PANE" | tail -40
 
 If the capture shows a "trust this folder" prompt, accept it with `tmux send-keys -t "$PANE" Enter`, wait 25 seconds and capture again.
 
-- [ ] **Step 4: Read the result (go / no-go)**
+- [x] **Step 4: Read the result (go / no-go)**
 
 Pass, all three:
 1. No question box was drawn in the pane (no numbered options list).
@@ -125,7 +125,7 @@ Pass, all three:
 
 If 1 fails (a box appeared), a hook cannot answer a multi-question call: **stop, do not start Task 3, 4 or 5**, do Task 2 only, and report the capture. If 2 passes and 3 differs, record the exact text shown and stop for a decision on the separator.
 
-- [ ] **Step 5: Clean up and record**
+- [x] **Step 5: Clean up and record**
 
 ```bash
 tmux kill-session -t askprobe
@@ -163,7 +163,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- STATUS.md
 - Consumes: nothing from Task 1 (this task is safe to ship even if Task 1 fails).
 - Produces: `ask.sh permission` exits 0 with empty stdout and no ask file when stdin's `.tool_name` is `AskUserQuestion`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```swift
     /// The Allow/Deny card for a question, removed. Run both ways with the
@@ -223,12 +223,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- STATUS.md
     }
 ```
 
-- [ ] **Step 2: Run it and see it fail**
+- [x] **Step 2: Run it and see it fail**
 
 Run the test command from Global Constraints with `<testName>` = `testAskScriptLeavesAQuestionsPermissionToTheQuestionHook`.
 Expected: FAIL on the `AskUserQuestion` pass with "a question's permission must not wait for the app". The `Bash` pass succeeds.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `claude spinner/Scripts/ask.sh`, the `else` branch currently starts:
 
@@ -250,12 +250,12 @@ else
     # A PermissionRequest hook holds the terminal prompt until it returns, so
 ```
 
-- [ ] **Step 4: Run the test, then the three neighbouring hook tests**
+- [x] **Step 4: Run the test, then the three neighbouring hook tests**
 
 Run with `<testName>` = each of `testAskScriptLeavesAQuestionsPermissionToTheQuestionHook`, `testAskScriptLeavesThePermissionToAFrontmostTerminal`, `testAskScriptRemovesItsFileWhenStopped`, `testBundledAskScriptKeepsItsFallbacks`.
 Expected: all four PASS.
 
-- [ ] **Step 5: Install, and check the copy**
+- [x] **Step 5: Install, and check the copy**
 
 ```bash
 cp "claude spinner/Scripts/ask.sh" ~/.claude/spinnerfeed/ask.sh
@@ -265,7 +265,7 @@ sh -n ~/.claude/spinnerfeed/ask.sh && echo "[ok] parses"
 
 Expected: both `[ok]` lines.
 
-- [ ] **Step 6: Commit (two repos)**
+- [x] **Step 6: Commit (two repos)**
 
 ```bash
 git commit -m "fix(ask): stop turning a question's permission request into Allow/Deny
@@ -300,7 +300,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- spinnerfeed/ask.sh
   - on an answer file `{"behavior":"allow","answers":{<one key per question>}}`: stdout `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","updatedInput":{"questions":[...],"answers":{...}}}}`, exit 0;
   - on any other answer file (passthrough, deny, fewer answers than questions): empty stdout, exit 0.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```swift
     private static let formPayload =
@@ -410,12 +410,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- spinnerfeed/ask.sh
     }
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 Run with `<testName>` = `testAskScriptReturnsTheAppsAnswersForAForm`, then `testAskScriptPrintsNothingForAnIncompleteOrDeclinedForm`.
 Expected: both FAIL at the `run.waited` precondition (today the hook exits at once for a form and writes no ask file). `testAskScriptLeavesAFormToAFrontmostTerminal` already passes; it is the known-good half and must keep passing.
 
-- [ ] **Step 3: Implement the mode block**
+- [x] **Step 3: Implement the mode block**
 
 In `claude spinner/Scripts/ask.sh`, replace everything from the line `host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"` down to the `fi` that closes the mode test (just above `mkdir -p "$dir"`) with:
 
@@ -460,7 +460,7 @@ else
 fi
 ```
 
-- [ ] **Step 4: Implement the wait and the output**
+- [x] **Step 4: Implement the wait and the output**
 
 Still in `ask.sh`, change the condition that picks the non-waiting path. It reads:
 
@@ -522,7 +522,7 @@ Also update the header comment (lines 6-9 of the file) so it stays true:
 # permission when the terminal is behind, and returns the app's answers.
 ```
 
-- [ ] **Step 5: Run the hook tests**
+- [x] **Step 5: Run the hook tests**
 
 ```bash
 sh -n "claude spinner/Scripts/ask.sh" && echo "[ok] parses"
@@ -531,7 +531,7 @@ sh -n "claude spinner/Scripts/ask.sh" && echo "[ok] parses"
 Then run with `<testName>` = each of: `testAskScriptLeavesAFormToAFrontmostTerminal`, `testAskScriptReturnsTheAppsAnswersForAForm`, `testAskScriptPrintsNothingForAnIncompleteOrDeclinedForm`, `testAskScriptHandsAQuestionOverWithoutWaiting`, `testAskScriptLeavesAQuestionsPermissionToTheQuestionHook`, `testAskScriptLeavesThePermissionToAFrontmostTerminal`, `testAskScriptRemovesItsFileWhenStopped`, `testBundledAskScriptKeepsItsFallbacks`.
 Expected: all eight PASS.
 
-- [ ] **Step 6: Commit (do not install yet)**
+- [x] **Step 6: Commit (do not install yet)**
 
 The installed copy stays at Task 2's version until Task 5: a form that waits with no form card in the app would show only its first question.
 
@@ -565,7 +565,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- "claude spinner/Scripts/ask.s
   - `enum AskForm` with `static let separator: String`, `static func toggle(_ label: String, at index: Int, multi: Bool, in picks: [Int: Set<String>]) -> [Int: Set<String>]`, `static func answers(for questions: [AskQuestion], picks: [Int: Set<String>]) -> [String: String]?`
   - `AskInbox.write(.form(answers), for:in:)` writes `{"behavior":"allow","answers":{...}}`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```swift
     // MARK: - Forms: several questions, or several answers to one
@@ -650,12 +650,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- "claude spinner/Scripts/ask.s
     }
 ```
 
-- [ ] **Step 2: Run one and see the build fail**
+- [x] **Step 2: Run one and see the build fail**
 
 Run with `<testName>` = `testFormAnswersJoinPicksInOptionOrder`.
 Expected: build FAILS with "cannot find 'AskForm' in scope" (and `isForm`, `.form`).
 
-- [ ] **Step 3: Implement the model**
+- [x] **Step 3: Implement the model**
 
 In `claude spinner/AskInbox.swift`:
 
@@ -770,12 +770,12 @@ In `categories(for:)`, the `.question` case (lines 434-442) becomes:
                 }
 ```
 
-- [ ] **Step 4: Run the model tests**
+- [x] **Step 4: Run the model tests**
 
 Run with `<testName>` = each of `testIsFormIsSeveralQuestionsOrAMultiSelect`, `testToggleReplacesASinglePickAndTogglesAMultiPick`, `testFormAnswersJoinPicksInOptionOrder`, `testFormAnswersNeedAPickForEveryQuestion`, `testWriteCarriesAFormsAnswers`, `testAFormsBannerOffersNoOptionButtons`, `testDigitIsTheOptionsOneBasedPosition`, `testAskWithoutWaitsFieldIsBlocking`.
 Expected: all eight PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "feat(asks): model a form ask and the answers it adds up to
@@ -804,7 +804,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" -- "claude spinner/AskInbox.swif
 - Consumes: `AskRequest.isForm`, `AskRequest.questions`, `AskQuestion.multiSelect`, `AskForm.toggle(_:at:multi:in:)`, `AskForm.answers(for:picks:)`, `AskAnswer.form`, `AskAnswer.passthrough`, `AskInbox.shared.answer(_:with:)`, `AskInbox.shared.rescan()`, `AskCard.armDelay`.
 - Produces: `struct AskFormCard: View` with `init(ask: AskRequest)`. `AskCard` draws it for a form, so both call sites (`WindowContentView.swift:687` and `PinnedProjectDetail.swift:493`) get it with no change.
 
-- [ ] **Step 1: Route `AskCard` to the form card**
+- [x] **Step 1: Route `AskCard` to the form card**
 
 In `claude spinner/WindowContentView.swift`, `AskCard`'s body currently opens:
 
@@ -832,7 +832,7 @@ Rename that property to `single` and add a new `body` above it:
 
 Nothing else in `AskCard` changes.
 
-- [ ] **Step 2: Add `AskFormCard`**
+- [x] **Step 2: Add `AskFormCard`**
 
 Directly after `AskCard`'s closing brace (before `// MARK: - Free-text reply`):
 
@@ -937,7 +937,7 @@ struct AskFormCard: View {
 }
 ```
 
-- [ ] **Step 3: Build and run the whole unit suite**
+- [x] **Step 3: Build and run the whole unit suite**
 
 Check `gh run list --limit 1` is not `in_progress`, then:
 
@@ -949,7 +949,7 @@ xcodebuild -scheme "claude spinner" test | { command -v xcbeautify >/dev/null &&
 
 Expected: the suite passes with no failures. A compile error names the line; fix it before going on.
 
-- [ ] **Step 4: Update the wireframe**
+- [x] **Step 4: Update the wireframe**
 
 Read `docs/WIREFRAMES.md`, find the `AskCard` wireframe, and add this block directly under it:
 
@@ -974,7 +974,7 @@ Send answers is disabled until every question has a pick.
 After sending: one line, "Answered: Red / Ham".
 ```
 
-- [ ] **Step 5: Install the hook and relaunch the app**
+- [x] **Step 5: Install the hook and relaunch the app**
 
 ```bash
 cp "claude spinner/Scripts/ask.sh" ~/.claude/spinnerfeed/ask.sh
@@ -985,7 +985,7 @@ pgrep -x "claude spinner" >/dev/null && echo "[ok] app is running"
 
 Expected: both `[ok]` lines.
 
-- [ ] **Step 6: Live run, form answered from the app**
+- [x] **Step 6: Live run, form answered from the app**
 
 Start a session from the app (any pinned project's quick start), then click the spinner window so the terminal is behind it. In that session send:
 
@@ -1002,7 +1002,7 @@ Observe, in order:
 
 Take a screenshot of step 1 for the commit's look.
 
-- [ ] **Step 7: Live run, the two fallbacks**
+- [x] **Step 7: Live run, the two fallbacks**
 
 Repeat the prompt twice more:
 - With the terminal frontmost: the terminal draws its own box at once and the app shows no form card.
@@ -1010,7 +1010,7 @@ Repeat the prompt twice more:
 
 Then a single-select control, terminal behind: ask for one question with options Red and Green. Expected: the old single card (no "Send answers" button), the terminal box drawn at once, and clicking Green types `2` into it. No Allow/Deny card.
 
-- [ ] **Step 8: Record and commit (two repos)**
+- [x] **Step 8: Record and commit (two repos)**
 
 In `TASKS.md`, tick the five items this plan added. In `STATUS.md`, under `### 2026-10-02`, append:
 
