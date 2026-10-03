@@ -161,6 +161,10 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Decided: the pinned page's padding, grid minimum/spacing, rail gap and rail
+  width are named statics, and the 808pt threshold is their sum, so it cannot
+  drift from the layout (62101a8). Skipped a TileGrid.width(columns:) helper:
+  one caller.
 - Decided: the pinned page's rail drops under the grid when the pane is under
   808pt (two 220 columns beside the 300 rail), switched with AnyLayout so cards
   keep their state. Keyed on the visible width, not width / scale, to avoid a
