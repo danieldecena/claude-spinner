@@ -259,6 +259,13 @@ final class MailStatusModel: ObservableObject {
 
 struct MailCard: View {
     @StateObject private var model = MailStatusModel()
+    /// Where "Draft replies" would start and what it would say; nil when the
+    /// response-drafter skill isn't installed. Resolved when the card appears (a
+    /// few stats), and never launches anything by itself.
+    @State private var draftPlan: DraftReplies.Plan?
+    @State private var draftPlanChecked = false
+    @State private var drafting = false
+    @State private var draftError: String?
 
     var body: some View {
         // Read once per render: the card has no timer, so the age is as fresh as
@@ -266,12 +273,30 @@ struct MailCard: View {
         let now = Date()
         let stale = MailStatusFile.isStale(updated, now: now)
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CardTitle("Mail")
-                Spacer(minLength: 4)
-                Text(MailStatusFile.updatedLabel(updated, now: now))
-                    .font(.ui(10)).foregroundStyle(stale ? Color.attention : Color.label)
-                refreshButton
+            // One row when it fits; at the narrowest windows the two buttons drop
+            // under the title rather than truncating "Draft replies".
+            let updatedText = Text(MailStatusFile.updatedLabel(updated, now: now))
+                .font(.ui(10)).foregroundStyle(stale ? Color.attention : Color.label)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    CardTitle("Mail")
+                    Spacer(minLength: 4)
+                    updatedText
+                    refreshButton
+                    draftButton
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        CardTitle("Mail")
+                        Spacer(minLength: 4)
+                        updatedText
+                    }
+                    HStack {
+                        Spacer(minLength: 4)
+                        refreshButton
+                        draftButton
+                    }
+                }
             }
             switch model.load {
             case .none:
@@ -301,9 +326,15 @@ struct MailCard: View {
             if let error = model.refreshError {
                 Text("Refresh failed: \(error)").font(.ui(10)).foregroundStyle(Color.attention)
             }
+            if let note = draftNote {
+                Text(note).font(.ui(10)).foregroundStyle(Color.attention).lineLimit(2)
+            }
         }
         .detailCard()
-        .onAppear { model.start() }
+        .onAppear {
+            model.start()
+            resolveDraftPlan()
+        }
         .onDisappear { model.stop() }
     }
 
@@ -313,6 +344,51 @@ struct MailCard: View {
         case .failed(_, let updated): return updated
         case .none: return nil
         }
+    }
+
+    /// The attention line under the card: the skill is missing, or the window
+    /// did not open. Nothing while the button is merely idle.
+    private var draftNote: String? {
+        if let draftError { return draftError }
+        return draftPlanChecked && draftPlan == nil ? DraftReplies.missingMessage : nil
+    }
+
+    private func resolveDraftPlan() {
+        Task {
+            let plan = await Task.detached(priority: .utility) { DraftReplies.currentPlan() }.value
+            draftPlan = plan
+            draftPlanChecked = true
+        }
+    }
+
+    /// Opens a new Claude session (a Ghostty window) that drafts replies. Runs
+    /// only on the click; `NewSession.launch` blocks until osascript returns, so
+    /// it goes off the main thread, and the button stays disabled meanwhile.
+    private func draftReplies() {
+        guard let plan = draftPlan, !drafting else { return }
+        drafting = true
+        draftError = nil
+        Task {
+            let error = await Task.detached(priority: .userInitiated) {
+                NewSession.launch(in: plan.directory, claudeArgs: [plan.prompt])
+            }.value
+            drafting = false
+            draftError = error.map { "Couldn't open Ghostty: \($0)" }
+        }
+    }
+
+    private var draftButton: some View {
+        Button { draftReplies() } label: {
+            Text(drafting ? "Opening" : "Draft replies").font(.ui(10))
+                .frame(minWidth: 64, minHeight: 20)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(drafting || draftPlan == nil)
+        .help(draftPlanChecked && draftPlan == nil
+              ? DraftReplies.missingMessage
+              : "Opens a new Claude session that drafts replies in your voice. Drafts only: nothing is sent.")
+        .accessibilityLabel(drafting ? "Opening Claude session" : "Draft replies")
     }
 
     private var refreshButton: some View {

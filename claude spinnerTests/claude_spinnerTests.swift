@@ -4295,6 +4295,35 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertEqual(none, ["compact", "clear", "code-review", "simplify"])
     }
 
+    /// The two mail skills are curated, plain (not built-in) skill chips, and
+    /// each shows only when its own SKILL.md is installed.
+    func testMailShortcutsAreCuratedAndGatedOnInstall() {
+        let email = SkillShortcut.curated.first { $0.name == "email" }
+        let recruiter = SkillShortcut.curated.first { $0.name == "recruiter-mail" }
+        XCTAssertEqual(email?.command, "/email")
+        XCTAssertEqual(email?.label, "email")
+        XCTAssertEqual(email?.symbol, "envelope")
+        XCTAssertEqual(email?.blurb, "Scan Gmail + Apple Mail for action items")
+        XCTAssertEqual(recruiter?.command, "/recruiter-mail")
+        XCTAssertEqual(recruiter?.label, "recruiter-mail")
+        XCTAssertEqual(recruiter?.symbol, "person.crop.circle.badge.questionmark")
+        XCTAssertEqual(recruiter?.blurb, "Triage recruiter and interview messages")
+        for chip in [email, recruiter] {
+            XCTAssertEqual(chip?.builtIn, false)
+            XCTAssertEqual(chip?.group, .skill)
+            XCTAssertNil(chip?.sessionAction)
+        }
+        let dir = URL(fileURLWithPath: "/c")
+        let both: Set<String> = ["/c/skills/email/SKILL.md", "/c/skills/recruiter-mail/SKILL.md"]
+        let found = SkillShortcut.available(claudeDir: dir, exists: both.contains).map(\.name)
+        XCTAssertTrue(found.contains("email") && found.contains("recruiter-mail"))
+        let onlyEmail = SkillShortcut.available(claudeDir: dir, exists: ["/c/skills/email/SKILL.md"].contains).map(\.name)
+        XCTAssertTrue(onlyEmail.contains("email"))
+        XCTAssertFalse(onlyEmail.contains("recruiter-mail"))
+        let none = SkillShortcut.available(claudeDir: dir, exists: { _ in false }).map(\.name)
+        XCTAssertFalse(none.contains("email") || none.contains("recruiter-mail"))
+    }
+
     /// The card's /clear and /compact ask first, like the toolbar's; skills don't.
     func testDestructiveShortcutsConfirm() {
         let confirming = SkillShortcut.curated.filter { $0.sessionAction?.isDestructive == true }.map(\.name)
