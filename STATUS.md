@@ -160,6 +160,11 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-02
+- Verified: a PreToolUse hook answers a two-question AskUserQuestion call, one of them
+  multiSelect, with `updatedInput.answers` keyed on the question text. The multi-select
+  value is the labels joined with ", ". No terminal box was drawn: the pane showed
+  `Pick a color? -> Red` / `Pick toppings? -> Ham, Olives` and the model received
+  `"Pick toppings?"="Ham, Olives"`. (scratch probe in tmux, Claude Code v2.1.288)
 
 - Decided: the pinned page's padding, grid minimum/spacing, rail gap and rail
   width are named statics, and the 808pt threshold is their sum, so it cannot
