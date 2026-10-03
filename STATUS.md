@@ -155,7 +155,13 @@
 
 ## Next Up
 
-Nothing queued. The rest is in `TASKS.md`.
+- Allow the Calendars (and, if asked, Automation) prompt for the notarized build:
+  the Calendar card still reads "Reading the calendar..." until it is answered.
+- Not yet seen live, listed in `HANDOFF.md`: a tinted bar (needs a dark cover),
+  play/pause/previous/next, a form answered with a draft in the bar, and the light
+  appearance of the pinned page and the bar.
+
+`TASKS.md` has no open item.
 
 ## Decision log
 

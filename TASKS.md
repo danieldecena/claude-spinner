@@ -2,6 +2,8 @@
 
 ## Tasks
 
+## Completed
+
 - [x] Playback slices 1-4: now playing, controls, music in the bar, cover tint
 - [x] Music slice 5: floating reply bar with per-session drafts
 - [x] Music slice 7: sections on the ground, retire the tile grid
@@ -23,10 +25,6 @@
 - [x] Add sync-appkit.sh to copy and check the App Kit files -- 7fa79af
 - [x] Add invariants check 41 for App Kit copy drift -- bin a15c0df
 - [x] Give the App Kit tab a real split-view sidebar -- pop-out, 39a100f
-
-
-## Completed
-
 - [x] See a step's run drawn under its Workflow step -- seen 16:18
 - [x] Name the Apply next job quick start as its step -- 4554be1
 - [x] Box a step's run, drop its repeated name (design-critique) -- 6c1f173
