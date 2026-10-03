@@ -8,7 +8,7 @@
 - [x] Merge PR #10 and update the Home wireframe
 - [x] Give the pinned page 2 columns at default width -- 89a51d9
 - [x] Probe multi-question, multi-select hook answer format
-- [ ] Stop ask.sh permission handling AskUserQuestion
+- [x] Stop ask.sh permission handling AskUserQuestion -- c6cadd7
 - [ ] Hold a form ask in ask.sh for the app
 - [ ] Model form asks and answers in AskInbox
 - [ ] Draw the form card, install the hook, run it live
