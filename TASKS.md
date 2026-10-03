@@ -2,6 +2,8 @@
 
 ## Tasks
 
+- [ ] Write code-annotated wireframes of every tab
+
 
 ## Completed
 
