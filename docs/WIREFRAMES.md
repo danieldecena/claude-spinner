@@ -11,7 +11,7 @@ change instead of browsing the sources; then open only the struct you need.
 - A change that moves, adds or resizes a region updates this file in the same
   commit. A wireframe that disagrees with the app is worse than none.
 
-Mapped at `2fc14cc` (2026-10-02). Paths are relative to `claude spinner/`.
+Mapped at `2fc14cc` (2026-10-02); Home updated for #10. Paths are relative to `claude spinner/`.
 
 ## Shell — the main window
 
@@ -58,7 +58,8 @@ with a hidden titlebar, an `NSVisualEffectView` (`.sidebar`), and
 
 ## Home — `HomeDashboard` (`HomeDashboard.swift`)
 
-Plain `VStack(spacing: 12)`, padding 20. No TileGrid: every card is full width.
+Plain `VStack(spacing: 12)`, padding 20. Every card is full width except Mail
+and Calendar, which share a two-column TileGrid.
 
 ```
 +---------------------------------------------------------------+
@@ -70,12 +71,23 @@ Plain `VStack(spacing: 12)`, padding 20. No TileGrid: every card is full width.
 +---------------------------------------------------------------+
 | tasksCard      OPEN TASKS · N across M projects               |
 | project header + link, then up to 5 titles, per project       |
-+---------------------------------------------------------------+
-| MailCard  (MailCard.swift)          updated 3m   [Refresh]    |
-| [Urgent] [This week] [CI] [Finance]   4 x StatColumn, spacing 8|
-| summary line / accounts line                                  |
-+---------------------------------------------------------------+
++------------------------------+ +------------------------------+
+| MailCard (MailCard.swift)    | | CalendarCard                 |
+|  updated 3m [Draft replies]  | |  (CalendarCard.swift)        |
+|             [Refresh]        | |  Now / Next                  |
+| [Urgent][This week][CI][Fin] | |  rest of today, 5 rows,      |
+|  4 x StatColumn, spacing 8   | |    then "+N more"            |
+| summary / accounts lines     | |  all-day line, tomorrow line |
++------------------------------+ +------------------------------+
+  TileGrid(minimum: 330, spacing: 12, maxColumns: 2): side by side
+  while each keeps 330, stacked below that; one height per row.
 ```
+
+- Mail's buttons wrap under the title at the narrowest width. Draft replies is
+  disabled with a reason when the response-drafter skill is missing.
+- Calendar reads EventKit on appear, on `EKEventStoreChanged`, on activate and on
+  Refresh, with no timer. Its logic lives in `CalendarSnapshot` and
+  `CalendarFormat`.
 
 ## Session — `SessionDetail` (`WindowContentView.swift`)
 

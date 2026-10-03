@@ -5,7 +5,7 @@
 - [x] Write code-annotated wireframes of every tab -- 93d1540
 - [x] Add wireframe section to the design runbook -- app-kit 479c0ac
 - [x] Remove the /tmp debug write from HomeDashboard -- 30ba403
-- [ ] Merge PR #10 and update the Home wireframe
+- [x] Merge PR #10 and update the Home wireframe
 - [ ] Give the pinned page 2 columns at default width
 
 
