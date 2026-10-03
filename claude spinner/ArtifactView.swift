@@ -199,6 +199,7 @@ struct ArtifactHeroCard: View {
         }
         .frame(width: HeroMetrics.width, height: HeroMetrics.height)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .modifier(HeroFocusRing())
         .contentShape(Rectangle())
     }
 

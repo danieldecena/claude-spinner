@@ -542,7 +542,7 @@ private struct SessionSidebar: View {
             Button("+\(file.open.count - Self.shownTasks) more") {
                 NSWorkspace.shared.open(URL(fileURLWithPath: file.path))
             }
-            .buttonStyle(.link).font(.ui(10))
+            .buttonStyle(.attentionLink).font(.ui(10))
             .denseRow()
             .help("Open \(file.path)")
         }
@@ -1082,7 +1082,9 @@ private struct ReplyBox: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField("Reply to this session…", text: text)
+            TextField(text: text, prompt: Text("Reply to this session…").foregroundStyle(Color.label)) {
+                Text("Reply to this session")
+            }
                 .textFieldStyle(.plain)
                 .font(.claudeMono(11))
                 .onSubmit(send)
@@ -1382,7 +1384,7 @@ private struct StatSection: View {
                     .textCase(.uppercase).tracking(0.8)
                 if let refresh {
                     Button("Refresh", action: refresh)
-                        .font(.ui(10)).buttonStyle(.link)
+                        .font(.ui(10)).buttonStyle(.attentionLink)
                 }
             }
             if present.isEmpty {
@@ -2782,7 +2784,7 @@ private struct GitCard: View {
         HStack(spacing: 10) {
             Text("Git").font(.ui(10)).fontWeight(.semibold)
                 .foregroundStyle(Color.label).textCase(.uppercase).tracking(0.8)
-            Button("Refresh", action: reload).font(.ui(10)).buttonStyle(.link)
+            Button("Refresh", action: reload).font(.ui(10)).buttonStyle(.attentionLink)
         }
     }
 

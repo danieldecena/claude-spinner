@@ -66,3 +66,20 @@ extension Notice where Accessory == EmptyView {
         self.init(kind: message.kind, text: message.text, size: size)
     }
 }
+
+
+/// A text link in the `attention` blue. The system link style draws the system
+/// blue, which measured 4.16:1 on the light sidebar for 10pt text; this one is
+/// about 5:1 there and 7:1 on the dark one.
+struct AttentionLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.attention)
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .pointerStyle(.link)
+    }
+}
+
+extension ButtonStyle where Self == AttentionLinkStyle {
+    static var attentionLink: AttentionLinkStyle { AttentionLinkStyle() }
+}

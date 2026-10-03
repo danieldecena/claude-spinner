@@ -111,6 +111,11 @@ private struct SeekLine: View {
         .frame(height: 4)
         .padding(.vertical, 4)
         .disabled(progress == nil)
+        // Keyboard: focusable, and the arrows seek ten seconds, as VoiceOver's
+        // adjustable action does.
+        .focusable(progress != nil)
+        .onKeyPress(.leftArrow) { nudge(-1) }
+        .onKeyPress(.rightArrow) { nudge(1) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Track position")
         .accessibilityValue(progress == nil ? "unknown" : "\(Int(position)) of \(Int(duration)) seconds")
@@ -123,6 +128,12 @@ private struct SeekLine: View {
             @unknown default: break
             }
         }
+    }
+
+    private func nudge(_ direction: Double) -> KeyPress.Result {
+        guard duration > 0 else { return .ignored }
+        seek(min(1, max(0, (progress ?? 0) + direction * 10 / duration)))
+        return .handled
     }
 
     private func fraction(_ x: CGFloat, in width: CGFloat) -> Double {

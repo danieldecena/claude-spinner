@@ -199,7 +199,10 @@ struct FloatingBar: View {
     /// transparent as it is because it never takes text; whatever is scrolled
     /// behind this one must not be able to lower the text's contrast.
     private var field: some View {
-        TextField("Reply to \(session.distinctName)\u{2026}", text: text, axis: .vertical)
+        // The placeholder is drawn in the label ink: the system's own grey measured
+        // 3.1:1 on the white card, under the 4.5:1 a placeholder owes.
+        TextField(text: text, prompt: Text("Reply to \(session.distinctName)\u{2026}").foregroundStyle(Color.label),
+                  axis: .vertical) { Text("Reply to \(session.distinctName)") }
             .textFieldStyle(.plain)
             .font(.claudeMono(11))
             .lineLimit(1...Self.maxLines)

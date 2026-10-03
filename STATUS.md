@@ -165,6 +165,19 @@
 ## Decision log
 
 ### 2026-10-03
+- Reviewed: `design:accessibility-review` on the bar, the pinned page and the sidebar
+  (it had been skipped for these). Fixed: placeholders (reply, prompt, workflow
+  argument) were the system grey at 3.1:1 on the white card, now drawn in the label ink
+  (4.50:1 sampled off a capture, a lower bound; about 5.4:1 by token); the seven
+  `.buttonStyle(.link)` buttons drew the system blue, measured 4.16:1 on the light
+  sidebar, now `AttentionLinkStyle` (the `attention` blue, held at 4.5:1 across the
+  sidebar's possible grounds by a test that also asserts the system blue fails); the
+  hero cards get an explicit 2pt focus ring (`HeroFocusRing`); the seek line is
+  focusable and the arrows seek 10 s. Left, known: sidebar rows are about 22pt tall
+  (2.5.8 asks 24pt; dense on purpose) and selection is a 1.3:1 fill plus semibold.
+  Not done: a VoiceOver session, and the Tab order into the sidebar list. A pixel
+  sample of a 10pt link cannot resolve its colour (it reads lighter than the true
+  colour), so the link fix is proven by the token test, not the capture.
 - Polish on `main` after the notarized `f41fcf0` (not in the installed build): the
   Recent sessions tiles get a 0.5pt hairline (they all but vanished on the light page),
   and the sidebar's divider above "Sessions" is drawn only when there is a notice or

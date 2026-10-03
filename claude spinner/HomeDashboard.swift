@@ -189,7 +189,7 @@ struct HomeDashboard: View {
                 Button("\(file.open.count) open · \(file.done) done") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: file.path))
                 }
-                .buttonStyle(.link).font(.ui(10))
+                .buttonStyle(.attentionLink).font(.ui(10))
                 .help("Open \(file.path)")
             }
             ForEach(Array(file.open.prefix(Self.shownTasks).enumerated()), id: \.offset) { _, title in

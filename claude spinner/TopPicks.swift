@@ -68,11 +68,26 @@ struct LaunchHeroCard: View {
             }
             .frame(width: HeroMetrics.width, height: HeroMetrics.height)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .modifier(HeroFocusRing())
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityHint(hint)
         .help(hint)
+    }
+}
+
+/// A visible keyboard-focus edge for a hero card. A plain button's own ring can be
+/// cut off by the card's rounded mask, so the card draws one, read from the focus
+/// of the button around it (which is why this is a modifier used inside its label).
+struct HeroFocusRing: ViewModifier {
+    @Environment(\.isFocused) private var focused
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(focused ? 0.9 : 0), lineWidth: 3)
+        }
     }
 }

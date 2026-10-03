@@ -255,4 +255,27 @@ final class MusicAccentProofTests: XCTestCase {
         let bare = contrast(resolve(.label, dark: true), (0.34, 0.34, 0.34))
         XCTAssertLessThan(bare, 4.5, "the bare material is what the veil exists to fix: \(f(bare))")
     }
+
+    /// Links in the sidebar and the pinned page are 10pt text, so they owe 4.5:1 on
+    /// the veiled sidebar across the same backdrops the veil test uses. The system
+    /// link blue read 4.16:1 on the light sidebar (sampled from a capture), which is
+    /// why `AttentionLinkStyle` exists; it is asserted to fail here so the check can.
+    func testAttentionLinkKeepsContrastWhereTheSystemBlueDoesNot() {
+        func ground(pane: RGB, alpha: Double, backdrop: Double) -> RGB {
+            (pane.r * alpha + backdrop * (1 - alpha), pane.g * alpha + backdrop * (1 - alpha),
+             pane.b * alpha + backdrop * (1 - alpha))
+        }
+        for (dark, backdrops, alpha) in [(false, [0.85, 1.0], SidebarScrim.lightAlpha),
+                                         (true, [0.0, 0.45], SidebarScrim.darkAlpha)] {
+            let pane = resolve(.pane, dark: dark)
+            for backdrop in backdrops {
+                let veiled = ground(pane: pane, alpha: alpha, backdrop: backdrop)
+                let c = contrast(resolve(.attention, dark: dark), veiled)
+                XCTAssertGreaterThanOrEqual(c, 4.5, "attention link, \(dark ? "dark" : "light") backdrop \(backdrop): \(f(c))")
+            }
+        }
+        let systemBlue: RGB = (0.19, 0.46, 0.83)   // measured off the light sidebar
+        XCTAssertLessThan(contrast(systemBlue, ground(pane: resolve(.pane, dark: false),
+                                                       alpha: SidebarScrim.lightAlpha, backdrop: 1.0)), 4.5)
+    }
 }

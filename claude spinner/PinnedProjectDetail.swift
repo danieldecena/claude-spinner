@@ -255,7 +255,9 @@ struct PinnedProjectDetail: View {
                 }
             }
             .scrollIndicators(.hidden)
-            TextField("New session in \(project.name)", text: $draft)
+            TextField(text: $draft, prompt: Text("New session in \(project.name)").foregroundStyle(Color.label)) {
+                Text("New session in \(project.name)")
+            }
                 .textFieldStyle(.plain).font(.ui(12))
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(Color.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -351,7 +353,7 @@ struct PinnedProjectDetail: View {
                 Spacer(minLength: 4)
                 if let action {
                     Button(action.label) { NSWorkspace.shared.open(URL(fileURLWithPath: action.path)) }
-                        .buttonStyle(.link).font(.ui(11))
+                        .buttonStyle(.attentionLink).font(.ui(11))
                         .help("Open \(action.path)")
                 }
             }
@@ -371,7 +373,7 @@ struct PinnedProjectDetail: View {
             Text(label).font(.ui(11)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
             Spacer(minLength: 4)
             Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
-                .buttonStyle(.link).font(.ui(10))
+                .buttonStyle(.attentionLink).font(.ui(10))
                 .help("Open \(path)")
         }
     }
@@ -422,8 +424,8 @@ struct PinnedProjectDetail: View {
             if let placeholder = step.argument {
                 // Started without it the skill only asks for it in the terminal,
                 // which is the switch this card exists to avoid.
-                TextField(placeholder, text: Binding(get: { arguments[step.id] ?? "" },
-                                                     set: { arguments[step.id] = $0 }))
+                TextField(text: Binding(get: { arguments[step.id] ?? "" }, set: { arguments[step.id] = $0 }),
+                          prompt: Text(placeholder).foregroundStyle(Color.label)) { Text(placeholder) }
                     .textFieldStyle(.plain).font(.ui(11))
                     .padding(.horizontal, 8).padding(.vertical, 5)
                     .background(Color.secondary.opacity(0.12),
@@ -555,7 +557,7 @@ struct PinnedProjectDetail: View {
                     Button("+\(open.count - Self.shownTasks) more") {
                         NSWorkspace.shared.open(URL(fileURLWithPath: path))
                     }
-                    .buttonStyle(.link).font(.ui(10))
+                    .buttonStyle(.attentionLink).font(.ui(10))
                     .help("Open \(path)")
                 }
             }
