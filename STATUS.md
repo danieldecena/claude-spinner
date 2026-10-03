@@ -165,6 +165,13 @@
 ## Decision log
 
 ### 2026-10-03
+- Polish on `main` after the notarized `f41fcf0` (not in the installed build): the
+  Recent sessions tiles get a 0.5pt hairline (they all but vanished on the light page),
+  and the sidebar's divider above "Sessions" is drawn only when there is a notice or
+  setup banner to separate (it was a hairline over an empty band). Looked at in light
+  mode on the build from DerivedData, launched directly so the notarized copy in
+  `/Applications` was not overwritten; both visible in
+  `docs/reference/2026-10-03-polish-light.png`. 509 tests pass. Re-notarize to ship it.
 - Observed live, on the installed notarized build (no rebuild): a two-question form
   answered while a draft sat in the bar. The bar moved to the session that needed me
   (no draft, so it was free to), I typed "draft while a form waits", Return gave the

@@ -230,7 +230,7 @@ sessions, Skills and Workflows are sections on the pane's own ground.
 | `liveCard` RUNNING NOW: `AskCard`s + `ConversationCard` per run | full width | an unclaimed run is live |
 | `recentApplicationsCard` last 5 applied, w320, beside `tasksSection` | | Job Search only |
 | `tasksSection` Tasks `.ui(15)` bold + "N open - M done" beside it, TASKS.md, 5 titles | ground | always |
-| `recentSection` Recent sessions: `SessionShelf` (`SessionShelf.swift`), `SessionTile`s 124pt square art over a 50pt caption; the tile is the button, "Resume" shows on hover or focus | ground | always |
+| `recentSection` Recent sessions: `SessionShelf` (`SessionShelf.swift`), `SessionTile`s 124pt square art (neutral gradient, 0.5pt hairline edge so it shows on a light page) over a 50pt caption; the tile is the button, "Resume" shows on hover or focus | ground | always |
 | `discoveryCard("Skills")` chips, `LazyVGrid(.adaptive(minimum: 120))` | ground | the project reaches skills |
 | `discoveryCard("Workflows")` | ground | the project has workflows |
 | `discoveryCard("Artifacts")` error line | ground | an artifact is unreadable |

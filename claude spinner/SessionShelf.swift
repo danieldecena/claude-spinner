@@ -98,9 +98,12 @@ struct SessionTile: View {
                     }
                 }
                 .frame(width: SessionTile.width, height: SessionTile.width)
+                // A hairline at rest: the neutral gradient is close to the page in
+                // light mode, so without an edge the tile all but disappears.
                 .overlay {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(focused ? Color.primary.opacity(0.7) : .clear, lineWidth: 2)
+                        .strokeBorder(focused ? Color.primary.opacity(0.7) : Color.secondary.opacity(0.3),
+                                      lineWidth: focused ? 2 : 0.5)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(session.headline).font(.ui(11)).lineLimit(2)

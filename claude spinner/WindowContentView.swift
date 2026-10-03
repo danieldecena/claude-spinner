@@ -245,7 +245,9 @@ struct WindowContentView: View {
                     SetupBanner(feed: feed, install: install)
                         .padding(.horizontal, 10).padding(.vertical, 10)
                 }
-                Divider()
+                // Only between something and the heading: with no notice and no setup
+                // banner it was a hairline over an empty band.
+                if asks.notificationsAllowed == false || !feed.isSetupInstalled { Divider() }
                 NewSessionBar()
                 SessionSidebar(sessions: roots, children: feed.sessions.filter { $0.parentSessionId != nil },
                                asks: asks.pending, tasks: tasks, goals: goals.goals,
