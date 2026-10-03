@@ -157,15 +157,25 @@
 
 - Allow the Calendars (and, if asked, Automation) prompt for the notarized build:
   the Calendar card still reads "Reading the calendar..." until it is answered.
-- Not yet seen live, listed in `HANDOFF.md`: a tinted bar (needs a dark cover),
-  play/pause/previous/next, a form answered with a draft in the bar, and the light
-  appearance of the pinned page and the bar.
+- Not yet seen live, listed in `HANDOFF.md`: a tinted bar (needs a dark cover) and
+  play/pause/previous/next; both mean changing what the user is listening to.
 
 `TASKS.md` has no open item.
 
 ## Decision log
 
 ### 2026-10-03
+- Observed live, on the installed notarized build (no rebuild): a two-question form
+  answered while a draft sat in the bar. The bar moved to the session that needed me
+  (no draft, so it was free to), I typed "draft while a form waits", Return gave the
+  notice "That session is waiting on a question. Answer it first." and kept the draft,
+  then Green + Olives sent from the card: the session received both answers, no ask or
+  answer file was left, and the draft was still in the bar afterwards. Light mode, forced
+  through the app's own `NSRequiresAquaSystemAppearance` default and removed again:
+  Home and the Job Search page with the bar and music strip read well (captures in
+  `docs/reference`); the one weak spot is the Recent sessions tiles, whose neutral
+  gradient is faint on the light page. Still not seen: a tinted bar (needs a dark cover,
+  which means changing your track) and play/pause/previous/next.
 - Shipped: roadmap pushes 2 and 3 (hero cards and sections, the floating bar, Music in
   the bar with the cover tint, and the docs) as `f41fcf0`, code identical to what was
   notarized. CI was green on that sha before the build; `./notarize.sh` returned

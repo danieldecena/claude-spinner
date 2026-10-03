@@ -137,9 +137,10 @@ synchronized group: a new `.swift` file joins its target with no project edit.
 - Trends (cache-hit and wall/API history) are parked: the Usage card of rings already
   shows every scalar, and the saved-history format change is a migration risk.
 - Not yet seen live: a tinted bar (the cover tint falls back to plain glass for bright
-  covers, so it needs a dark cover), play/pause/previous/next (they change what the
-  user is listening to), a pending form answered while a draft is in the bar, and the
-  light appearance of the pinned page and the bar.
+  covers, so it needs a dark cover, which means changing the user's track) and
+  play/pause/previous/next (they change what the user is listening to). A form
+  answered with a draft in the bar, and the light appearance of the pinned page and the
+  bar, were seen on 2026-10-03.
 - After installing a build with a new signing identity, macOS may ask again for
   Calendars and Automation (Ghostty, Music).
 - Decisions and the reasoning behind them are in `STATUS.md`; titles of what is done
