@@ -53,6 +53,10 @@ Unit target only — `claude spinnerUITests` is intentionally not in the scheme
 
 ## Design review
 
+Before any layout change, read `docs/WIREFRAMES.md`: every surface as a text
+wireframe labelled with the struct and file that draws it, plus the inline
+spacing values and `TileGrid` / `PaneFit` rules. Update it in the same commit.
+
 This is a CLI-driven app with no tap coverage, so a UI change ends in a look, not
 a green run. Judgement alone is not review: run the skill and say which skill
 produced which finding.
