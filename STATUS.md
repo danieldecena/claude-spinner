@@ -160,6 +160,23 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-02
+- Decided: `claude-spinner-ui-pass.md` is closed by looking (roadmap slice 3),
+  on a build of `27c94fb` at 1751x928pt, session pane, light and dark, with
+  `design:design-critique` and `design:accessibility-review`. Slice 3 (button
+  row): overtaken, the actions are an icon `ActionBar`, no label truncates, and
+  disabled is whole-control dimming (1.5-2.1:1), not text colour alone. Slice 4
+  (git second channel): built, but untracked-only is deliberately neutral
+  (`GitStatus.swift:85`) and `in sync` is green, not neutral as the plan said;
+  dirty and diverged tones not seen, the tree was untracked-only. Slice 5
+  (vitals as meters): overtaken by the Usage rings, not to be rebuilt; no
+  wall/API bar, lines-changed pair or reset times, and none is wanted. Slice 7
+  (window fills): session pane fills; Home leaves a 12-16% blank band below
+  Mail/Calendar at this size, and no `home` heading remains. Slice 8 (eye lands
+  on status): still open, the status line is the smallest grey text above the
+  conversation card and 5h/7d sit mid-pane in the Usage row. Measured, not
+  eyeballed: one enabled-text fail, the reply placeholder at 4.28:1 in light;
+  Send disabled in dark is 1.40:1 (`#2e436d` on `#2b2d32`). Captures stay in
+  the scratchpad, not the repo: they show Job Search task text.
 - Decided: the App Kit tab's copies are synced and checked by `./sync-appkit.sh`
   (`--check` prints OK/DRIFT/BROKEN), and `~/bin/invariants.sh` check 41 runs it
   daily. The boundary in the spike is its `// MARK: - Spike window` line, not
