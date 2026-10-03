@@ -4,8 +4,8 @@ import SwiftUI
 // the way the spike's own window lays them out, inside this window's detail pane.
 //
 // AppKitTokens.swift and AppKitMusicComponents.swift are byte-identical copies
-// of app-kit's swift/AppKit.swift and lines 1-397 of
-// build/source/music-components-spike.swift, taken at app-kit 60a3af0 (branch music-review-fixes). Do not
+// of app-kit's swift/AppKit.swift and lines 1-403 of
+// build/source/music-components-spike.swift, taken at app-kit b7fcf1d. Do not
 // edit them here: change app-kit's generator, rebuild, and copy again. `cmp`
 // against those two sources says whether they have drifted.
 //
@@ -76,7 +76,7 @@ struct AppKitShowcase: View {
                             HeroCard(art: grad(Color(red: 0.98, green: 0.62, blue: 0.20), Color(red: 0.88, green: 0.36, blue: 0.10)),
                                      eyebrow: "Station", title: "Chill Mix")
                         }
-                        Shelf(title: "Recently Played") {
+                        Shelf(title: "Recently Played", onMore: {}) {
                             ArtworkCard(art: Color(red: 0.76, green: 0.23, blue: 0.23), title: "Episode 740", subtitle: "Soulection playgroup")
                             ArtworkCard(art: Color(red: 0.55, green: 0.33, blue: 0.70), title: "Episode 741", subtitle: "Soulection playgroup")
                             ArtworkCard(art: Color(red: 0.20, green: 0.49, blue: 0.45), title: "Episode 743", subtitle: "Soulection playgroup")

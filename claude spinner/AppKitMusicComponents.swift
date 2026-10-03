@@ -109,20 +109,26 @@ struct Shelf<Content: View>: View {
     /// edge, 6pt outside the 40pt line TrackList's pill starts on. Measured in
     /// Music at 980 and 1588pt (music-capture.md, 2026-10-02).
     var inset: CGFloat = 34
-    var onMore: () -> Void = {}
+    /// The see-all chevron, drawn only when there IS a see-all: Music's Home
+    /// shows it after "Recently Played" and not after "Top Picks for You"
+    /// (music-capture.md, Page title). A chevron with nowhere to go promises a
+    /// page that does not exist.
+    var onMore: (() -> Void)? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Text(title).font(.title3.bold()).foregroundStyle(Color.Kit.musicInk)
-                Button(action: onMore) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.Kit.musicInkSoft)
+                if let onMore {
+                    Button(action: onMore) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.Kit.musicInkSoft)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("See all \(title)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("See all \(title)")
             }
             .padding(.leading, inset)
             ScrollView(.horizontal, showsIndicators: false) {
