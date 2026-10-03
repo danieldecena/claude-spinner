@@ -1,8 +1,11 @@
 # claude-spinner
 
-macOS menu-bar app that shows a live panel of running Claude Code sessions
-(model, status, context tokens, rate-limit gauges). It reads
-`~/.claude/spinnerfeed/` files written by Claude Code hooks and `statusLine`.
+macOS app that shows live Claude Code sessions (model, status, context tokens,
+rate-limit gauges) in a menu-bar dropdown and a window, and lets you act on them:
+answer a question or a multi-question form, reply from a floating bar (with a draft
+kept per session), resume a past session, and see and control what the Music app is
+playing. It reads `~/.claude/spinnerfeed/` files written by Claude Code hooks and
+`statusLine`. `HANDOFF.md` has the file map and `docs/WIREFRAMES.md` the screens.
 
 ## Prerequisites
 

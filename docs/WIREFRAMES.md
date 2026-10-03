@@ -11,7 +11,7 @@ change instead of browsing the sources; then open only the struct you need.
 - A change that moves, adds or resizes a region updates this file in the same
   commit. A wireframe that disagrees with the app is worse than none.
 
-Mapped at `2fc14cc` (2026-10-02); Home updated for #10. Paths are relative to `claude spinner/`.
+Mapped at `e035644` (2026-10-03): the window, Home, the pinned page, the floating bar and the sidebar are current; every backticked identifier was checked against the sources. Paths are relative to `claude spinner/`.
 
 ## Shell — the main window
 

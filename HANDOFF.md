@@ -1,8 +1,10 @@
 # claude-spinner — Handoff
 
-A macOS menu-bar app that mirrors live Claude Code sessions (status, activity, and
-account usage) in the menu bar, with a dropdown panel of per-session rows and a
-usage footer. Written in SwiftUI + AppKit.
+A macOS app that mirrors live Claude Code sessions (status, activity, account
+usage) and lets you act on them: a menu-bar dropdown for a glance, and a window for
+everything that does not fit in one (answer a question or a multi-question form,
+reply, watch a project, resume a past session, and see what the Music app is
+playing). SwiftUI + AppKit, macOS 27 only.
 
 Repo: https://github.com/danieldecena/claude-spinner (private). Runs live as
 `/Applications/claude spinner.app`.
@@ -31,20 +33,64 @@ The app (`FeedWatcher`) watches the directory with a `DispatchSource` vnode sour
 `[SessionFeed]` on the main thread. Usage is cached to `UserDefaults`
 (`UsageSnapshot`) so it survives Clear All and statusLine-less sessions.
 
+### Surfaces
+
+- **Menu-bar dropdown** (`MenuContentView.swift`): per-session rows and a usage footer.
+- **The window** (`WindowContentView.swift` and the files it hosts), opened on Home:
+  a full-height see-through sidebar (sessions grouped by project, pinned projects,
+  each project's TASKS.md), and a detail pane that is Home, the App Kit showcase, a
+  pinned project's page, or one session.
+- **A floating reply bar** over the detail pane: it speaks to the open session, else
+  the one that needs you, else the most recently working, keeps a draft per session,
+  and shows what Music is playing while Music is open.
+- **Answering from the app**: a single question is answered by typing its digit into
+  the terminal box; a multi-question or multi-select ask is held in the
+  `PreToolUse` hook (`Scripts/ask.sh`) and answered from the card. The Allow/Deny card
+  for `AskUserQuestion` does not exist.
+
+`docs/WIREFRAMES.md` draws every surface as text, labelled with the struct and file
+that draws it; read it before a layout change and update it in the same commit.
+
 ### Source files (`claude spinner/`)
-- `claude_spinnerApp.swift` — `@main` App (empty `Settings` scene), `AppDelegate`
-  owning the `NSStatusItem` + `NSPopover`, window fallback, the right-click
-  settings menu, `MenuBarLabel`, `Spinner` frames, and Color/Font extensions
-  (incl. `claude`, `claudeBright`, `menuIdle`, `usageTint`, `contextTint`,
-  `modelTint`).
-- `FeedWatcher.swift` — `Constants`, enums (`SessionStatus`, `MenuBarMode`,
-  `MenuBarState`), Codable `StateFile`/`StatusFile`, `SessionFeed`, `UsageSnapshot`,
-  `SessionRowItem`, and the `FeedWatcher` observable (watch/rescan/prune, state
-  derivation, usage getters, actions).
-- `MenuContentView.swift` — the dropdown panel: `UsageFooter` and `SessionRow`.
-- `SetupInstaller.swift` — first-run **Install hooks**: copies bundled scripts
-  into `~/.claude` and back-up-then-merges hooks / statusLine into settings.json.
-- `claude spinnerTests/claude_spinnerTests.swift` — XCTest over the pure logic.
+
+Feeds and state
+- `claude_spinnerApp.swift` -- `@main`, `AppDelegate` (status item, popover, main
+  window), `MenuBarTitle`, `Spinner` frames, the palette (`Color.Ink`) and `Font.ui`.
+- `FeedWatcher.swift` -- `Constants`, `SessionFeed`, `UsageSnapshot`, and the
+  `FeedWatcher` observable (watch, rescan, prune, state derivation).
+- `TranscriptReader.swift`, `GoalClock.swift`, `SystemStats.swift` -- what a session
+  said and ran, timed `/goal` runs, CPU/memory/disk.
+- `SetupInstaller.swift`, `SetupBanner.swift` -- first-run **Install hooks**.
+
+The window
+- `WindowContentView.swift` -- window shell, `SessionSidebar` (+ `SidebarScrim`,
+  `SidebarGlyph`, `SidebarRowChrome`), `SessionDetail` + `PaneFit`, `AskCard` /
+  `AskFormCard`, `ConversationCard`, `ReplyBox`, `WindowToolbar`, `ActionBar`.
+- `HomeDashboard.swift`, `MailCard.swift`, `CalendarCard.swift`, `DraftReplies.swift`,
+  `GraphifyCard.swift`, `StatCards.swift` -- the Home tab and the cards on it.
+- `PinnedProjects.swift`, `PinnedProjectDetail.swift` -- the pinned pages;
+  `TopPicks.swift` (hero cards), `SessionShelf.swift` (recent sessions),
+  `ArtifactView.swift` (live artifact pages, pop-outs).
+- `FloatingBar.swift` (`BarTarget`, `ReplyDrafts`, `ReplySend`, the bar),
+  `MusicStrip.swift`, `NowPlaying.swift` (Apple Events to Music, never launches it),
+  `BarTint.swift` (cover tint).
+- `AskInbox.swift` + `Scripts/ask.sh` -- the ask files, the hook that answers them,
+  and notifications for them. `Scripts/emit.sh` and `Scripts/statusline-command.sh`
+  are the feed writers.
+- `SessionReplier.swift`, `SessionActions.swift`, `NewSession.swift`,
+  `SkillShortcuts.swift`, `Suggestion.swift`, `Git*.swift` -- acting on a session.
+- `Notice.swift`, `NotificationsNotice.swift` -- inline notices.
+- `AppKitShowcase.swift`, `AppKitMusicComponents.swift`, `AppKitTokens.swift` -- the
+  App Kit design system tab. The last two are **generated**: change App Kit and run
+  `./sync-appkit.sh`, never edit them by hand (`sync-appkit.sh --check` flags drift).
+
+### Tests (`claude spinnerTests/`)
+`claude_spinnerTests.swift` (feed, asks, hooks, palette contrast) plus one file per
+newer area: `PinnedProjectsTests`, `CalendarCardTests`, `MailCardTests`,
+`DraftRepliesTests`, `FloatingBarTests` (drafts and the no-switch rule),
+`NowPlayingTests` (nothing is sent while Music is closed), `BarTintTests`,
+`MusicAccentProofTests` (red accent measurements and renders). Sources are a
+synchronized group: a new `.swift` file joins its target with no project edit.
 
 ---
 
@@ -82,33 +128,22 @@ The app (`FeedWatcher`) watches the directory with a `DispatchSource` vnode sour
 
 ---
 
-## Done this session (high level)
-
-Core review fixes (click-to-open, feed-file leak, atomic status.json writes,
-main-thread rescan → background + debounce, typed Codable decoding, dead
-`LoginItem` removal, `Constants`). Presentation: `NSStatusItem`+`NSPopover` anchored
-under the icon, jitter-free fixed-width spinner glyph, brighter title, one-line
-concrete-activity rows, 3-state title (working / done-flash / idle-grey), fully-grey
-idle rows. Usage footer: model-family color + green→red urgency gradient bars, 5h +
-7d, cost hidden (Max), reset as clock time, persisted cache. Right-click menu:
-Activity/Usage title toggle, Refresh, Relaunch, Clear All (safe), Quit. Attention
-macOS notifications. Collapse duplicate idle rows. Copy Session ID / Path per-row
-context menu. Host-aware click routing. Accessibility labels. XCTest suite + a
-`pendingScan` race fix.
-
-Full history is in the git log and `TASKS.md` (`## Completed`).
-
 ---
 
 ## Open / Next up
 
-Board is clear. One known limitation remains, deferred by design:
-
-- Focusing the **exact** terminal tab on click is infeasible — macOS `open` can't
-  target the tab running a session. Resolved as far as possible: a click now focuses
-  the host app *without* spawning a new window (VS Code opens the folder in place; an
-  unknown host focuses the user's terminal). Revisit only if per-terminal scripting
-  (iTerm Python API / Terminal AppleScript) is ever worth the fragility.
+- Focusing the **exact** terminal tab on click is infeasible (`open` cannot target
+  the tab running a session). Deferred by design.
+- Trends (cache-hit and wall/API history) are parked: the Usage card of rings already
+  shows every scalar, and the saved-history format change is a migration risk.
+- Not yet seen live: a tinted bar (the cover tint falls back to plain glass for bright
+  covers, so it needs a dark cover), play/pause/previous/next (they change what the
+  user is listening to), a pending form answered while a draft is in the bar, and the
+  light appearance of the pinned page and the bar.
+- After installing a build with a new signing identity, macOS may ask again for
+  Calendars and Automation (Ghostty, Music).
+- Decisions and the reasoning behind them are in `STATUS.md`; titles of what is done
+  are in `TASKS.md`.
 
 ---
 
