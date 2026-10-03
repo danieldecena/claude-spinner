@@ -49,10 +49,15 @@ struct PinnedProjectDetail: View {
 
     /// Half of a grid column at the window's usual width.
     private static let artifactCardWidth: CGFloat = 170
-    /// Narrowest page that keeps the rail beside a two-column grid: padding,
-    /// two 220 columns and their gap, the rail's gap, the rail. Below it the
+    private static let pagePadding: CGFloat = 20
+    private static let gridMinimum: CGFloat = 220
+    private static let gridSpacing: CGFloat = 12
+    private static let railGap: CGFloat = 16
+    private static let railWidth: CGFloat = 300
+    /// Narrowest page that keeps the rail beside a two-column grid. Below it the
     /// rail drops under the grid; beside it, the 900 default left one column.
-    private static let railBesideMinWidth: CGFloat = 40 + (2 * 220 + 12) + 16 + 300
+    private static let railBesideMinWidth: CGFloat =
+        2 * pagePadding + 2 * gridMinimum + gridSpacing + railGap + railWidth
 
     var body: some View {
         if let focused {
@@ -93,11 +98,11 @@ struct PinnedProjectDetail: View {
                         // AnyLayout, not an if/else of stacks: the cards keep their
                         // state (typed links, open runs) when the window crosses over.
                         let columns = railBeside
-                            ? AnyLayout(HStackLayout(alignment: .top, spacing: 16))
-                            : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+                            ? AnyLayout(HStackLayout(alignment: .top, spacing: Self.railGap))
+                            : AnyLayout(VStackLayout(alignment: .leading, spacing: Self.railGap))
 
                         columns {
-                TileGrid(minimum: 220, spacing: 12, fillsRows: true) {
+                TileGrid(minimum: Self.gridMinimum, spacing: Self.gridSpacing, fillsRows: true) {
                     // First, and small: what the project has published is a
                     // glance and a way in, not the page's main business.
                     if let extras, !extras.artifacts.items.isEmpty {
@@ -167,10 +172,10 @@ struct PinnedProjectDetail: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 // Under the grid it takes its own height, so the slack still goes
                 // to the grid's last row.
-                rail.frame(width: railBeside ? 300 : nil)
+                rail.frame(width: railBeside ? Self.railWidth : nil)
                     .fixedSize(horizontal: false, vertical: !railBeside)
                 }
-                .padding(20)
+                .padding(Self.pagePadding)
                 // At least the pane's height, inside the fixed size below: that
                 // is what proposes a height to the grid, which hands the slack
                 // to its last row. A page taller than the pane is unaffected.
