@@ -2,6 +2,9 @@
 
 ## Tasks
 
+- [x] Music slice 7: sections on the ground, retire the tile grid
+- [x] Music slice 6: Top picks hero cards
+- [x] Music slice 4: recent sessions shelf (click-to-resume unchecked)
 - [x] Music slice 3: see-through sidebar, neutral selection
 - [x] Music slice 2: SF bold title, sentence-case headers
 - [x] Music slice 1: prove the red accent from pixels

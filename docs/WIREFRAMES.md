@@ -178,35 +178,42 @@ Pinned rows come from `PinnedProject.all` = Job Search, Plans
 Job Search                                  (SF 26 bold, outside PaneFit)
 summary line                                (.ui(12))
 +--------------------------------------------------+ +------------------+
-| TileGrid(minimum: 220, spacing: 12,              | | rail     w300    |
-|          fillsRows: true)        <- 3 cols shown | | .detailCard()    |
-| [ artifacts strip  ArtifactCard w170 ......  3 ] | | Instructions  >  |
-| [ launchCard  1 ][ workflowCard          2|3    ] | | Context       >  |
-| [ jobPipelineCard        2 ][ scoutStatus   1  ] | | Folder        >  |
-| [ recentApplications 1 ][ tasksCard        2   ] | | Memory        >  |
-| [ recentCard             2 ][ Skills      1|2  ] | | Scheduled     >  |
-| [ Workflows  (stretched by fillsRows)         ] | | railRow: icon16, |
-|   liveCard "RUNNING NOW" (3) appears when a run  | | items indent 24  |
-|   no workflow step started is live              | |                  |
+| VStack(spacing 24)  -- no TileGrid, no stretched | | rail     w300    |
+| rows: sections take their own height             | | .detailCard()    |
+|                                                  | | Instructions  >  |
+| Top picks                                        | | Context       >  |
+| [New session][Apply next job][artifact heroes..] | | Folder        >  |
+|   HeroMetrics 170 x 227 (3:4), scrolls sideways  | | Memory        >  |
+| [ prompt field  (card fill, hairline)          ] | | Scheduled     >  |
+| [ workflowCard                         full w  ] | | railRow: icon16, |
+| [ jobPipelineCard  flex ][ scoutStatusCard w260] | | items indent 24  |
+|   liveCard "RUNNING NOW" when a run no step      | |                  |
+|   started is live                                | |                  |
+| [recentApplicationsCard w320][ Tasks (ground)  ] | |                  |
+| Recent sessions   SessionShelf (ground)          | |                  |
+| Skills            chips (ground)                 | |                  |
+| Workflows         chips (ground)                 | |                  |
 +--------------------------------------------------+ +------------------+
    AnyLayout: HStack(top, 16) when the pane is >= 808 wide, else VStack(16)
-   with the rail full width under the grid. padding 20
+   with the rail full width under the page. padding 20
 ```
 
-| Card | Span | Shown when |
+Cards (`.detailCard()`) are kept only for controls and read-outs that are a unit:
+Workflow, Job pipeline, Scout daemon, Recent applications, Running now. Tasks, Recent
+sessions, Skills and Workflows are sections on the pane's own ground.
+
+| Section | Draws | Shown when |
 |---|---|---|
-| artifacts strip (horizontal `ScrollView`) | 3 | the project has artifacts |
-| `launchCard` START: path, prompt, buttons in `ViewThatFits` (HStack, else VStack) | 1 | always |
-| `workflowCard` WORKFLOW: steps, each with its runs boxed under it | 2, or 3 while a step has a run | the project has steps |
-| `jobPipelineCard` Scouted / Triage / Queued / Applied / Interview | 2 | Job Search only |
-| `scoutStatusCard` running dot, Start/Stop | 1 | Job Search only |
-| `recentApplicationsCard` last 5 applied | 1 | Job Search only |
-| `liveCard` RUNNING NOW: `AskCard`s + `ConversationCard` per run | 3 | an unclaimed run is live |
-| `tasksCard` TASKS.md, 5 titles | 2 | always |
-| `recentCard` Recent sessions: `SessionShelf` (`SessionShelf.swift`), a horizontal row of `SessionTile`s, 124pt square art (project symbol on a neutral gradient) over a 50pt caption (name up to 2 lines, age). The tile is the button; "Resume" shows on hover or focus | 2 | always |
-| `discoveryCard("Skills")` chips, `LazyVGrid(.adaptive(minimum: 120))` | 1, 2 if more than 6 | always |
-| `discoveryCard("Workflows")` | 1 | always |
-| `discoveryCard("Artifacts")` error line | 3 | an artifact is unreadable |
+| `topPicks` "Top picks" | `LaunchHeroCard` New session, `LaunchHeroCard` quick start, then one `ArtifactHeroCard` per artifact (`TopPicks.swift`, `ArtifactView.swift`), all `HeroMetrics` 170 x 227; the prompt field under them | always |
+| `workflowCard` WORKFLOW: steps, each with its runs boxed under it | full width | the project has steps |
+| `jobPipelineCard` + `scoutStatusCard` | flex + 260 | Job Search only |
+| `liveCard` RUNNING NOW: `AskCard`s + `ConversationCard` per run | full width | an unclaimed run is live |
+| `recentApplicationsCard` last 5 applied, w320, beside `tasksSection` | | Job Search only |
+| `tasksSection` Tasks `.ui(15)` bold + "N open - M done" beside it, TASKS.md, 5 titles | ground | always |
+| `recentSection` Recent sessions: `SessionShelf` (`SessionShelf.swift`), `SessionTile`s 124pt square art over a 50pt caption; the tile is the button, "Resume" shows on hover or focus | ground | always |
+| `discoveryCard("Skills")` chips, `LazyVGrid(.adaptive(minimum: 120))` | ground | the project reaches skills |
+| `discoveryCard("Workflows")` | ground | the project has workflows |
+| `discoveryCard("Artifacts")` error line | ground | an artifact is unreadable |
 
 Rail switch: `railBesideMinWidth` = 40 + (2 x 220 + 12) + 16 + 300 = 808, the
 narrowest pane that keeps the rail beside a two-column grid. It is tested on the

@@ -160,6 +160,30 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Decided: the pinned page (Job Search, Plans) no longer uses `TileGrid` (music plan
+  slices 6 and 7). It is a VStack of sections: a "Top picks" row of `HeroMetrics`
+  170 x 227 hero cards (`LaunchHeroCard` New session and quick start on a fixed
+  graphite, one `ArtifactHeroCard` per artifact with its live thumbnail), the prompt
+  field under it (a card cannot hold a text field), then Workflow, Job pipeline
+  beside Scout daemon, Recent applications beside Tasks. Tasks, Recent sessions,
+  Skills and Workflows sit on the pane's ground, not in cards, so nothing is
+  stretched to a row's height. `ArtifactCard` is gone (it had one user); the three
+  artifact controls became the hero as Expand plus two small buttons. The Start card
+  and its path line are gone; the path is the New session hero's eyebrow.
+- Observed live: six equal-height heroes; Career Hub opens full from its hero with
+  its back link; a hero's Pop out opens the floating window, which closed cleanly.
+  Not clicked, on purpose: New session and Apply next job (they start real sessions,
+  Apply next job begins a job application) and the Skills chips; their closures are
+  the old buttons' own. Dark only was captured for this slice; the hero art is a
+  fixed graphite, so light differs only in the ground sections.
+- Reviewed: `design:design-critique` (Tasks count was 1,300px from its header and the
+  prompt field was invisible: both fixed; the Top picks row fills 55% of its width
+  and the live "needs input" run still sits mid-page inside Workflow: left).
+  `design:accessibility-review` was not run for this slice; hero caption contrast is
+  computed (white on a 0.64-0.78 black scrim, worst case over white art 6.3:1+), not
+  measured live.
+- Open: music slice 4 (the shelf) still owes a real click on a tile to confirm it
+  resumes the right session; automation could not target the tiles reliably.
 - Shipped: roadmap push 1 (forms answered from the app, ui-pass closed by looking,
   Music look first half) as `9f9b491`. `./notarize.sh` returned `status: Accepted`
   (submission 10663005-1f89-4b3b-8f65-b15b4cc5a657), stapled, and Gatekeeper reports

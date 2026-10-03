@@ -47,15 +47,14 @@ struct PinnedProjectDetail: View {
         return asks.filter { ids.contains($0.sessionId) }
     }
 
-    /// Half of a grid column at the window's usual width.
-    private static let artifactCardWidth: CGFloat = 170
+    private static let sectionGap: CGFloat = 24
     private static let pagePadding: CGFloat = 20
     private static let gridMinimum: CGFloat = 220
     private static let gridSpacing: CGFloat = 12
     private static let railGap: CGFloat = 16
     private static let railWidth: CGFloat = 300
-    /// Narrowest page that keeps the rail beside a two-column grid. Below it the
-    /// rail drops under the grid; beside it, the 900 default left one column.
+    /// Narrowest page that keeps the rail beside two columns of cards (Job
+    /// pipeline beside Scout daemon). Below it the rail drops under the page.
     private static let railBesideMinWidth: CGFloat =
         2 * pagePadding + 2 * gridMinimum + gridSpacing + railGap + railWidth
 
@@ -102,44 +101,34 @@ struct PinnedProjectDetail: View {
                             : AnyLayout(VStackLayout(alignment: .leading, spacing: Self.railGap))
 
                         columns {
-                TileGrid(minimum: Self.gridMinimum, spacing: Self.gridSpacing, fillsRows: true) {
-                    // First, and small: what the project has published is a
-                    // glance and a way in, not the page's main business.
-                    if let extras, !extras.artifacts.items.isEmpty {
-                        ScrollView(.horizontal) {
-                            HStack(alignment: .top, spacing: 12) {
-                                ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
-                                    ArtifactCard(artifact: artifact) {
-                                        withAnimation(.snappy) { focused = artifact }
-                                    }
-                                    .frame(width: Self.artifactCardWidth)
-                                }
-                            }
-                        }
-                        .scrollIndicators(.hidden)
-                        .tileSpan(3)
-                    }
-                    launchCard.tileSpan(1)
-                    // Beside Start, because it is the same question answered in
-                    // order: what you run here, and in which order you run it.
-                    // Full width while a step has a run under it: the run carries a
-                    // conversation and a reply field, cramped in two thirds.
-                    if !project.workflow.isEmpty {
-                        workflowCard.tileSpan(runs.byStep.isEmpty ? 2 : 3)
-                    }
-                    
+                // Sections at their own height, not a TileGrid: a grid that stretches
+                // each row to its tallest card left panels with a third of their
+                // height empty. Only the cards that are controls stay cards.
+                VStack(alignment: .leading, spacing: Self.sectionGap) {
+                    topPicks
+                    // What you run here, and in which order you run it. The run under
+                    // a step carries a conversation and a reply field, so it is full
+                    // width.
+                    if !project.workflow.isEmpty { workflowCard }
                     if project.name == "Job Search" {
-                        jobPipelineCard.tileSpan(2)
-                        scoutStatusCard.tileSpan(1)
-                        recentApplicationsCard.tileSpan(1)
+                        HStack(alignment: .top, spacing: Self.gridSpacing) {
+                            jobPipelineCard.frame(maxWidth: .infinity)
+                            scoutStatusCard.frame(width: 260)
+                        }
                     }
-                    
-                    // Full width, directly under them: it carries a conversation
-                    // and a reply field now, not a name and a word. Only the runs
-                    // no step started; the rest are drawn under their step.
-                    if !runs.other.isEmpty { liveCard.tileSpan(3) }
-                    tasksCard.tileSpan(2)
-                    recentCard.tileSpan(2)
+                    // Directly under them: it carries a conversation and a reply
+                    // field now, not a name and a word. Only the runs no step
+                    // started; the rest are drawn under their step.
+                    if !runs.other.isEmpty { liveCard }
+                    if project.name == "Job Search" {
+                        HStack(alignment: .top, spacing: Self.railGap) {
+                            recentApplicationsCard.frame(width: 320)
+                            tasksSection.frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    } else {
+                        tasksSection
+                    }
+                    recentSection
                     if let extras {
                         discoveryCard("Skills", extras.skills) { skills in
                             chips(skills) { skill in
@@ -150,9 +139,6 @@ struct PinnedProjectDetail: View {
                                 }
                             }
                         }
-                        .tileSpan(extras.skills.items.count > 6 ? 2 : 1)
-                    }
-                    if let extras {
                         discoveryCard("Workflows", extras.workflows) { workflows in
                             chips(workflows) { workflow in
                                 chip(workflow.name, symbol: "point.3.connected.trianglepath.dotted",
@@ -165,20 +151,17 @@ struct PinnedProjectDetail: View {
                             discoveryCard("Artifacts", Found<ProjectArtifact>(unreadable: extras.artifacts.unreadable)) { _ in
                                 EmptyView()
                             }
-                            .tileSpan(3)
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                // Under the grid it takes its own height, so the slack still goes
-                // to the grid's last row.
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                // Under the sections it takes its own height.
                 rail.frame(width: railBeside ? Self.railWidth : nil)
                     .fixedSize(horizontal: false, vertical: !railBeside)
                 }
                 .padding(Self.pagePadding)
-                // At least the pane's height, inside the fixed size below: that
-                // is what proposes a height to the grid, which hands the slack
-                // to its last row. A page taller than the pane is unaffected.
+                // At least the pane's height, inside the fixed size below, so a
+                // short page still fills the pane. A taller page is unaffected.
                 .frame(minHeight: geo.size.height, alignment: .topLeading)
                 .frame(width: geo.size.width / scale, alignment: .topLeading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -244,15 +227,40 @@ struct PinnedProjectDetail: View {
 
     // MARK: - Cards
 
-    private var launchCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("Start")
-            Text((project.path as NSString).abbreviatingWithTildeInPath).font(.claudeMono(10)).foregroundStyle(Color.label)
-                .lineLimit(1).truncationMode(.middle)
+    /// The first row: what you can start here, then what the project has
+    /// published, as hero cards of one size. The prompt field stays under it,
+    /// because a card cannot hold a text field.
+    private var topPicks: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle("Top picks")
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: HeroMetrics.gap) {
+                    LaunchHeroCard(symbol: "plus",
+                                   eyebrow: (project.path as NSString).abbreviatingWithTildeInPath,
+                                   title: "New session",
+                                   hint: "Start Claude Code in \(project.path)") { start([]) }
+                    if let quick = project.quickStart {
+                        LaunchHeroCard(symbol: quick.systemImage, eyebrow: "Quick start", title: quick.label,
+                                       hint: "Start a session that runs \(quick.prompt)") {
+                            start(project.quickStartArgs ?? [quick.prompt])
+                        }
+                    }
+                    if let extras {
+                        ForEach(Array(extras.artifacts.items.enumerated()), id: \.offset) { _, artifact in
+                            ArtifactHeroCard(artifact: artifact) {
+                                withAnimation(.snappy) { focused = artifact }
+                            }
+                        }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
             TextField("New session in \(project.name)", text: $draft)
                 .textFieldStyle(.plain).font(.ui(12))
                 .padding(.horizontal, 10).padding(.vertical, 7)
-                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(Color.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.label.opacity(0.3)))
                 .onSubmit {
                     let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !prompt.isEmpty else { return }
@@ -260,29 +268,10 @@ struct PinnedProjectDetail: View {
                     draft = ""
                 }
                 .help("Return starts Claude Code in \(project.path) with this as its first prompt")
-            // Side by side when both fit, else stacked: beside the rail the card
-            // is a third of the main column and cut both labels short.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { launchButtons }
-                VStack(alignment: .leading, spacing: 6) { launchButtons }
-            }
-            .buttonStyle(.glass).font(.ui(11))
             if let failure {
                 Text(failure).font(.ui(10)).foregroundStyle(Color.attention)
                     .fixedSize(horizontal: false, vertical: true)
             }
-        }
-        .detailCard()
-    }
-
-    @ViewBuilder private var launchButtons: some View {
-        Button { start([]) } label: { Label("New session", systemImage: "plus").fixedSize() }
-            .help("Start Claude Code in \(project.path)")
-        if let quick = project.quickStart {
-            Button { start(project.quickStartArgs ?? [quick.prompt]) } label: {
-                Label(quick.label, systemImage: quick.systemImage).fixedSize()
-            }
-            .help("Start a session that runs \(quick.prompt)")
         }
     }
 
@@ -528,9 +517,9 @@ struct PinnedProjectDetail: View {
         return parts.joined(separator: " · ")
     }
 
-    private var tasksCard: some View {
+    private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(spacing: 10) {
                 // The chevron is only here when there is more to open: the same
                 // file the "+N more" link below opens.
                 if case .loaded(let open, _, let path) = tasks, open.count > Self.shownTasks {
@@ -540,7 +529,6 @@ struct PinnedProjectDetail: View {
                 } else {
                     SectionTitle("Tasks")
                 }
-                Spacer(minLength: 4)
                 if case .loaded(let open, let done, _) = tasks {
                     Text("\(open.count) open · \(done) done").font(.ui(10)).foregroundStyle(Color.label)
                 }
@@ -572,10 +560,9 @@ struct PinnedProjectDetail: View {
                 }
             }
         }
-        .detailCard()
     }
 
-    private var recentCard: some View {
+    private var recentSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             SectionTitle("Recent sessions")
             if let recent {
@@ -597,7 +584,6 @@ struct PinnedProjectDetail: View {
                 Text("Reading sessions…").font(.ui(10)).foregroundStyle(Color.label)
             }
         }
-        .detailCard()
     }
 
     /// A discovery card. Nothing at all when the source was empty; the items
@@ -616,7 +602,6 @@ struct PinnedProjectDetail: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .detailCard()
         }
     }
 

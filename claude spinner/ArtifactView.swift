@@ -149,11 +149,12 @@ final class ArtifactPopouts: NSObject, ObservableObject, NSWindowDelegate {
     }
 }
 
-/// An artifact as a dashboard card: a thumbnail of the live page, which expands
-/// to fill the whole detail pane (`onExpand`) or pops out to its own window.
-/// Half the width and half the height of a grid tile, so a row of them sits
-/// above the dashboard without pushing it down the page.
-struct ArtifactCard: View {
+/// An artifact as a hero card, after App Kit's `HeroCard`: the live page as the
+/// art at 3:4, the name and host inside the card over a dark scrim, and the card
+/// itself the Expand control (`onExpand`). Pop out and Open in browser stay as two
+/// small buttons on its top edge. The thumbnail keeps its old technique: the page
+/// is laid out four times the card and the picture drawn at a quarter.
+struct ArtifactHeroCard: View {
     let artifact: ProjectArtifact
     let onExpand: () -> Void
     @ObservedObject private var popouts = ArtifactPopouts.shared
@@ -161,98 +162,74 @@ struct ArtifactCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var host: String { URL(string: artifact.url)?.host() ?? "artifact" }
-    private static let thumbnailHeight: CGFloat = 72
     private static let thumbnailScale: CGFloat = 0.25
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 6) {
-                Image(systemName: "rectangle.stack.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.attention)
-                    .frame(width: 22, height: 22)
-                    .background(Color.attention.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(artifact.title)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                    Text(host).font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            // The summary is on hover: two lines of it do not fit a card this
-            // narrow, and half a sentence said less than none.
-            .help(artifact.summary ?? artifact.title)
-            // Own row: beside the title, three buttons left a one-column tile
-            // about 40pt for the name, which drew as "C".
-            if let url = URL(string: artifact.url) {
+        let url = URL(string: artifact.url)
+        ZStack(alignment: .topTrailing) {
+            Button { if let url { expand(url) } } label: { face(url) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(artifact.title), \(host)")
+                .accessibilityHint("Expand")
+                .help(artifact.summary ?? artifact.title)
+            if let url {
                 HStack(spacing: 4) {
-                    ArtifactIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Expand") {
-                        expand(url)
-                    }
                     ArtifactIconButton(symbol: "macwindow.on.rectangle", help: "Pop out to a floating window") {
                         thumbnails.forget(url)
                         popouts.show(title: artifact.title, url: url)
                     }
                     ArtifactIconButton(symbol: "safari", help: "Open in browser") { NSWorkspace.shared.open(url) }
                 }
-            }
-
-            if let url = URL(string: artifact.url) {
-                if popouts.open.contains(url.absoluteString) {
-                    Label("Open in its own window", systemImage: "macwindow.on.rectangle")
-                        .font(.ui(11)).foregroundStyle(Color.label)
-                        .frame(maxWidth: .infinity, minHeight: Self.thumbnailHeight)
-                } else {
-                    // A thumbnail, not a workspace: the page is laid out in a
-                    // window four times the box and the picture drawn at a
-                    // quarter, so it shows the page's shape. Page zoom did not
-                    // do this: the artifact's own frame kept its type size, and
-                    // the box held a toolbar, two scrollbars and one line of
-                    // text. Clicks go to Expand so scrolling the dashboard never
-                    // lands inside it. The page is only there until it has
-                    // drawn: its picture replaces it and the web view goes.
-                    Group {
-                        if let image = thumbnails.images[url.absoluteString]?[colorScheme] {
-                            Image(nsImage: image)
-                                .resizable()
-                                .interpolation(.high)
-                                .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity, maxHeight: Self.thumbnailHeight, alignment: .topLeading)
-                                .clipped()
-                        } else {
-                            GeometryReader { geo in
-                                ArtifactWebView(url: url) { thumbnails.keep($0, of: url, in: colorScheme) }
-                                    .frame(width: geo.size.width / Self.thumbnailScale,
-                                           height: Self.thumbnailHeight / Self.thumbnailScale)
-                                    .scaleEffect(Self.thumbnailScale, anchor: .topLeading)
-                            }
-                        }
-                    }
-                        .frame(height: Self.thumbnailHeight)
-                        .allowsHitTesting(false)
-                        // A picture: without this the whole page, every heading
-                        // and control in it, was read out from inside the card
-                        // with nothing in it that could be operated.
-                        .accessibilityHidden(true)
-                        .mask {
-                            LinearGradient(stops: [.init(color: .black, location: 0.85),
-                                                   .init(color: .clear, location: 1)],
-                                           startPoint: .top, endPoint: .bottom)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(Color.label.opacity(0.15))
-                                .contentShape(Rectangle())
-                                .onTapGesture { expand(url) }
-                                .accessibilityHidden(true)
-                        }
-                        .help("Expand")
-                }
+                .padding(8)
             }
         }
-        .detailCard()
+        .frame(width: HeroMetrics.width, height: HeroMetrics.height)
+    }
+
+    private func face(_ url: URL?) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            art(url)
+            HeroScrim()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(host).font(.ui(10)).foregroundStyle(.white.opacity(0.82)).lineLimit(1)
+                Text(artifact.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+            }
+            .padding(14)
+        }
+        .frame(width: HeroMetrics.width, height: HeroMetrics.height)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private func art(_ url: URL?) -> some View {
+        if let url {
+            if popouts.open.contains(url.absoluteString) {
+                ZStack {
+                    HeroGraphite()
+                    Label("Open in its own window", systemImage: "macwindow.on.rectangle")
+                        .font(.ui(11)).foregroundStyle(.white.opacity(0.82))
+                }
+            } else if let image = thumbnails.images[url.absoluteString]?[colorScheme] {
+                Image(nsImage: image).resizable().interpolation(.high)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: HeroMetrics.width, height: HeroMetrics.height, alignment: .topLeading)
+                    .clipped()
+                    .accessibilityHidden(true)
+            } else {
+                // The page is only there until it has drawn: its picture replaces
+                // it and the web view goes.
+                ArtifactWebView(url: url) { thumbnails.keep($0, of: url, in: colorScheme) }
+                    .frame(width: HeroMetrics.width / Self.thumbnailScale,
+                           height: HeroMetrics.height / Self.thumbnailScale)
+                    .scaleEffect(Self.thumbnailScale, anchor: .topLeading)
+                    .frame(width: HeroMetrics.width, height: HeroMetrics.height, alignment: .topLeading)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        } else {
+            HeroGraphite()
+        }
     }
 
     private func expand(_ url: URL) {
