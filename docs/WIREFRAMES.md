@@ -203,7 +203,7 @@ summary line                                (.ui(12))
 | `recentApplicationsCard` last 5 applied | 1 | Job Search only |
 | `liveCard` RUNNING NOW: `AskCard`s + `ConversationCard` per run | 3 | an unclaimed run is live |
 | `tasksCard` TASKS.md, 5 titles | 2 | always |
-| `recentCard` RECENT SESSIONS, Resume | 2 | always |
+| `recentCard` Recent sessions: `SessionShelf` (`SessionShelf.swift`), a horizontal row of `SessionTile`s, 124pt square art (project symbol on a neutral gradient) over a 50pt caption (name up to 2 lines, age). The tile is the button; "Resume" shows on hover or focus | 2 | always |
 | `discoveryCard("Skills")` chips, `LazyVGrid(.adaptive(minimum: 120))` | 1, 2 if more than 6 | always |
 | `discoveryCard("Workflows")` | 1 | always |
 | `discoveryCard("Artifacts")` error line | 3 | an artifact is unreadable |

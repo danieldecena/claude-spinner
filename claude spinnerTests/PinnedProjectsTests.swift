@@ -610,4 +610,21 @@ final class PinnedProjectsTests: XCTestCase {
             XCTAssertEqual(found.unreadable, [locked])
         }
     }
+
+    // MARK: - Session shelf
+
+    /// What VoiceOver reads for a tile: the session and how long ago. The word
+    /// "Resume" is the hint, so it is read once and not as part of every name.
+    func testSessionTileIsSpokenAsNameAndAge() {
+        XCTAssertEqual(SessionTile.spoken(headline: "CI errors", age: "3 hr. ago"), "CI errors, 3 hr. ago")
+    }
+
+    /// Both pinned projects get a symbol, and they are different ones: a tile that
+    /// drew the same blank on every project would say nothing about which it was.
+    func testEveryPinnedProjectHasADistinctTileSymbol() {
+        let symbols = PinnedProject.all.map(\.tileSymbol)
+        XCTAssertEqual(symbols.count, 2)
+        XCTAssertTrue(symbols.allSatisfy { !$0.isEmpty })
+        XCTAssertEqual(Set(symbols).count, symbols.count)
+    }
 }

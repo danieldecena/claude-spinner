@@ -32,6 +32,9 @@ struct PinnedProject: Identifiable, Equatable {
     /// reach, and a list of thirty is not a routine.
     var workflow: [Step] = []
 
+    /// The symbol on this project's session tiles (`SessionShelf`).
+    var tileSymbol: String { name == "Job Search" ? "briefcase" : "list.bullet.clipboard" }
+
     struct Step: Equatable, Identifiable {
         let label: String
         let systemImage: String

@@ -588,16 +588,9 @@ struct PinnedProjectDetail: View {
                     Text("No earlier sessions on disk for this folder.")
                         .font(.ui(10)).foregroundStyle(Color.label)
                 }
-                ForEach(recent.items) { session in
-                    HStack(spacing: 8) {
-                        Text(session.headline).font(.ui(11)).lineLimit(1).truncationMode(.tail)
-                            .help(session.lastPrompt ?? session.headline)
-                        Spacer(minLength: 4)
-                        Text(session.when.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
-                            .font(.ui(10)).foregroundStyle(Color.label).lineLimit(1)
-                        Button("Resume") { start(["--resume", session.id]) }
-                            .buttonStyle(.glass).font(.ui(10))
-                            .help("claude --resume \(session.id)")
+                if !recent.items.isEmpty {
+                    SessionShelf(sessions: recent.items, symbol: project.tileSymbol) { id in
+                        start(["--resume", id])
                     }
                 }
             } else {
