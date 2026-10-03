@@ -160,6 +160,18 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Decided: the bar's glass takes the playing cover's colour (playback plan slice 4,
+  `BarTint.swift`). The mean comes from `CIAreaAverage`, verified exact on sRGB images
+  (red gives 1,0,0; a grey 0.502); the tint is mixed at 0.30 and used only when the
+  bar's primary and quieter label ink both keep 4.5:1 on the resulting ground, else
+  plain glass. That test is the contrast, not the hue: the same yellow passes at 0.05
+  strength and fails at 0.30. The crossfade is 0.73 s ease-out, none under Reduce
+  Motion; no artwork-specific motion was captured, so this is `music-motion-shelf`, the
+  one measured Music ease-out. Consequence worth knowing: in dark mode the quieter label
+  ink (`#98989D`) fails 4.5:1 on any cover with a bright mean, so only dark covers tint
+  and light mode is stricter still; most covers fall back to plain glass. The current
+  cover (mostly white) was seen falling back. A tinted state was not seen live: that
+  would mean changing your track.
 - Decided: Music in the floating bar is a remote over Apple Events, not a second player
   (playback plan slices 1 to 3; `NowPlaying.swift`, `MusicStrip.swift`). Nothing is sent
   unless Music is already running, checked in Swift and again inside every script with

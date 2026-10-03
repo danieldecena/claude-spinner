@@ -102,6 +102,9 @@ struct FloatingBar: View {
     @Binding var notice: NoticeMessage?
 
     @ObservedObject private var drafts = ReplyDrafts.shared
+    @ObservedObject private var music = NowPlaying.shared
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sending = false
     @State private var hasPane = false
     @FocusState private var focused: Bool
@@ -109,6 +112,25 @@ struct FloatingBar: View {
     /// Four lines, then the field scrolls inside the capsule and the capsule stops
     /// growing.
     static let maxLines = 4
+
+    /// The playing cover's colour on the glass, or nil for plain glass: while Music
+    /// is closed, with no cover, or when the cover would take the bar's text below
+    /// 4.5:1 on it.
+    private var tint: Color? {
+        guard case .track = music.status, let average = music.artworkAverage else { return nil }
+        let dark = colorScheme == .dark
+        let pane = dark ? Color.Ink.paneDark : Color.Ink.paneLight
+        let ink: BarTint.RGB = dark ? (1, 1, 1) : (0.1, 0.1, 0.1)
+        let label = dark ? Color.Ink.labelDark : Color.Ink.labelLight
+        guard let used = BarTint.usable(average: average, pane: (pane.0, pane.1, pane.2), ink: ink,
+                                        label: (label.0, label.1, label.2)) else { return nil }
+        return Color(red: used.r, green: used.g, blue: used.b).opacity(BarTint.strength)
+    }
+
+    private var tintKey: String {
+        guard let a = music.artworkAverage else { return "" }
+        return String(format: "%.2f,%.2f,%.2f", a.r, a.g, a.b)
+    }
 
     private var text: Binding<String> { drafts.binding(for: session.id) }
     private var canSend: Bool {
@@ -129,7 +151,8 @@ struct FloatingBar: View {
                     MusicStrip()
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .glassEffect(.regular.tint(tint), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .animation(reduceMotion ? nil : .easeOut(duration: BarTint.fadeDuration), value: tintKey)
                 // The glass is barely lighter than a dark page: an edge and a soft
                 // shadow are what make it float instead of reading as a strip.
                 .overlay {

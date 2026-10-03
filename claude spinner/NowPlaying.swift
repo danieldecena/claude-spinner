@@ -157,6 +157,8 @@ final class NowPlaying: ObservableObject {
 
     @Published private(set) var status: NowPlayingStatus = .notRunning
     @Published private(set) var artwork: NSImage?
+    /// The cover's mean colour, for the bar's tint. nil with no cover.
+    @Published private(set) var artworkAverage: BarTint.RGB?
 
     private let isRunning: () -> Bool
     private let run: (String) -> ScriptOutcome
@@ -205,7 +207,7 @@ final class NowPlaying: ObservableObject {
     /// or closed Music has nothing that moves, so there is nothing to poll.
     private func tick() {
         guard isRunning() else {
-            if status != .notRunning { status = .notRunning; artwork = nil }
+            if status != .notRunning { status = .notRunning; artwork = nil; artworkAverage = nil }
             return
         }
         if case .track(let t) = status, t.isPlaying { refresh() }
@@ -217,6 +219,7 @@ final class NowPlaying: ObservableObject {
         guard isRunning() else {
             if status != .notRunning { status = .notRunning }
             artwork = nil
+            artworkAverage = nil
             return
         }
         let run = self.run
@@ -233,7 +236,7 @@ final class NowPlaying: ObservableObject {
         case .ok(let text):
             let next = NowPlayingScript.parse(text)
             if next != status { status = next }
-            if case .track(let t) = next { loadArtworkIfNeeded(for: t) } else { artwork = nil; artworkKey = "" }
+            if case .track(let t) = next { loadArtworkIfNeeded(for: t) } else { artwork = nil; artworkAverage = nil; artworkKey = "" }
         }
     }
 
@@ -248,7 +251,11 @@ final class NowPlaying: ObservableObject {
                       let data = Data(base64Encoded: encoded) else { return nil }
                 return NSImage(data: data)
             }.value
-            await MainActor.run { if self?.artworkKey == key { self?.artwork = image } }
+            await MainActor.run {
+                guard self?.artworkKey == key else { return }
+                self?.artwork = image
+                self?.artworkAverage = image.flatMap(BarTint.average(of:))
+            }
         }
     }
 
