@@ -77,6 +77,9 @@ struct AttentionLinkStyle: ButtonStyle {
             .foregroundStyle(Color.attention)
             .opacity(configuration.isPressed ? 0.6 : 1)
             .pointerStyle(.link)
+            // The system link style reports a link; a custom style reports a button
+            // unless told otherwise, and "+15 more" opens a file.
+            .accessibilityAddTraits(.isLink)
     }
 }
 
