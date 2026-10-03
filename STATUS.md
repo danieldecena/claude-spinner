@@ -185,6 +185,18 @@ Nothing queued. The rest is in `TASKS.md`.
   select a sidebar row by activate + AXRaise + click in one osascript, or
   Chrome/Ghostty above it take the click.
 
+- Decided: the App Kit tab's "selection moves after launch" is NOT
+  reproduced, so no fix was written. Seen twice on 2026-10-02 (TrackList
+  Solo -> Nights, SidebarList Home -> Songs). A logging build (`onChange` on
+  both selections, with call stacks) was installed and driven three ways:
+  AX `AXSelected` on the App Kit row, a real mouse click on it, and arrow
+  keys from Home with the app verified frontmost. Zero selection changes in
+  10s each. The logging was proven live by a control click on "Albums"
+  (logged `nav Home -> Albums`). The two sightings came from sessions that
+  were also driving the window with AX and CGEvent clicks, so test tooling
+  is the leading suspect, but that is not shown. Neither list takes arrow
+  keys unfocused. Re-add the logging if it recurs during normal use.
+
 ### 2026-10-02 (earlier)
 
 - Decided: auto-merge switches itself on from the watcher, not the Git card,
