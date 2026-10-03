@@ -2579,13 +2579,19 @@ final class claude_spinnerTests: XCTestCase {
             let pgrep = bin.appendingPathComponent("pgrep")
             try Data("#!/bin/sh\nexit 0\n".utf8).write(to: pgrep)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: pgrep.path)
+            // Nor is the frontmost check, but an unknown frontmost app no longer
+            // waits, so the terminal is stubbed as known and behind.
+            let lsappinfo = bin.appendingPathComponent("lsappinfo")
+            try Data(("#!/bin/sh\n[ \"$1\" = front ] && echo ASN:0x0-0x1 && exit 0\n"
+                      + "echo '    bundleID=\"com.example.other\"'\n").utf8).write(to: lsappinfo)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: lsappinfo.path)
             let hook = Process()
             hook.executableURL = URL(fileURLWithPath: "/bin/sh")
             hook.arguments = ["-x", script.path, "permission"]
             let trace = Pipe()
             hook.standardError = trace
             hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin",
-                                "SPINNER_ASK_TIMEOUT": "30"]
+                                "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": "com.example.term"]
             let stdin = Pipe()
             hook.standardInput = stdin
             try hook.run()
@@ -2783,7 +2789,8 @@ final class claude_spinnerTests: XCTestCase {
     /// Runs ask.sh in question mode on the two-question form with `front` as the
     /// frontmost app, feeds it `answer` once its ask file appears, and returns
     /// what it printed. `ask` is the decoded ask file, nil if none was written.
-    private func runFormHook(front: String, answer: String?) throws
+    private func runFormHook(front: String, answer: String?,
+                             bundle: String? = "com.example.term", timeout: String = "30") throws
         -> (stdout: String, status: Int32, ask: AskRequest?, waited: Bool) {
         let script = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -2804,8 +2811,10 @@ final class claude_spinnerTests: XCTestCase {
             let hook = Process()
             hook.executableURL = URL(fileURLWithPath: "/bin/sh")
             hook.arguments = [script.path, "question"]
-            hook.environment = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
-                                "SPINNER_ASK_TIMEOUT": "30", "__CFBundleIdentifier": "com.example.term"]
+            var env = ["HOME": home.path, "PATH": "\(bin.path):/usr/bin:/bin:/opt/homebrew/bin",
+                       "SPINNER_ASK_TIMEOUT": timeout, "TERM_PROGRAM": "tmux"]
+            if let bundle { env["__CFBundleIdentifier"] = bundle }
+            hook.environment = env
             let stdin = Pipe()
             let out = Pipe()
             hook.standardInput = stdin
@@ -2881,6 +2890,45 @@ final class claude_spinnerTests: XCTestCase {
             XCTAssertEqual(run.stdout, "", "printed a decision for \(answer)")
             XCTAssertEqual(run.status, 0)
         }
+    }
+
+    /// When the frontmost app cannot be told, the hook must not wait: holding the
+    /// terminal's prompt back on a guess is the worse way to be wrong. Each case
+    /// is the known-bad input; the terminal-behind tests above are the known-good.
+    func testAskScriptDoesNotWaitWhenTheFrontmostAppIsUnknown() throws {
+        let noFront = try runFormHook(front: "", answer: nil)
+        XCTAssertNil(noFront.ask, "an empty frontmost reading must fall through to the terminal")
+        XCTAssertEqual(noFront.stdout, "")
+        XCTAssertEqual(noFront.status, 0)
+        let noHost = try runFormHook(front: "com.example.other", answer: nil, bundle: nil)
+        XCTAssertNil(noHost.ask, "TERM_PROGRAM=tmux is not a bundle id to compare against")
+        XCTAssertEqual(noHost.stdout, "")
+        XCTAssertEqual(noHost.status, 0)
+    }
+
+    /// A reply must answer these questions, with text. Same count under other
+    /// keys, or non-string values, would skip the terminal box with nonsense.
+    func testAskScriptPrintsNothingForAnswersThatAreNotTheseQuestions() throws {
+        for answer in [#"{"behavior":"allow","answers":{"a":"1","b":"2"}}"#,
+                       #"{"behavior":"allow","answers":{"Pick a color?":1,"Pick toppings?":null}}"#,
+                       #"{"behavior":"allow","answers":["Green","Ham"]}"#] {
+            let run = try runFormHook(front: "com.example.other", answer: answer)
+            XCTAssertTrue(run.waited, "precondition: the hook reached its wait for \(answer)")
+            XCTAssertEqual(run.stdout, "", "printed a decision for \(answer)")
+            XCTAssertEqual(run.status, 0)
+        }
+    }
+
+    /// A timeout that is not a whole number falls back to the default instead of
+    /// killing the hook after it wrote its ask file. A complete answer still works.
+    func testAskScriptSurvivesAFractionalTimeout() throws {
+        let run = try runFormHook(
+            front: "com.example.other",
+            answer: #"{"behavior":"allow","answers":{"Pick a color?":"Green","Pick toppings?":"Ham"}}"#,
+            timeout: "1.5")
+        XCTAssertTrue(run.waited)
+        XCTAssertEqual(run.status, 0)
+        XCTAssertTrue(run.stdout.contains(#""permissionDecision":"allow""#), run.stdout)
     }
 
     // MARK: - What the permission is actually for

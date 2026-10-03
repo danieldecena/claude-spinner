@@ -38,11 +38,17 @@ host="${__CFBundleIdentifier:-${TERM_PROGRAM:-}}"
 # Whether the session's own terminal is the frontmost app. A hook that waits
 # holds the terminal's prompt back until it returns, so waiting while you are
 # looking at the terminal means the prompt never appears there.
+#
+# Unknown counts as front: waiting on a guess holds the prompt back for the whole
+# deadline, while answering "front" only costs the terminal drawing its own box.
+# TERM_PROGRAM is not a bundle id (tmux sets it to "tmux"), so only
+# __CFBundleIdentifier can say which app to compare against.
 terminal_is_front() {
-    [ -n "$host" ] || return 1
+    [ -n "${__CFBundleIdentifier:-}" ] || return 0
     front=$(lsappinfo info -only bundleid "$(lsappinfo front 2>/dev/null)" 2>/dev/null \
         | sed -n 's/.*bundleID="\([^"]*\)".*/\1/p')
-    [ "$front" = "$host" ]
+    [ -n "$front" ] || return 0
+    [ "$front" = "$__CFBundleIdentifier" ]
 }
 
 form=false
@@ -129,7 +135,9 @@ printf '%s' "$input" | jq -c \
 
 # Poll rather than wait on the file: sh has no portable inotify, and a dropped
 # notification must still time out cleanly.
-deadline=$(( now + ${SPINNER_ASK_TIMEOUT:-300} ))
+timeout="${SPINNER_ASK_TIMEOUT:-300}"
+case "$timeout" in ''|*[!0-9]*) timeout=300 ;; esac
+deadline=$(( now + timeout ))
 while [ "$(date +%s)" -lt "$deadline" ]; do
     [ -f "$answer" ] && break
     sleep 0.2
@@ -159,7 +167,9 @@ if [ "$mode" = "question" ]; then
     [ "$behavior" = "allow" ] || exit 0
     printf '%s' "$input" | jq -c --argjson reply "$reply" '
         ($reply.answers // {}) as $a
-        | select(($a | type) == "object" and ($a | length) == (.tool_input.questions | length))
+        | select(($a | type) == "object"
+                 and ($a | all(.[]; type == "string"))
+                 and ([.tool_input.questions[].question] - ($a | keys)) == [])
         | {hookSpecificOutput: {
             hookEventName: "PreToolUse",
             permissionDecision: "allow",
