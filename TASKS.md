@@ -10,7 +10,7 @@
 - [x] Probe multi-question, multi-select hook answer format
 - [x] Stop ask.sh permission handling AskUserQuestion -- c6cadd7
 - [x] Hold a form ask in ask.sh for the app -- 6f4c376
-- [ ] Model form asks and answers in AskInbox
+- [x] Model form asks and answers in AskInbox -- 6f0f34e
 - [ ] Draw the form card, install the hook, run it live
 - [x] Add sync-appkit.sh to copy and check the App Kit files -- 7fa79af
 - [x] Add invariants check 41 for App Kit copy drift -- bin a15c0df
