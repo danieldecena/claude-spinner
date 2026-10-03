@@ -160,6 +160,23 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-02
+- Decided: the App Kit tab's copies are synced and checked by `./sync-appkit.sh`
+  (`--check` prints OK/DRIFT/BROKEN), and `~/bin/invariants.sh` check 41 runs it
+  daily. The boundary in the spike is its `// MARK: - Spike window` line, not
+  "lines 1-403". Not a unit test: the fact spans two repos, and an uncommitted
+  app-kit edit would fail this repo's CI. Seen on every branch: clean OK, a
+  byte appended to each copy DRIFT, missing or empty source and a marker-less
+  spike BROKEN.
+- Decided: the sidebar material is judged in a pop-out, not in the tab
+  (39a100f). A NavigationSplitView nested in the detail pane drew the material
+  but clipped the sidebar's first row and inflated the page's top inset, so
+  the tab keeps its plain column and "Open in Window" hosts the same page as a
+  window's root. Its sidebar matched the spike's own window in key-window
+  captures, light and dark. `design:accessibility-review` was NOT run on the
+  pop-out: same component and tokens as the spike window app-kit reviewed.
+- Seen, not explained: the main window's frame differed on each capture this
+  session (1521x857, 1363x846, 1468x871, 1479x881) with nothing resizing it on
+  purpose. Not investigated.
 - Verified: a PreToolUse hook answers a two-question AskUserQuestion call, one of them
   multiSelect, with `updatedInput.answers` keyed on the question text. The multi-select
   value is the labels joined with ", ". No terminal box was drawn: the pane showed

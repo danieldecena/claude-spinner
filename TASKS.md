@@ -14,7 +14,7 @@
 - [ ] Draw the form card, install the hook, run it live
 - [x] Add sync-appkit.sh to copy and check the App Kit files -- 7fa79af
 - [x] Add invariants check 41 for App Kit copy drift -- bin a15c0df
-- [ ] Give the App Kit tab a real split-view sidebar
+- [x] Give the App Kit tab a real split-view sidebar -- pop-out, 39a100f
 
 
 ## Completed
