@@ -74,7 +74,7 @@ struct PinnedProjectDetail: View {
             // Above the scroll, not in it: inside, the title slid up under the opaque
             // toolbar strip and was drawn cut off at its top edge (seen 2026-09-30).
             VStack(alignment: .leading, spacing: 4) {
-                Text(project.name).font(.system(size: 26, weight: .semibold, design: .serif))
+                Text(project.name).font(.system(size: 26, weight: .bold))
                 Text(project.summary).font(.ui(12)).foregroundStyle(Color.label)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -246,7 +246,7 @@ struct PinnedProjectDetail: View {
 
     private var launchCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CardTitle("Start")
+            SectionTitle("Start")
             Text((project.path as NSString).abbreviatingWithTildeInPath).font(.claudeMono(10)).foregroundStyle(Color.label)
                 .lineLimit(1).truncationMode(.middle)
             TextField("New session in \(project.name)", text: $draft)
@@ -392,7 +392,7 @@ struct PinnedProjectDetail: View {
     private var workflowCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                CardTitle("Workflow")
+                SectionTitle("Workflow")
                 Spacer(minLength: 4)
                 waiting(on: runs.byStep.values.flatMap { $0 })
             }
@@ -461,7 +461,7 @@ struct PinnedProjectDetail: View {
     private var liveCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                CardTitle("Running now")
+                SectionTitle("Running now")
                 Spacer(minLength: 4)
                 waiting(on: runs.other)
             }
@@ -531,7 +531,15 @@ struct PinnedProjectDetail: View {
     private var tasksCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                CardTitle("Tasks")
+                // The chevron is only here when there is more to open: the same
+                // file the "+N more" link below opens.
+                if case .loaded(let open, _, let path) = tasks, open.count > Self.shownTasks {
+                    SectionTitle("Tasks", opens: "Open \(path)") {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    }
+                } else {
+                    SectionTitle("Tasks")
+                }
                 Spacer(minLength: 4)
                 if case .loaded(let open, let done, _) = tasks {
                     Text("\(open.count) open · \(done) done").font(.ui(10)).foregroundStyle(Color.label)
@@ -569,7 +577,7 @@ struct PinnedProjectDetail: View {
 
     private var recentCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CardTitle("Recent sessions")
+            SectionTitle("Recent sessions")
             if let recent {
                 if !recent.unreadable.isEmpty {
                     Text("Couldn't read " + recent.unreadable.joined(separator: ", "))
@@ -607,7 +615,7 @@ struct PinnedProjectDetail: View {
     ) -> some View {
         if !found.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                CardTitle(title)
+                SectionTitle(title)
                 if !found.items.isEmpty { content(found.items) }
                 if !found.unreadable.isEmpty {
                     Text("Couldn't read " + found.unreadable.joined(separator: ", "))
@@ -658,7 +666,7 @@ struct PinnedProjectDetail: View {
     private var jobPipelineCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                CardTitle("Job Pipeline")
+                SectionTitle("Job pipeline")
                 Spacer()
                 Button {
                     let task = Process()
@@ -746,7 +754,7 @@ struct PinnedProjectDetail: View {
 
     private var scoutStatusCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CardTitle("Scout Daemon")
+            SectionTitle("Scout daemon")
             HStack {
                 Circle()
                     .fill(scoutStatus ? Color.green : Color.secondary)
@@ -771,7 +779,7 @@ struct PinnedProjectDetail: View {
 
     private var recentApplicationsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CardTitle("Recent Applications")
+            SectionTitle("Recent applications")
             if recentApplications.isEmpty {
                 Text("No recent applications.").font(.ui(11)).foregroundStyle(Color.secondary)
             } else {
@@ -821,6 +829,42 @@ struct PinnedProjectDetail: View {
                 NewSession.launch(in: path, claudeArgs: args)
             }.value
             failure = error.map { "Couldn't open Ghostty: \($0)" }
+        }
+    }
+}
+
+/// A section header on the pinned-project page: bold, sentence case, in the
+/// primary ink. The "›" is the Music red, which is a mark colour only (it
+/// measures 3.5:1 on the pane, but 4.13:1 as text), and it appears only when the
+/// header opens something. `CardTitle` stays the uppercase label the session
+/// pane uses.
+struct SectionTitle: View {
+    let text: String
+    var help: String?
+    var action: (() -> Void)?
+
+    init(_ text: String) { self.text = text }
+    init(_ text: String, opens help: String, action: @escaping () -> Void) {
+        self.text = text
+        self.help = help
+        self.action = action
+    }
+
+    var body: some View {
+        if let action {
+            Button(action: action) {
+                HStack(spacing: 4) {
+                    Text(text).font(.ui(15)).fontWeight(.bold)
+                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.Kit.musicAccent)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(help ?? "")
+            .accessibilityLabel(text)
+            .accessibilityHint(help ?? "")
+        } else {
+            Text(text).font(.ui(15)).fontWeight(.bold).accessibilityAddTraits(.isHeader)
         }
     }
 }

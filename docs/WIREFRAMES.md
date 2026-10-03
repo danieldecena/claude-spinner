@@ -161,7 +161,7 @@ Pinned rows come from `PinnedProject.all` = Job Search, Plans
 `ArtifactFullView` (`ArtifactView.swift`).
 
 ```
-Job Search                                  (serif 26 semibold, outside PaneFit)
+Job Search                                  (SF 26 bold, outside PaneFit)
 summary line                                (.ui(12))
 +--------------------------------------------------+ +------------------+
 | TileGrid(minimum: 220, spacing: 12,              | | rail     w300    |
@@ -263,6 +263,7 @@ at each call site; match them rather than inventing new ones.
 | `.detailCard()` / `DetailCard` | `WindowContentView.swift` | the card: padding 16, fills, `Color.card`, radius 14, no border or shadow |
 | `OptionalCard` | `WindowContentView.swift` | `.detailCard()` only when `framed` |
 | `CardTitle` | `WindowContentView.swift` | card heading: `.ui(10)` semibold, uppercase, tracking 0.8, `Color.label` |
+| `SectionTitle` | `PinnedProjectDetail.swift` | the pinned page's card heading: `.ui(15)` bold, sentence case, primary ink; with `opens:` it is a button and draws a `chevron.right` in `Color.Kit.musicAccent` (Tasks, when more than 5 are open). `CardTitle` stays for the session pane |
 | `ChipFlow` (`Layout`) | `WindowContentView.swift` | wrapping chips at natural width, spacing 6 |
 | `StatSection` | `WindowContentView.swift` | titled key/value `Grid`, mono values |
 | `PaneFit` | `WindowContentView.swift` | scale-to-fit, floor 0.55 |
