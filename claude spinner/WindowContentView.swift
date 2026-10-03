@@ -765,6 +765,14 @@ struct AskCard: View {
     @State private var armed = false
 
     var body: some View {
+        if ask.isForm {
+            AskFormCard(ask: ask)
+        } else {
+            single
+        }
+    }
+
+    private var single: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(ask.kind == .permission ? "Permission needed" : (ask.question?.header ?? "Question"))
                 .font(.ui(11)).foregroundStyle(Color.attention)
@@ -846,6 +854,105 @@ struct AskCard: View {
             ? (sent ? label : "expired — answer it in the terminal")
             : (sent ? "\(label), typed into the terminal"
                     : "couldn't type into this session — answer it in the terminal")
+        AskInbox.shared.rescan()
+    }
+}
+
+/// A form: every question of the ask, each with its options, sent together.
+///
+/// The hook is waiting on all the answers at once, so nothing is sent until each
+/// question has a pick. "Answer in terminal" hands it back: the hook returns
+/// without a decision and Claude Code draws its own box.
+struct AskFormCard: View {
+    let ask: AskRequest
+    @State private var picks: [Int: Set<String>] = [:]
+    @State private var outcome: String?
+    @State private var armed = false
+
+    private var questions: [AskQuestion] { ask.questions ?? [] }
+    private var answers: [String: String]? { AskForm.answers(for: questions, picks: picks) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(questions.count == 1 ? (questions[0].header ?? "Question")
+                                      : "\(questions.count) questions")
+                .font(.ui(11)).foregroundStyle(Color.attention)
+
+            if let outcome {
+                Text(outcome).font(.ui(11)).foregroundStyle(Color.label)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(Array(questions.enumerated()), id: \.offset) { index, question in
+                    self.question(question, at: index)
+                }
+                HStack(spacing: 8) {
+                    Button("Send answers") { send() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!armed || answers == nil)
+                    Button("Answer in terminal") { handBack() }
+                        .buttonStyle(.bordered)
+                        .disabled(!armed)
+                }
+            }
+        }
+        .task(id: ask.req) {
+            armed = false
+            try? await Task.sleep(for: AskCard.armDelay)
+            armed = true
+        }
+        .padding(12)
+        .background(Color.attention.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func question(_ question: AskQuestion, at index: Int) -> some View {
+        let multi = question.multiSelect == true
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(question.question).font(.ui(13)).fontWeight(.semibold)
+                .fixedSize(horizontal: false, vertical: true)
+            if multi {
+                Text("Pick any that apply").font(.ui(10)).foregroundStyle(Color.label)
+            }
+            ForEach(Array((question.options ?? []).enumerated()), id: \.offset) { _, option in
+                let on = picks[index]?.contains(option.label) ?? false
+                Button {
+                    picks = AskForm.toggle(option.label, at: index, multi: multi, in: picks)
+                } label: {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: multi ? (on ? "checkmark.square.fill" : "square")
+                                                : (on ? "largecircle.fill.circle" : "circle"))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(option.label).font(.ui(11))
+                            if let detail = option.description {
+                                Text(detail).font(.ui(10))
+                                    .foregroundStyle(Color.label)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!armed)
+                .accessibilityLabel(option.label)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+    }
+
+    private func send() {
+        guard let answers else { return }
+        // False means ask.sh already gave up and Claude Code is showing its own
+        // box. Say that rather than reporting answers that went nowhere.
+        let sent = AskInbox.shared.answer(ask, with: .form(answers))
+        outcome = sent
+            ? "Answered: " + questions.map { answers[$0.question] ?? "" }.joined(separator: " / ")
+            : "expired — answer it in the terminal"
+        AskInbox.shared.rescan()
+    }
+
+    private func handBack() {
+        let sent = AskInbox.shared.answer(ask, with: .passthrough)
+        outcome = sent ? "Left for the terminal" : "expired — answer it in the terminal"
         AskInbox.shared.rescan()
     }
 }

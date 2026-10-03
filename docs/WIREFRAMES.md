@@ -96,6 +96,30 @@ and Calendar, which share a two-column TileGrid.
 **Every grid child is `.tileSpan(.max)`**, so the grid is really a column of
 full-width rows; the side-by-side layout inside R1 and R2 is plain `HStack`.
 
+`AskCard` draws one question (or a permission) with one button per option.
+When `ask.isForm` it draws `AskFormCard` instead:
+
+```text
+AskFormCard (WindowContentView.swift) -- drawn by AskCard when ask.isForm
++--------------------------------------------------------------+
+| 2 questions                                    ui(11) attention
+|                                                               |
+| Pick a color?                                  ui(13) semibold|
+| [ (o) Red                                                   ] |
+| [ ( ) Green                                                 ] |
+|                                                    spacing 10 |
+| Pick toppings?                                                |
+| Pick any that apply                            ui(10) label   |
+| [ [x] Ham                                                   ] |
+| [ [ ] Olives                                                ] |
+|                                                               |
+| [ Send answers ]  [ Answer in terminal ]                      |
++--------------------------------------------------------------+
+padding 12, corner radius 8, attention 8% fill (same as AskCard).
+Send answers is disabled until every question has a pick.
+After sending: one line, "Answered: Red / Ham".
+```
+
 ```
 R1 +-------------------------------------------+  +----------------------+
    | ConversationCard            (flexible)    |  | SkillsCard    w380   |
