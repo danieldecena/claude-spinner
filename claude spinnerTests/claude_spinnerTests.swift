@@ -2455,6 +2455,87 @@ final class claude_spinnerTests: XCTestCase {
         XCTAssertNil(AskInbox.digit(for: .allow, in: ask))
     }
 
+    // MARK: - Forms: several questions, or several answers to one
+
+    private func makeFormAsk() -> AskRequest {
+        let json = """
+        {"req":"sid-100-7","kind":"question","session_id":"sid","cwd":"/tmp/proj",
+         "created":100,"waits":true,"session_pid":null,
+         "questions":[{"question":"Pick a color?","options":[{"label":"Red"},{"label":"Green"}]},
+                      {"question":"Pick toppings?","multiSelect":true,
+                       "options":[{"label":"Ham"},{"label":"Olives"},{"label":"Corn"}]}]}
+        """
+        return try! JSONDecoder().decode(AskRequest.self, from: Data(json.utf8))
+    }
+
+    /// Both halves: the two shapes that are forms, and the one that is not.
+    func testIsFormIsSeveralQuestionsOrAMultiSelect() {
+        XCTAssertTrue(makeFormAsk().isForm)
+        let oneMulti = try! JSONDecoder().decode(AskRequest.self, from: Data("""
+        {"req":"sid-100-7","kind":"question","session_id":"sid","cwd":"/tmp","created":1,"waits":true,
+         "questions":[{"question":"q","multiSelect":true,"options":[{"label":"a"}]}]}
+        """.utf8))
+        XCTAssertTrue(oneMulti.isForm)
+        XCTAssertFalse(makeQuestionAsk(waits: false).isForm)
+        XCTAssertFalse(makePermissionAsk(toolInput: "{}").isForm)
+    }
+
+    /// A single-select question holds one pick; a multi-select toggles each.
+    func testToggleReplacesASinglePickAndTogglesAMultiPick() {
+        var picks = AskForm.toggle("Red", at: 0, multi: false, in: [:])
+        picks = AskForm.toggle("Green", at: 0, multi: false, in: picks)
+        XCTAssertEqual(picks[0], ["Green"])
+        picks = AskForm.toggle("Olives", at: 1, multi: true, in: picks)
+        picks = AskForm.toggle("Ham", at: 1, multi: true, in: picks)
+        XCTAssertEqual(picks[1], ["Ham", "Olives"])
+        picks = AskForm.toggle("Olives", at: 1, multi: true, in: picks)
+        XCTAssertEqual(picks[1], ["Ham"])
+        XCTAssertEqual(picks[0], ["Green"], "another question's picks are untouched")
+    }
+
+    /// Labels come out in the question's option order, not click order, joined
+    /// the way the 2026-10-02 probe showed Claude Code expects.
+    func testFormAnswersJoinPicksInOptionOrder() {
+        let questions = makeFormAsk().questions ?? []
+        let answers = AskForm.answers(for: questions, picks: [0: ["Green"], 1: ["Olives", "Ham"]])
+        XCTAssertEqual(answers, ["Pick a color?": "Green", "Pick toppings?": "Ham, Olives"])
+    }
+
+    /// No answers until every question has a pick, and a label that is not one
+    /// of the question's options does not count as one.
+    func testFormAnswersNeedAPickForEveryQuestion() {
+        let questions = makeFormAsk().questions ?? []
+        XCTAssertNil(AskForm.answers(for: questions, picks: [:]))
+        XCTAssertNil(AskForm.answers(for: questions, picks: [0: ["Green"]]))
+        XCTAssertNil(AskForm.answers(for: questions, picks: [0: ["Green"], 1: []]))
+        XCTAssertNil(AskForm.answers(for: questions, picks: [0: ["Blue"], 1: ["Ham"]]))
+        XCTAssertNotNil(AskForm.answers(for: questions, picks: [0: ["Green"], 1: ["Ham"]]))
+    }
+
+    /// The file ask.sh reads back: allow, plus every answer.
+    func testWriteCarriesAFormsAnswers() throws {
+        try withTempDir { dir in
+            let ask = makeFormAsk()
+            try Data("{}".utf8).write(to: dir.appendingPathComponent("\(ask.req).ask.json"))
+            let answers = ["Pick a color?": "Green", "Pick toppings?": "Ham, Olives"]
+            XCTAssertTrue(AskInbox.write(.form(answers), for: ask, in: dir))
+            let data = try Data(contentsOf: dir.appendingPathComponent("\(ask.req).answer.json"))
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(object["behavior"] as? String, "allow")
+            XCTAssertEqual(object["answers"] as? [String: String], answers)
+        }
+    }
+
+    /// A banner button would answer the first question only, and the hook would
+    /// then print nothing. A form's banner opens the session; a single
+    /// question's banner still carries its options.
+    func testAFormsBannerOffersNoOptionButtons() {
+        let form = AskInbox.categories(for: [makeFormAsk()])
+        XCTAssertEqual(form.first?.actions.map(\.title), ["Open session"])
+        let single = AskInbox.categories(for: [makeQuestionAsk(waits: false)])
+        XCTAssertEqual(single.first?.actions.map(\.title), ["Alpha", "Beta", "Open session"])
+    }
+
     func testOrphanedDropsOnlyRequestsWhoseHookIsGone() {
         let live = makeAsk(req: "sid-1-100")
         let dead = makeAsk(req: "sid-1-200")

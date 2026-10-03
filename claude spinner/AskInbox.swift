@@ -14,6 +14,8 @@ struct AskQuestion: Decodable, Equatable {
     let question: String
     let header: String?
     let options: [AskOption]?
+    /// Absent means one answer, the tool's own default.
+    let multiSelect: Bool?
 }
 
 /// `tool_input`, decoded only as far as its string fields.
@@ -103,10 +105,17 @@ nonisolated struct AskRequest: Decodable, Identifiable, Equatable {
         return name.isEmpty ? "session" : name
     }
 
-    /// The single question `ask.sh` guarantees when it hands over a `question`
-    /// ask — it passes multi-question and multiSelect shapes through to the
-    /// terminal, because a banner cannot express either.
+    /// The one question of a single-select ask. A form carries more, or one
+    /// that takes several answers; the card reads `questions` for those.
     var question: AskQuestion? { questions?.first }
+
+    /// Several questions at once, or a question that takes several answers.
+    /// `ask.sh` only hands these over when it is waiting for every answer back,
+    /// because a digit typed into the terminal box cannot express either.
+    var isForm: Bool {
+        kind == .question
+            && ((questions?.count ?? 0) > 1 || questions?.first?.multiSelect == true)
+    }
 
     enum CodingKeys: String, CodingKey {
         case req, kind, cwd, created, questions, waits
@@ -120,6 +129,8 @@ nonisolated struct AskRequest: Decodable, Identifiable, Equatable {
 /// What the user chose, written back as `<req>.answer.json` for `ask.sh` to read.
 nonisolated enum AskAnswer: Equatable {
     case option(String)   // a labelled choice for a question ask
+    /// Every answer of a form, keyed on the question text.
+    case form([String: String])
     case allow
     case deny
     /// Seen and declined — the banner was dismissed, or the user went to the
@@ -128,10 +139,43 @@ nonisolated enum AskAnswer: Equatable {
 
     var behavior: String {
         switch self {
-        case .option, .allow: return "allow"
+        case .option, .form, .allow: return "allow"
         case .deny: return "deny"
         case .passthrough: return "passthrough"
         }
+    }
+}
+
+/// The picks of a form, and the answers they add up to. Pure, so the rules the
+/// card depends on are tested without drawing it.
+nonisolated enum AskForm {
+    /// How Claude Code writes several labels into one answer (probed 2026-10-02).
+    static let separator = ", "
+
+    /// `picks` after a click on `label` in question `index`: a single-select
+    /// question keeps only the newest pick, a multi-select toggles it.
+    static func toggle(_ label: String, at index: Int, multi: Bool,
+                       in picks: [Int: Set<String>]) -> [Int: Set<String>] {
+        var next = picks
+        var chosen = multi ? (next[index] ?? []) : []
+        if chosen.contains(label) { chosen.remove(label) } else { chosen.insert(label) }
+        next[index] = chosen
+        return next
+    }
+
+    /// One answer per question, labels in the question's own option order. Nil
+    /// until every question has a pick: `ask.sh` drops a reply with fewer
+    /// answers than questions, so sending early would only look like it worked.
+    static func answers(for questions: [AskQuestion],
+                        picks: [Int: Set<String>]) -> [String: String]? {
+        var out: [String: String] = [:]
+        for (index, question) in questions.enumerated() {
+            let chosen = picks[index] ?? []
+            let labels = (question.options ?? []).map(\.label).filter(chosen.contains)
+            guard !labels.isEmpty else { return nil }
+            out[question.question] = labels.joined(separator: separator)
+        }
+        return out.count == questions.count ? out : nil
     }
 }
 
@@ -356,6 +400,9 @@ final class AskInbox: ObservableObject {
         if case .option(let label) = answer, let question = req.question {
             payload["answers"] = [question.question: label]
         }
+        if case .form(let answers) = answer {
+            payload["answers"] = answers
+        }
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return false }
 
         // Same tmp+rename the hook scripts use: ask.sh polls for this path, and a
@@ -434,8 +481,9 @@ final class AskInbox: ObservableObject {
             case .question:
                 // Only two show on a banner; the rest need the notification
                 // expanded. Documented behaviour, and the reason the window's
-                // detail pane is the surface for anything longer.
-                actions = (req.question?.options ?? []).enumerated().map { index, option in
+                // detail pane is the surface for anything longer. A form gets
+                // none: one tap would answer its first question only.
+                actions = req.isForm ? [] : (req.question?.options ?? []).enumerated().map { index, option in
                     UNNotificationAction(identifier: actionID(req: req.req,
                                                               choice: optionChoice(index)),
                                          title: option.label, options: [])
