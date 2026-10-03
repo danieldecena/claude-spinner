@@ -160,6 +160,22 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Shipped: roadmap pushes 2 and 3 (hero cards and sections, the floating bar, Music in
+  the bar with the cover tint, and the docs) as `f41fcf0`, code identical to what was
+  notarized. CI was green on that sha before the build; `./notarize.sh` returned
+  `status: Accepted`, stapled, Gatekeeper `accepted, source=Notarized Developer ID`,
+  origin Developer ID Application: Daniel Decena (877MLS29T9). The signed binary
+  carries `com.apple.security.automation.apple-events` and the Apple Events usage
+  string. Installed over `/Applications/claude spinner.app` (binary `cmp` identical, the
+  running process is that path); the previous copy is in `build/previous/`. On first
+  launch the music strip showed the live track, so Automation to Music works under this
+  signature; the Calendar card again read "Reading the calendar..." (the Calendars
+  grant still pending, as after the first notarized install).
+- Roadmap: all slices ticked except 7 (trends, parked on purpose). Music and playback
+  plans are `done`, the older ui-pass plan is `parked`; `HANDOFF.md`, `README.md` and
+  the wireframes describe the app as it is (70 backticked identifiers in the wireframe
+  checked against the sources, the check shown to fail on fake names). The window-frame
+  question (a different size on every capture on 2026-10-02) was not looked into.
 - Decided: the bar's glass takes the playing cover's colour (playback plan slice 4,
   `BarTint.swift`). The mean comes from `CIAreaAverage`, verified exact on sRGB images
   (red gives 1,0,0; a grey 0.502); the tint is mixed at 0.30 and used only when the
