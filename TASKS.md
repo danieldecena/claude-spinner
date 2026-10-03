@@ -2,6 +2,9 @@
 
 ## Tasks
 
+- [x] Write code-annotated wireframes of every tab -- 93d1540
+- [x] Add wireframe section to the design runbook -- app-kit 479c0ac
+
 
 ## Completed
 
