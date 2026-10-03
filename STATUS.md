@@ -161,6 +161,13 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Decided: layout changes start from `docs/WIREFRAMES.md`, a text wireframe of
+  every surface labelled by struct and file (not line), with the inline spacing
+  values and TileGrid / PaneFit rules. 12 of 12 sampled labels matched grep.
+  The App Kit Design Runbook artifact gained section C describing the method.
+- Found while mapping: `HomeDashboard.swift:51` writes a debug string to
+  `/tmp/claude_debug.txt` on every render. And the pinned page is one column at
+  the default 900pt window (grid gets ~274pt; 3 columns need 684).
 - Found: CI on `main` after #8 failed twice with the test host gone mid-run
   (a different test each time, `Restarting after unexpected exit`), and #8's
   last PR run reported failure after `** TEST SUCCEEDED **`. `/Applications`

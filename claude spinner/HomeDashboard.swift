@@ -48,7 +48,6 @@ struct HomeDashboard: View {
                 let scaledHeight = idealHeight * scale
                 let frameHeight = max(geo.size.height, scaledHeight)
                 let shift = idealHeight > frameHeight ? (idealHeight - frameHeight) / 2 : 0
-                let _ = try? "ideal=\(idealHeight) scale=\(scale) shift=\(shift) geo=\(geo.size.height)".write(toFile: "/tmp/claude_debug.txt", atomically: true, encoding: .utf8)
                 
                 VStack(alignment: .leading, spacing: 12) {
                     usage
