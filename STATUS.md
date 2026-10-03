@@ -160,6 +160,16 @@ Nothing queued. The rest is in `TASKS.md`.
 ## Decision log
 
 ### 2026-10-03
+- Shipped: roadmap push 1 (forms answered from the app, ui-pass closed by looking,
+  Music look first half) as `9f9b491`. `./notarize.sh` returned `status: Accepted`
+  (submission 10663005-1f89-4b3b-8f65-b15b4cc5a657), stapled, and Gatekeeper reports
+  `accepted, source=Notarized Developer ID`, origin Developer ID Application: Daniel
+  Decena (877MLS29T9). Installed over `/Applications/claude spinner.app` (binary
+  `cmp` identical to the notarized build; the running process is that path); CI was
+  green on `9f9b491`. The previous copy is kept in `build/previous/` (gitignored) for
+  rollback. First launch of the new signature showed "Reading the calendar..." with a
+  system window pending, which is read as the Calendars grant being asked for again
+  under the new identity; not confirmed.
 - Decided: Music red (`Color.Kit.musicAccent`) is a MARK colour only in Spinner
   (music plan slice 1, `MusicAccentProofTests`, renders in `docs/reference/
   2026-10-02-accent-proof-*.png`). Option B, limited. Measured: far from clay and
