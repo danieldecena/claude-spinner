@@ -161,6 +161,12 @@ Nothing queued. The rest is in `TASKS.md`.
 
 ### 2026-10-02
 
+- Found: CI on `main` after #8 failed twice with the test host gone mid-run
+  (a different test each time, `Restarting after unexpected exit`), and #8's
+  last PR run reported failure after `** TEST SUCCEEDED **`. `/Applications`
+  was rewritten at 17:02:45, one second before the second host died: another
+  session's `run.sh`, whose `killall` takes CI's host with it. Not a code
+  fault: a rerun with nothing building locally passed 428 with no restart.
 - Decided: a Job Search run is drawn under the Workflow step that started it
   (header, question boxes, reply field), and Running now keeps only runs no
   step started. Each step's Start passes `claude --name "Job Search: <step>"`
